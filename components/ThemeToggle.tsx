@@ -13,37 +13,22 @@ const OPTIONS: { key: Theme; label: string; Icon: typeof SunIcon }[] = [
 export function ThemeSegmented() {
   const { theme, setTheme } = useTheme();
   return (
-    <div className="flex gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-xl p-1">
+    <div className="flex gap-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-2xl p-1.5">
       {OPTIONS.map(({ key, label, Icon }) => (
         <button
           key={key}
           onClick={() => setTheme(key)}
           aria-pressed={theme === key}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-colors ${
+          className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 rounded-xl text-[13px] font-bold transition-colors ${
             theme === key
-              ? "bg-white dark:!bg-zinc-700 text-brand-700 dark:text-brand-300 shadow-sm"
-              : "text-zinc-500"
+              ? "bg-brand-600 text-white shadow-md shadow-brand-600/25"
+              : "text-zinc-500 dark:text-zinc-300 active:bg-zinc-200/60 dark:active:bg-zinc-700/60"
           }`}
         >
-          <Icon className="w-4 h-4" />
+          <Icon className="w-5 h-5" />
           {label}
         </button>
       ))}
     </div>
-  );
-}
-
-/** Compact icon button that flips between light and dark. */
-export function ThemeButton() {
-  const { resolved, setTheme } = useTheme();
-  const isDark = resolved === "dark";
-  return (
-    <button
-      onClick={() => setTheme(isDark ? "light" : "dark")}
-      aria-label={isDark ? "روشن کردن تم" : "تیره کردن تم"}
-      className="w-9 h-9 rounded-full flex items-center justify-center text-zinc-500 dark:text-zinc-300 active:bg-zinc-100 dark:active:bg-zinc-800"
-    >
-      {isDark ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
-    </button>
   );
 }

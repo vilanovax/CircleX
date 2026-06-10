@@ -7,7 +7,6 @@ import ListingCard from "@/components/ListingCard";
 import BottomNav from "@/components/BottomNav";
 import Onboarding from "@/components/Onboarding";
 import { FeedSkeleton } from "@/components/Skeleton";
-import { ThemeButton } from "@/components/ThemeToggle";
 import { CircleUsersIcon, HeartIcon, SearchIcon, ShieldCheckIcon } from "@/components/Icons";
 import { listingTypeEmoji, listingTypeLabels } from "@/lib/labels";
 import type { ListingType } from "@/lib/types";
@@ -67,7 +66,6 @@ export default function FeedPage() {
                 </p>
               </div>
             </div>
-            <ThemeButton />
           </div>
 
           {/* Search */}
