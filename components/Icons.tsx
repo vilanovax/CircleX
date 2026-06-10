@@ -75,6 +75,19 @@ export function SearchIcon({ className }: IconProps) {
   );
 }
 
+export function GraphIcon({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="2.5" />
+      <circle cx="5" cy="6" r="2" />
+      <circle cx="19" cy="6" r="2" />
+      <circle cx="6" cy="19" r="2" />
+      <circle cx="18" cy="18" r="2" />
+      <path d="M10.2 10.4 6.4 7.2M13.8 10.5l3.4-2.6M10.6 13.6 7.2 17.4M13.7 13.4l3 3" />
+    </svg>
+  );
+}
+
 export function SunIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
+import Link from "next/link";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import Avatar from "@/components/Avatar";
-import { PlusIcon } from "@/components/Icons";
+import { GraphIcon, PlusIcon } from "@/components/Icons";
 import {
   levelLabels,
   relationEmoji,
@@ -53,6 +54,25 @@ export default function CirclePage() {
           </button>
         }
       />
+
+      {/* Trust graph entry */}
+      <div className="px-4 pt-3">
+        <Link
+          href="/graph"
+          className="flex items-center gap-3 rounded-2xl bg-gradient-to-l from-brand-700 to-brand-500 text-white p-4 active:scale-[0.99] transition-transform"
+        >
+          <div className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center">
+            <GraphIcon className="w-6 h-6" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-sm">نقشه‌ی گرافیکی حلقه‌ات را ببین</p>
+            <p className="text-[11px] text-brand-50">
+              تو در مرکز، شاخه‌ها تا فروشنده‌ها — اعتماد قابل مشاهده
+            </p>
+          </div>
+          <span className="text-white/70 text-lg">‹</span>
+        </Link>
+      </div>
 
       {/* Level legend */}
       <div className="px-4 pt-3">
