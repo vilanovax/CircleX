@@ -9,8 +9,8 @@ export const metadata: Metadata = {
   description:
     "شبکه‌ی اجتماعی اعتمادمحور برای خرید، فروش و معرفی خدمات بین خانواده، دوستان و آشنایان.",
   icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg",
+    icon: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/icon.svg`,
+    apple: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/icon.svg`,
   },
   appleWebApp: {
     capable: true,

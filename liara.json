@@ -1,0 +1,5 @@
+{
+  "platform": "next",
+  "app": "circle",
+  "port": 3000
+}

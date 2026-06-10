@@ -8,11 +8,30 @@
 
 ## اجرا
 
+اپ زیر مسیر `/circle` سرو می‌شود (نه روت):
+
 ```bash
 npm install
 npm run dev
-# http://localhost:3000
+# http://localhost:3000/circle
 ```
+
+## دیپلوی روی لیارا (Liara)
+
+اپ با `basePath: "/circle"` پیکربندی شده تا روی دامنه زیر مسیر `/circle` باز شود
+(مثلاً `https://circle.liara.run/circle`).
+
+```bash
+npm install -g @liara/cli      # نصب CLI
+liara login                    # ورود به حساب لیارا
+# یک اپ از نوع Next.js در پنل لیارا بساز (مثلاً با نام circle)
+liara deploy                   # دیپلوی (تنظیمات از liara.json خوانده می‌شود)
+```
+
+- نام اپ در [liara.json](liara.json) روی `circle` است؛ اگر اپت نام دیگری دارد،
+  آن را عوض کن یا `liara deploy --app <name>` بزن.
+- لیارا خودش `npm run build` را اجرا می‌کند؛ خروجی به‌صورت خودکار زیر `/circle` سرو می‌شود.
+- آدرس نهایی: `https://<app>.liara.run/circle`
 
 برای بازنشانی داده‌ها، `localStorage` مرورگر را پاک کنید (کلید `circle-store-v1`).
 
