@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { useStore } from "@/lib/store";
@@ -112,7 +113,10 @@ export default function RequestDetailPage() {
       {/* Requester */}
       {requester && !isMine && (
         <section className="px-4 pt-3">
-          <div className="card p-4 flex items-center gap-3">
+          <Link
+            href={`/person/${request.requesterId}`}
+            className="card p-4 flex items-center gap-3 active:scale-[0.99] transition-transform"
+          >
             <Avatar emoji={requester.avatar} level={requester.level} size="lg" />
             <div className="flex-1 min-w-0">
               <p className="font-bold text-zinc-900">{requester.name}</p>
@@ -125,7 +129,8 @@ export default function RequestDetailPage() {
                 معامله‌ی موفق · {requester.city}
               </p>
             </div>
-          </div>
+            <span className="text-zinc-300 text-lg">‹</span>
+          </Link>
         </section>
       )}
 

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
@@ -152,7 +153,10 @@ export default function ListingDetailPage() {
       {/* Seller */}
       {seller && !isMine && (
         <section className="px-4 pt-3">
-          <div className="card p-4 flex items-center gap-3">
+          <Link
+            href={`/person/${listing.sellerId}`}
+            className="card p-4 flex items-center gap-3 active:scale-[0.99] transition-transform"
+          >
             <Avatar emoji={seller.avatar} level={seller.level} size="lg" />
             <div className="flex-1 min-w-0">
               <p className="font-bold text-zinc-900">{seller.name}</p>
@@ -166,7 +170,8 @@ export default function ListingDetailPage() {
                 {seller.city}
               </p>
             </div>
-          </div>
+            <span className="text-zinc-300 text-lg">‹</span>
+          </Link>
         </section>
       )}
 

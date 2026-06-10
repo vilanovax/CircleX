@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
@@ -55,15 +56,20 @@ export default function ConversationPage() {
           >
             <BackIcon className="w-6 h-6" />
           </button>
-          <Avatar emoji={peer.avatar} level={peer.level} size="sm" />
-          <div className="min-w-0">
-            <p className="font-bold text-zinc-900 leading-tight truncate">
-              {peer.name}
-            </p>
-            <p className="text-[11px] text-zinc-400">
-              {relationLabels[peer.relation]} · {levelShort[peer.level]}
-            </p>
-          </div>
+          <Link
+            href={`/person/${peerId}`}
+            className="flex items-center gap-2 min-w-0 active:opacity-70"
+          >
+            <Avatar emoji={peer.avatar} level={peer.level} size="sm" />
+            <div className="min-w-0">
+              <p className="font-bold text-zinc-900 leading-tight truncate">
+                {peer.name}
+              </p>
+              <p className="text-[11px] text-zinc-400">
+                {relationLabels[peer.relation]} · {levelShort[peer.level]}
+              </p>
+            </div>
+          </Link>
         </div>
       </header>
 
