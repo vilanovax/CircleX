@@ -9,6 +9,7 @@ import { ShieldCheckIcon } from "@/components/Icons";
 import {
   badgeEmoji,
   badgeLabels,
+  eventKindEmoji,
   formatPrice,
   listingTypeEmoji,
 } from "@/lib/labels";
@@ -16,9 +17,13 @@ import { toPersianDigits } from "@/lib/persian";
 import { ThemeSegmented } from "@/components/ThemeToggle";
 
 export default function ProfilePage() {
-  const { me, people, listings } = useStore();
+  const { me, people, listings, events } = useStore();
   const myCircle = people.filter((p) => p.inMyCircle);
   const myListings = listings.filter((l) => l.sellerId === "me");
+  const hostedEvents = events.filter((e) => e.hostId === "me");
+  const attendingEvents = events.filter(
+    (e) => e.hostId !== "me" && e.attendees.includes("me"),
+  );
 
   // Badges I have given to others' listings.
   const myGivenBadges = listings.flatMap((l) =>
@@ -117,6 +122,28 @@ export default function ProfilePage() {
         )}
       </Section>
 
+      {/* Events I host */}
+      {hostedEvents.length > 0 && (
+        <Section title={`رویدادهای من (${toPersianDigits(hostedEvents.length)})`}>
+          <div className="space-y-2">
+            {hostedEvents.map((e) => (
+              <EventRow key={e.id} event={e} />
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {/* Events I'm attending */}
+      {attendingEvents.length > 0 && (
+        <Section title={`رویدادهایی که می‌روم (${toPersianDigits(attendingEvents.length)})`}>
+          <div className="space-y-2">
+            {attendingEvents.map((e) => (
+              <EventRow key={e.id} event={e} />
+            ))}
+          </div>
+        </Section>
+      )}
+
       {/* Badges I have given */}
       <Section title="تأییدهایی که داده‌ام">
         {myGivenBadges.length === 0 ? (
@@ -156,6 +183,28 @@ function Stat({ value, label }: { value: number; label: string }) {
       </p>
       <p className="text-[11px] text-zinc-400 mt-0.5">{label}</p>
     </div>
+  );
+}
+
+function EventRow({ event }: { event: import("@/lib/types").CircleEvent }) {
+  return (
+    <Link
+      href={`/event/${event.id}`}
+      className="card p-3 flex items-center gap-3 active:scale-[0.99] transition-transform"
+    >
+      <div className="w-12 h-12 rounded-xl bg-zinc-50 flex items-center justify-center text-2xl shrink-0">
+        {event.image}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-sm text-zinc-900 truncate">
+          {eventKindEmoji[event.kind]} {event.title}
+        </p>
+        <p className="text-xs text-zinc-400 mt-0.5">
+          📅 {event.date}
+          {event.time ? ` · ${event.time}` : ""} · 📍 {event.location}
+        </p>
+      </div>
+    </Link>
   );
 }
 
