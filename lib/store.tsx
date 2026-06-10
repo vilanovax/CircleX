@@ -8,11 +8,12 @@ import {
   useMemo,
   useState,
 } from "react";
-import { LISTINGS, ME, PEOPLE, REQUESTS } from "./mock-data";
+import { LISTINGS, ME, OFFERS, PEOPLE, REQUESTS } from "./mock-data";
 import type {
   BadgeType,
   Listing,
   ListingType,
+  Offer,
   Person,
   Privacy,
   RelationType,
@@ -46,22 +47,34 @@ interface NewRequestInput {
   privacy: Privacy;
 }
 
+interface NewOfferInput {
+  requestId: string;
+  message: string;
+  price?: number;
+}
+
 interface StoreValue {
   me: Person;
   people: Person[];
   listings: Listing[];
   requests: Request[];
+  offers: Offer[];
   saved: string[];
   onboarded: boolean;
   hydrated: boolean;
   getPerson: (id: string) => Person | undefined;
   getListing: (id: string) => Listing | undefined;
+  getRequest: (id: string) => Request | undefined;
+  getOffers: (requestId: string) => Offer[];
+  hasOffered: (requestId: string) => boolean;
   addPerson: (input: NewPersonInput) => void;
   removePerson: (id: string) => void;
   setLevel: (id: string, level: TrustLevel) => void;
   addListing: (input: NewListingInput) => string;
   toggleEndorsement: (listingId: string, type: BadgeType) => void;
   addRequest: (input: NewRequestInput) => string;
+  addOffer: (input: NewOfferInput) => void;
+  withdrawOffer: (requestId: string) => void;
   toggleSaved: (listingId: string) => void;
   isSaved: (listingId: string) => boolean;
   completeOnboarding: () => void;
@@ -77,6 +90,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [people, setPeople] = useState<Person[]>(PEOPLE);
   const [listings, setListings] = useState<Listing[]>(LISTINGS);
   const [requests, setRequests] = useState<Request[]>(REQUESTS);
+  const [offers, setOffers] = useState<Offer[]>(OFFERS);
   const [saved, setSaved] = useState<string[]>([]);
   const [onboarded, setOnboarded] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -90,6 +104,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (Array.isArray(data.people)) setPeople(data.people);
         if (Array.isArray(data.listings)) setListings(data.listings);
         if (Array.isArray(data.requests)) setRequests(data.requests);
+        if (Array.isArray(data.offers)) setOffers(data.offers);
         if (Array.isArray(data.saved)) setSaved(data.saved);
         if (typeof data.onboarded === "boolean") setOnboarded(data.onboarded);
       }
@@ -105,12 +120,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ people, listings, requests, saved, onboarded }),
+        JSON.stringify({ people, listings, requests, offers, saved, onboarded }),
       );
     } catch {
       // ignore quota errors
     }
-  }, [people, listings, requests, saved, onboarded, hydrated]);
+  }, [people, listings, requests, offers, saved, onboarded, hydrated]);
 
   const getPerson = useCallback(
     (id: string) => (id === "me" ? ME : people.find((p) => p.id === id)),
@@ -120,6 +135,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const getListing = useCallback(
     (id: string) => listings.find((l) => l.id === id),
     [listings],
+  );
+
+  const getRequest = useCallback(
+    (id: string) => requests.find((r) => r.id === id),
+    [requests],
+  );
+
+  const getOffers = useCallback(
+    (requestId: string) => offers.filter((o) => o.requestId === requestId),
+    [offers],
+  );
+
+  const hasOffered = useCallback(
+    (requestId: string) =>
+      offers.some((o) => o.requestId === requestId && o.fromId === "me"),
+    [offers],
   );
 
   const addPerson = useCallback((input: NewPersonInput) => {
@@ -214,6 +245,30 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return id;
   }, []);
 
+  const addOffer = useCallback((input: NewOfferInput) => {
+    setOffers((prev) => {
+      // One offer per person per request — replace any existing "me" offer.
+      const without = prev.filter(
+        (o) => !(o.requestId === input.requestId && o.fromId === "me"),
+      );
+      const offer: Offer = {
+        id: `offer_${Date.now()}`,
+        requestId: input.requestId,
+        fromId: "me",
+        message: input.message,
+        price: input.price,
+        postedAt: "همین حالا",
+      };
+      return [offer, ...without];
+    });
+  }, []);
+
+  const withdrawOffer = useCallback((requestId: string) => {
+    setOffers((prev) =>
+      prev.filter((o) => !(o.requestId === requestId && o.fromId === "me")),
+    );
+  }, []);
+
   const toggleSaved = useCallback((listingId: string) => {
     setSaved((prev) =>
       prev.includes(listingId)
@@ -235,17 +290,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       people,
       listings,
       requests,
+      offers,
       saved,
       onboarded,
       hydrated,
       getPerson,
       getListing,
+      getRequest,
+      getOffers,
+      hasOffered,
       addPerson,
       removePerson,
       setLevel,
       addListing,
       toggleEndorsement,
       addRequest,
+      addOffer,
+      withdrawOffer,
       toggleSaved,
       isSaved,
       completeOnboarding,
@@ -254,17 +315,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       people,
       listings,
       requests,
+      offers,
       saved,
       onboarded,
       hydrated,
       getPerson,
       getListing,
+      getRequest,
+      getOffers,
+      hasOffered,
       addPerson,
       removePerson,
       setLevel,
       addListing,
       toggleEndorsement,
       addRequest,
+      addOffer,
+      withdrawOffer,
       toggleSaved,
       isSaved,
       completeOnboarding,

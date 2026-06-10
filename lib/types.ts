@@ -81,6 +81,17 @@ export interface Request {
   city?: string;
 }
 
+/** A response to a request — someone offering what the requester wants. */
+export interface Offer {
+  id: string;
+  requestId: string;
+  fromId: string;
+  message: string;
+  /** Optional offered price in Toman. */
+  price?: number;
+  postedAt: string;
+}
+
 export interface Listing {
   id: string;
   title: string;

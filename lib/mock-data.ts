@@ -1,4 +1,4 @@
-import type { Listing, Person, Request } from "./types";
+import type { Listing, Offer, Person, Request } from "./types";
 
 /** The current (logged-in) user. */
 export const ME: Person = {
@@ -389,5 +389,31 @@ export const REQUESTS: Request[] = [
     privacy: "ABC",
     trustPath: [],
     city: "تهران",
+  },
+];
+
+export const OFFERS: Offer[] = [
+  {
+    id: "o1",
+    requestId: "r1",
+    fromId: "ali",
+    message: "یه صندلی اداری ارگونومیک تقریباً نو دارم، سالم و تمیز. اگه بخوای می‌فرستم عکس.",
+    price: 2500000,
+    postedAt: "۴۰ دقیقه پیش",
+  },
+  {
+    id: "o2",
+    requestId: "r2",
+    fromId: "nima",
+    message: "دوچرخه‌ی کوهستان سایز ۱۷ دارم که کم استفاده شده. فریم سالم.",
+    price: 9000000,
+    postedAt: "۲ ساعت پیش",
+  },
+  {
+    id: "o3",
+    requestId: "r4",
+    fromId: "mina",
+    message: "یه ماشین لباسشویی اضافه داریم که سالمه. می‌تونم نشونت بدم.",
+    postedAt: "۵ ساعت پیش",
   },
 ];

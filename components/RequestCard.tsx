@@ -1,16 +1,22 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { Request } from "@/lib/types";
+import { useStore } from "@/lib/store";
 import { formatPrice } from "@/lib/labels";
+import { toPersianDigits } from "@/lib/persian";
 import TrustPath from "./TrustPath";
 
 export default function RequestCard({ request }: { request: Request }) {
-  const router = useRouter();
-  const isMine = request.requesterId === "me";
+  const { getOffers, hasOffered } = useStore();
+  const offers = getOffers(request.id);
+  const offered = hasOffered(request.id);
 
   return (
-    <div className="card p-3">
+    <Link
+      href={`/request/${request.id}`}
+      className="card block p-3 active:scale-[0.99] transition-transform"
+    >
       <div className="flex gap-3">
         <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-amber-50 to-zinc-100 flex items-center justify-center text-3xl shrink-0">
           {request.image}
@@ -42,6 +48,14 @@ export default function RequestCard({ request }: { request: Request }) {
             <span>📍 {request.city}</span>
             <span>·</span>
             <span>{request.postedAt}</span>
+            {offers.length > 0 && (
+              <>
+                <span>·</span>
+                <span className="text-brand-600 font-medium">
+                  {toPersianDigits(offers.length)} پیشنهاد
+                </span>
+              </>
+            )}
           </div>
           {request.budget != null && (
             <span className="text-xs font-bold text-brand-700 nums">
@@ -51,14 +65,11 @@ export default function RequestCard({ request }: { request: Request }) {
         </div>
       </div>
 
-      {!isMine && (
-        <button
-          onClick={() => router.push("/messages")}
-          className="btn-ghost w-full !py-2.5 mt-3 text-sm"
-        >
-          من این رو دارم — پیشنهاد می‌دهم
-        </button>
+      {offered && (
+        <p className="text-[11px] text-levelA font-medium mt-2">
+          ✓ شما پیشنهاد داده‌اید
+        </p>
       )}
-    </div>
+    </Link>
   );
 }
