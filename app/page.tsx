@@ -7,6 +7,7 @@ import BottomNav from "@/components/BottomNav";
 import { SearchIcon, ShieldCheckIcon } from "@/components/Icons";
 import { listingTypeEmoji, listingTypeLabels } from "@/lib/labels";
 import type { ListingType } from "@/lib/types";
+import { normalizeFa } from "@/lib/persian";
 
 const filters: { key: ListingType | "all"; label: string; emoji: string }[] = [
   { key: "all", label: "همه", emoji: "✨" },
@@ -23,9 +24,13 @@ export default function FeedPage() {
   const [query, setQuery] = useState("");
 
   const visible = useMemo(() => {
+    const q = normalizeFa(query);
     return listings.filter((l) => {
       if (filter !== "all" && l.type !== filter) return false;
-      if (query && !`${l.title} ${l.description} ${l.category}`.includes(query))
+      if (
+        q &&
+        !normalizeFa(`${l.title} ${l.description} ${l.category}`).includes(q)
+      )
         return false;
       return true;
     });

@@ -3,6 +3,7 @@
 import type { Endorsement } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { badgeEmoji, badgeLabels } from "@/lib/labels";
+import { toPersianDigits } from "@/lib/persian";
 
 /** Summary line: "۳ نفر از آدم‌های مورد اعتماد شما این را تأیید کرده‌اند". */
 export function EndorsementSummary({
@@ -16,8 +17,8 @@ export function EndorsementSummary({
     <div className="flex items-center gap-1.5 text-xs text-levelA font-medium">
       <span>🛡️</span>
       <span>
-        <span className="nums">{people.size}</span> نفر از آدم‌های مورد اعتماد شما
-        تأیید کرده‌اند
+        <span className="nums">{toPersianDigits(people.size)}</span> نفر از
+        آدم‌های مورد اعتماد شما تأیید کرده‌اند
       </span>
     </div>
   );

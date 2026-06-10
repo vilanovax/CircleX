@@ -12,6 +12,7 @@ import {
   formatPrice,
   listingTypeEmoji,
 } from "@/lib/labels";
+import { toPersianDigits } from "@/lib/persian";
 
 export default function ProfilePage() {
   const { me, people, listings } = useStore();
@@ -141,7 +142,9 @@ export default function ProfilePage() {
 function Stat({ value, label }: { value: number; label: string }) {
   return (
     <div>
-      <p className="text-xl font-extrabold text-brand-700 nums">{value}</p>
+      <p className="text-xl font-extrabold text-brand-700 nums">
+        {toPersianDigits(value)}
+      </p>
       <p className="text-[11px] text-zinc-400 mt-0.5">{label}</p>
     </div>
   );

@@ -6,6 +6,15 @@ export const metadata: Metadata = {
   title: "سیرکل | Circle",
   description:
     "شبکه‌ی اجتماعی اعتمادمحور برای خرید، فروش و معرفی خدمات بین خانواده، دوستان و آشنایان.",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "سیرکل",
+  },
 };
 
 export const viewport: Viewport = {

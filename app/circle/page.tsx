@@ -13,6 +13,7 @@ import {
   levelChip,
 } from "@/lib/labels";
 import type { RelationType, TrustLevel } from "@/lib/types";
+import { toPersianDigits } from "@/lib/persian";
 
 const LEVELS: TrustLevel[] = ["A", "B", "C"];
 const RELATIONS: RelationType[] = [
@@ -39,7 +40,7 @@ export default function CirclePage() {
     <main className="pb-24 min-h-[100dvh]">
       <Header
         title="حلقه‌ی من"
-        subtitle={`${mine.length} نفر مورد اعتماد`}
+        subtitle={`${toPersianDigits(mine.length)} نفر مورد اعتماد`}
         action={
           <button
             onClick={() => setShowAdd(true)}
@@ -58,7 +59,7 @@ export default function CirclePage() {
             <div key={lvl} className="flex-1">
               <div className={`chip ${levelChip[lvl]} mx-auto`}>سطح {lvl}</div>
               <p className="text-lg font-bold mt-1 nums">
-                {mine.filter((p) => p.level === lvl).length}
+                {toPersianDigits(mine.filter((p) => p.level === lvl).length)}
               </p>
             </div>
           ))}
@@ -75,7 +76,10 @@ export default function CirclePage() {
           <section key={level}>
             <h2 className="text-sm font-bold text-zinc-700 mb-2">
               {levelLabels[level]}
-              <span className="text-zinc-400 font-normal"> ({members.length})</span>
+              <span className="text-zinc-400 font-normal">
+                {" "}
+                ({toPersianDigits(members.length)})
+              </span>
             </h2>
             {members.length === 0 ? (
               <p className="text-xs text-zinc-400 pr-1">کسی در این سطح نیست.</p>
@@ -95,7 +99,7 @@ export default function CirclePage() {
                         <p className="text-xs text-zinc-400 mt-0.5 truncate">{p.note}</p>
                       )}
                       <p className="text-[11px] text-zinc-400 mt-0.5">
-                        <span className="nums">{p.deals}</span> معامله‌ی موفق
+                        <span className="nums">{toPersianDigits(p.deals)}</span> معامله‌ی موفق
                       </p>
                     </div>
                     {/* Level switcher */}
@@ -104,6 +108,8 @@ export default function CirclePage() {
                         <button
                           key={lvl}
                           onClick={() => setLevel(p.id, lvl)}
+                          aria-label={`انتقال ${p.name} به سطح ${lvl}`}
+                          aria-pressed={p.level === lvl}
                           className={`w-6 h-6 rounded-md text-[11px] font-bold transition-colors ${
                             p.level === lvl
                               ? `${levelChip[lvl]} ring-1 ring-current`

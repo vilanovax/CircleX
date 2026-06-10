@@ -11,6 +11,7 @@ import {
   privacyLabels,
 } from "@/lib/labels";
 import type { ListingType, Privacy } from "@/lib/types";
+import { toEnglishDigits } from "@/lib/persian";
 
 const TYPES: ListingType[] = ["sale", "service", "donation", "exchange", "loan"];
 const PRIVACIES: Privacy[] = ["A", "AB", "ABC", "referral", "approved"];
@@ -37,7 +38,10 @@ export default function NewListingPage() {
       title: title.trim(),
       description: description.trim(),
       type,
-      price: needsPrice && price ? Number(price.replace(/\D/g, "")) : undefined,
+      price:
+        needsPrice && price
+          ? Number(toEnglishDigits(price).replace(/\D/g, "")) || undefined
+          : undefined,
       category: category.trim() || listingTypeLabels[type],
       image,
       privacy,
@@ -79,6 +83,8 @@ export default function NewListingPage() {
               <button
                 key={e}
                 onClick={() => setImage(e)}
+                aria-label={`انتخاب شکلک ${e}`}
+                aria-pressed={image === e}
                 className={`w-12 h-12 shrink-0 rounded-xl text-2xl flex items-center justify-center border transition-colors ${
                   image === e
                     ? "border-brand-500 bg-brand-50"

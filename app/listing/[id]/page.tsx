@@ -20,6 +20,7 @@ import {
   relationLabels,
 } from "@/lib/labels";
 import type { BadgeType } from "@/lib/types";
+import { toPersianDigits } from "@/lib/persian";
 
 const ALL_BADGES: BadgeType[] = [
   "verify_item",
@@ -136,7 +137,8 @@ export default function ListingDetailPage() {
                 {relationLabels[seller.relation]}
               </p>
               <p className="text-xs text-zinc-400 mt-1">
-                <span className="nums">{seller.deals}</span> معامله‌ی موفق ·{" "}
+                <span className="nums">{toPersianDigits(seller.deals)}</span>{" "}
+                معامله‌ی موفق ·{" "}
                 {seller.city}
               </p>
             </div>

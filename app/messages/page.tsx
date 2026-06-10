@@ -4,6 +4,7 @@ import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import Avatar from "@/components/Avatar";
+import { toPersianDigits } from "@/lib/persian";
 
 // Lightweight mock conversations for the prototype.
 const THREADS = [
@@ -63,7 +64,7 @@ export default function MessagesPage() {
                 </div>
                 {t.unread > 0 && (
                   <span className="shrink-0 w-5 h-5 rounded-full bg-brand-600 text-white text-[11px] font-bold flex items-center justify-center nums">
-                    {t.unread}
+                    {toPersianDigits(t.unread)}
                   </span>
                 )}
               </div>

@@ -5,6 +5,7 @@ import type {
   RelationType,
   TrustLevel,
 } from "./types";
+import { toPersianDigits } from "./persian";
 
 export const relationLabels: Record<RelationType, string> = {
   family: "خانواده",
@@ -101,8 +102,8 @@ export const privacyEmoji: Record<Privacy, string> = {
   approved: "✋",
 };
 
-/** Format a Toman price with Persian-friendly grouping. */
+/** Format a Toman price with thousands separators and Persian digits. */
 export function formatPrice(price?: number): string {
   if (price == null) return "";
-  return price.toLocaleString("en-US") + " تومان";
+  return toPersianDigits(price.toLocaleString("en-US")) + " تومان";
 }
