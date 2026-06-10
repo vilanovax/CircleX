@@ -1,4 +1,4 @@
-import type { Listing, Person } from "./types";
+import type { Listing, Person, Request } from "./types";
 
 /** The current (logged-in) user. */
 export const ME: Person = {
@@ -296,6 +296,97 @@ export const LISTINGS: Listing[] = [
     postedAt: "۵ روز پیش",
     privacy: "A",
     endorsements: [{ personId: "reza", type: "know_seller" }],
+    trustPath: [],
+    city: "تهران",
+  },
+  // ---- Listings restricted enough that I cannot see them (privacy demo) ----
+  {
+    id: "l11",
+    title: "ساعت هوشمند اپل واچ سری ۷",
+    description:
+      "اپل واچ سری ۷، سالم و کامل با جعبه. فقط برای نزدیک‌ترین افراد حلقه.",
+    type: "sale",
+    price: 19000000,
+    category: "دیجیتال",
+    image: "⌚",
+    sellerId: "kaveh",
+    postedAt: "۶ ساعت پیش",
+    condition: "کارکرده",
+    privacy: "A",
+    endorsements: [],
+    trustPath: [{ personId: "mina", relationLabel: "همکار من" }],
+    city: "تهران",
+  },
+  {
+    id: "l12",
+    title: "طراحی لوگو و هویت بصری",
+    description: "طراحی لوگوی حرفه‌ای برای کسب‌وکارها. نمونه‌کار ارسال می‌شود.",
+    type: "service",
+    price: 2500000,
+    category: "طراحی",
+    image: "🎨",
+    sellerId: "leila",
+    postedAt: "۱ روز پیش",
+    privacy: "AB",
+    endorsements: [],
+    trustPath: [{ personId: "nima", relationLabel: "دوست من" }],
+    city: "کرج",
+  },
+];
+
+export const REQUESTS: Request[] = [
+  {
+    id: "r1",
+    title: "صندلی اداری ارگونومیک می‌خوام",
+    description:
+      "برای دفتر کارم دنبال یک صندلی اداری ارگونومیک سالم هستم. ترجیحاً کارکرده‌ی تمیز.",
+    category: "لوازم اداری",
+    image: "🪑",
+    requesterId: "sara",
+    postedAt: "۱ ساعت پیش",
+    budget: 3000000,
+    privacy: "ABC",
+    trustPath: [],
+    city: "تهران",
+  },
+  {
+    id: "r2",
+    title: "دوچرخه‌ی کوهستان دست‌دوم",
+    description:
+      "یک دوچرخه‌ی کوهستان سالم سایز ۱۷ یا ۱۸ می‌خوام. اگر کسی می‌فروشه خبر بده.",
+    category: "ورزش",
+    image: "🚵",
+    requesterId: "mina",
+    postedAt: "۴ ساعت پیش",
+    budget: 12000000,
+    privacy: "AB",
+    trustPath: [],
+    city: "تهران",
+  },
+  {
+    id: "r3",
+    title: "معلم خصوصی ریاضی برای کنکور",
+    description:
+      "دنبال یک معلم خوب و باحوصله برای ریاضی کنکور تجربی هستم. ترجیحاً با معرفی.",
+    category: "آموزش",
+    image: "📐",
+    requesterId: "hossein",
+    postedAt: "دیروز",
+    privacy: "AB",
+    trustPath: [{ personId: "sara", relationLabel: "خواهر من" }],
+    city: "تهران",
+  },
+  {
+    id: "r4",
+    title: "ماشین لباسشویی سالم — فوری",
+    description:
+      "ماشین لباسشویی‌ام خراب شده، فوری یک دستگاه سالم دست‌دوم می‌خوام. ممنون می‌شم اگر سراغ دارید.",
+    category: "لوازم خانه",
+    image: "🌀",
+    requesterId: "reza",
+    postedAt: "دیروز",
+    budget: 8000000,
+    privacy: "ABC",
     trustPath: [],
     city: "تهران",
   },

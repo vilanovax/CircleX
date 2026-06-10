@@ -8,7 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { LISTINGS, ME, PEOPLE } from "./mock-data";
+import { LISTINGS, ME, PEOPLE, REQUESTS } from "./mock-data";
 import type {
   BadgeType,
   Listing,
@@ -16,6 +16,7 @@ import type {
   Person,
   Privacy,
   RelationType,
+  Request,
   TrustLevel,
 } from "./types";
 
@@ -36,10 +37,23 @@ interface NewPersonInput {
   note?: string;
 }
 
+interface NewRequestInput {
+  title: string;
+  description: string;
+  category: string;
+  image: string;
+  budget?: number;
+  privacy: Privacy;
+}
+
 interface StoreValue {
   me: Person;
   people: Person[];
   listings: Listing[];
+  requests: Request[];
+  saved: string[];
+  onboarded: boolean;
+  hydrated: boolean;
   getPerson: (id: string) => Person | undefined;
   getListing: (id: string) => Listing | undefined;
   addPerson: (input: NewPersonInput) => void;
@@ -47,6 +61,10 @@ interface StoreValue {
   setLevel: (id: string, level: TrustLevel) => void;
   addListing: (input: NewListingInput) => string;
   toggleEndorsement: (listingId: string, type: BadgeType) => void;
+  addRequest: (input: NewRequestInput) => string;
+  toggleSaved: (listingId: string) => void;
+  isSaved: (listingId: string) => boolean;
+  completeOnboarding: () => void;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -58,6 +76,9 @@ const AVATAR_POOL = ["🧑", "👩", "🧔", "👨", "👵", "👴", "🧑‍�
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [people, setPeople] = useState<Person[]>(PEOPLE);
   const [listings, setListings] = useState<Listing[]>(LISTINGS);
+  const [requests, setRequests] = useState<Request[]>(REQUESTS);
+  const [saved, setSaved] = useState<string[]>([]);
+  const [onboarded, setOnboarded] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
   // Load any persisted state on mount.
@@ -68,6 +89,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const data = JSON.parse(raw);
         if (Array.isArray(data.people)) setPeople(data.people);
         if (Array.isArray(data.listings)) setListings(data.listings);
+        if (Array.isArray(data.requests)) setRequests(data.requests);
+        if (Array.isArray(data.saved)) setSaved(data.saved);
+        if (typeof data.onboarded === "boolean") setOnboarded(data.onboarded);
       }
     } catch {
       // ignore corrupt storage
@@ -79,11 +103,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ people, listings }));
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ people, listings, requests, saved, onboarded }),
+      );
     } catch {
       // ignore quota errors
     }
-  }, [people, listings, hydrated]);
+  }, [people, listings, requests, saved, onboarded, hydrated]);
 
   const getPerson = useCallback(
     (id: string) => (id === "me" ? ME : people.find((p) => p.id === id)),
@@ -168,11 +195,49 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  const addRequest = useCallback((input: NewRequestInput) => {
+    const id = `req_${Date.now()}`;
+    const request: Request = {
+      id,
+      title: input.title,
+      description: input.description,
+      category: input.category,
+      image: input.image,
+      requesterId: "me",
+      postedAt: "همین حالا",
+      budget: input.budget,
+      privacy: input.privacy,
+      trustPath: [],
+      city: ME.city,
+    };
+    setRequests((prev) => [request, ...prev]);
+    return id;
+  }, []);
+
+  const toggleSaved = useCallback((listingId: string) => {
+    setSaved((prev) =>
+      prev.includes(listingId)
+        ? prev.filter((id) => id !== listingId)
+        : [listingId, ...prev],
+    );
+  }, []);
+
+  const isSaved = useCallback(
+    (listingId: string) => saved.includes(listingId),
+    [saved],
+  );
+
+  const completeOnboarding = useCallback(() => setOnboarded(true), []);
+
   const value = useMemo<StoreValue>(
     () => ({
       me: ME,
       people,
       listings,
+      requests,
+      saved,
+      onboarded,
+      hydrated,
       getPerson,
       getListing,
       addPerson,
@@ -180,10 +245,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setLevel,
       addListing,
       toggleEndorsement,
+      addRequest,
+      toggleSaved,
+      isSaved,
+      completeOnboarding,
     }),
     [
       people,
       listings,
+      requests,
+      saved,
+      onboarded,
+      hydrated,
       getPerson,
       getListing,
       addPerson,
@@ -191,6 +264,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setLevel,
       addListing,
       toggleEndorsement,
+      addRequest,
+      toggleSaved,
+      isSaved,
+      completeOnboarding,
     ],
   );
 

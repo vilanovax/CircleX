@@ -1,13 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useStore } from "@/lib/store";
 import ListingCard from "@/components/ListingCard";
 import BottomNav from "@/components/BottomNav";
-import { SearchIcon, ShieldCheckIcon } from "@/components/Icons";
+import Onboarding from "@/components/Onboarding";
+import { CircleUsersIcon, HeartIcon, SearchIcon, ShieldCheckIcon } from "@/components/Icons";
 import { listingTypeEmoji, listingTypeLabels } from "@/lib/labels";
 import type { ListingType } from "@/lib/types";
-import { normalizeFa } from "@/lib/persian";
+import { normalizeFa, toPersianDigits } from "@/lib/persian";
+import { filterByAccess } from "@/lib/trust";
 
 const filters: { key: ListingType | "all"; label: string; emoji: string }[] = [
   { key: "all", label: "همه", emoji: "✨" },
@@ -19,13 +22,20 @@ const filters: { key: ListingType | "all"; label: string; emoji: string }[] = [
 ];
 
 export default function FeedPage() {
-  const { listings } = useStore();
+  const { listings, getPerson } = useStore();
   const [filter, setFilter] = useState<ListingType | "all">("all");
   const [query, setQuery] = useState("");
 
+  // First, drop anything the viewer is not allowed to see (privacy enforcement).
+  const { allowed, hidden } = useMemo(() => {
+    const { visible, hidden } = filterByAccess(listings, getPerson);
+    return { allowed: visible, hidden };
+  }, [listings, getPerson]);
+
+  // Then apply the type filter and search.
   const visible = useMemo(() => {
     const q = normalizeFa(query);
-    return listings.filter((l) => {
+    return allowed.filter((l) => {
       if (filter !== "all" && l.type !== filter) return false;
       if (
         q &&
@@ -34,7 +44,7 @@ export default function FeedPage() {
         return false;
       return true;
     });
-  }, [listings, filter, query]);
+  }, [allowed, filter, query]);
 
   return (
     <main className="pb-24 min-h-[100dvh]">
@@ -98,6 +108,28 @@ export default function FeedPage() {
         </div>
       </div>
 
+      {/* Quick shortcuts */}
+      <div className="grid grid-cols-2 gap-3 px-4 pt-3">
+        <Link href="/requests" className="card p-3 flex items-center gap-2.5 active:scale-[0.99] transition-transform">
+          <div className="w-9 h-9 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
+            🔎
+          </div>
+          <div>
+            <p className="text-sm font-bold text-zinc-800 leading-tight">درخواست‌ها</p>
+            <p className="text-[11px] text-zinc-400">حلقه دنبال چیه</p>
+          </div>
+        </Link>
+        <Link href="/saved" className="card p-3 flex items-center gap-2.5 active:scale-[0.99] transition-transform">
+          <div className="w-9 h-9 rounded-full bg-pink-50 text-pink-500 flex items-center justify-center">
+            <HeartIcon className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-zinc-800 leading-tight">نشان‌شده‌ها</p>
+            <p className="text-[11px] text-zinc-400">ذخیره‌های شما</p>
+          </div>
+        </Link>
+      </div>
+
       {/* Listings */}
       <section className="px-4 pt-3 space-y-3">
         {visible.length === 0 ? (
@@ -107,8 +139,20 @@ export default function FeedPage() {
         ) : (
           visible.map((l) => <ListingCard key={l.id} listing={l} />)
         )}
+
+        {/* Privacy notice */}
+        {hidden > 0 && (
+          <div className="flex items-center justify-center gap-2 text-[11px] text-zinc-400 py-3">
+            <CircleUsersIcon className="w-4 h-4" />
+            <span>
+              {toPersianDigits(hidden)} آگهی به‌دلیل تنظیمات حریم خصوصی برای شما
+              قابل نمایش نیست
+            </span>
+          </div>
+        )}
       </section>
 
+      <Onboarding />
       <BottomNav />
     </main>
   );

@@ -1,7 +1,6 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import Avatar from "@/components/Avatar";
@@ -21,6 +20,7 @@ import {
 } from "@/lib/labels";
 import type { BadgeType } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
+import { canView } from "@/lib/trust";
 
 const ALL_BADGES: BadgeType[] = [
   "verify_item",
@@ -33,8 +33,9 @@ export default function ListingDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = String(params.id);
-  const { getListing, getPerson, toggleEndorsement } = useStore();
-  const [saved, setSaved] = useState(false);
+  const { getListing, getPerson, toggleEndorsement, toggleSaved, isSaved } =
+    useStore();
+  const saved = isSaved(id);
 
   const listing = getListing(id);
   if (!listing) {
@@ -49,6 +50,24 @@ export default function ListingDetailPage() {
   const seller = getPerson(listing.sellerId);
   const isMine = listing.sellerId === "me";
 
+  if (!isMine && !canView(listing, getPerson)) {
+    return (
+      <main className="min-h-[100dvh]">
+        <Header title="جزئیات آگهی" back />
+        <div className="flex flex-col items-center text-center px-8 py-20">
+          <div className="w-16 h-16 rounded-full bg-zinc-100 flex items-center justify-center text-3xl mb-4">
+            🔒
+          </div>
+          <p className="text-sm text-zinc-600 leading-relaxed">
+            این آگهی فقط برای{" "}
+            <span className="font-medium">{privacyLabels[listing.privacy]}</span>{" "}
+            قابل نمایش است و شما در این محدوده‌ی اعتماد قرار نمی‌گیرید.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="pb-28 min-h-[100dvh]">
       <Header
@@ -56,11 +75,12 @@ export default function ListingDetailPage() {
         back
         action={
           <button
-            onClick={() => setSaved((s) => !s)}
+            onClick={() => toggleSaved(id)}
             className={`w-9 h-9 flex items-center justify-center ${
               saved ? "text-pink-500" : "text-zinc-400"
             }`}
-            aria-label="ذخیره"
+            aria-label={saved ? "حذف از نشان‌شده‌ها" : "نشان کردن"}
+            aria-pressed={saved}
           >
             <HeartIcon className="w-6 h-6" filled={saved} />
           </button>
@@ -121,7 +141,11 @@ export default function ListingDetailPage() {
             <ShieldCheckIcon className="w-5 h-5 text-brand-600" />
             <h2 className="font-bold text-sm text-zinc-800">مسیر اعتماد</h2>
           </div>
-          <TrustPath listing={listing} variant="full" />
+          <TrustPath
+            posterId={listing.sellerId}
+            trustPath={listing.trustPath}
+            variant="full"
+          />
         </div>
       </section>
 

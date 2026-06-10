@@ -63,6 +63,24 @@ export interface TrustHop {
   relationLabel: string;
 }
 
+/** A "wanted" post — someone in the circle is looking for something. */
+export interface Request {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  /** Emoji icon for the request. */
+  image: string;
+  requesterId: string;
+  postedAt: string;
+  /** Optional budget in Toman. */
+  budget?: number;
+  privacy: Privacy;
+  /** Path of people connecting the requester to "me" (ordered me-side first). */
+  trustPath: TrustHop[];
+  city?: string;
+}
+
 export interface Listing {
   id: string;
   title: string;
@@ -79,7 +97,11 @@ export interface Listing {
   condition?: string;
   privacy: Privacy;
   endorsements: Endorsement[];
-  /** Path of people connecting the seller to "me". Excludes me and seller. */
+  /**
+   * People connecting the seller to "me", ordered me-side first
+   * (trustPath[0] is in my circle; the last hop knows the seller).
+   * Empty when the seller is directly in my circle.
+   */
   trustPath: TrustHop[];
   city?: string;
 }

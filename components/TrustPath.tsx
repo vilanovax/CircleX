@@ -1,37 +1,47 @@
 "use client";
 
-import type { Listing } from "@/lib/types";
+import type { Person, TrustHop } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { relationLabels } from "@/lib/labels";
 
 /**
- * Visualises how the viewer ("من") is connected to the seller.
+ * Visualises how the viewer ("شما") is connected to a poster.
  * compact → one short sentence for cards.
  * full → an avatar chain with relation labels for the detail page.
+ *
+ * trustPath is stored me-side first, so we reverse it to render poster→me.
  */
 export default function TrustPath({
-  listing,
+  posterId,
+  trustPath,
   variant = "compact",
+  posterRole = "فروشنده",
+  viewerRole = "خریدار",
 }: {
-  listing: Listing;
+  posterId: string;
+  trustPath: TrustHop[];
   variant?: "compact" | "full";
+  posterRole?: string;
+  viewerRole?: string;
 }) {
   const { getPerson } = useStore();
-  const seller = getPerson(listing.sellerId);
-  if (!seller) return null;
+  const poster = getPerson(posterId);
+  if (!poster) return null;
 
-  const isMine = listing.sellerId === "me";
-  const direct = listing.trustPath.length === 0;
+  const isMine = posterId === "me";
+  const direct = trustPath.length === 0;
+  // Render poster → … → me, so reverse the me-side-first storage order.
+  const towardMe = [...trustPath].reverse();
 
   if (variant === "compact") {
     let text: string;
     if (isMine) {
       text = "آگهی شما";
     } else if (direct) {
-      text = `${seller.name} در حلقه‌ی شماست`;
+      text = `${poster.name} در حلقه‌ی شماست`;
     } else {
-      const via = listing.trustPath.map((h) => getPerson(h.personId)?.name).join(" ← ");
-      text = `${seller.name} ← ${via} ← شما`;
+      const via = towardMe.map((h) => getPerson(h.personId)?.name).join(" ← ");
+      text = `${poster.name} ← ${via} ← شما`;
     }
     return (
       <div className="flex items-center gap-1.5 text-xs text-zinc-500">
@@ -41,27 +51,28 @@ export default function TrustPath({
     );
   }
 
-  // ---- full variant: avatar chain from seller to "me" ----
+  // ---- full variant: avatar chain from poster to "me" ----
+  const node = (name: string, avatar: string, sub: string) => ({ name, avatar, sub });
   const chain = [
-    { name: seller.name, avatar: seller.avatar, sub: "فروشنده" },
-    ...listing.trustPath.map((h) => {
-      const p = getPerson(h.personId);
-      return { name: p?.name ?? "?", avatar: p?.avatar ?? "❓", sub: h.relationLabel };
+    node(poster.name, poster.avatar, posterRole),
+    ...towardMe.map((h) => {
+      const p: Person | undefined = getPerson(h.personId);
+      return node(p?.name ?? "?", p?.avatar ?? "❓", h.relationLabel);
     }),
-    { name: "شما", avatar: "🧑", sub: "خریدار" },
+    node("شما", "🧑", viewerRole),
   ];
 
   return (
     <div>
       <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1">
-        {chain.map((node, i) => (
+        {chain.map((n, i) => (
           <div key={i} className="flex items-center gap-1 shrink-0">
             <div className="flex flex-col items-center w-16">
               <div className="w-11 h-11 rounded-full bg-brand-50 flex items-center justify-center text-xl">
-                {node.avatar}
+                {n.avatar}
               </div>
-              <span className="text-xs font-medium mt-1 text-zinc-800">{node.name}</span>
-              <span className="text-[10px] text-zinc-400 leading-tight text-center">{node.sub}</span>
+              <span className="text-xs font-medium mt-1 text-zinc-800">{n.name}</span>
+              <span className="text-[10px] text-zinc-400 leading-tight text-center">{n.sub}</span>
             </div>
             {i < chain.length - 1 && (
               <span className="text-brand-300 text-lg -mt-5">←</span>
@@ -71,7 +82,7 @@ export default function TrustPath({
       </div>
       {direct && !isMine && (
         <p className="text-xs text-levelA mt-1">
-          ✓ {seller.name} مستقیماً در حلقه‌ی شماست ({relationLabels[seller.relation]})
+          ✓ {poster.name} مستقیماً در حلقه‌ی شماست ({relationLabels[poster.relation]})
         </p>
       )}
     </div>

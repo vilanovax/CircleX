@@ -1,0 +1,64 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import type { Request } from "@/lib/types";
+import { formatPrice } from "@/lib/labels";
+import TrustPath from "./TrustPath";
+
+export default function RequestCard({ request }: { request: Request }) {
+  const router = useRouter();
+  const isMine = request.requesterId === "me";
+
+  return (
+    <div className="card p-3">
+      <div className="flex gap-3">
+        <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-amber-50 to-zinc-100 flex items-center justify-center text-3xl shrink-0">
+          {request.image}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="chip bg-amber-50 text-amber-600">🔎 درخواست</span>
+            <span className="chip bg-zinc-100 text-zinc-500">{request.category}</span>
+          </div>
+          <h3 className="font-semibold text-[15px] text-zinc-900 leading-snug line-clamp-2">
+            {request.title}
+          </h3>
+        </div>
+      </div>
+
+      <p className="text-sm text-zinc-600 leading-relaxed mt-2 line-clamp-2">
+        {request.description}
+      </p>
+
+      <div className="mt-2.5 pt-2.5 border-t border-zinc-100 space-y-1.5">
+        <TrustPath
+          posterId={request.requesterId}
+          trustPath={request.trustPath}
+          variant="compact"
+          posterRole="درخواست‌دهنده"
+        />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-[11px] text-zinc-400">
+            <span>📍 {request.city}</span>
+            <span>·</span>
+            <span>{request.postedAt}</span>
+          </div>
+          {request.budget != null && (
+            <span className="text-xs font-bold text-brand-700 nums">
+              تا {formatPrice(request.budget)}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {!isMine && (
+        <button
+          onClick={() => router.push("/messages")}
+          className="btn-ghost w-full !py-2.5 mt-3 text-sm"
+        >
+          من این رو دارم — پیشنهاد می‌دهم
+        </button>
+      )}
+    </div>
+  );
+}

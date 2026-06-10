@@ -51,7 +51,11 @@ export default function ListingCard({ listing }: { listing: Listing }) {
       </div>
 
       <div className="mt-2.5 pt-2.5 border-t border-zinc-100 space-y-1.5">
-        <TrustPath listing={listing} variant="compact" />
+        <TrustPath
+          posterId={listing.sellerId}
+          trustPath={listing.trustPath}
+          variant="compact"
+        />
         <EndorsementSummary endorsements={listing.endorsements} />
         <div className="flex items-center gap-2 text-[11px] text-zinc-400">
           <span>📍 {listing.city}</span>
