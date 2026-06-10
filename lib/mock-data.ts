@@ -1,4 +1,4 @@
-import type { Listing, Offer, Person, Request } from "./types";
+import type { Listing, Message, Offer, Person, Request } from "./types";
 
 /** The current (logged-in) user. */
 export const ME: Person = {
@@ -416,4 +416,39 @@ export const OFFERS: Offer[] = [
     message: "یه ماشین لباسشویی اضافه داریم که سالمه. می‌تونم نشونت بدم.",
     postedAt: "۵ ساعت پیش",
   },
+];
+
+let _msgSeq = 0;
+function m(
+  peerId: string,
+  fromMe: boolean,
+  text: string,
+  postedAt: string,
+  read: boolean,
+): Message {
+  return { id: `seed_msg_${_msgSeq++}`, peerId, fromMe, text, postedAt, read };
+}
+
+// Seed conversations. Ordered so the most-recently-active thread (Sara)
+// has the latest indices — threads are derived newest-first from this array.
+export const MESSAGES: Message[] = [
+  // reza
+  m("reza", true, "رضا جان لباس‌های کودک رو می‌خوام برای خواهرزاده‌ام", "۲ روز پیش", true),
+  m("reza", false, "حتماً، قابلی نداره 🙂", "۲ روز پیش", true),
+  m("reza", false, "لباس‌های کودک رو فردا میارم دمِ در", "۲ روز پیش", true),
+  // hossein
+  m("hossein", true, "سلام آقای حسین، برای کلاس پیانوی دخترم تماس گرفتم", "دیروز", true),
+  m("hossein", false, "سلام، خوشحال می‌شم. چند سالشه؟", "دیروز", true),
+  m("hossein", true, "۸ سالشه و خیلی علاقه داره", "دیروز", true),
+  m("hossein", false, "عالیه. برای کلاس پیانو بعدازظهرها وقت دارم", "دیروز", false),
+  // mina
+  m("mina", true, "مینا سلام، آیفون ۱۳ت هنوز هست؟", "دیروز", true),
+  m("mina", false, "سلام! آره موجوده", "دیروز", true),
+  m("mina", false, "آیفون رو برات نگه می‌دارم، نگران نباش", "دیروز", true),
+  // sara (most recent, 2 unread)
+  m("sara", true, "سلام سارا، مبل راحتی‌ت رو تو سیرکل دیدم", "۱۰:۲۰", true),
+  m("sara", false, "سلام عزیزم 🙂 آره هنوز هست", "۱۰:۲۲", true),
+  m("sara", true, "کیفیتش که عالیه. می‌تونم بیام ببینمش؟", "۱۰:۲۵", true),
+  m("sara", false, "حتماً، آخر هفته خونه‌ام", "۱۰:۳۰", false),
+  m("sara", false, "مبل هنوز هست، هر وقت خواستی بیا ببین", "۱۰:۳۲", false),
 ];

@@ -214,14 +214,14 @@ export default function ListingDetailPage() {
           <div className="app-shell !min-h-0 !shadow-none bg-transparent">
             <div className="pointer-events-auto bg-white/95 backdrop-blur border-t border-zinc-100 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex gap-2">
               <button
-                onClick={() => router.push("/messages")}
+                onClick={() => router.push(`/messages/${listing.sellerId}`)}
                 className="btn-ghost flex items-center justify-center gap-2 px-5"
               >
                 <ChatIcon className="w-5 h-5" />
                 پیام
               </button>
               <button
-                onClick={() => router.push("/messages")}
+                onClick={() => router.push(`/messages/${listing.sellerId}`)}
                 className="btn-primary flex-1 !py-3"
               >
                 {listing.type === "donation"

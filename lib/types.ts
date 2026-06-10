@@ -81,6 +81,19 @@ export interface Request {
   city?: string;
 }
 
+/** A single chat message in a one-to-one conversation. */
+export interface Message {
+  id: string;
+  /** The other participant (a person id). */
+  peerId: string;
+  /** True when sent by the current user. */
+  fromMe: boolean;
+  text: string;
+  postedAt: string;
+  /** Incoming messages start unread until the thread is opened. */
+  read: boolean;
+}
+
 /** A response to a request — someone offering what the requester wants. */
 export interface Offer {
   id: string;

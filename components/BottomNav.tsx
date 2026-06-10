@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useStore } from "@/lib/store";
+import { toPersianDigits } from "@/lib/persian";
 import {
   ChatIcon,
   CircleUsersIcon,
@@ -20,6 +22,8 @@ const items = [
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { totalUnread } = useStore();
+  const unread = totalUnread();
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
@@ -42,6 +46,7 @@ export default function BottomNav() {
                   </li>
                 );
               }
+              const badge = href === "/messages" && unread > 0 ? unread : 0;
               return (
                 <li key={href} className="flex-1">
                   <Link
@@ -50,7 +55,14 @@ export default function BottomNav() {
                       active ? "text-brand-600" : "text-zinc-400"
                     }`}
                   >
-                    <Icon className="w-6 h-6" />
+                    <span className="relative">
+                      <Icon className="w-6 h-6" />
+                      {badge > 0 && (
+                        <span className="absolute -top-1.5 -left-2 min-w-[16px] h-4 px-1 rounded-full bg-brand-600 text-white text-[10px] font-bold flex items-center justify-center nums ring-2 ring-white">
+                          {toPersianDigits(badge)}
+                        </span>
+                      )}
+                    </span>
                     <span className="text-[10px] font-medium">{label}</span>
                   </Link>
                 </li>
