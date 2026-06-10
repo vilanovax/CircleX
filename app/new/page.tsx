@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
@@ -57,6 +58,19 @@ export default function NewListingPage() {
       <Header title="ثبت آگهی جدید" back />
 
       <div className="px-4 pt-4 space-y-5">
+        {/* Hint: this form is for offering; requests live elsewhere */}
+        <Link
+          href="/requests?compose=1"
+          className="flex items-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 px-3 py-2.5 active:scale-[0.99] transition"
+        >
+          <span className="text-base">🔎</span>
+          <span className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed flex-1">
+            دنبال چیزی می‌گردی (مثل «کلاس نقاشی کودک»)؟ به‌جای آگهی، اینجا{" "}
+            <span className="font-bold">درخواست</span> ثبت کن.
+          </span>
+          <span className="text-amber-400 text-lg">‹</span>
+        </Link>
+
         {/* Type */}
         <div>
           <label className="block text-sm font-medium mb-2">نوع آگهی</label>

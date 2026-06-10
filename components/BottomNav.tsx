@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { useStore } from "@/lib/store";
 import { toPersianDigits } from "@/lib/persian";
+import CreateSheet from "./CreateSheet";
 import {
   ChatIcon,
   CircleUsersIcon,
@@ -15,7 +17,7 @@ import {
 const items = [
   { href: "/", label: "خانه", Icon: HomeIcon },
   { href: "/circle", label: "حلقه‌ی من", Icon: CircleUsersIcon },
-  { href: "/new", label: "ثبت آگهی", Icon: PlusIcon, center: true },
+  { href: "/new", label: "ثبت", Icon: PlusIcon, center: true },
   { href: "/messages", label: "پیام‌ها", Icon: ChatIcon },
   { href: "/profile", label: "پروفایل", Icon: UserIcon },
 ];
@@ -24,6 +26,7 @@ export default function BottomNav() {
   const pathname = usePathname();
   const { totalUnread } = useStore();
   const unread = totalUnread();
+  const [showCreate, setShowCreate] = useState(false);
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
@@ -36,13 +39,13 @@ export default function BottomNav() {
               if (center) {
                 return (
                   <li key={href} className="flex-1 flex justify-center">
-                    <Link
-                      href={href}
-                      aria-label={label}
+                    <button
+                      onClick={() => setShowCreate(true)}
+                      aria-label="ثبت آگهی، درخواست یا رویداد"
                       className="-mt-6 w-14 h-14 rounded-full bg-brand-600 text-white flex items-center justify-center shadow-lg shadow-brand-600/30 active:bg-brand-700 transition-colors"
                     >
                       <Icon className="w-7 h-7" />
-                    </Link>
+                    </button>
                   </li>
                 );
               }
@@ -71,6 +74,8 @@ export default function BottomNav() {
           </ul>
         </div>
       </div>
+
+      {showCreate && <CreateSheet onClose={() => setShowCreate(false)} />}
     </nav>
   );
 }

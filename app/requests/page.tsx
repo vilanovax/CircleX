@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
@@ -22,6 +22,13 @@ export default function RequestsPage() {
   const { requests, getPerson, addRequest } = useStore();
   const { show } = useToast();
   const [showAdd, setShowAdd] = useState(false);
+
+  // Opened from the global "+" chooser via /requests?compose=1
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("compose") === "1") {
+      setShowAdd(true);
+    }
+  }, []);
 
   const visible = useMemo(
     () => requests.filter((r) => canView(r, getPerson)),
