@@ -41,9 +41,19 @@ const config: Config = {
           "0%": { transform: "translateY(12px)", opacity: "0" },
           "100%": { transform: "translateY(0)", opacity: "1" },
         },
+        "fade-up": {
+          "0%": { transform: "translateY(10px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+        "toast-in": {
+          "0%": { transform: "translateY(-16px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
       },
       animation: {
         "slide-up": "slide-up 0.25s ease-out",
+        "fade-up": "fade-up 0.35s ease-out both",
+        "toast-in": "toast-in 0.25s ease-out",
       },
     },
   },

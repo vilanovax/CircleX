@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { StoreProvider } from "@/lib/store";
+import { ToastProvider } from "@/components/Toast";
 
 export const metadata: Metadata = {
   title: "سیرکل | Circle",
@@ -39,7 +40,9 @@ export default function RootLayout({
       </head>
       <body className="font-sans">
         <StoreProvider>
-          <div className="app-shell">{children}</div>
+          <ToastProvider>
+            <div className="app-shell">{children}</div>
+          </ToastProvider>
         </StoreProvider>
       </body>
     </html>

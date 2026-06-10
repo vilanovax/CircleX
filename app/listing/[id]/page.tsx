@@ -22,6 +22,7 @@ import {
 import type { BadgeType } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
 import { canView } from "@/lib/trust";
+import { useToast } from "@/components/Toast";
 
 const ALL_BADGES: BadgeType[] = [
   "verify_item",
@@ -36,6 +37,7 @@ export default function ListingDetailPage() {
   const id = String(params.id);
   const { getListing, getPerson, toggleEndorsement, toggleSaved, isSaved } =
     useStore();
+  const { show } = useToast();
   const saved = isSaved(id);
 
   const listing = getListing(id);
@@ -76,7 +78,10 @@ export default function ListingDetailPage() {
         back
         action={
           <button
-            onClick={() => toggleSaved(id)}
+            onClick={() => {
+              toggleSaved(id);
+              show(saved ? "از نشان‌شده‌ها حذف شد" : "به نشان‌شده‌ها اضافه شد ✓");
+            }}
             className={`w-9 h-9 flex items-center justify-center ${
               saved ? "text-pink-500" : "text-zinc-400"
             }`}

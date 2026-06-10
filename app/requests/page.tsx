@@ -7,6 +7,7 @@ import BottomNav from "@/components/BottomNav";
 import RequestCard from "@/components/RequestCard";
 import { PlusIcon } from "@/components/Icons";
 import { canView } from "@/lib/trust";
+import { useToast } from "@/components/Toast";
 import { toEnglishDigits } from "@/lib/persian";
 import {
   privacyEmoji,
@@ -19,6 +20,7 @@ const EMOJIS = ["🔎", "🪑", "🚵", "📐", "🌀", "📚", "👶", "🧰", 
 
 export default function RequestsPage() {
   const { requests, getPerson, addRequest } = useStore();
+  const { show } = useToast();
   const [showAdd, setShowAdd] = useState(false);
 
   const visible = useMemo(
@@ -69,6 +71,7 @@ export default function RequestsPage() {
           onAdd={(input) => {
             addRequest(input);
             setShowAdd(false);
+            show("درخواست شما ثبت شد ✓");
           }}
         />
       )}

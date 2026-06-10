@@ -6,6 +6,7 @@ import { useStore } from "@/lib/store";
 import ListingCard from "@/components/ListingCard";
 import BottomNav from "@/components/BottomNav";
 import Onboarding from "@/components/Onboarding";
+import { FeedSkeleton } from "@/components/Skeleton";
 import { CircleUsersIcon, HeartIcon, SearchIcon, ShieldCheckIcon } from "@/components/Icons";
 import { listingTypeEmoji, listingTypeLabels } from "@/lib/labels";
 import type { ListingType } from "@/lib/types";
@@ -22,7 +23,7 @@ const filters: { key: ListingType | "all"; label: string; emoji: string }[] = [
 ];
 
 export default function FeedPage() {
-  const { listings, getPerson } = useStore();
+  const { listings, getPerson, hydrated } = useStore();
   const [filter, setFilter] = useState<ListingType | "all">("all");
   const [query, setQuery] = useState("");
 
@@ -132,12 +133,22 @@ export default function FeedPage() {
 
       {/* Listings */}
       <section className="px-4 pt-3 space-y-3">
-        {visible.length === 0 ? (
+        {!hydrated ? (
+          <FeedSkeleton />
+        ) : visible.length === 0 ? (
           <div className="text-center text-zinc-400 py-16 text-sm">
             آگهی‌ای با این فیلتر پیدا نشد.
           </div>
         ) : (
-          visible.map((l) => <ListingCard key={l.id} listing={l} />)
+          visible.map((l, i) => (
+            <div
+              key={l.id}
+              className="animate-fade-up"
+              style={{ animationDelay: `${Math.min(i, 7) * 45}ms` }}
+            >
+              <ListingCard listing={l} />
+            </div>
+          ))
         )}
 
         {/* Privacy notice */}

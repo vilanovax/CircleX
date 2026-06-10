@@ -14,6 +14,7 @@ import {
 } from "@/lib/labels";
 import type { RelationType, TrustLevel } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
+import { useToast } from "@/components/Toast";
 
 const LEVELS: TrustLevel[] = ["A", "B", "C"];
 const RELATIONS: RelationType[] = [
@@ -26,6 +27,7 @@ const RELATIONS: RelationType[] = [
 
 export default function CirclePage() {
   const { people, addPerson, removePerson, setLevel } = useStore();
+  const { show } = useToast();
   const mine = people.filter((p) => p.inMyCircle);
   const [showAdd, setShowAdd] = useState(false);
 
@@ -134,6 +136,7 @@ export default function CirclePage() {
           onAdd={(input) => {
             addPerson(input);
             setShowAdd(false);
+            show(`${input.name} به حلقه‌ی شما اضافه شد ✓`);
           }}
         />
       )}

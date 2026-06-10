@@ -12,6 +12,7 @@ import {
 } from "@/lib/labels";
 import type { ListingType, Privacy } from "@/lib/types";
 import { toEnglishDigits } from "@/lib/persian";
+import { useToast } from "@/components/Toast";
 
 const TYPES: ListingType[] = ["sale", "service", "donation", "exchange", "loan"];
 const PRIVACIES: Privacy[] = ["A", "AB", "ABC", "referral", "approved"];
@@ -20,6 +21,7 @@ const EMOJIS = ["📦", "🛋️", "📱", "💻", "🚗", "🚲", "🎹", "📚
 export default function NewListingPage() {
   const router = useRouter();
   const { addListing } = useStore();
+  const { show } = useToast();
 
   const [type, setType] = useState<ListingType>("sale");
   const [title, setTitle] = useState("");
@@ -46,6 +48,7 @@ export default function NewListingPage() {
       image,
       privacy,
     });
+    show("آگهی شما در حلقه منتشر شد ✓");
     router.push(`/listing/${id}`);
   }
 

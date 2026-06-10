@@ -11,12 +11,14 @@ import { ShieldCheckIcon } from "@/components/Icons";
 import { formatPrice, privacyEmoji, privacyLabels, relationLabels } from "@/lib/labels";
 import { toEnglishDigits, toPersianDigits } from "@/lib/persian";
 import { canView } from "@/lib/trust";
+import { useToast } from "@/components/Toast";
 
 export default function RequestDetailPage() {
   const params = useParams();
   const id = String(params.id);
   const { getRequest, getPerson, getOffers, hasOffered, addOffer, withdrawOffer } =
     useStore();
+  const { show } = useToast();
   const [showOffer, setShowOffer] = useState(false);
 
   const request = getRequest(id);
@@ -194,7 +196,10 @@ export default function RequestDetailPage() {
                     ✓ پیشنهاد شما ثبت شد
                   </span>
                   <button
-                    onClick={() => withdrawOffer(id)}
+                    onClick={() => {
+                      withdrawOffer(id);
+                      show("پیشنهاد لغو شد");
+                    }}
                     className="bg-zinc-100 text-zinc-600 font-medium rounded-xl px-4 active:bg-zinc-200"
                   >
                     لغو
@@ -219,6 +224,7 @@ export default function RequestDetailPage() {
           onSubmit={(message, price) => {
             addOffer({ requestId: id, message, price });
             setShowOffer(false);
+            show("پیشنهاد شما ارسال شد ✓");
           }}
         />
       )}
