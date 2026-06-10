@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
+import ReferSheet from "@/components/ReferSheet";
 import Avatar from "@/components/Avatar";
 import TrustPath from "@/components/TrustPath";
 import { EndorsementList } from "@/components/Endorsements";
@@ -38,6 +40,7 @@ export default function ListingDetailPage() {
   const { getListing, getPerson, toggleEndorsement, toggleSaved, isSaved } =
     useStore();
   const { show } = useToast();
+  const [showRefer, setShowRefer] = useState(false);
   const saved = isSaved(id);
 
   const listing = getListing(id);
@@ -155,6 +158,29 @@ export default function ListingDetailPage() {
         </div>
       </section>
 
+      {/* Quick referral */}
+      <section className="px-4 pt-3">
+        <div className="card p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-xl shrink-0">
+            📨
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-sm text-zinc-800">
+              این آگهی مناسب کسیه که می‌شناسی؟
+            </p>
+            <p className="text-[11px] text-zinc-400">
+              داخل حلقه‌ی اعتمادت معرفی کن — نه اشتراک عمومی
+            </p>
+          </div>
+          <button
+            onClick={() => setShowRefer(true)}
+            className="btn-primary !px-4 !py-2.5 text-sm shrink-0"
+          >
+            معرفی به دوست
+          </button>
+        </div>
+      </section>
+
       {/* Seller */}
       {seller && !isMine && (
         <section className="px-4 pt-3">
@@ -243,6 +269,14 @@ export default function ListingDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showRefer && (
+        <ReferSheet
+          listingId={listing.id}
+          listingTitle={listing.title}
+          onClose={() => setShowRefer(false)}
+        />
       )}
     </main>
   );

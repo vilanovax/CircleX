@@ -92,6 +92,8 @@ export interface Message {
   postedAt: string;
   /** Incoming messages start unread until the thread is opened. */
   read: boolean;
+  /** When set, this message is a referral carrying a listing preview. */
+  listingId?: string;
 }
 
 /** A response to a request — someone offering what the requester wants. */

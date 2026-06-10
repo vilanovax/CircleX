@@ -74,6 +74,7 @@ interface StoreValue {
   unreadCount: (peerId: string) => number;
   totalUnread: () => number;
   addMessage: (peerId: string, text: string) => void;
+  referListing: (peerId: string, listingId: string, note?: string) => void;
   markThreadRead: (peerId: string) => void;
   addPerson: (input: NewPersonInput) => void;
   removePerson: (id: string) => void;
@@ -210,6 +211,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       },
     ]);
   }, []);
+
+  // Refer a listing to someone in the trust network (an in-DM recommendation).
+  const referListing = useCallback(
+    (peerId: string, listingId: string, note?: string) => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `msg_${Date.now()}`,
+          peerId,
+          fromMe: true,
+          text: note?.trim() || "این آگهی رو دیدم، فکر کردم مناسبت باشه 👇",
+          postedAt: "همین حالا",
+          read: true,
+          listingId,
+        },
+      ]);
+    },
+    [],
+  );
 
   const markThreadRead = useCallback((peerId: string) => {
     setMessages((prev) => {
@@ -373,6 +393,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unreadCount,
       totalUnread,
       addMessage,
+      referListing,
       markThreadRead,
       addPerson,
       removePerson,
@@ -405,6 +426,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unreadCount,
       totalUnread,
       addMessage,
+      referListing,
       markThreadRead,
       addPerson,
       removePerson,

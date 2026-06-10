@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import Avatar from "@/components/Avatar";
 import { BackIcon } from "@/components/Icons";
-import { relationLabels, levelShort } from "@/lib/labels";
+import { relationLabels, levelShort, formatPrice } from "@/lib/labels";
 
 export default function ConversationPage() {
   const params = useParams();
@@ -93,6 +93,7 @@ export default function ConversationPage() {
                 }`}
               >
                 <p className="whitespace-pre-line">{msg.text}</p>
+                {msg.listingId && <ReferralCard listingId={msg.listingId} />}
                 <span
                   className={`block text-[10px] mt-1 ${
                     msg.fromMe ? "text-brand-100" : "text-zinc-400"
@@ -134,6 +135,36 @@ export default function ConversationPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+/** Compact listing preview attached to a referral message. */
+function ReferralCard({ listingId }: { listingId: string }) {
+  const { getListing } = useStore();
+  const listing = getListing(listingId);
+  if (!listing) return null;
+  return (
+    <Link
+      href={`/listing/${listing.id}`}
+      className="mt-2 flex items-center gap-2.5 bg-zinc-50 border border-zinc-200/70 rounded-xl p-2 active:opacity-90"
+    >
+      <div className="w-11 h-11 rounded-lg bg-zinc-100 flex items-center justify-center text-2xl shrink-0">
+        {listing.image}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] font-semibold text-zinc-900 truncate">
+          {listing.title}
+        </p>
+        <p className="text-[11px] text-brand-700 font-bold nums">
+          {listing.price != null
+            ? formatPrice(listing.price)
+            : listing.type === "service"
+              ? "توافقی"
+              : "رایگان"}
+        </p>
+      </div>
+      <span className="text-zinc-300 text-lg shrink-0">‹</span>
+    </Link>
   );
 }
 

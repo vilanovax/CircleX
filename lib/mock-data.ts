@@ -425,8 +425,17 @@ function m(
   text: string,
   postedAt: string,
   read: boolean,
+  listingId?: string,
 ): Message {
-  return { id: `seed_msg_${_msgSeq++}`, peerId, fromMe, text, postedAt, read };
+  return {
+    id: `seed_msg_${_msgSeq++}`,
+    peerId,
+    fromMe,
+    text,
+    postedAt,
+    read,
+    ...(listingId ? { listingId } : {}),
+  };
 }
 
 // Seed conversations. Ordered so the most-recently-active thread (Sara)
@@ -436,6 +445,7 @@ export const MESSAGES: Message[] = [
   m("reza", true, "رضا جان لباس‌های کودک رو می‌خوام برای خواهرزاده‌ام", "۲ روز پیش", true),
   m("reza", false, "حتماً، قابلی نداره 🙂", "۲ روز پیش", true),
   m("reza", false, "لباس‌های کودک رو فردا میارم دمِ در", "۲ روز پیش", true),
+  m("reza", false, "راستی این کلاس پیانو رو دیدم، برای دخترت عالیه 👇", "دیروز", false, "l2"),
   // hossein
   m("hossein", true, "سلام آقای حسین، برای کلاس پیانوی دخترم تماس گرفتم", "دیروز", true),
   m("hossein", false, "سلام، خوشحال می‌شم. چند سالشه؟", "دیروز", true),
