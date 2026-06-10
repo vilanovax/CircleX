@@ -1,5 +1,6 @@
 import type {
   BadgeType,
+  EventKind,
   ListingType,
   Privacy,
   RelationType,
@@ -70,6 +71,33 @@ export const listingTypeChip: Record<ListingType, string> = {
   exchange: "bg-teal-50 text-teal-600",
   loan: "bg-indigo-50 text-indigo-600",
   service: "bg-orange-50 text-orange-600",
+};
+
+export const eventKindLabels: Record<EventKind, string> = {
+  class: "کلاس و کارگاه",
+  family: "دورهمی خانوادگی",
+  charity: "بازارچه و خیریه",
+  kids: "کودکان",
+  trip: "سفر گروهی",
+  social: "دورهمی",
+};
+
+export const eventKindEmoji: Record<EventKind, string> = {
+  class: "🧘",
+  family: "🍲",
+  charity: "🎗️",
+  kids: "🧒",
+  trip: "🏞️",
+  social: "🎉",
+};
+
+export const eventKindChip: Record<EventKind, string> = {
+  class: "bg-teal-50 text-teal-600",
+  family: "bg-rose-50 text-rose-600",
+  charity: "bg-pink-50 text-pink-600",
+  kids: "bg-sky-50 text-sky-600",
+  trip: "bg-emerald-50 text-emerald-600",
+  social: "bg-violet-50 text-violet-600",
 };
 
 export const badgeLabels: Record<BadgeType, string> = {

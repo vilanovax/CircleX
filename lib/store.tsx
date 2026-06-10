@@ -8,9 +8,19 @@ import {
   useMemo,
   useState,
 } from "react";
-import { LISTINGS, ME, MESSAGES, OFFERS, PEOPLE, REQUESTS } from "./mock-data";
+import {
+  EVENTS,
+  LISTINGS,
+  ME,
+  MESSAGES,
+  OFFERS,
+  PEOPLE,
+  REQUESTS,
+} from "./mock-data";
 import type {
   BadgeType,
+  CircleEvent,
+  EventKind,
   Listing,
   ListingType,
   Message,
@@ -54,6 +64,18 @@ interface NewOfferInput {
   price?: number;
 }
 
+interface NewEventInput {
+  title: string;
+  description: string;
+  kind: EventKind;
+  image: string;
+  date: string;
+  time?: string;
+  location: string;
+  capacity?: number;
+  privacy: Privacy;
+}
+
 interface StoreValue {
   me: Person;
   people: Person[];
@@ -61,12 +83,17 @@ interface StoreValue {
   requests: Request[];
   offers: Offer[];
   messages: Message[];
+  events: CircleEvent[];
   saved: string[];
   onboarded: boolean;
   hydrated: boolean;
   getPerson: (id: string) => Person | undefined;
   getListing: (id: string) => Listing | undefined;
   getRequest: (id: string) => Request | undefined;
+  getEvent: (id: string) => CircleEvent | undefined;
+  addEvent: (input: NewEventInput) => string;
+  toggleRsvp: (eventId: string) => void;
+  isAttending: (eventId: string) => boolean;
   getOffers: (requestId: string) => Offer[];
   hasOffered: (requestId: string) => boolean;
   getThread: (peerId: string) => Message[];
@@ -101,6 +128,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [requests, setRequests] = useState<Request[]>(REQUESTS);
   const [offers, setOffers] = useState<Offer[]>(OFFERS);
   const [messages, setMessages] = useState<Message[]>(MESSAGES);
+  const [events, setEvents] = useState<CircleEvent[]>(EVENTS);
   const [saved, setSaved] = useState<string[]>([]);
   const [onboarded, setOnboarded] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -116,6 +144,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (Array.isArray(data.requests)) setRequests(data.requests);
         if (Array.isArray(data.offers)) setOffers(data.offers);
         if (Array.isArray(data.messages)) setMessages(data.messages);
+        if (Array.isArray(data.events)) setEvents(data.events);
         if (Array.isArray(data.saved)) setSaved(data.saved);
         if (typeof data.onboarded === "boolean") setOnboarded(data.onboarded);
       }
@@ -137,6 +166,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           requests,
           offers,
           messages,
+          events,
           saved,
           onboarded,
         }),
@@ -144,7 +174,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore quota errors
     }
-  }, [people, listings, requests, offers, messages, saved, onboarded, hydrated]);
+  }, [people, listings, requests, offers, messages, events, saved, onboarded, hydrated]);
 
   const getPerson = useCallback(
     (id: string) => (id === "me" ? ME : people.find((p) => p.id === id)),
@@ -370,6 +400,54 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [saved],
   );
 
+  const getEvent = useCallback(
+    (id: string) => events.find((e) => e.id === id),
+    [events],
+  );
+
+  const addEvent = useCallback((input: NewEventInput) => {
+    const id = `event_${Date.now()}`;
+    const event: CircleEvent = {
+      id,
+      title: input.title,
+      description: input.description,
+      kind: input.kind,
+      image: input.image,
+      hostId: "me",
+      date: input.date,
+      time: input.time,
+      location: input.location,
+      capacity: input.capacity,
+      privacy: input.privacy,
+      attendees: [],
+      trustPath: [],
+      city: ME.city,
+    };
+    setEvents((prev) => [event, ...prev]);
+    return id;
+  }, []);
+
+  const toggleRsvp = useCallback((eventId: string) => {
+    setEvents((prev) =>
+      prev.map((e) => {
+        if (e.id !== eventId) return e;
+        const going = e.attendees.includes("me");
+        return {
+          ...e,
+          attendees: going
+            ? e.attendees.filter((a) => a !== "me")
+            : [...e.attendees, "me"],
+        };
+      }),
+    );
+  }, []);
+
+  const isAttending = useCallback(
+    (eventId: string) =>
+      events.find((e) => e.id === eventId)?.attendees.includes("me") ?? false,
+    [events],
+  );
+
   const completeOnboarding = useCallback(() => setOnboarded(true), []);
 
   const value = useMemo<StoreValue>(
@@ -380,12 +458,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       requests,
       offers,
       messages,
+      events,
       saved,
       onboarded,
       hydrated,
       getPerson,
       getListing,
       getRequest,
+      getEvent,
+      addEvent,
+      toggleRsvp,
+      isAttending,
       getOffers,
       hasOffered,
       getThread,
@@ -413,12 +496,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       requests,
       offers,
       messages,
+      events,
       saved,
       onboarded,
       hydrated,
       getPerson,
       getListing,
       getRequest,
+      getEvent,
+      addEvent,
+      toggleRsvp,
+      isAttending,
       getOffers,
       hasOffered,
       getThread,

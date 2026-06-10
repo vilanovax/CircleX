@@ -1,4 +1,11 @@
-import type { Listing, Message, Offer, Person, Request } from "./types";
+import type {
+  CircleEvent,
+  Listing,
+  Message,
+  Offer,
+  Person,
+  Request,
+} from "./types";
 
 /** The current (logged-in) user. */
 export const ME: Person = {
@@ -415,6 +422,91 @@ export const OFFERS: Offer[] = [
     fromId: "mina",
     message: "یه ماشین لباسشویی اضافه داریم که سالمه. می‌تونم نشونت بدم.",
     postedAt: "۵ ساعت پیش",
+  },
+];
+
+export const EVENTS: CircleEvent[] = [
+  {
+    id: "e1",
+    title: "کلاس یوگای صبحگاهی",
+    description:
+      "یوگای ملایم صبحگاهی در فضای باز، مناسب همه‌ی سطح‌ها. زیراندازتان را بیاورید.",
+    kind: "class",
+    image: "🧘",
+    hostId: "mina",
+    date: "شنبه ۲۳ خرداد",
+    time: "۰۷:۳۰",
+    location: "پارک ملت، ورودی شمالی",
+    capacity: 12,
+    privacy: "ABC",
+    attendees: ["sara", "reza", "ali"],
+    trustPath: [],
+    city: "تهران",
+  },
+  {
+    id: "e2",
+    title: "دورهمی خانوادگی آخر هفته",
+    description:
+      "ناهار خانوادگی و بازی دسته‌جمعی. هر کس یک پیش‌غذا بیاورد. منتظرتانیم!",
+    kind: "family",
+    image: "🍲",
+    hostId: "sara",
+    date: "جمعه ۲۲ خرداد",
+    time: "۱۳:۰۰",
+    location: "خانه‌ی مادربزرگ",
+    privacy: "A",
+    attendees: ["reza"],
+    trustPath: [],
+    city: "تهران",
+  },
+  {
+    id: "e3",
+    title: "بازارچه‌ی خیریه‌ی محله",
+    description:
+      "بازارچه‌ی خیریه با دست‌سازه‌ها و خوراکی خانگی؛ درآمد صرف کودکان بی‌سرپرست می‌شود.",
+    kind: "charity",
+    image: "🎗️",
+    hostId: "maryam",
+    date: "پنجشنبه ۲۸ خرداد",
+    time: "۱۶:۰۰",
+    location: "فرهنگسرای محله",
+    privacy: "ABC",
+    attendees: ["reza", "mina", "nima"],
+    trustPath: [{ personId: "reza", relationLabel: "دوست من" }],
+    city: "تهران",
+  },
+  {
+    id: "e4",
+    title: "playdate کودکان در پارک",
+    description:
+      "بعدازظهر بازی برای کودکان ۳ تا ۷ سال، با چند بازی گروهی و میان‌وعده‌ی سالم.",
+    kind: "kids",
+    image: "🧒",
+    hostId: "reza",
+    date: "یکشنبه ۲۴ خرداد",
+    time: "۱۷:۰۰",
+    location: "پارک قیطریه",
+    capacity: 8,
+    privacy: "AB",
+    attendees: ["sara"],
+    trustPath: [],
+    city: "تهران",
+  },
+  {
+    id: "e5",
+    title: "سفر گروهی دو روزه به شمال",
+    description:
+      "سفر دسته‌جمعی به رامسر؛ اقامت ویلایی و برنامه‌ی طبیعت‌گردی. هزینه به‌صورت مشترک.",
+    kind: "trip",
+    image: "🏞️",
+    hostId: "hossein",
+    date: "۱ تا ۳ تیر",
+    location: "رامسر",
+    capacity: 20,
+    privacy: "AB",
+    attendees: ["sara", "ali", "mina", "nima"],
+    trustPath: [{ personId: "sara", relationLabel: "خواهر من" }],
+    city: "تهران",
   },
 ];
 

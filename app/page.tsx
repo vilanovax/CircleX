@@ -11,7 +11,7 @@ import { CircleUsersIcon, HeartIcon, SearchIcon, ShieldCheckIcon } from "@/compo
 import { listingTypeEmoji, listingTypeLabels } from "@/lib/labels";
 import type { ListingType } from "@/lib/types";
 import { normalizeFa, toPersianDigits } from "@/lib/persian";
-import { filterByAccess } from "@/lib/trust";
+import { canView, filterByAccess } from "@/lib/trust";
 
 const filters: { key: ListingType | "all"; label: string; emoji: string }[] = [
   { key: "all", label: "همه", emoji: "✨" },
@@ -23,7 +23,7 @@ const filters: { key: ListingType | "all"; label: string; emoji: string }[] = [
 ];
 
 export default function FeedPage() {
-  const { listings, getPerson, hydrated } = useStore();
+  const { listings, events, getPerson, hydrated } = useStore();
   const [filter, setFilter] = useState<ListingType | "all">("all");
   const [query, setQuery] = useState("");
 
@@ -32,6 +32,11 @@ export default function FeedPage() {
     const { visible, hidden } = filterByAccess(listings, getPerson);
     return { allowed: visible, hidden };
   }, [listings, getPerson]);
+
+  const upcomingEvents = useMemo(
+    () => events.filter((e) => canView(e, getPerson)).slice(0, 6),
+    [events, getPerson],
+  );
 
   // Then apply the type filter and search.
   const visible = useMemo(() => {
@@ -110,26 +115,57 @@ export default function FeedPage() {
       </div>
 
       {/* Quick shortcuts */}
-      <div className="grid grid-cols-2 gap-3 px-4 pt-3">
-        <Link href="/requests" className="card p-3 flex items-center gap-2.5 active:scale-[0.99] transition-transform">
-          <div className="w-9 h-9 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
+      <div className="grid grid-cols-3 gap-3 px-4 pt-3">
+        <Link href="/requests" className="card p-3 flex flex-col items-center gap-1.5 active:scale-[0.97] transition-transform">
+          <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center text-lg">
             🔎
           </div>
-          <div>
-            <p className="text-sm font-bold text-zinc-800 leading-tight">درخواست‌ها</p>
-            <p className="text-[11px] text-zinc-400">حلقه دنبال چیه</p>
-          </div>
+          <p className="text-xs font-bold text-zinc-800">درخواست‌ها</p>
         </Link>
-        <Link href="/saved" className="card p-3 flex items-center gap-2.5 active:scale-[0.99] transition-transform">
-          <div className="w-9 h-9 rounded-full bg-pink-50 text-pink-500 flex items-center justify-center">
+        <Link href="/events" className="card p-3 flex flex-col items-center gap-1.5 active:scale-[0.97] transition-transform">
+          <div className="w-10 h-10 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-lg">
+            🎉
+          </div>
+          <p className="text-xs font-bold text-zinc-800">رویدادها</p>
+        </Link>
+        <Link href="/saved" className="card p-3 flex flex-col items-center gap-1.5 active:scale-[0.97] transition-transform">
+          <div className="w-10 h-10 rounded-full bg-pink-50 text-pink-500 flex items-center justify-center">
             <HeartIcon className="w-5 h-5" />
           </div>
-          <div>
-            <p className="text-sm font-bold text-zinc-800 leading-tight">نشان‌شده‌ها</p>
-            <p className="text-[11px] text-zinc-400">ذخیره‌های شما</p>
-          </div>
+          <p className="text-xs font-bold text-zinc-800">نشان‌شده‌ها</p>
         </Link>
       </div>
+
+      {/* Upcoming events strip */}
+      {upcomingEvents.length > 0 && (
+        <div className="pt-4">
+          <div className="flex items-center justify-between px-4 mb-2">
+            <h2 className="text-sm font-bold text-zinc-700">رویدادهای پیش‌رو</h2>
+            <Link href="/events" className="text-xs text-brand-600 font-medium">
+              همه
+            </Link>
+          </div>
+          <div className="flex gap-3 overflow-x-auto no-scrollbar px-4 pb-1">
+            {upcomingEvents.map((ev) => (
+              <Link
+                key={ev.id}
+                href={`/event/${ev.id}`}
+                className="card p-3 w-40 shrink-0 active:scale-[0.98] transition-transform"
+              >
+                <div className="w-full h-16 rounded-xl bg-gradient-to-br from-brand-50 to-zinc-100 dark:from-brand-500/10 dark:to-zinc-800 flex items-center justify-center text-3xl mb-2">
+                  {ev.image}
+                </div>
+                <p className="text-[13px] font-semibold text-zinc-900 line-clamp-1">
+                  {ev.title}
+                </p>
+                <p className="text-[11px] text-brand-700 dark:text-brand-300 font-medium mt-0.5">
+                  📅 {ev.date}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Listings */}
       <section className="px-4 pt-3 space-y-3">

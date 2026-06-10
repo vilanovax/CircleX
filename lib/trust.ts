@@ -45,12 +45,18 @@ function requiredScore(privacy: Privacy): number {
   }
 }
 
-/** Whether the current viewer is allowed to see this listing/request. */
+/** Whether the current viewer is allowed to see this listing/request/event. */
 export function canView(
-  poster: { sellerId?: string; requesterId?: string; privacy: Privacy; trustPath: TrustHop[] },
+  poster: {
+    sellerId?: string;
+    requesterId?: string;
+    hostId?: string;
+    privacy: Privacy;
+    trustPath: TrustHop[];
+  },
   getPerson: (id: string) => Person | undefined,
 ): boolean {
-  const posterId = poster.sellerId ?? poster.requesterId ?? "";
+  const posterId = poster.sellerId ?? poster.requesterId ?? poster.hostId ?? "";
   if (posterId === "me") return true;
   // "approved" also requires a direct connection, not just a high score via path.
   if (poster.privacy === "approved" && poster.trustPath.length > 0) return false;

@@ -81,6 +81,37 @@ export interface Request {
   city?: string;
 }
 
+/** Kind of community event/gathering. */
+export type EventKind =
+  | "class" // کلاس / کارگاه
+  | "family" // دورهمی خانوادگی
+  | "charity" // بازارچه / خیریه
+  | "kids" // playdate کودکان
+  | "trip" // سفر گروهی
+  | "social"; // دورهمی عمومی
+
+/** A community event hosted within the trust network. */
+export interface CircleEvent {
+  id: string;
+  title: string;
+  description: string;
+  kind: EventKind;
+  image: string;
+  hostId: string;
+  /** Human date label, e.g. "جمعه ۲۲ خرداد". */
+  date: string;
+  /** Time label, e.g. "۱۰:۰۰" (optional for multi-day). */
+  time?: string;
+  location: string;
+  /** Max attendees; undefined = unlimited. */
+  capacity?: number;
+  privacy: Privacy;
+  /** Person ids who have RSVP'd (excludes the host). */
+  attendees: string[];
+  trustPath: TrustHop[];
+  city?: string;
+}
+
 /** A single chat message in a one-to-one conversation. */
 export interface Message {
   id: string;
