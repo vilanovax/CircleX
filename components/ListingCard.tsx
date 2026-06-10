@@ -21,7 +21,7 @@ export default function ListingCard({ listing }: { listing: Listing }) {
       className="card block p-3 active:scale-[0.99] transition-transform"
     >
       <div className="flex gap-3">
-        <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-zinc-50 to-zinc-100 flex items-center justify-center text-4xl shrink-0">
+        <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-800 dark:to-zinc-900 flex items-center justify-center text-4xl shrink-0">
           {listing.image}
         </div>
         <div className="min-w-0 flex-1">

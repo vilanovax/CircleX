@@ -97,7 +97,7 @@ export default function ListingDetailPage() {
       />
 
       {/* Hero image */}
-      <div className="mx-4 mt-4 h-44 rounded-2xl bg-gradient-to-br from-brand-50 to-zinc-100 flex items-center justify-center text-7xl">
+      <div className="mx-4 mt-4 h-44 rounded-2xl bg-gradient-to-br from-brand-50 to-zinc-100 dark:from-brand-500/10 dark:to-zinc-800 flex items-center justify-center text-7xl">
         {listing.image}
       </div>
 

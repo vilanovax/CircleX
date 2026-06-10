@@ -74,7 +74,7 @@ export default function ConversationPage() {
       </header>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2 bg-[#f4f4f7]">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2 bg-[#f4f4f7] dark:bg-[#0a0a0c]">
         {thread.length === 0 ? (
           <div className="text-center text-zinc-400 text-sm pt-20">
             گفتگو را با {peer.name} شروع کنید.
@@ -89,7 +89,7 @@ export default function ConversationPage() {
                 className={`max-w-[78%] px-3.5 py-2 rounded-2xl text-sm leading-relaxed ${
                   msg.fromMe
                     ? "bg-brand-600 text-white rounded-bl-md"
-                    : "bg-white text-zinc-800 shadow-card rounded-br-md"
+                    : "bg-white text-zinc-800 shadow-card rounded-br-md dark:border dark:border-zinc-800"
                 }`}
               >
                 <p className="whitespace-pre-line">{msg.text}</p>

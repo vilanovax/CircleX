@@ -20,7 +20,7 @@ export default function SavedPage() {
 
       {items.length === 0 ? (
         <div className="flex flex-col items-center text-center px-8 py-20">
-          <div className="w-16 h-16 rounded-full bg-pink-50 flex items-center justify-center text-pink-400 mb-4">
+          <div className="w-16 h-16 rounded-full bg-pink-50 dark:bg-pink-500/15 flex items-center justify-center text-pink-400 mb-4">
             <HeartIcon className="w-8 h-8" />
           </div>
           <p className="text-sm text-zinc-500 leading-relaxed">

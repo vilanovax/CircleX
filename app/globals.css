@@ -41,9 +41,73 @@ body {
   box-shadow: 0 0 40px rgba(16, 24, 40, 0.06);
 }
 
+/* ---- Dark theme ---- */
+.dark body {
+  background-color: #0a0a0c;
+  color: #e4e4e7;
+}
+.dark .app-shell {
+  background-color: #0a0a0c;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Flip the common neutral surfaces/text used across the app. */
+.dark .bg-white,
+.dark .bg-white\/90,
+.dark .bg-white\/92,
+.dark .bg-white\/95 {
+  background-color: #18181b;
+}
+.dark .bg-white\/90,
+.dark .bg-white\/95 {
+  background-color: rgba(24, 24, 27, 0.9);
+}
+.dark .bg-zinc-50 {
+  background-color: #1c1c20;
+}
+.dark .bg-zinc-100 {
+  background-color: #27272a;
+}
+.dark .bg-zinc-200 {
+  background-color: #3f3f46;
+}
+.dark .border-zinc-300 {
+  border-color: #3f3f46;
+}
+.dark .border-zinc-100 {
+  border-color: #27272a;
+}
+.dark .border-zinc-200 {
+  border-color: #2e2e33;
+}
+.dark .divide-zinc-100 > * + * {
+  border-color: #27272a;
+}
+.dark .text-zinc-900 {
+  color: #fafafa;
+}
+.dark .text-zinc-800 {
+  color: #f4f4f5;
+}
+.dark .text-zinc-700 {
+  color: #e4e4e7;
+}
+.dark .text-zinc-600 {
+  color: #d4d4d8;
+}
+.dark .text-zinc-500 {
+  color: #a1a1aa;
+}
+.dark .text-zinc-400 {
+  color: #8a8a93;
+}
+.dark .text-zinc-300 {
+  color: #71717a;
+}
+
 @layer components {
   .card {
-    @apply bg-white rounded-2xl shadow-card;
+    @apply bg-white rounded-2xl shadow-card dark:bg-zinc-900 dark:shadow-none dark:border dark:border-zinc-800;
   }
 
   .btn-primary {
@@ -51,7 +115,7 @@ body {
   }
 
   .btn-ghost {
-    @apply bg-brand-50 text-brand-700 font-medium rounded-xl px-4 py-3 active:bg-brand-100 transition-colors;
+    @apply bg-brand-50 text-brand-700 font-medium rounded-xl px-4 py-3 active:bg-brand-100 transition-colors dark:bg-brand-500/15 dark:text-brand-300 dark:active:bg-brand-500/25;
   }
 
   .chip {
@@ -59,7 +123,11 @@ body {
   }
 
   .field {
-    @apply w-full bg-white border border-zinc-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100 transition;
+    @apply w-full bg-white border border-zinc-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100 transition dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-100 dark:focus:ring-brand-500/20;
+  }
+
+  .field::placeholder {
+    @apply text-zinc-400 dark:text-zinc-500;
   }
 }
 

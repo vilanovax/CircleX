@@ -46,9 +46,9 @@ export default function RequestsPage() {
       />
 
       <div className="px-4 pt-3">
-        <div className="rounded-2xl bg-amber-50 border border-amber-100 p-4">
-          <p className="font-bold text-sm text-amber-800">یک نیاز داری؟ از حلقه بپرس</p>
-          <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+        <div className="rounded-2xl bg-amber-50 border border-amber-100 dark:bg-amber-500/10 dark:border-amber-500/20 p-4">
+          <p className="font-bold text-sm text-amber-800 dark:text-amber-300">یک نیاز داری؟ از حلقه بپرس</p>
+          <p className="text-xs text-amber-700 dark:text-amber-200/80 mt-1 leading-relaxed">
             به‌جای جستجو بین غریبه‌ها، درخواستت را بین آدم‌های مورد اعتمادت بگذار تا
             خودشان یا آشناهاشان کمکت کنند.
           </p>

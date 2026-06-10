@@ -13,6 +13,7 @@ import {
   listingTypeEmoji,
 } from "@/lib/labels";
 import { toPersianDigits } from "@/lib/persian";
+import { ThemeSegmented } from "@/components/ThemeToggle";
 
 export default function ProfilePage() {
   const { me, people, listings } = useStore();
@@ -69,6 +70,14 @@ export default function ProfilePage() {
           </p>
         </div>
       </div>
+
+      {/* Display / theme */}
+      <Section title="نمایش">
+        <div className="card p-4">
+          <p className="text-xs text-zinc-400 mb-2">حالت نمایش برنامه</p>
+          <ThemeSegmented />
+        </div>
+      </Section>
 
       {/* My listings */}
       <Section title={`آگهی‌های من (${myListings.length})`}>

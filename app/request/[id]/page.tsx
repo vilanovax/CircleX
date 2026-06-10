@@ -69,7 +69,7 @@ export default function RequestDetailPage() {
           </span>
         </div>
         <div className="flex items-start gap-3">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-50 to-zinc-100 flex items-center justify-center text-4xl shrink-0">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-50 to-zinc-100 dark:from-amber-500/10 dark:to-zinc-800 flex items-center justify-center text-4xl shrink-0">
             {request.image}
           </div>
           <div className="min-w-0">

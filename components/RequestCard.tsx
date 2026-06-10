@@ -18,7 +18,7 @@ export default function RequestCard({ request }: { request: Request }) {
       className="card block p-3 active:scale-[0.99] transition-transform"
     >
       <div className="flex gap-3">
-        <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-amber-50 to-zinc-100 flex items-center justify-center text-3xl shrink-0">
+        <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-amber-50 to-zinc-100 dark:from-amber-500/10 dark:to-zinc-800 flex items-center justify-center text-3xl shrink-0">
           {request.image}
         </div>
         <div className="min-w-0 flex-1">

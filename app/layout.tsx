@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { StoreProvider } from "@/lib/store";
 import { ToastProvider } from "@/components/Toast";
+import { ThemeProvider, themeScript } from "@/lib/theme";
 
 export const metadata: Metadata = {
   title: "سیرکل | Circle",
@@ -37,13 +38,16 @@ export default function RootLayout({
           rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.css"
         />
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="font-sans">
-        <StoreProvider>
-          <ToastProvider>
-            <div className="app-shell">{children}</div>
-          </ToastProvider>
-        </StoreProvider>
+        <ThemeProvider>
+          <StoreProvider>
+            <ToastProvider>
+              <div className="app-shell">{children}</div>
+            </ToastProvider>
+          </StoreProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
