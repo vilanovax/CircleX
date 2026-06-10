@@ -50,11 +50,16 @@ const config: Config = {
           "0%": { transform: "translateY(-16px)", opacity: "0" },
           "100%": { transform: "translateY(0)", opacity: "1" },
         },
+        appear: {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
       },
       animation: {
         "slide-up": "slide-up 0.25s ease-out",
         "fade-up": "fade-up 0.35s ease-out both",
         "toast-in": "toast-in 0.25s ease-out",
+        appear: "appear 0.45s ease-out both",
       },
     },
   },

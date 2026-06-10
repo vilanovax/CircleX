@@ -1,15 +1,22 @@
 "use client";
 
+import { useMemo } from "react";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import TrustGraph from "@/components/TrustGraph";
 import { toPersianDigits } from "@/lib/persian";
+import { buildTrustGraph, graphInsights } from "@/lib/graph";
 
 export default function GraphPage() {
-  const { people } = useStore();
+  const { people, listings, requests, getPerson } = useStore();
   const circleCount = people.filter((p) => p.inMyCircle).length;
-  const reach = people.length; // circle + friends-of-friends
+
+  const insights = useMemo(
+    () => graphInsights(buildTrustGraph(people, listings, requests, getPerson)),
+    [people, listings, requests, getPerson],
+  );
+  const reach = insights.reach;
 
   return (
     <main className="pb-24 min-h-[100dvh]">
@@ -30,6 +37,39 @@ export default function GraphPage() {
         <div className="card p-3">
           <TrustGraph />
         </div>
+      </div>
+
+      {/* Insights */}
+      <div className="px-4 pt-3">
+        <div className="grid grid-cols-3 gap-2">
+          <div className="card p-3 text-center">
+            <p className="text-lg font-extrabold text-brand-700 dark:text-brand-300 nums">
+              {toPersianDigits(reach)}
+            </p>
+            <p className="text-[11px] text-zinc-400 mt-0.5">دسترسی کل</p>
+          </div>
+          <div className="card p-3 text-center">
+            <p className="text-lg font-extrabold text-levelA nums">
+              {toPersianDigits(insights.levelA)}
+            </p>
+            <p className="text-[11px] text-zinc-400 mt-0.5">نزدیک‌ترین (A)</p>
+          </div>
+          <div className="card p-3 text-center">
+            <p className="text-lg font-extrabold text-brand-700 dark:text-brand-300 truncate">
+              {insights.hub ? insights.hub.name : "—"}
+            </p>
+            <p className="text-[11px] text-zinc-400 mt-0.5">پل اصلی اعتماد</p>
+          </div>
+        </div>
+        {insights.hub && insights.hub.count > 0 && (
+          <p className="text-[11px] text-zinc-400 mt-2 text-center leading-relaxed">
+            بیشترین مسیرهای اعتماد از طریق{" "}
+            <span className="font-bold text-zinc-600 dark:text-zinc-300">
+              {insights.hub.name}
+            </span>{" "}
+            به شما می‌رسد.
+          </p>
+        )}
       </div>
 
       {/* Legend */}

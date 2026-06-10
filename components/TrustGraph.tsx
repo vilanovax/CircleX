@@ -69,32 +69,34 @@ export default function TrustGraph() {
           />
         ))}
 
-        {/* edges */}
-        {graph.edges.map((e, i) => {
-          const a = nodeById[e.from];
-          const b = nodeById[e.to];
-          if (!a || !b) return null;
-          const hot = pathEdges.has(ekey(e.from, e.to));
-          return (
-            <line
-              key={i}
-              x1={a.x}
-              y1={a.y}
-              x2={b.x}
-              y2={b.y}
-              stroke={hot ? BRAND : undefined}
-              strokeWidth={hot ? 2.5 : 1.2}
-              className={
-                hot
-                  ? ""
-                  : `stroke-zinc-300 dark:stroke-zinc-600 ${selected ? "opacity-20" : "opacity-60"}`
-              }
-            />
-          );
-        })}
+        {/* edges (fade in together, just before the nodes) */}
+        <g className="animate-appear">
+          {graph.edges.map((e, i) => {
+            const a = nodeById[e.from];
+            const b = nodeById[e.to];
+            if (!a || !b) return null;
+            const hot = pathEdges.has(ekey(e.from, e.to));
+            return (
+              <line
+                key={i}
+                x1={a.x}
+                y1={a.y}
+                x2={b.x}
+                y2={b.y}
+                stroke={hot ? BRAND : undefined}
+                strokeWidth={hot ? 2.5 : 1.2}
+                className={
+                  hot
+                    ? ""
+                    : `stroke-zinc-300 dark:stroke-zinc-600 ${selected ? "opacity-20" : "opacity-60"}`
+                }
+              />
+            );
+          })}
+        </g>
 
-        {/* nodes */}
-        {graph.nodes.map((n) => {
+        {/* nodes — ripple out from the centre */}
+        {graph.nodes.map((n, i) => {
           const isMe = n.id === "me";
           const r = isMe ? 19 : 16;
           const onPath = pathNodes.has(n.id);
@@ -106,34 +108,39 @@ export default function TrustGraph() {
                 ev.stopPropagation();
                 if (!isMe) setSelected((s) => (s === n.id ? null : n.id));
               }}
-              className={`cursor-pointer transition-opacity ${dim(n.id) ? "opacity-30" : "opacity-100"}`}
+              className="cursor-pointer"
             >
-              {(isMe || onPath) && (
-                <circle r={r + 4} fill={isMe ? BRAND : LEVEL_HEX[n.level ?? "C"]} opacity={0.18} />
-              )}
-              <circle
-                r={r}
-                className={isMe ? "" : "fill-white dark:fill-zinc-900"}
-                fill={isMe ? BRAND : undefined}
-                stroke={isMe ? "none" : LEVEL_HEX[n.level ?? "C"]}
-                strokeWidth={2.5}
-              />
-              <text
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize={isMe ? 18 : 15}
+              {/* entrance: opacity-only animation, holds at 1 (fill: both) */}
+              <g
+                className="animate-appear"
+                style={{ animationDelay: `${n.depth * 150 + (i % 7) * 40}ms` }}
               >
-                {n.avatar}
-              </text>
-              <text
-                y={r + 11}
-                textAnchor="middle"
-                fontSize={9}
-                fontWeight={onPath || isMe ? 700 : 500}
-                className="fill-zinc-600 dark:fill-zinc-300"
-              >
-                {n.name}
-              </text>
+                {/* dim layer (multiplies with entrance opacity) */}
+                <g className={`transition-opacity ${dim(n.id) ? "opacity-30" : "opacity-100"}`}>
+                  {(isMe || onPath) && (
+                    <circle r={r + 4} fill={isMe ? BRAND : LEVEL_HEX[n.level ?? "C"]} opacity={0.18} />
+                  )}
+                  <circle
+                    r={r}
+                    className={isMe ? "" : "fill-white dark:fill-zinc-900"}
+                    fill={isMe ? BRAND : undefined}
+                    stroke={isMe ? "none" : LEVEL_HEX[n.level ?? "C"]}
+                    strokeWidth={2.5}
+                  />
+                  <text textAnchor="middle" dominantBaseline="central" fontSize={isMe ? 18 : 15}>
+                    {n.avatar}
+                  </text>
+                  <text
+                    y={r + 11}
+                    textAnchor="middle"
+                    fontSize={9}
+                    fontWeight={onPath || isMe ? 700 : 500}
+                    className="fill-zinc-600 dark:fill-zinc-300"
+                  >
+                    {n.name}
+                  </text>
+                </g>
+              </g>
             </g>
           );
         })}

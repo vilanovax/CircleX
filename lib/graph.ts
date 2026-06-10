@@ -164,3 +164,38 @@ export function pathToMe(nodeId: string, parent: Record<string, string>): string
   }
   return path; // [node, …, "me"]
 }
+
+export interface GraphInsights {
+  /** People reachable through the network (excludes me). */
+  reach: number;
+  /** Direct, closest (level-A) members. */
+  levelA: number;
+  /** The connector most trust paths pass through, if any. */
+  hub: { name: string; count: number } | null;
+}
+
+/** Headline numbers for the trust graph. */
+export function graphInsights(graph: TrustGraph): GraphInsights {
+  const nameById: Record<string, string> = Object.fromEntries(
+    graph.nodes.map((n) => [n.id, n.name]),
+  );
+  const through = new Map<string, number>();
+  graph.nodes.forEach((n) => {
+    if (n.id === "me") return;
+    const chain = pathToMe(n.id, graph.parent); // [self, …, me]
+    chain.slice(1, -1).forEach((id) => {
+      through.set(id, (through.get(id) ?? 0) + 1);
+    });
+  });
+
+  let hub: GraphInsights["hub"] = null;
+  through.forEach((count, id) => {
+    if (!hub || count > hub.count) hub = { name: nameById[id] ?? "؟", count };
+  });
+
+  return {
+    reach: graph.nodes.length - 1,
+    levelA: graph.nodes.filter((n) => n.level === "A").length,
+    hub,
+  };
+}
