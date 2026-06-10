@@ -31,10 +31,10 @@ export default function Onboarding() {
   const s = STEPS[step];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
-      <div className="absolute inset-0 bg-brand-900/40 backdrop-blur-sm" />
-      <div className="app-shell !min-h-0 !shadow-none relative">
-        <div className="bg-white rounded-t-2xl p-6 pb-8 animate-slide-up">
+    <div className="fixed inset-0 z-50 flex justify-center">
+      <div className="relative w-full max-w-[480px]">
+        <div className="absolute inset-0 bg-brand-900/40 backdrop-blur-sm" />
+        <div className="absolute bottom-0 inset-x-0 bg-white rounded-t-2xl p-6 pb-8 animate-slide-up">
           <div className="flex justify-end">
             <button
               onClick={completeOnboarding}

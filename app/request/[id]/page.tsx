@@ -243,10 +243,10 @@ function OfferSheet({
   const [price, setPrice] = useState("");
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="app-shell !min-h-0 !shadow-none relative">
-        <div className="bg-white rounded-t-2xl p-5 animate-slide-up">
+    <div className="fixed inset-0 z-40 flex justify-center">
+      <div className="relative w-full max-w-[480px]">
+        <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+        <div className="absolute bottom-0 inset-x-0 bg-white rounded-t-2xl p-5 animate-slide-up">
           <div className="w-10 h-1 bg-zinc-200 rounded-full mx-auto mb-4" />
           <h2 className="font-bold text-lg mb-1">پیشنهاد شما</h2>
           <p className="text-xs text-zinc-400 mb-4">
