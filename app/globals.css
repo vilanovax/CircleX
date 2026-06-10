@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-vazir: "Vazirmatn", system-ui, sans-serif;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background-color: #f4f4f7;
+  color: #18181b;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Mobile-first app shell — center a phone-width column on larger screens */
+.app-shell {
+  max-width: 480px;
+  margin-inline: auto;
+  min-height: 100dvh;
+  background-color: #f4f4f7;
+  position: relative;
+  box-shadow: 0 0 40px rgba(16, 24, 40, 0.06);
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-2xl shadow-card;
+  }
+
+  .btn-primary {
+    @apply bg-brand-600 text-white font-medium rounded-xl px-4 py-3 active:bg-brand-700 transition-colors disabled:opacity-50;
+  }
+
+  .btn-ghost {
+    @apply bg-brand-50 text-brand-700 font-medium rounded-xl px-4 py-3 active:bg-brand-100 transition-colors;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 text-xs font-medium rounded-full px-2.5 py-1;
+  }
+
+  .field {
+    @apply w-full bg-white border border-zinc-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100 transition;
+  }
+}
+
+/* Hide scrollbars on horizontal scroll rows but keep functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Numbers stay LTR even inside RTL text */
+.nums {
+  direction: ltr;
+  unicode-bidi: embed;
+}

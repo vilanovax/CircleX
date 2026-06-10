@@ -1,0 +1,85 @@
+// ---- Core domain types for Circle ----
+
+/** Trust level of a person in your circle. A = closest/most trusted. */
+export type TrustLevel = "A" | "B" | "C";
+
+/** Kind of relationship you have with a person. */
+export type RelationType =
+  | "family"
+  | "friend"
+  | "colleague"
+  | "neighbor"
+  | "acquaintance";
+
+/** What a listing offers. */
+export type ListingType =
+  | "sale"
+  | "donation"
+  | "exchange"
+  | "loan"
+  | "service";
+
+/** Who is allowed to see a listing, based on trust distance. */
+export type Privacy =
+  | "A" // only level A
+  | "AB" // level A and B
+  | "ABC" // up to level C
+  | "referral" // only with a referral / introduction
+  | "approved"; // only people I personally approve
+
+/** The kinds of social-trust badges a person can attach to a listing. */
+export type BadgeType =
+  | "verify_item" // I confirm this item / its quality
+  | "know_seller" // I know the seller personally
+  | "verify_quality" // I confirm the quality
+  | "dealt_before"; // I have dealt with this person before
+
+export interface Person {
+  id: string;
+  name: string;
+  /** Emoji used as a lightweight avatar in this prototype. */
+  avatar: string;
+  relation: RelationType;
+  level: TrustLevel;
+  /** Short note about how you know them. */
+  note?: string;
+  /** Number of completed deals on the platform. */
+  deals: number;
+  /** City / area, shown on the trust profile. */
+  city?: string;
+  /** Whether this person is in *my* circle (vs. a friend-of-friend). */
+  inMyCircle: boolean;
+}
+
+export interface Endorsement {
+  personId: string;
+  type: BadgeType;
+}
+
+/** A single hop in a trust path from the seller to the viewer. */
+export interface TrustHop {
+  personId: string;
+  /** Relation of this hop relative to the previous node. */
+  relationLabel: string;
+}
+
+export interface Listing {
+  id: string;
+  title: string;
+  description: string;
+  type: ListingType;
+  /** Price in Toman; undefined for donation / loan / exchange. */
+  price?: number;
+  category: string;
+  /** Emoji used as the listing image placeholder. */
+  image: string;
+  sellerId: string;
+  /** Relative time label, e.g. "۲ ساعت پیش". */
+  postedAt: string;
+  condition?: string;
+  privacy: Privacy;
+  endorsements: Endorsement[];
+  /** Path of people connecting the seller to "me". Excludes me and seller. */
+  trustPath: TrustHop[];
+  city?: string;
+}

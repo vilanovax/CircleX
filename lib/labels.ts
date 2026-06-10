@@ -1,0 +1,108 @@
+import type {
+  BadgeType,
+  ListingType,
+  Privacy,
+  RelationType,
+  TrustLevel,
+} from "./types";
+
+export const relationLabels: Record<RelationType, string> = {
+  family: "خانواده",
+  friend: "دوست",
+  colleague: "همکار",
+  neighbor: "همسایه",
+  acquaintance: "آشنا",
+};
+
+export const relationEmoji: Record<RelationType, string> = {
+  family: "👨‍👩‍👧",
+  friend: "🤝",
+  colleague: "💼",
+  neighbor: "🏠",
+  acquaintance: "🙂",
+};
+
+export const levelLabels: Record<TrustLevel, string> = {
+  A: "سطح A — نزدیک‌ترین",
+  B: "سطح B — مورد اعتماد",
+  C: "سطح C — آشنا",
+};
+
+export const levelShort: Record<TrustLevel, string> = {
+  A: "سطح A",
+  B: "سطح B",
+  C: "سطح C",
+};
+
+/** Tailwind classes for each trust level (text + subtle bg). */
+export const levelChip: Record<TrustLevel, string> = {
+  A: "bg-green-50 text-levelA",
+  B: "bg-blue-50 text-levelB",
+  C: "bg-amber-50 text-levelC",
+};
+
+export const levelDot: Record<TrustLevel, string> = {
+  A: "bg-levelA",
+  B: "bg-levelB",
+  C: "bg-levelC",
+};
+
+export const listingTypeLabels: Record<ListingType, string> = {
+  sale: "فروش",
+  donation: "اهدا / خیریه",
+  exchange: "معاوضه",
+  loan: "قرض موقت",
+  service: "خدمات",
+};
+
+export const listingTypeEmoji: Record<ListingType, string> = {
+  sale: "🏷️",
+  donation: "🎁",
+  exchange: "🔄",
+  loan: "⏳",
+  service: "🛠️",
+};
+
+export const listingTypeChip: Record<ListingType, string> = {
+  sale: "bg-brand-50 text-brand-700",
+  donation: "bg-pink-50 text-pink-600",
+  exchange: "bg-teal-50 text-teal-600",
+  loan: "bg-indigo-50 text-indigo-600",
+  service: "bg-orange-50 text-orange-600",
+};
+
+export const badgeLabels: Record<BadgeType, string> = {
+  verify_item: "این کالا را تأیید می‌کنم",
+  know_seller: "فروشنده را می‌شناسم",
+  verify_quality: "کیفیت کالا را تأیید می‌کنم",
+  dealt_before: "قبلاً معامله کرده‌ام",
+};
+
+export const badgeEmoji: Record<BadgeType, string> = {
+  verify_item: "✅",
+  know_seller: "👤",
+  verify_quality: "⭐",
+  dealt_before: "🤝",
+};
+
+export const privacyLabels: Record<Privacy, string> = {
+  A: "فقط سطح A",
+  AB: "سطح A و B",
+  ABC: "تا سطح C",
+  referral: "فقط با معرفی",
+  approved: "فقط با تأیید من",
+};
+
+export const privacyEmoji: Record<Privacy, string> = {
+  A: "🔒",
+  AB: "🔐",
+  ABC: "👥",
+  referral: "🪪",
+  approved: "✋",
+};
+
+/** Format a Toman price with Persian-friendly grouping. */
+export function formatPrice(price?: number): string {
+  if (price == null) return "";
+  return price.toLocaleString("en-US") + " تومان";
+}
