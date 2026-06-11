@@ -1,4 +1,6 @@
-import type { Listing, Person, Privacy, TrustHop } from "./types";
+import type { Endorsement, Listing, Person, Privacy, TrustHop } from "./types";
+import { relationLabels } from "./labels";
+import { toPersianDigits } from "./persian";
 
 const levelValue = { A: 3, B: 2, C: 1 } as const;
 
@@ -61,6 +63,88 @@ export function canView(
   // "approved" also requires a direct connection, not just a high score via path.
   if (poster.privacy === "approved" && poster.trustPath.length > 0) return false;
   return trustScore(posterId, poster.trustPath, getPerson) >= requiredScore(poster.privacy);
+}
+
+/** How this person relates to the viewer — for trust copy on cards. */
+export function viewerRelationPhrase(person: Person): string {
+  const note = person.note ?? "";
+  if (/خواهر/.test(note)) return "خواهر شما";
+  if (/برادر/.test(note)) return "برادر شما";
+  if (/همسر/.test(note)) return "همسر شما";
+  if (/همکار/.test(note)) return "همکار شما";
+  if (/همسایه/.test(note)) return "همسایه‌ی شما";
+  if (/دوست/.test(note)) return "دوست شما";
+  return relationLabels[person.relation];
+}
+
+/** Primary trust line for listing/request/event cards. */
+export function trustHighlightMessage(
+  posterId: string,
+  trustPath: TrustHop[],
+  getPerson: (id: string) => Person | undefined,
+  posterRole = "فروشنده",
+): { headline: string; subline?: string } | null {
+  const poster = getPerson(posterId);
+  if (!poster) return null;
+
+  if (posterId === "me") {
+    return { headline: "آگهی خودتان در حلقه" };
+  }
+
+  if (trustPath.length === 0 && poster.inMyCircle) {
+    return {
+      headline: `${poster.name} در حلقه‌ی مستقیم شماست`,
+      subline: viewerRelationPhrase(poster),
+    };
+  }
+
+  if (trustPath.length === 1) {
+    const connector = getPerson(trustPath[0].personId);
+    if (!connector) return null;
+    const rel =
+      trustPath[0].relationLabel.replace(/\s*من\s*$/, " شما").trim() ||
+      viewerRelationPhrase(connector);
+    return {
+      headline: `توسط ${connector.name} معرفی شده`,
+      subline: rel,
+    };
+  }
+
+  if (trustPath.length > 1) {
+    const hops = trustPath
+      .map((h) => getPerson(h.personId)?.name)
+      .filter(Boolean) as string[];
+    const chain = ["شما", ...hops, poster.name].join(" ← ");
+    return {
+      headline: "از مسیر اعتماد",
+      subline: chain,
+    };
+  }
+
+  // Reachable but no path stored — fallback.
+  return {
+    headline: `${poster.name} از طریق حلقه‌ی شما`,
+    subline: posterRole,
+  };
+}
+
+/** Secondary line when trusted people endorsed the listing. */
+export function endorsementHighlightLine(
+  endorsements: Endorsement[],
+  getPerson: (id: string) => Person | undefined,
+): string | null {
+  const ids = Array.from(new Set(endorsements.map((e) => e.personId)));
+  if (ids.length === 0) return null;
+  const names = ids
+    .map((id) => getPerson(id)?.name)
+    .filter(Boolean) as string[];
+  if (names.length === 1) {
+    return `${names[0]} از حلقه‌تان این را تأیید کرده`;
+  }
+  if (names.length === 2) {
+    return `${names[0]} و ${names[1]} از حلقه‌تان تأیید کرده‌اند`;
+  }
+  return `${toPersianDigits(names.length)} نفر از حلقه‌تان این را تأیید کرده‌اند`;
 }
 
 /** Split listings into what the viewer may see and how many are hidden. */

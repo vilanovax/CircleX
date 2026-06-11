@@ -49,6 +49,14 @@ export interface Person {
   city?: string;
   /** Whether this person is in *my* circle (vs. a friend-of-friend). */
   inMyCircle: boolean;
+  /** Jalali year or label, e.g. "۱۴۰۳". */
+  memberSince?: string;
+  /** Share of messages answered within 24h (0–100). */
+  responseRate?: number;
+  /** Relative activity label, e.g. "امروز". */
+  lastActive?: string;
+  /** Override when endorsements cannot be derived from listings alone. */
+  endorsementsReceived?: number;
 }
 
 export interface Endorsement {

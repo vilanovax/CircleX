@@ -5,7 +5,7 @@ import type { Request } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { formatPrice } from "@/lib/labels";
 import { toPersianDigits } from "@/lib/persian";
-import TrustPath from "./TrustPath";
+import TrustHighlight from "./TrustHighlight";
 
 export default function RequestCard({ request }: { request: Request }) {
   const { getOffers, hasOffered } = useStore();
@@ -17,6 +17,12 @@ export default function RequestCard({ request }: { request: Request }) {
       href={`/request/${request.id}`}
       className="card block p-3 active:scale-[0.99] transition-transform"
     >
+      <TrustHighlight
+        posterId={request.requesterId}
+        trustPath={request.trustPath}
+        posterRole="درخواست‌دهنده"
+      />
+
       <div className="flex gap-3">
         <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-amber-50 to-zinc-100 dark:from-amber-500/10 dark:to-zinc-800 flex items-center justify-center text-3xl shrink-0">
           {request.image}
@@ -36,13 +42,7 @@ export default function RequestCard({ request }: { request: Request }) {
         {request.description}
       </p>
 
-      <div className="mt-2.5 pt-2.5 border-t border-zinc-100 space-y-1.5">
-        <TrustPath
-          posterId={request.requesterId}
-          trustPath={request.trustPath}
-          variant="compact"
-          posterRole="درخواست‌دهنده"
-        />
+      <div className="mt-2.5 pt-2.5 border-t border-zinc-100 dark:border-zinc-800">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-[11px] text-zinc-400">
             <span>📍 {request.city}</span>

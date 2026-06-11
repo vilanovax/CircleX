@@ -114,6 +114,7 @@ interface StoreValue {
   toggleSaved: (listingId: string) => void;
   isSaved: (listingId: string) => boolean;
   completeOnboarding: () => void;
+  updateProfile: (input: Partial<Pick<Person, "name" | "avatar" | "city">>) => void;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -123,6 +124,7 @@ const STORAGE_KEY = "circle-store-v1";
 const AVATAR_POOL = ["🧑", "👩", "🧔", "👨", "👵", "👴", "🧑‍🦱", "👩‍🦰", "🧑‍🦲", "👨‍🦳"];
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
+  const [meProfile, setMeProfile] = useState<Person>(ME);
   const [people, setPeople] = useState<Person[]>(PEOPLE);
   const [listings, setListings] = useState<Listing[]>(LISTINGS);
   const [requests, setRequests] = useState<Request[]>(REQUESTS);
@@ -139,6 +141,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const data = JSON.parse(raw);
+        if (data.me && typeof data.me === "object") setMeProfile(data.me);
         if (Array.isArray(data.people)) setPeople(data.people);
         if (Array.isArray(data.listings)) setListings(data.listings);
         if (Array.isArray(data.requests)) setRequests(data.requests);
@@ -161,6 +164,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
+          me: meProfile,
           people,
           listings,
           requests,
@@ -174,11 +178,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore quota errors
     }
-  }, [people, listings, requests, offers, messages, events, saved, onboarded, hydrated]);
+  }, [meProfile, people, listings, requests, offers, messages, events, saved, onboarded, hydrated]);
 
   const getPerson = useCallback(
-    (id: string) => (id === "me" ? ME : people.find((p) => p.id === id)),
-    [people],
+    (id: string) => (id === "me" ? meProfile : people.find((p) => p.id === id)),
+    [meProfile, people],
+  );
+
+  const updateProfile = useCallback(
+    (input: Partial<Pick<Person, "name" | "avatar" | "city">>) => {
+      setMeProfile((prev) => ({ ...prev, ...input }));
+    },
+    [],
   );
 
   const getListing = useCallback(
@@ -452,7 +463,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<StoreValue>(
     () => ({
-      me: ME,
+      me: meProfile,
       people,
       listings,
       requests,
@@ -489,6 +500,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       toggleSaved,
       isSaved,
       completeOnboarding,
+      updateProfile,
     }),
     [
       people,
@@ -527,6 +539,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       toggleSaved,
       isSaved,
       completeOnboarding,
+      updateProfile,
+      meProfile,
     ],
   );
 

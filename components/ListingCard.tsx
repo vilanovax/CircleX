@@ -10,8 +10,7 @@ import {
   privacyEmoji,
   privacyLabels,
 } from "@/lib/labels";
-import TrustPath from "./TrustPath";
-import { EndorsementSummary } from "./Endorsements";
+import TrustHighlight from "./TrustHighlight";
 
 export default function ListingCard({ listing }: { listing: Listing }) {
   const isService = listing.type === "service";
@@ -20,6 +19,12 @@ export default function ListingCard({ listing }: { listing: Listing }) {
       href={`/listing/${listing.id}`}
       className="card block p-3 active:scale-[0.99] transition-transform"
     >
+      <TrustHighlight
+        posterId={listing.sellerId}
+        trustPath={listing.trustPath}
+        endorsements={listing.endorsements}
+      />
+
       <div className="flex gap-3">
         <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-800 dark:to-zinc-900 flex items-center justify-center text-4xl shrink-0">
           {listing.image}
@@ -33,12 +38,12 @@ export default function ListingCard({ listing }: { listing: Listing }) {
               {privacyEmoji[listing.privacy]}
             </span>
           </div>
-          <h3 className="font-semibold text-[15px] text-zinc-900 leading-snug line-clamp-2">
+          <h3 className="font-semibold text-[15px] text-zinc-900 dark:text-zinc-100 leading-snug line-clamp-2">
             {listing.title}
           </h3>
           <div className="mt-1">
             {listing.price != null ? (
-              <span className="text-brand-700 font-bold text-sm nums">
+              <span className="text-brand-700 dark:text-brand-400 font-bold text-sm nums">
                 {formatPrice(listing.price)}
               </span>
             ) : (
@@ -50,18 +55,10 @@ export default function ListingCard({ listing }: { listing: Listing }) {
         </div>
       </div>
 
-      <div className="mt-2.5 pt-2.5 border-t border-zinc-100 space-y-1.5">
-        <TrustPath
-          posterId={listing.sellerId}
-          trustPath={listing.trustPath}
-          variant="compact"
-        />
-        <EndorsementSummary endorsements={listing.endorsements} />
-        <div className="flex items-center gap-2 text-[11px] text-zinc-400">
-          <span>📍 {listing.city}</span>
-          <span>·</span>
-          <span>{listing.postedAt}</span>
-        </div>
+      <div className="flex items-center gap-2 text-[11px] text-zinc-400 mt-2.5 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+        <span>📍 {listing.city}</span>
+        <span>·</span>
+        <span>{listing.postedAt}</span>
       </div>
     </Link>
   );

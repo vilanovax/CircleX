@@ -1,34 +1,35 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import RequestCard from "@/components/RequestCard";
+import AddRequestSheet from "@/components/AddRequestSheet";
 import { PlusIcon } from "@/components/Icons";
 import { canView } from "@/lib/trust";
 import { useToast } from "@/components/Toast";
-import { toEnglishDigits } from "@/lib/persian";
-import {
-  privacyEmoji,
-  privacyLabels,
-} from "@/lib/labels";
-import type { Privacy } from "@/lib/types";
 
-const PRIVACIES: Privacy[] = ["A", "AB", "ABC", "referral", "approved"];
-const EMOJIS = ["🔎", "🪑", "🚵", "📐", "🌀", "📚", "👶", "🧰", "🚗", "🎸", "💻", "🏠"];
-
-export default function RequestsPage() {
+function RequestsContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { requests, getPerson, addRequest } = useStore();
   const { show } = useToast();
   const [showAdd, setShowAdd] = useState(false);
 
-  // Opened from the global "+" chooser via /requests?compose=1
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("compose") === "1") {
+    if (searchParams.get("compose") === "1") {
       setShowAdd(true);
     }
-  }, []);
+  }, [searchParams]);
+
+  function closeAddSheet() {
+    setShowAdd(false);
+    if (searchParams.get("compose") === "1") {
+      router.replace("/requests");
+    }
+  }
 
   const visible = useMemo(
     () => requests.filter((r) => canView(r, getPerson)),
@@ -74,10 +75,10 @@ export default function RequestsPage() {
 
       {showAdd && (
         <AddRequestSheet
-          onClose={() => setShowAdd(false)}
+          onClose={closeAddSheet}
           onAdd={(input) => {
             addRequest(input);
-            setShowAdd(false);
+            closeAddSheet();
             show("درخواست شما ثبت شد ✓");
           }}
         />
@@ -88,133 +89,10 @@ export default function RequestsPage() {
   );
 }
 
-function AddRequestSheet({
-  onClose,
-  onAdd,
-}: {
-  onClose: () => void;
-  onAdd: (input: {
-    title: string;
-    description: string;
-    category: string;
-    image: string;
-    budget?: number;
-    privacy: Privacy;
-  }) => void;
-}) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("");
-  const [image, setImage] = useState("🔎");
-  const [budget, setBudget] = useState("");
-  const [privacy, setPrivacy] = useState<Privacy>("ABC");
-
-  const canSubmit = title.trim() && description.trim();
-
+export default function RequestsPage() {
   return (
-    <div className="fixed inset-0 z-40 flex justify-center">
-      <div className="relative w-full max-w-[480px]">
-        <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-        <div className="absolute bottom-0 inset-x-0 bg-white rounded-t-2xl p-5 animate-slide-up max-h-[85dvh] overflow-y-auto">
-          <div className="w-10 h-1 bg-zinc-200 rounded-full mx-auto mb-4" />
-          <h2 className="font-bold text-lg mb-4">ثبت درخواست جدید</h2>
-
-          <label className="block text-sm font-medium mb-2">شکلک</label>
-          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 mb-4">
-            {EMOJIS.map((e) => (
-              <button
-                key={e}
-                onClick={() => setImage(e)}
-                aria-label={`انتخاب شکلک ${e}`}
-                aria-pressed={image === e}
-                className={`w-11 h-11 shrink-0 rounded-xl text-xl flex items-center justify-center border ${
-                  image === e ? "border-brand-500 bg-brand-50" : "border-zinc-200 bg-white"
-                }`}
-              >
-                {e}
-              </button>
-            ))}
-          </div>
-
-          <label className="block text-sm font-medium mb-1">چه چیزی می‌خواهی؟</label>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="مثلاً: صندلی اداری ارگونومیک"
-            className="field mb-4"
-          />
-
-          <label className="block text-sm font-medium mb-1">توضیحات</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="جزئیات بیشتر، شرایط و کیفیت موردنظر…"
-            rows={3}
-            className="field resize-none mb-4"
-          />
-
-          <div className="flex gap-3 mb-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium mb-1">بودجه (اختیاری)</label>
-              <input
-                value={budget}
-                onChange={(e) => setBudget(e.target.value)}
-                inputMode="numeric"
-                placeholder="تومان"
-                className="field nums"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="block text-sm font-medium mb-1">دسته‌بندی</label>
-              <input
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="مثلاً لوازم اداری"
-                className="field"
-              />
-            </div>
-          </div>
-
-          <label className="block text-sm font-medium mb-2">چه کسانی ببینند؟</label>
-          <div className="flex flex-wrap gap-2 mb-5">
-            {PRIVACIES.map((p) => (
-              <button
-                key={p}
-                onClick={() => setPrivacy(p)}
-                className={`chip !px-3 !py-1.5 border ${
-                  privacy === p
-                    ? "bg-brand-600 text-white border-brand-600"
-                    : "bg-white text-zinc-600 border-zinc-200"
-                }`}
-              >
-                {privacyEmoji[p]} {privacyLabels[p]}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex gap-2">
-            <button onClick={onClose} className="btn-ghost flex-1">
-              انصراف
-            </button>
-            <button
-              disabled={!canSubmit}
-              onClick={() =>
-                onAdd({
-                  title: title.trim(),
-                  description: description.trim(),
-                  category: category.trim() || "عمومی",
-                  image,
-                  budget: budget ? Number(toEnglishDigits(budget).replace(/\D/g, "")) || undefined : undefined,
-                  privacy,
-                })
-              }
-              className="btn-primary flex-1"
-            >
-              ثبت درخواست
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <Suspense>
+      <RequestsContent />
+    </Suspense>
   );
 }

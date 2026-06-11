@@ -5,7 +5,7 @@ import type { CircleEvent } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { eventKindChip, eventKindEmoji, eventKindLabels } from "@/lib/labels";
 import { toPersianDigits } from "@/lib/persian";
-import TrustPath from "./TrustPath";
+import TrustHighlight from "./TrustHighlight";
 
 export default function EventCard({ event }: { event: CircleEvent }) {
   const { isAttending } = useStore();
@@ -17,6 +17,12 @@ export default function EventCard({ event }: { event: CircleEvent }) {
       href={`/event/${event.id}`}
       className="card block p-3 active:scale-[0.99] transition-transform"
     >
+      <TrustHighlight
+        posterId={event.hostId}
+        trustPath={event.trustPath}
+        posterRole="میزبان"
+      />
+
       <div className="flex gap-3">
         <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-brand-50 to-zinc-100 dark:from-brand-500/10 dark:to-zinc-800 flex items-center justify-center text-3xl shrink-0">
           {event.image}
@@ -40,13 +46,7 @@ export default function EventCard({ event }: { event: CircleEvent }) {
         </div>
       </div>
 
-      <div className="mt-2.5 pt-2.5 border-t border-zinc-100 space-y-1.5">
-        <TrustPath
-          posterId={event.hostId}
-          trustPath={event.trustPath}
-          variant="compact"
-          posterRole="میزبان"
-        />
+      <div className="mt-2.5 pt-2.5 border-t border-zinc-100 dark:border-zinc-800">
         <div className="flex items-center justify-between text-[11px] text-zinc-400">
           <span>📍 {event.location}</span>
           <span>

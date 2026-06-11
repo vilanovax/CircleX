@@ -17,6 +17,10 @@ export const ME: Person = {
   deals: 12,
   city: "تهران",
   inMyCircle: true,
+  memberSince: "۱۴۰۳",
+  responseRate: 95,
+  lastActive: "امروز",
+  endorsementsReceived: 5,
 };
 
 export const PEOPLE: Person[] = [
@@ -31,6 +35,10 @@ export const PEOPLE: Person[] = [
     deals: 9,
     city: "تهران",
     inMyCircle: true,
+    memberSince: "۱۴۰۲",
+    responseRate: 92,
+    lastActive: "دیروز",
+    endorsementsReceived: 4,
   },
   {
     id: "reza",
@@ -42,6 +50,10 @@ export const PEOPLE: Person[] = [
     deals: 14,
     city: "تهران",
     inMyCircle: true,
+    memberSince: "۱۴۰۱",
+    responseRate: 88,
+    lastActive: "۳ ساعت پیش",
+    endorsementsReceived: 6,
   },
   {
     id: "mina",

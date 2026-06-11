@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import Avatar from "@/components/Avatar";
+import SocialCreditCard from "@/components/SocialCreditCard";
 import TrustPath from "@/components/TrustPath";
 import ListingCard from "@/components/ListingCard";
 import RequestCard from "@/components/RequestCard";
@@ -15,7 +16,7 @@ import {
   relationEmoji,
   relationLabels,
 } from "@/lib/labels";
-import { toPersianDigits } from "@/lib/persian";
+import { buildSocialCredit } from "@/lib/social-credit";
 import { canView } from "@/lib/trust";
 
 export default function PersonProfilePage() {
@@ -47,10 +48,7 @@ export default function PersonProfilePage() {
     theirRequests.find((r) => r.trustPath.length > 0);
   const trustPath = pathSource?.trustPath ?? [];
 
-  const endorsementsReceived = theirListings.reduce(
-    (sum, l) => sum + l.endorsements.length,
-    0,
-  );
+  const socialCredit = buildSocialCredit(person, listings, theirListings.length);
 
   return (
     <main className="pb-28 min-h-[100dvh]">
@@ -76,15 +74,21 @@ export default function PersonProfilePage() {
               {person.note && (
                 <p className="text-xs text-zinc-400 mt-1.5">{person.note}</p>
               )}
+              <p className="text-xs text-zinc-400 mt-1">
+                عضو از {socialCredit.memberSince} · آخرین فعالیت{" "}
+                {socialCredit.lastActive}
+              </p>
             </div>
           </div>
-
-          <div className="grid grid-cols-3 gap-2 mt-5 text-center">
-            <Stat value={person.deals} label="معامله‌ی موفق" />
-            <Stat value={theirListings.length} label="آگهی فعال" />
-            <Stat value={endorsementsReceived} label="تأیید دریافتی" />
-          </div>
         </div>
+      </div>
+
+      <div className="px-4 pt-3">
+        <SocialCreditCard
+          stats={socialCredit}
+          subtitle={`شاخص اعتماد ${person.name} در شبکه`}
+          circleLabel="آگهی فعال"
+        />
       </div>
 
       {/* Trust connection */}
@@ -149,17 +153,6 @@ export default function PersonProfilePage() {
         </div>
       </div>
     </main>
-  );
-}
-
-function Stat({ value, label }: { value: number; label: string }) {
-  return (
-    <div>
-      <p className="text-xl font-extrabold text-brand-700 nums">
-        {toPersianDigits(value)}
-      </p>
-      <p className="text-[11px] text-zinc-400 mt-0.5">{label}</p>
-    </div>
   );
 }
 
