@@ -27,7 +27,7 @@ const RELATIONS: RelationType[] = [
 ];
 
 export default function CirclePage() {
-  const { people, addPerson, removePerson, setLevel } = useStore();
+  const { people, addPerson } = useStore();
   const { show } = useToast();
   const mine = people.filter((p) => p.inMyCircle);
   const [showAdd, setShowAdd] = useState(false);
@@ -131,46 +131,32 @@ export default function CirclePage() {
             ) : (
               <div className="space-y-2">
                 {members.map((p) => (
-                  <div key={p.id} className="card p-3 flex items-center gap-3">
-                    <Link
-                      href={`/person/${p.id}`}
-                      className="flex items-center gap-3 min-w-0 flex-1 active:opacity-70"
-                    >
-                      <Avatar emoji={p.avatar} level={p.level} />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-zinc-900">{p.name}</span>
-                          <span className="chip bg-zinc-100 text-zinc-500">
-                            {relationEmoji[p.relation]} {relationLabels[p.relation]}
-                          </span>
-                        </div>
-                        {p.note && (
-                          <p className="text-xs text-zinc-400 mt-0.5 truncate">{p.note}</p>
-                        )}
-                        <p className="text-[11px] text-zinc-400 mt-0.5">
-                          <span className="nums">{toPersianDigits(p.deals)}</span> معامله‌ی موفق
-                        </p>
+                  <Link
+                    key={p.id}
+                    href={`/person/${p.id}`}
+                    className="card p-3 flex items-center gap-3 active:scale-[0.99] transition-transform"
+                  >
+                    <Avatar emoji={p.avatar} level={p.level} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                          {p.name}
+                        </span>
+                        <span className="chip bg-zinc-100 text-zinc-500">
+                          {relationEmoji[p.relation]} {relationLabels[p.relation]}
+                        </span>
                       </div>
-                    </Link>
-                    {/* Level switcher */}
-                    <div className="flex flex-col gap-1">
-                      {LEVELS.map((lvl) => (
-                        <button
-                          key={lvl}
-                          onClick={() => setLevel(p.id, lvl)}
-                          aria-label={`انتقال ${p.name} به سطح ${lvl}`}
-                          aria-pressed={p.level === lvl}
-                          className={`w-6 h-6 rounded-md text-[11px] font-bold transition-colors ${
-                            p.level === lvl
-                              ? `${levelChip[lvl]} ring-1 ring-current`
-                              : "bg-zinc-50 text-zinc-300"
-                          }`}
-                        >
-                          {lvl}
-                        </button>
-                      ))}
+                      {p.note && (
+                        <p className="text-xs text-zinc-400 mt-0.5 truncate">{p.note}</p>
+                      )}
+                      <p className="text-[11px] text-zinc-400 mt-0.5">
+                        <span className="nums">{toPersianDigits(p.deals)}</span> معامله‌ی موفق
+                      </p>
                     </div>
-                  </div>
+                    <span className="text-zinc-300 dark:text-zinc-600 text-lg shrink-0" aria-hidden>
+                      ‹
+                    </span>
+                  </Link>
                 ))}
               </div>
             )}
