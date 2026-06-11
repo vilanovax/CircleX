@@ -4,14 +4,12 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
 import ListingCard from "@/components/ListingCard";
-import RequestCard from "@/components/RequestCard";
-import EventCard from "@/components/EventCard";
 import BottomNav from "@/components/BottomNav";
 import Onboarding from "@/components/Onboarding";
 import { FeedSkeleton } from "@/components/Skeleton";
-import { CircleUsersIcon, SearchIcon, ShieldCheckIcon } from "@/components/Icons";
-import { listingTypeEmoji, listingTypeLabels } from "@/lib/labels";
-import type { ListingType } from "@/lib/types";
+import { CircleUsersIcon, HeartIcon, SearchIcon, ShieldCheckIcon } from "@/components/Icons";
+import { formatPrice, listingTypeEmoji, listingTypeLabels } from "@/lib/labels";
+import type { CircleEvent, ListingType, Request } from "@/lib/types";
 import { normalizeFa, toPersianDigits } from "@/lib/persian";
 import { canView, filterByAccess } from "@/lib/trust";
 
@@ -24,12 +22,15 @@ const filters: { key: ListingType | "all"; label: string; emoji: string }[] = [
   { key: "loan", label: listingTypeLabels.loan, emoji: listingTypeEmoji.loan },
 ];
 
-const PREVIEW_LIMIT = 3;
+const PREVIEW_LIMIT = 8;
 
 export default function FeedPage() {
-  const { listings, requests, events, getPerson, hydrated, onboarded } = useStore();
+  const { listings, requests, events, people, getPerson, hydrated, onboarded } =
+    useStore();
   const [filter, setFilter] = useState<ListingType | "all">("all");
   const [query, setQuery] = useState("");
+
+  const circleCount = people.filter((p) => p.inMyCircle).length;
 
   const { allowed, hidden } = useMemo(() => {
     const { visible, hidden } = filterByAccess(listings, getPerson);
@@ -125,6 +126,34 @@ export default function FeedPage() {
         )}
       </div>
 
+      {/* Quick access — the app map for newcomers */}
+      <div className="grid grid-cols-3 gap-2.5 px-4 pt-3">
+        <Shortcut href="/requests" emoji="🔎" label="درخواست‌ها" tint="bg-amber-50 dark:bg-amber-500/15 text-amber-600" />
+        <Shortcut href="/events" emoji="🎉" label="رویدادها" tint="bg-brand-50 dark:bg-brand-500/15 text-brand-600" />
+        <Shortcut href="/saved" label="نشان‌شده‌ها" tint="bg-pink-50 dark:bg-pink-500/15 text-pink-500" icon={<HeartIcon className="w-5 h-5" />} />
+      </div>
+
+      {/* New-user first step — build your circle */}
+      {hydrated && circleCount === 0 && (
+        <div className="px-4 pt-4">
+          <div className="card p-4 text-center">
+            <div className="w-12 h-12 rounded-full bg-brand-50 dark:bg-brand-500/15 text-brand-600 flex items-center justify-center mx-auto mb-2">
+              <CircleUsersIcon className="w-6 h-6" />
+            </div>
+            <p className="font-bold text-sm text-zinc-800 dark:text-zinc-100">
+              اول حلقه‌ات را بساز
+            </p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
+              با افزودن خانواده و دوستان مورد اعتماد، آگهی‌ها و رویدادهای آن‌ها
+              اینجا ظاهر می‌شود.
+            </p>
+            <Link href="/circle" className="btn-primary inline-block mt-3">
+              افزودن به حلقه
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Listings — primary feed */}
       <FeedSection title="آگهی‌ها">
         {!hydrated ? (
@@ -156,22 +185,22 @@ export default function FeedPage() {
         )}
       </FeedSection>
 
-      {/* Requests preview */}
-      {visibleRequests.length > 0 && (
-        <FeedSection title="درخواست‌های حلقه" href="/requests">
-          {visibleRequests.map((r) => (
-            <RequestCard key={r.id} request={r} />
+      {/* Events — compact strip */}
+      {visibleEvents.length > 0 && (
+        <StripSection title="رویدادهای پیش‌رو" href="/events">
+          {visibleEvents.map((ev) => (
+            <EventStripCard key={ev.id} event={ev} />
           ))}
-        </FeedSection>
+        </StripSection>
       )}
 
-      {/* Events preview */}
-      {visibleEvents.length > 0 && (
-        <FeedSection title="رویدادهای پیش‌رو" href="/events">
-          {visibleEvents.map((ev) => (
-            <EventCard key={ev.id} event={ev} />
+      {/* Requests — compact strip */}
+      {visibleRequests.length > 0 && (
+        <StripSection title="درخواست‌های حلقه" href="/requests">
+          {visibleRequests.map((r) => (
+            <RequestStripCard key={r.id} request={r} />
           ))}
-        </FeedSection>
+        </StripSection>
       )}
 
       <Onboarding />
@@ -201,5 +230,99 @@ function FeedSection({
       </div>
       <div className="space-y-3">{children}</div>
     </section>
+  );
+}
+
+function Shortcut({
+  href,
+  emoji,
+  icon,
+  label,
+  tint,
+}: {
+  href: string;
+  emoji?: string;
+  icon?: React.ReactNode;
+  label: string;
+  tint: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="card p-3 flex flex-col items-center gap-1.5 active:scale-[0.97] transition-transform"
+    >
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${tint}`}>
+        {icon ?? emoji}
+      </div>
+      <p className="text-xs font-bold text-zinc-800 dark:text-zinc-100">{label}</p>
+    </Link>
+  );
+}
+
+function StripSection({
+  title,
+  href,
+  children,
+}: {
+  title: string;
+  href?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="pt-5">
+      <div className="flex items-center justify-between mb-2.5 px-4">
+        <h2 className="text-sm font-bold text-zinc-700 dark:text-zinc-300">{title}</h2>
+        {href && (
+          <Link href={href} className="text-xs text-brand-600 font-medium">
+            همه
+          </Link>
+        )}
+      </div>
+      <div className="flex gap-3 overflow-x-auto no-scrollbar px-4 pb-1">{children}</div>
+    </section>
+  );
+}
+
+function EventStripCard({ event }: { event: CircleEvent }) {
+  return (
+    <Link
+      href={`/event/${event.id}`}
+      className="card p-3 w-44 shrink-0 active:scale-[0.98] transition-transform"
+    >
+      <div className="w-full h-16 rounded-xl bg-gradient-to-br from-brand-50 to-zinc-100 dark:from-brand-500/10 dark:to-zinc-800 flex items-center justify-center text-3xl mb-2">
+        {event.image}
+      </div>
+      <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 line-clamp-1">
+        {event.title}
+      </p>
+      <p className="text-[11px] text-brand-700 dark:text-brand-300 font-medium mt-0.5">
+        📅 {event.date}
+      </p>
+      <p className="text-[10px] text-zinc-400 mt-0.5 line-clamp-1">📍 {event.location}</p>
+    </Link>
+  );
+}
+
+function RequestStripCard({ request }: { request: Request }) {
+  return (
+    <Link
+      href={`/request/${request.id}`}
+      className="card p-3 w-44 shrink-0 active:scale-[0.98] transition-transform"
+    >
+      <div className="w-full h-16 rounded-xl bg-gradient-to-br from-amber-50 to-zinc-100 dark:from-amber-500/10 dark:to-zinc-800 flex items-center justify-center text-3xl mb-2">
+        {request.image}
+      </div>
+      <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 line-clamp-1">
+        {request.title}
+      </p>
+      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 line-clamp-1">
+        {request.category}
+      </p>
+      {request.budget != null && (
+        <p className="text-[11px] text-brand-700 dark:text-brand-300 font-bold nums mt-0.5">
+          تا {formatPrice(request.budget)}
+        </p>
+      )}
+    </Link>
   );
 }
