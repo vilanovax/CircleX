@@ -13,6 +13,7 @@ import {
 } from "@/lib/labels";
 import type { ListingType, Privacy } from "@/lib/types";
 import { toEnglishDigits } from "@/lib/persian";
+import { privacyAudience } from "@/lib/trust";
 import { useToast } from "@/components/Toast";
 
 const TYPES: ListingType[] = ["sale", "service", "donation", "exchange", "loan"];
@@ -21,8 +22,9 @@ const EMOJIS = ["📦", "🛋️", "📱", "💻", "🚗", "🚲", "🎹", "📚
 
 export default function NewListingPage() {
   const router = useRouter();
-  const { addListing } = useStore();
+  const { addListing, people } = useStore();
   const { show } = useToast();
+  const circle = people.filter((p) => p.inMyCircle);
 
   const [type, setType] = useState<ListingType>("sale");
   const [title, setTitle] = useState("");
@@ -164,9 +166,14 @@ export default function NewListingPage() {
 
         {/* Privacy */}
         <div>
-          <label className="block text-sm font-medium mb-2">
-            چه کسانی این آگهی را ببینند؟
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium">
+              چه کسانی این آگهی را ببینند؟
+            </label>
+            <Link href="/circle" className="text-xs text-brand-600 font-medium">
+              چه کسانی؟ ›
+            </Link>
+          </div>
           <div className="space-y-2">
             {PRIVACIES.map((p) => (
               <button
@@ -174,17 +181,22 @@ export default function NewListingPage() {
                 onClick={() => setPrivacy(p)}
                 className={`w-full flex items-center gap-3 rounded-xl px-4 py-3 border text-right transition-colors ${
                   privacy === p
-                    ? "border-brand-500 bg-brand-50"
-                    : "border-zinc-200 bg-white"
+                    ? "border-brand-500 bg-brand-50 dark:bg-brand-500/15"
+                    : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
                 }`}
               >
-                <span className="text-lg">{privacyEmoji[p]}</span>
-                <span className="text-sm font-medium text-zinc-700">
-                  {privacyLabels[p]}
+                <span className="text-lg shrink-0">{privacyEmoji[p]}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                    {privacyLabels[p]}
+                  </span>
+                  <span className="block text-[11px] text-zinc-500 dark:text-zinc-400">
+                    {privacyAudience(p, circle)}
+                  </span>
                 </span>
                 <span
-                  className={`mr-auto w-4 h-4 rounded-full border-2 ${
-                    privacy === p ? "border-brand-600 bg-brand-600" : "border-zinc-300"
+                  className={`shrink-0 w-4 h-4 rounded-full border-2 ${
+                    privacy === p ? "border-brand-600 bg-brand-600" : "border-zinc-300 dark:border-zinc-600"
                   }`}
                 />
               </button>

@@ -155,3 +155,26 @@ export function filterByAccess(
   const visible = listings.filter((l) => canView(l, getPerson));
   return { visible, hidden: listings.length - visible.length };
 }
+
+/**
+ * Human description of who can see a post at a given privacy level,
+ * including an approximate audience size based on the current circle.
+ */
+export function privacyAudience(privacy: Privacy, circle: Person[]): string {
+  const a = circle.filter((p) => p.level === "A").length;
+  const b = circle.filter((p) => p.level === "B").length;
+  const c = circle.filter((p) => p.level === "C").length;
+  const fa = (n: number) => toPersianDigits(n);
+  switch (privacy) {
+    case "A":
+      return `حدود ${fa(a)} نفر`;
+    case "AB":
+      return `حدود ${fa(a + b)} نفر`;
+    case "ABC":
+      return `حدود ${fa(a + b + c)} نفر`;
+    case "referral":
+      return "حلقه‌ات و آشناهای آن‌ها";
+    case "approved":
+      return "فقط با تأیید تو";
+  }
+}
