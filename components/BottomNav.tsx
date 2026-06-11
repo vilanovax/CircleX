@@ -74,7 +74,7 @@ export default function BottomNav() {
                         </span>
                       )}
                     </span>
-                    <span className="text-[10px] font-medium">{label}</span>
+                    <span className="text-[11px] font-medium">{label}</span>
                   </Link>
                 </li>
               );

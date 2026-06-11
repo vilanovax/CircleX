@@ -85,7 +85,7 @@ export default function ConversationPage() {
                 <p className="whitespace-pre-line">{msg.text}</p>
                 {msg.listingId && <ReferralCard listingId={msg.listingId} />}
                 <span
-                  className={`block text-[10px] mt-1 ${
+                  className={`block text-[11px] mt-1 ${
                     msg.fromMe ? "text-brand-100" : "text-zinc-400"
                   }`}
                 >

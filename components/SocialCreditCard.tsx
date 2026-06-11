@@ -57,7 +57,7 @@ export default function SocialCreditCard({
           style={{ width: `${stats.score}%` }}
         />
       </div>
-      <p className="text-[10px] text-zinc-400 mt-1.5 mb-4">
+      <p className="text-[11px] text-zinc-400 mt-1.5 mb-4">
         بر اساس معامله‌های موفق، تأییدها و اندازه‌ی حلقه‌ی شما
       </p>
 
@@ -102,7 +102,7 @@ function Metric({
         <span className="text-sm" aria-hidden>
           {icon}
         </span>
-        <span className="text-[10px] text-zinc-400 font-medium">{label}</span>
+        <span className="text-[11px] text-zinc-400 font-medium">{label}</span>
       </div>
       <p className="text-base font-extrabold text-brand-800 dark:text-brand-200 nums leading-none">
         {value}

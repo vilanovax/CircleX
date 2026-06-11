@@ -72,7 +72,7 @@ export default function TrustPath({
                 {n.avatar}
               </div>
               <span className="text-xs font-medium mt-1 text-zinc-800">{n.name}</span>
-              <span className="text-[10px] text-zinc-400 leading-tight text-center">{n.sub}</span>
+              <span className="text-[11px] text-zinc-400 leading-tight text-center">{n.sub}</span>
             </div>
             {i < chain.length - 1 && (
               <span className="text-brand-300 text-lg -mt-5">←</span>

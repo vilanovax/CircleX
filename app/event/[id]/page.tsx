@@ -162,7 +162,7 @@ export default function EventDetailPage() {
                     <div className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center text-lg">
                       {me ? "🧑" : p?.avatar ?? "🧑"}
                     </div>
-                    <span className="text-[10px] text-zinc-500 mt-1 truncate w-full text-center">
+                    <span className="text-[11px] text-zinc-500 mt-1 truncate w-full text-center">
                       {me ? "شما" : p?.name ?? "؟"}
                     </span>
                   </div>

@@ -298,7 +298,7 @@ function EventStripCard({ event }: { event: CircleEvent }) {
       <p className="text-[11px] text-brand-700 dark:text-brand-300 font-medium mt-0.5">
         📅 {event.date}
       </p>
-      <p className="text-[10px] text-zinc-400 mt-0.5 line-clamp-1">📍 {event.location}</p>
+      <p className="text-[11px] text-zinc-400 mt-0.5 line-clamp-1">📍 {event.location}</p>
     </Link>
   );
 }
