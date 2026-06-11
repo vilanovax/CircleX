@@ -55,6 +55,29 @@ export default function CirclePage() {
         }
       />
 
+      {mine.length === 0 ? (
+        <div className="px-4 pt-10">
+          <div className="card p-6 text-center">
+            <div className="w-16 h-16 rounded-full bg-brand-50 dark:bg-brand-500/15 text-brand-600 flex items-center justify-center mx-auto mb-3 text-3xl">
+              👋
+            </div>
+            <p className="font-bold text-zinc-800 dark:text-zinc-100">
+              حلقه‌ات هنوز خالیه
+            </p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1.5 leading-relaxed">
+              خانواده، دوستان و آشنایان مورد اعتمادت را اضافه کن تا آگهی‌ها،
+              درخواست‌ها و رویدادهای آن‌ها برایت قابل‌مشاهده شود.
+            </p>
+            <button
+              onClick={() => setShowAdd(true)}
+              className="btn-primary inline-block mt-4"
+            >
+              افزودن اولین نفر
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
       {/* Trust graph entry */}
       <div className="px-4 pt-3">
         <Link
@@ -109,21 +132,26 @@ export default function CirclePage() {
               <div className="space-y-2">
                 {members.map((p) => (
                   <div key={p.id} className="card p-3 flex items-center gap-3">
-                    <Avatar emoji={p.avatar} level={p.level} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-semibold text-zinc-900">{p.name}</span>
-                        <span className="chip bg-zinc-100 text-zinc-500">
-                          {relationEmoji[p.relation]} {relationLabels[p.relation]}
-                        </span>
+                    <Link
+                      href={`/person/${p.id}`}
+                      className="flex items-center gap-3 min-w-0 flex-1 active:opacity-70"
+                    >
+                      <Avatar emoji={p.avatar} level={p.level} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold text-zinc-900">{p.name}</span>
+                          <span className="chip bg-zinc-100 text-zinc-500">
+                            {relationEmoji[p.relation]} {relationLabels[p.relation]}
+                          </span>
+                        </div>
+                        {p.note && (
+                          <p className="text-xs text-zinc-400 mt-0.5 truncate">{p.note}</p>
+                        )}
+                        <p className="text-[11px] text-zinc-400 mt-0.5">
+                          <span className="nums">{toPersianDigits(p.deals)}</span> معامله‌ی موفق
+                        </p>
                       </div>
-                      {p.note && (
-                        <p className="text-xs text-zinc-400 mt-0.5 truncate">{p.note}</p>
-                      )}
-                      <p className="text-[11px] text-zinc-400 mt-0.5">
-                        <span className="nums">{toPersianDigits(p.deals)}</span> معامله‌ی موفق
-                      </p>
-                    </div>
+                    </Link>
                     {/* Level switcher */}
                     <div className="flex flex-col gap-1">
                       {LEVELS.map((lvl) => (
@@ -149,6 +177,8 @@ export default function CirclePage() {
           </section>
         ))}
       </div>
+        </>
+      )}
 
       {showAdd && (
         <AddPersonSheet

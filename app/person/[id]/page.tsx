@@ -18,12 +18,14 @@ import {
 } from "@/lib/labels";
 import { buildSocialCredit } from "@/lib/social-credit";
 import { canView } from "@/lib/trust";
+import { useToast } from "@/components/Toast";
 
 export default function PersonProfilePage() {
   const params = useParams();
   const router = useRouter();
   const id = String(params.id);
-  const { getPerson, listings, requests } = useStore();
+  const { getPerson, listings, requests, removePerson } = useStore();
+  const { show } = useToast();
 
   const person = getPerson(id);
   if (!person || id === "me") {
@@ -109,6 +111,30 @@ export default function PersonProfilePage() {
           />
         </div>
       </section>
+
+      {/* Circle management (only for people in my circle) */}
+      {person.inMyCircle && (
+        <section className="px-4 pt-3">
+          <div className="card p-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm min-w-0">
+              <span className="shrink-0">👥</span>
+              <span className="text-zinc-700 dark:text-zinc-200 truncate">
+                در حلقه‌ی شماست · {levelShort[person.level]}
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                removePerson(id);
+                show(`${person.name} از حلقه حذف شد`);
+                router.push("/circle");
+              }}
+              className="shrink-0 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 rounded-full px-3 py-1.5 active:scale-95 transition"
+            >
+              حذف از حلقه
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* Their listings */}
       {theirListings.length > 0 && (
