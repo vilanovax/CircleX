@@ -29,6 +29,7 @@ export default function BottomNav() {
   const [showCreate, setShowCreate] = useState(false);
 
   return (
+    <>
     <nav className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
       <div className="app-shell !min-h-0 !shadow-none bg-transparent">
         <div className="pointer-events-auto bg-white/95 backdrop-blur border-t border-zinc-100 shadow-nav px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1.5">
@@ -82,7 +83,8 @@ export default function BottomNav() {
         </div>
       </div>
 
-      {showCreate && <CreateSheet onClose={() => setShowCreate(false)} />}
     </nav>
+    {showCreate && <CreateSheet onClose={() => setShowCreate(false)} />}
+    </>
   );
 }
