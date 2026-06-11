@@ -47,7 +47,7 @@ export default function EventCard({ event }: { event: CircleEvent }) {
       </div>
 
       <div className="mt-2.5 pt-2.5 border-t border-zinc-100 dark:border-zinc-800">
-        <div className="flex items-center justify-between text-[11px] text-zinc-400">
+        <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
           <span>📍 {event.location}</span>
           <span>
             {toPersianDigits(count)} نفر

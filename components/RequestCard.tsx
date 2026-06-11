@@ -44,7 +44,7 @@ export default function RequestCard({ request }: { request: Request }) {
 
       <div className="mt-2.5 pt-2.5 border-t border-zinc-100 dark:border-zinc-800">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-[11px] text-zinc-400">
+          <div className="flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
             <span>📍 {request.city}</span>
             <span>·</span>
             <span>{request.postedAt}</span>

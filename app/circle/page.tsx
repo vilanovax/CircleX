@@ -109,7 +109,7 @@ export default function CirclePage() {
             </div>
           ))}
         </div>
-        <p className="text-[11px] text-zinc-400 mt-2 leading-relaxed px-1">
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-2 leading-relaxed px-1">
           سطح اعتماد تعیین می‌کند چه کسانی آگهی‌های شما را می‌بینند. سطح A
           نزدیک‌ترین و مورد اعتمادترین افراد شما هستند.
         </p>

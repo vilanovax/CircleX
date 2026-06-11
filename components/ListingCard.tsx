@@ -55,7 +55,7 @@ export default function ListingCard({ listing }: { listing: Listing }) {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 text-[11px] text-zinc-400 mt-2.5 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+      <div className="flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400 mt-2.5 pt-2 border-t border-zinc-100 dark:border-zinc-800">
         <span>📍 {listing.city}</span>
         <span>·</span>
         <span>{listing.postedAt}</span>

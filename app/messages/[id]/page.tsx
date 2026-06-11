@@ -1,16 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import Avatar from "@/components/Avatar";
-import { BackIcon } from "@/components/Icons";
+import Header from "@/components/Header";
 import { relationLabels, levelShort, formatPrice } from "@/lib/labels";
 
 export default function ConversationPage() {
   const params = useParams();
-  const router = useRouter();
   const peerId = String(params.id);
   const { getPerson, getThread, addMessage, markThreadRead } = useStore();
   const [text, setText] = useState("");
@@ -46,32 +45,23 @@ export default function ConversationPage() {
 
   return (
     <main className="flex flex-col h-[100dvh]">
-      {/* Conversation header */}
-      <header className="shrink-0 bg-white/90 backdrop-blur border-b border-zinc-100">
-        <div className="flex items-center gap-2 px-3 h-14">
-          <button
-            onClick={() => router.back()}
-            aria-label="بازگشت"
-            className="w-9 h-9 flex items-center justify-center text-zinc-600 active:text-zinc-900"
-          >
-            <BackIcon className="w-6 h-6" />
-          </button>
-          <Link
-            href={`/person/${peerId}`}
-            className="flex items-center gap-2 min-w-0 active:opacity-70"
-          >
-            <Avatar emoji={peer.avatar} level={peer.level} size="sm" />
-            <div className="min-w-0">
-              <p className="font-bold text-zinc-900 leading-tight truncate">
-                {peer.name}
-              </p>
-              <p className="text-[11px] text-zinc-400">
-                {relationLabels[peer.relation]} · {levelShort[peer.level]}
-              </p>
-            </div>
-          </Link>
-        </div>
-      </header>
+      {/* Conversation header (shared Header with a custom title slot) */}
+      <Header back>
+        <Link
+          href={`/person/${peerId}`}
+          className="flex items-center gap-2 min-w-0 active:opacity-70"
+        >
+          <Avatar emoji={peer.avatar} level={peer.level} size="sm" />
+          <div className="min-w-0">
+            <p className="font-bold text-zinc-900 dark:text-zinc-100 leading-tight truncate">
+              {peer.name}
+            </p>
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+              {relationLabels[peer.relation]} · {levelShort[peer.level]}
+            </p>
+          </div>
+        </Link>
+      </Header>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2 bg-[#f4f4f7] dark:bg-[#0a0a0c]">

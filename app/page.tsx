@@ -72,7 +72,7 @@ export default function FeedPage() {
               <h1 className="font-extrabold text-lg leading-none text-brand-700 dark:text-brand-400">
                 سیرکل
               </h1>
-              <p className="text-[11px] text-zinc-400 mt-0.5">
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
                 خرید و فروش بین آدم‌های مورد اعتماد
               </p>
             </div>
