@@ -77,18 +77,33 @@ export function viewerRelationPhrase(person: Person): string {
   return relationLabels[person.relation];
 }
 
+export type TrustContentKind = "listing" | "request" | "event";
+
+const ownContentHeadline: Record<TrustContentKind, string> = {
+  listing: "آگهی خودتان در حلقه",
+  request: "درخواست خودتان در حلقه",
+  event: "رویداد خودتان در حلقه",
+};
+
+const endorsementObject: Record<TrustContentKind, string> = {
+  listing: "این را",
+  request: "این درخواست را",
+  event: "این رویداد را",
+};
+
 /** Primary trust line for listing/request/event cards. */
 export function trustHighlightMessage(
   posterId: string,
   trustPath: TrustHop[],
   getPerson: (id: string) => Person | undefined,
   posterRole = "فروشنده",
+  contentKind: TrustContentKind = "listing",
 ): { headline: string; subline?: string } | null {
   const poster = getPerson(posterId);
   if (!poster) return null;
 
   if (posterId === "me") {
-    return { headline: "آگهی خودتان در حلقه" };
+    return { headline: ownContentHeadline[contentKind] };
   }
 
   if (trustPath.length === 0 && poster.inMyCircle) {
@@ -128,23 +143,25 @@ export function trustHighlightMessage(
   };
 }
 
-/** Secondary line when trusted people endorsed the listing. */
+/** Secondary line when trusted people endorsed a listing/request/event. */
 export function endorsementHighlightLine(
   endorsements: Endorsement[],
   getPerson: (id: string) => Person | undefined,
+  contentKind: TrustContentKind = "listing",
 ): string | null {
   const ids = Array.from(new Set(endorsements.map((e) => e.personId)));
   if (ids.length === 0) return null;
   const names = ids
     .map((id) => getPerson(id)?.name)
     .filter(Boolean) as string[];
+  const object = endorsementObject[contentKind];
   if (names.length === 1) {
-    return `${names[0]} از حلقه‌تان این را تأیید کرده`;
+    return `${names[0]} از حلقه‌تان ${object} تأیید کرده`;
   }
   if (names.length === 2) {
-    return `${names[0]} و ${names[1]} از حلقه‌تان تأیید کرده‌اند`;
+    return `${names[0]} و ${names[1]} از حلقه‌تان ${object} تأیید کرده‌اند`;
   }
-  return `${toPersianDigits(names.length)} نفر از حلقه‌تان این را تأیید کرده‌اند`;
+  return `${toPersianDigits(names.length)} نفر از حلقه‌تان ${object} تأیید کرده‌اند`;
 }
 
 /** Split listings into what the viewer may see and how many are hidden. */

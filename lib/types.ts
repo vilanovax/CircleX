@@ -86,6 +86,8 @@ export interface Request {
   privacy: Privacy;
   /** Path of people connecting the requester to "me" (ordered me-side first). */
   trustPath: TrustHop[];
+  /** Social-trust badges from people in the viewer's network. */
+  endorsements: Endorsement[];
   city?: string;
 }
 
@@ -117,6 +119,8 @@ export interface CircleEvent {
   /** Person ids who have RSVP'd (excludes the host). */
   attendees: string[];
   trustPath: TrustHop[];
+  /** Social-trust badges from people in the viewer's network. */
+  endorsements: Endorsement[];
   city?: string;
 }
 
@@ -154,7 +158,7 @@ export interface Listing {
   /** Price in Toman; undefined for donation / loan / exchange. */
   price?: number;
   category: string;
-  /** Emoji used as the listing image placeholder. */
+  /** Photo URL / data URL, or emoji placeholder when no photo. */
   image: string;
   sellerId: string;
   /** Relative time label, e.g. "۲ ساعت پیش". */

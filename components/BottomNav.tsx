@@ -32,7 +32,7 @@ export default function BottomNav() {
     <>
     <nav className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
       <div className="app-shell !min-h-0 !shadow-none bg-transparent">
-        <div className="pointer-events-auto bg-white/95 backdrop-blur border-t border-zinc-100 shadow-nav px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1.5">
+        <div className="pointer-events-auto bg-white/95 dark:bg-zinc-900/95 backdrop-blur border-t border-zinc-100 dark:border-zinc-800 shadow-nav px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1.5">
           <ul className="flex items-end justify-between">
             {items.map((item) => {
               const { id, label, Icon } = item;
@@ -63,13 +63,13 @@ export default function BottomNav() {
                   <Link
                     href={href!}
                     className={`flex flex-col items-center gap-0.5 py-1 transition-colors ${
-                      active ? "text-brand-600" : "text-zinc-400"
+                      active ? "text-brand-600 dark:text-brand-400" : "text-zinc-400 dark:text-zinc-500"
                     }`}
                   >
                     <span className="relative">
                       <Icon className="w-6 h-6" />
                       {badge > 0 && (
-                        <span className="absolute -top-1.5 -left-2 min-w-[16px] h-4 px-1 rounded-full bg-brand-600 text-white text-[10px] font-bold flex items-center justify-center nums ring-2 ring-white">
+                        <span className="absolute -top-1.5 -left-2 min-w-[16px] h-4 px-1 rounded-full bg-brand-600 text-white text-[10px] font-bold flex items-center justify-center nums ring-2 ring-white dark:ring-zinc-900">
                           {toPersianDigits(badge)}
                         </span>
                       )}

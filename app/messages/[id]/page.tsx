@@ -5,8 +5,11 @@ import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import Avatar from "@/components/Avatar";
+import ListingImage from "@/components/ListingImage";
 import Header from "@/components/Header";
+import LockedMessaging from "@/components/LockedMessaging";
 import { relationLabels, levelShort, formatPrice } from "@/lib/labels";
+import { canDirectMessage } from "@/lib/messaging";
 
 export default function ConversationPage() {
   const params = useParams();
@@ -36,6 +39,15 @@ export default function ConversationPage() {
     );
   }
 
+  if (!canDirectMessage(peer, thread.length > 0)) {
+    return (
+      <main className="min-h-[100dvh]">
+        <Header back title="پیام" />
+        <LockedMessaging peer={peer} />
+      </main>
+    );
+  }
+
   function send() {
     const t = text.trim();
     if (!t) return;
@@ -51,7 +63,7 @@ export default function ConversationPage() {
           href={`/person/${peerId}`}
           className="flex items-center gap-2 min-w-0 active:opacity-70"
         >
-          <Avatar emoji={peer.avatar} level={peer.level} size="sm" />
+          <Avatar name={peer.name} level={peer.level} size="sm" />
           <div className="min-w-0">
             <p className="font-bold text-zinc-900 dark:text-zinc-100 leading-tight truncate">
               {peer.name}
@@ -64,29 +76,49 @@ export default function ConversationPage() {
       </Header>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2 bg-[#f4f4f7] dark:bg-[#0a0a0c]">
+      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-3 bg-[#f4f4f7] dark:bg-[#0a0a0c]">
         {thread.length === 0 ? (
-          <div className="text-center text-zinc-400 text-sm pt-20">
-            گفتگو را با {peer.name} شروع کنید.
+          <div className="flex flex-col items-center text-center pt-16 px-6">
+            <Avatar name={peer.name} level={peer.level} size="lg" />
+            <p className="font-semibold text-zinc-800 dark:text-zinc-100 mt-4">
+              گفتگو با {peer.name}
+            </p>
+            <p className="text-sm text-zinc-400 mt-1.5 leading-relaxed">
+              اولین پیام را بفرست — در حلقه‌ی اعتمادت امن است.
+            </p>
           </div>
         ) : (
           thread.map((msg) => (
             <div
               key={msg.id}
-              className={`flex ${msg.fromMe ? "justify-end" : "justify-start"}`}
+              className={`flex items-end gap-2 ${msg.fromMe ? "justify-end" : "justify-start"}`}
             >
+              {!msg.fromMe && (
+                <Avatar name={peer.name} level={peer.level} size="sm" />
+              )}
               <div
-                className={`max-w-[78%] px-3.5 py-2 rounded-2xl text-sm leading-relaxed ${
+                className={`max-w-[76%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
                   msg.fromMe
-                    ? "bg-brand-600 text-white rounded-bl-md"
-                    : "bg-white text-zinc-800 shadow-card rounded-br-md dark:border dark:border-zinc-800"
+                    ? "bg-brand-600 text-white rounded-bl-md shadow-sm shadow-brand-600/20"
+                    : "bg-white text-zinc-800 shadow-card rounded-br-md dark:bg-zinc-900 dark:text-zinc-100 dark:border dark:border-zinc-800"
                 }`}
               >
-                <p className="whitespace-pre-line">{msg.text}</p>
-                {msg.listingId && <ReferralCard listingId={msg.listingId} />}
+                {msg.listingId ? (
+                  <>
+                    <p className="text-[11px] font-medium mb-1.5 opacity-80">
+                      {msg.fromMe ? "آگهی‌ای که فرستادی:" : "آگهی معرفی‌شده:"}
+                    </p>
+                    <ReferralCard listingId={msg.listingId} fromMe={msg.fromMe} />
+                    {msg.text.trim() && (
+                      <p className="whitespace-pre-line mt-2 text-[13px] opacity-90">{msg.text}</p>
+                    )}
+                  </>
+                ) : (
+                  <p className="whitespace-pre-line">{msg.text}</p>
+                )}
                 <span
-                  className={`block text-[11px] mt-1 ${
-                    msg.fromMe ? "text-brand-100" : "text-zinc-400"
+                  className={`block text-[10px] mt-1.5 ${
+                    msg.fromMe ? "text-brand-100/90" : "text-zinc-400"
                   }`}
                 >
                   {msg.postedAt}
@@ -99,7 +131,7 @@ export default function ConversationPage() {
       </div>
 
       {/* Composer */}
-      <div className="shrink-0 bg-white border-t border-zinc-100 p-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
+      <div className="shrink-0 bg-white dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800 p-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
         <div className="flex items-end gap-2">
           <textarea
             value={text}
@@ -129,23 +161,42 @@ export default function ConversationPage() {
 }
 
 /** Compact listing preview attached to a referral message. */
-function ReferralCard({ listingId }: { listingId: string }) {
+function ReferralCard({ listingId, fromMe }: { listingId: string; fromMe?: boolean }) {
   const { getListing } = useStore();
   const listing = getListing(listingId);
   if (!listing) return null;
   return (
     <Link
       href={`/listing/${listing.id}`}
-      className="mt-2 flex items-center gap-2.5 bg-zinc-50 border border-zinc-200/70 rounded-xl p-2 active:opacity-90"
+      className={`flex items-center gap-2.5 rounded-xl p-2.5 active:opacity-90 border ${
+        fromMe
+          ? "bg-white/15 border-white/25 text-white"
+          : "bg-zinc-50 dark:bg-zinc-800 border-zinc-200/70 dark:border-zinc-700"
+      }`}
     >
-      <div className="w-11 h-11 rounded-lg bg-zinc-100 flex items-center justify-center text-2xl shrink-0">
-        {listing.image}
-      </div>
+      <ListingImage
+        image={listing.image}
+        alt={listing.title}
+        size="sm"
+        category={listing.category}
+        type={listing.type}
+        frameClassName={`w-11 h-11 rounded-lg overflow-hidden shrink-0 ${
+          fromMe ? "ring-1 ring-white/25" : ""
+        }`}
+      />
       <div className="min-w-0 flex-1">
-        <p className="text-[13px] font-semibold text-zinc-900 truncate">
+        <p
+          className={`text-[13px] font-semibold truncate ${
+            fromMe ? "text-white" : "text-zinc-900 dark:text-zinc-100"
+          }`}
+        >
           {listing.title}
         </p>
-        <p className="text-[11px] text-brand-700 font-bold nums">
+        <p
+          className={`text-[11px] font-bold nums ${
+            fromMe ? "text-brand-100" : "text-brand-700 dark:text-brand-300"
+          }`}
+        >
           {listing.price != null
             ? formatPrice(listing.price)
             : listing.type === "service"
@@ -153,7 +204,11 @@ function ReferralCard({ listingId }: { listingId: string }) {
               : "رایگان"}
         </p>
       </div>
-      <span className="text-zinc-300 text-lg shrink-0">‹</span>
+      <span
+        className={`text-lg shrink-0 ${fromMe ? "text-white/60" : "text-zinc-300 dark:text-zinc-600"}`}
+      >
+        ‹
+      </span>
     </Link>
   );
 }

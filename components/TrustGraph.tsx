@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
+import { personAvatarHex, personInitials } from "@/lib/avatar";
 import { buildTrustGraph, pathToMe } from "@/lib/graph";
 import { relationLabels, levelShort } from "@/lib/labels";
 import type { TrustLevel } from "@/lib/types";
@@ -122,13 +124,18 @@ export default function TrustGraph() {
                   )}
                   <circle
                     r={r}
-                    className={isMe ? "" : "fill-white dark:fill-zinc-900"}
-                    fill={isMe ? BRAND : undefined}
+                    fill={isMe ? BRAND : personAvatarHex(n.name)}
                     stroke={isMe ? "none" : LEVEL_HEX[n.level ?? "C"]}
-                    strokeWidth={2.5}
+                    strokeWidth={isMe ? 0 : 2.5}
                   />
-                  <text textAnchor="middle" dominantBaseline="central" fontSize={isMe ? 18 : 15}>
-                    {n.avatar}
+                  <text
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fontSize={isMe ? 14 : 12}
+                    fontWeight={700}
+                    className={isMe ? "fill-white" : "fill-white"}
+                  >
+                    {personInitials(n.name)}
                   </text>
                   <text
                     y={r + 11}
@@ -151,8 +158,15 @@ export default function TrustGraph() {
         {selectedNode && selectedPerson ? (
           <div className="card p-3 animate-fade-up">
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="text-xl">{selectedNode.avatar}</span>
-              <span className="font-bold text-zinc-900">{selectedPerson.name}</span>
+              <div
+                className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
+                style={{ backgroundColor: personAvatarHex(selectedPerson.name) }}
+              >
+                {personInitials(selectedPerson.name)}
+              </div>
+              <Link href={`/person/${selected!}`} className="font-bold text-zinc-900 dark:text-zinc-100 hover:text-brand-600">
+                {selectedPerson.name}
+              </Link>
               {selectedNode.level && (
                 <span
                   className="chip text-white"

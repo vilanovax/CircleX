@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { privacyEmoji, privacyLabels } from "@/lib/labels";
+import { useRef, useState } from "react";
+import PrivacyPicker from "@/components/PrivacyPicker";
+import { useStore } from "@/lib/store";
+import { useSheetA11y } from "@/lib/use-sheet-a11y";
 import type { Privacy } from "@/lib/types";
 import { toEnglishDigits } from "@/lib/persian";
 
-const PRIVACIES: Privacy[] = ["A", "AB", "ABC", "referral", "approved"];
 const EMOJIS = ["🔎", "🪑", "🚵", "📐", "🌀", "📚", "👶", "🧰", "🚗", "🎸", "💻", "🏠"];
 
 export type RequestInput = {
@@ -26,6 +27,8 @@ export default function AddRequestSheet({
   onAdd: (input: RequestInput) => void;
   onBack?: () => void;
 }) {
+  const { people } = useStore();
+  const circle = people.filter((p) => p.inMyCircle);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
@@ -34,16 +37,20 @@ export default function AddRequestSheet({
   const [privacy, setPrivacy] = useState<Privacy>("ABC");
 
   const canSubmit = title.trim() && description.trim();
+  const panelRef = useRef<HTMLDivElement>(null);
+  useSheetA11y(panelRef, onClose);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-center">
       <div className="relative w-full max-w-[480px]">
         <div className="absolute inset-0 bg-black/30" onClick={onClose} aria-hidden />
         <div
+          ref={panelRef}
           role="dialog"
           aria-modal="true"
           aria-labelledby="add-request-title"
-          className="absolute bottom-0 inset-x-0 bg-white dark:bg-zinc-900 rounded-t-2xl p-5 pb-7 animate-slide-up max-h-[85dvh] overflow-y-auto"
+          tabIndex={-1}
+          className="absolute bottom-0 inset-x-0 bg-white dark:bg-zinc-900 rounded-t-2xl p-5 pb-7 animate-slide-up max-h-[85dvh] overflow-y-auto outline-none"
         >
           <div className="w-10 h-1 bg-zinc-200 dark:bg-zinc-700 rounded-full mx-auto mb-4" />
           {onBack && (
@@ -118,22 +125,8 @@ export default function AddRequestSheet({
             </div>
           </div>
 
-          <label className="block text-sm font-medium mb-2 text-zinc-800 dark:text-zinc-200">چه کسانی ببینند؟</label>
-          <div className="flex flex-wrap gap-2 mb-5">
-            {PRIVACIES.map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setPrivacy(p)}
-                className={`chip !px-3 !py-1.5 border ${
-                  privacy === p
-                    ? "bg-brand-600 text-white border-brand-600"
-                    : "bg-white dark:bg-zinc-900 text-zinc-600 border-zinc-200 dark:border-zinc-700"
-                }`}
-              >
-                {privacyEmoji[p]} {privacyLabels[p]}
-              </button>
-            ))}
+          <div className="mb-5">
+            <PrivacyPicker value={privacy} onChange={setPrivacy} circle={circle} />
           </div>
 
           <div className="flex gap-2">

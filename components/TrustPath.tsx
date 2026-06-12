@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import type { Person, TrustHop } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { relationLabels } from "@/lib/labels";
+import { personAvatarHex, personInitials } from "@/lib/avatar";
 
 /**
  * Visualises how the viewer ("شما") is connected to a poster.
@@ -52,14 +54,14 @@ export default function TrustPath({
   }
 
   // ---- full variant: avatar chain from poster to "me" ----
-  const node = (name: string, avatar: string, sub: string) => ({ name, avatar, sub });
+  const node = (name: string, sub: string) => ({ name, sub });
   const chain = [
-    node(poster.name, poster.avatar, posterRole),
+    node(poster.name, posterRole),
     ...towardMe.map((h) => {
       const p: Person | undefined = getPerson(h.personId);
-      return node(p?.name ?? "?", p?.avatar ?? "❓", h.relationLabel);
+      return node(p?.name ?? "?", h.relationLabel);
     }),
-    node("شما", "🧑", viewerRole),
+    node("شما", viewerRole),
   ];
 
   return (
@@ -68,10 +70,13 @@ export default function TrustPath({
         {chain.map((n, i) => (
           <div key={i} className="flex items-center gap-1 shrink-0">
             <div className="flex flex-col items-center w-16">
-              <div className="w-11 h-11 rounded-full bg-brand-50 flex items-center justify-center text-xl">
-                {n.avatar}
+              <div
+                className="w-11 h-11 rounded-full text-white font-bold flex items-center justify-center text-base"
+                style={{ backgroundColor: personAvatarHex(n.name) }}
+              >
+                {personInitials(n.name)}
               </div>
-              <span className="text-xs font-medium mt-1 text-zinc-800">{n.name}</span>
+              <span className="text-xs font-medium mt-1 text-zinc-800 dark:text-zinc-200">{n.name}</span>
               <span className="text-[11px] text-zinc-400 leading-tight text-center">{n.sub}</span>
             </div>
             {i < chain.length - 1 && (
@@ -85,6 +90,12 @@ export default function TrustPath({
           ✓ {poster.name} مستقیماً در حلقه‌ی شماست ({relationLabels[poster.relation]})
         </p>
       )}
+      <Link
+        href="/graph"
+        className="inline-flex items-center gap-1 text-xs text-brand-600 font-medium mt-3"
+      >
+        نقشه‌ی کامل حلقه را ببین ‹
+      </Link>
     </div>
   );
 }

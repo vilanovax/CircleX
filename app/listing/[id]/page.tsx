@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
+import ListingImage from "@/components/ListingImage";
 import ReferSheet from "@/components/ReferSheet";
 import Avatar from "@/components/Avatar";
 import TrustPath from "@/components/TrustPath";
@@ -23,6 +24,7 @@ import {
 } from "@/lib/labels";
 import type { BadgeType } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
+import LockedAccess from "@/components/LockedAccess";
 import { canView } from "@/lib/trust";
 import { useToast } from "@/components/Toast";
 
@@ -60,16 +62,11 @@ export default function ListingDetailPage() {
     return (
       <main className="min-h-[100dvh]">
         <Header title="جزئیات آگهی" back />
-        <div className="flex flex-col items-center text-center px-8 py-20">
-          <div className="w-16 h-16 rounded-full bg-zinc-100 flex items-center justify-center text-3xl mb-4">
-            🔒
-          </div>
-          <p className="text-sm text-zinc-600 leading-relaxed">
-            این آگهی فقط برای{" "}
-            <span className="font-medium">{privacyLabels[listing.privacy]}</span>{" "}
-            قابل نمایش است و شما در این محدوده‌ی اعتماد قرار نمی‌گیرید.
-          </p>
-        </div>
+        <LockedAccess
+          itemTitle={listing.title}
+          itemKind="listing"
+          privacy={listing.privacy}
+        />
       </main>
     );
   }
@@ -83,7 +80,11 @@ export default function ListingDetailPage() {
           <button
             onClick={() => {
               toggleSaved(id);
-              show(saved ? "از نشان‌شده‌ها حذف شد" : "به نشان‌شده‌ها اضافه شد ✓");
+              show(
+                saved
+                  ? "از نشان‌شده‌های پروفایل حذف شد"
+                  : "در پروفایل ذخیره شد ✓",
+              );
             }}
             className={`w-9 h-9 flex items-center justify-center ${
               saved ? "text-pink-500" : "text-zinc-400"
@@ -96,9 +97,14 @@ export default function ListingDetailPage() {
         }
       />
 
-      {/* Hero image */}
-      <div className="mx-4 mt-4 h-44 rounded-2xl bg-gradient-to-br from-brand-50 to-zinc-100 dark:from-brand-500/10 dark:to-zinc-800 flex items-center justify-center text-7xl">
-        {listing.image}
+      <div className="mx-4 mt-4">
+        <ListingImage
+          image={listing.image}
+          alt={listing.title}
+          size="hero"
+          category={listing.category}
+          type={listing.type}
+        />
       </div>
 
       <div className="px-4 pt-4">
@@ -188,7 +194,7 @@ export default function ListingDetailPage() {
             href={`/person/${listing.sellerId}`}
             className="card p-4 flex items-center gap-3 active:scale-[0.99] transition-transform"
           >
-            <Avatar emoji={seller.avatar} level={seller.level} size="lg" />
+            <Avatar name={seller.name} level={seller.level} size="lg" />
             <div className="flex-1 min-w-0">
               <p className="font-bold text-zinc-900">{seller.name}</p>
               <p className="text-xs text-zinc-500 mt-0.5">
@@ -230,8 +236,8 @@ export default function ListingDetailPage() {
                       onClick={() => toggleEndorsement(listing.id, b)}
                       className={`chip !px-3 !py-1.5 border transition-colors ${
                         active
-                          ? "bg-levelA/10 text-levelA border-levelA/30"
-                          : "bg-white text-zinc-600 border-zinc-200"
+                          ? "bg-levelA/10 text-levelA border-levelA/30 dark:bg-green-500/15"
+                          : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700"
                       }`}
                     >
                       {badgeEmoji[b]} {badgeLabels[b]}
@@ -244,27 +250,21 @@ export default function ListingDetailPage() {
         </div>
       </section>
 
-      {/* Sticky action bar */}
+      {/* Sticky action bar — single CTA (refer lives in card above) */}
       {!isMine && (
         <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
           <div className="app-shell !min-h-0 !shadow-none bg-transparent">
-            <div className="pointer-events-auto bg-white/95 backdrop-blur border-t border-zinc-100 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex gap-2">
+            <div className="pointer-events-auto bg-white/95 dark:bg-zinc-900/95 backdrop-blur border-t border-zinc-100 dark:border-zinc-800 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
               <button
                 onClick={() => router.push(`/messages/${listing.sellerId}`)}
-                className="btn-ghost flex items-center justify-center gap-2 px-5"
+                className="btn-primary w-full !py-3.5 flex items-center justify-center gap-2"
               >
                 <ChatIcon className="w-5 h-5" />
-                پیام
-              </button>
-              <button
-                onClick={() => router.push(`/messages/${listing.sellerId}`)}
-                className="btn-primary flex-1 !py-3"
-              >
                 {listing.type === "donation"
-                  ? "درخواست این کالا"
+                  ? "پیام برای درخواست این کالا"
                   : listing.type === "service"
-                    ? "رزرو خدمت"
-                    : "تماس با فروشنده"}
+                    ? "پیام برای رزرو خدمت"
+                    : "پیام به فروشنده"}
               </button>
             </div>
           </div>

@@ -1,26 +1,35 @@
 "use client";
 
+import Link from "next/link";
 import type { Endorsement, TrustHop } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import {
   endorsementHighlightLine,
   trustHighlightMessage,
+  viewerRelationPhrase,
+  type TrustContentKind,
 } from "@/lib/trust";
+import { levelShort } from "@/lib/labels";
 import { ShieldCheckIcon } from "./Icons";
+import Avatar from "./Avatar";
 
 /**
- * Prominent trust signal for feed cards — the core product differentiator.
+ * Trust signal for cards — full on detail pages, compact one-line row on feed.
  */
 export default function TrustHighlight({
   posterId,
   trustPath,
   endorsements = [],
   posterRole = "فروشنده",
+  contentKind = "listing",
+  variant = "default",
 }: {
   posterId: string;
   trustPath: TrustHop[];
   endorsements?: Endorsement[];
   posterRole?: string;
+  contentKind?: TrustContentKind;
+  variant?: "default" | "compact";
 }) {
   const { getPerson } = useStore();
   const trust = trustHighlightMessage(
@@ -28,11 +37,75 @@ export default function TrustHighlight({
     trustPath,
     getPerson,
     posterRole,
+    contentKind,
   );
   if (!trust) return null;
 
-  const endorsementLine = endorsementHighlightLine(endorsements, getPerson);
+  const poster = getPerson(posterId);
+  if (!poster) return null;
+
+  const endorsementLine = endorsementHighlightLine(
+    endorsements,
+    getPerson,
+    contentKind,
+  );
   const isOwn = posterId === "me";
+  const ownRelation: Record<TrustContentKind, string> = {
+    listing: "آگهی شما",
+    request: "درخواست شما",
+    event: "رویداد شما",
+  };
+
+  if (variant === "compact") {
+    const relation =
+      trust.subline ?? (isOwn ? ownRelation[contentKind] : viewerRelationPhrase(poster));
+
+    return (
+      <div className="mb-2.5 pb-2 border-b border-zinc-100 dark:border-zinc-800">
+        <div className="flex items-center gap-2 min-w-0">
+          {isOwn ? (
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <Avatar name={poster.name} size="sm" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 truncate">
+                  {poster.name}
+                </p>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                  {relation}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <Link
+              href={`/person/${posterId}`}
+              className="flex items-center gap-2 min-w-0 flex-1 active:opacity-80"
+            >
+              <Avatar name={poster.name} level={poster.level} size="sm" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 truncate">
+                  {poster.name}
+                </p>
+                <p className="text-[11px] text-brand-700 dark:text-brand-300 truncate">
+                  {relation}
+                </p>
+              </div>
+            </Link>
+          )}
+          {!isOwn && poster.level && (
+            <span className="chip bg-zinc-100 dark:bg-zinc-800 text-zinc-500 !text-[10px] shrink-0">
+              {levelShort[poster.level]}
+            </span>
+          )}
+          <ShieldCheckIcon className="w-4 h-4 text-brand-500 shrink-0" aria-hidden />
+        </div>
+        {endorsementLine && !isOwn && (
+          <p className="text-[11px] text-levelA font-medium mt-1 pr-11 leading-relaxed">
+            ✓ {endorsementLine}
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div

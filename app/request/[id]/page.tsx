@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useStore } from "@/lib/store";
+import { useSheetA11y } from "@/lib/use-sheet-a11y";
 import Header from "@/components/Header";
 import Avatar from "@/components/Avatar";
 import TrustPath from "@/components/TrustPath";
 import { ShieldCheckIcon } from "@/components/Icons";
 import { formatPrice, privacyEmoji, privacyLabels, relationLabels } from "@/lib/labels";
 import { toEnglishDigits, toPersianDigits } from "@/lib/persian";
+import LockedAccess from "@/components/LockedAccess";
 import { canView } from "@/lib/trust";
 import { useToast } from "@/components/Toast";
 
@@ -38,16 +40,11 @@ export default function RequestDetailPage() {
     return (
       <main className="min-h-[100dvh]">
         <Header title="جزئیات درخواست" back />
-        <div className="flex flex-col items-center text-center px-8 py-20">
-          <div className="w-16 h-16 rounded-full bg-zinc-100 flex items-center justify-center text-3xl mb-4">
-            🔒
-          </div>
-          <p className="text-sm text-zinc-600 leading-relaxed">
-            این درخواست فقط برای{" "}
-            <span className="font-medium">{privacyLabels[request.privacy]}</span>{" "}
-            قابل نمایش است.
-          </p>
-        </div>
+        <LockedAccess
+          itemTitle={request.title}
+          itemKind="request"
+          privacy={request.privacy}
+        />
       </main>
     );
   }
@@ -119,7 +116,7 @@ export default function RequestDetailPage() {
             href={`/person/${request.requesterId}`}
             className="card p-4 flex items-center gap-3 active:scale-[0.99] transition-transform"
           >
-            <Avatar emoji={requester.avatar} level={requester.level} size="lg" />
+            <Avatar name={requester.name} level={requester.level} size="lg" />
             <div className="flex-1 min-w-0">
               <p className="font-bold text-zinc-900">{requester.name}</p>
               <p className="text-xs text-zinc-500 mt-0.5">
@@ -156,9 +153,15 @@ export default function RequestDetailPage() {
                 const mine = o.fromId === "me";
                 return (
                   <li key={o.id} className="flex gap-2.5">
-                    <div className="w-9 h-9 rounded-full bg-zinc-100 flex items-center justify-center text-lg shrink-0">
-                      {mine ? "🧑" : from?.avatar ?? "🧑"}
-                    </div>
+                    {from || mine ? (
+                      <Avatar
+                        name={mine ? "شما" : from!.name}
+                        level={mine ? undefined : from!.level}
+                        size="sm"
+                      />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-zinc-100 shrink-0" />
+                    )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className="text-sm font-medium text-zinc-800">
@@ -241,14 +244,25 @@ function OfferSheet({
 }) {
   const [message, setMessage] = useState("");
   const [price, setPrice] = useState("");
+  const panelRef = useRef<HTMLDivElement>(null);
+  useSheetA11y(panelRef, onClose);
 
   return (
     <div className="fixed inset-0 z-40 flex justify-center">
       <div className="relative w-full max-w-[480px]">
-        <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-        <div className="absolute bottom-0 inset-x-0 bg-white rounded-t-2xl p-5 animate-slide-up">
-          <div className="w-10 h-1 bg-zinc-200 rounded-full mx-auto mb-4" />
-          <h2 className="font-bold text-lg mb-1">پیشنهاد شما</h2>
+        <div className="absolute inset-0 bg-black/30" onClick={onClose} aria-hidden />
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="offer-sheet-title"
+          tabIndex={-1}
+          className="absolute bottom-0 inset-x-0 bg-white dark:bg-zinc-900 rounded-t-2xl p-5 animate-slide-up outline-none"
+        >
+          <div className="w-10 h-1 bg-zinc-200 dark:bg-zinc-700 rounded-full mx-auto mb-4" />
+          <h2 id="offer-sheet-title" className="font-bold text-lg mb-1 text-zinc-900 dark:text-zinc-100">
+            پیشنهاد شما
+          </h2>
           <p className="text-xs text-zinc-400 mb-4">
             توضیح بده چی داری؛ درخواست‌دهنده از حلقه‌ی شماست.
           </p>

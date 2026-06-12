@@ -156,7 +156,8 @@ export const LISTINGS: Listing[] = [
     type: "sale",
     price: 8500000,
     category: "لوازم خانه",
-    image: "🛋️",
+    image:
+      "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80",
     sellerId: "sara",
     postedAt: "۲ ساعت پیش",
     condition: "در حد نو",
@@ -366,6 +367,7 @@ export const REQUESTS: Request[] = [
     budget: 3000000,
     privacy: "ABC",
     trustPath: [],
+    endorsements: [{ personId: "reza", type: "know_seller" }],
     city: "تهران",
   },
   {
@@ -380,6 +382,7 @@ export const REQUESTS: Request[] = [
     budget: 12000000,
     privacy: "AB",
     trustPath: [],
+    endorsements: [],
     city: "تهران",
   },
   {
@@ -393,6 +396,10 @@ export const REQUESTS: Request[] = [
     postedAt: "دیروز",
     privacy: "AB",
     trustPath: [{ personId: "sara", relationLabel: "خواهر من" }],
+    endorsements: [
+      { personId: "ali", type: "dealt_before" },
+      { personId: "reza", type: "know_seller" },
+    ],
     city: "تهران",
   },
   {
@@ -407,6 +414,7 @@ export const REQUESTS: Request[] = [
     budget: 8000000,
     privacy: "ABC",
     trustPath: [],
+    endorsements: [{ personId: "mina", type: "know_seller" }],
     city: "تهران",
   },
 ];
@@ -453,6 +461,10 @@ export const EVENTS: CircleEvent[] = [
     privacy: "ABC",
     attendees: ["sara", "reza", "ali"],
     trustPath: [],
+    endorsements: [
+      { personId: "sara", type: "know_seller" },
+      { personId: "reza", type: "dealt_before" },
+    ],
     city: "تهران",
   },
   {
@@ -469,6 +481,7 @@ export const EVENTS: CircleEvent[] = [
     privacy: "A",
     attendees: ["reza"],
     trustPath: [],
+    endorsements: [],
     city: "تهران",
   },
   {
@@ -485,6 +498,7 @@ export const EVENTS: CircleEvent[] = [
     privacy: "ABC",
     attendees: ["reza", "mina", "nima"],
     trustPath: [{ personId: "reza", relationLabel: "دوست من" }],
+    endorsements: [{ personId: "reza", type: "know_seller" }],
     city: "تهران",
   },
   {
@@ -502,6 +516,7 @@ export const EVENTS: CircleEvent[] = [
     privacy: "AB",
     attendees: ["sara"],
     trustPath: [],
+    endorsements: [],
     city: "تهران",
   },
   {
@@ -518,6 +533,10 @@ export const EVENTS: CircleEvent[] = [
     privacy: "AB",
     attendees: ["sara", "ali", "mina", "nima"],
     trustPath: [{ personId: "sara", relationLabel: "خواهر من" }],
+    endorsements: [
+      { personId: "sara", type: "know_seller" },
+      { personId: "ali", type: "dealt_before" },
+    ],
     city: "تهران",
   },
 ];

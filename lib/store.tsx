@@ -104,6 +104,11 @@ interface StoreValue {
   referListing: (peerId: string, listingId: string, note?: string) => void;
   markThreadRead: (peerId: string) => void;
   addPerson: (input: NewPersonInput) => void;
+  /** Mark an existing network person as part of my circle. */
+  addToCircle: (
+    id: string,
+    input: { level: TrustLevel; relation?: RelationType; note?: string },
+  ) => void;
   removePerson: (id: string) => void;
   setLevel: (id: string, level: TrustLevel) => void;
   addListing: (input: NewListingInput) => string;
@@ -144,10 +149,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (data.me && typeof data.me === "object") setMeProfile(data.me);
         if (Array.isArray(data.people)) setPeople(data.people);
         if (Array.isArray(data.listings)) setListings(data.listings);
-        if (Array.isArray(data.requests)) setRequests(data.requests);
+        if (Array.isArray(data.requests)) {
+          setRequests(
+            data.requests.map((r: Request) => ({
+              ...r,
+              endorsements: r.endorsements ?? [],
+            })),
+          );
+        }
         if (Array.isArray(data.offers)) setOffers(data.offers);
         if (Array.isArray(data.messages)) setMessages(data.messages);
-        if (Array.isArray(data.events)) setEvents(data.events);
+        if (Array.isArray(data.events)) {
+          setEvents(
+            data.events.map((e: CircleEvent) => ({
+              ...e,
+              endorsements: e.endorsements ?? [],
+            })),
+          );
+        }
         if (Array.isArray(data.saved)) setSaved(data.saved);
         if (typeof data.onboarded === "boolean") setOnboarded(data.onboarded);
       }
@@ -301,6 +320,28 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const addToCircle = useCallback(
+    (
+      id: string,
+      input: { level: TrustLevel; relation?: RelationType; note?: string },
+    ) => {
+      setPeople((prev) =>
+        prev.map((p) =>
+          p.id === id
+            ? {
+                ...p,
+                inMyCircle: true,
+                level: input.level,
+                relation: input.relation ?? p.relation,
+                note: input.note ?? p.note,
+              }
+            : p,
+        ),
+      );
+    },
+    [],
+  );
+
   const removePerson = useCallback((id: string) => {
     setPeople((prev) => prev.filter((p) => p.id !== id));
   }, []);
@@ -368,6 +409,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       budget: input.budget,
       privacy: input.privacy,
       trustPath: [],
+      endorsements: [],
       city: ME.city,
     };
     setRequests((prev) => [request, ...prev]);
@@ -432,6 +474,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       privacy: input.privacy,
       attendees: [],
       trustPath: [],
+      endorsements: [],
       city: ME.city,
     };
     setEvents((prev) => [event, ...prev]);
@@ -490,6 +533,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       referListing,
       markThreadRead,
       addPerson,
+      addToCircle,
       removePerson,
       setLevel,
       addListing,
@@ -529,6 +573,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       referListing,
       markThreadRead,
       addPerson,
+      addToCircle,
       removePerson,
       setLevel,
       addListing,

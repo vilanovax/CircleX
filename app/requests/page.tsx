@@ -7,6 +7,8 @@ import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import RequestCard from "@/components/RequestCard";
 import AddRequestSheet from "@/components/AddRequestSheet";
+import EmptyState from "@/components/EmptyState";
+import { CardListSkeleton } from "@/components/Skeleton";
 import { PlusIcon } from "@/components/Icons";
 import { canView } from "@/lib/trust";
 import { useToast } from "@/components/Toast";
@@ -14,7 +16,7 @@ import { useToast } from "@/components/Toast";
 function RequestsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { requests, getPerson, addRequest } = useStore();
+  const { requests, getPerson, addRequest, hydrated } = useStore();
   const { show } = useToast();
   const [showAdd, setShowAdd] = useState(false);
 
@@ -64,10 +66,16 @@ function RequestsContent() {
       </div>
 
       <section className="px-4 pt-3 space-y-3">
-        {visible.length === 0 ? (
-          <div className="text-center text-zinc-400 py-16 text-sm">
-            هنوز درخواستی نیست. اولین درخواست را ثبت کن.
-          </div>
+        {!hydrated ? (
+          <CardListSkeleton count={4} />
+        ) : visible.length === 0 ? (
+          <EmptyState
+            icon="🔎"
+            title="هنوز درخواستی نیست"
+            description="نیازت را بین حلقه‌ی اعتمادت بگذار تا دیگران یا آشناهایشان کمکت کنند."
+            actionLabel="ثبت اولین درخواست"
+            onAction={() => setShowAdd(true)}
+          />
         ) : (
           visible.map((r) => <RequestCard key={r.id} request={r} />)
         )}

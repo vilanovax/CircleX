@@ -1,18 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import {
-  eventKindEmoji,
-  eventKindLabels,
-  privacyEmoji,
-  privacyLabels,
-} from "@/lib/labels";
+import { useRef, useState } from "react";
+import PrivacyPicker from "@/components/PrivacyPicker";
+import { useSheetA11y } from "@/lib/use-sheet-a11y";
+import { eventKindEmoji, eventKindLabels } from "@/lib/labels";
+import { useStore } from "@/lib/store";
+import { formatEventDateDisplay } from "@/lib/persian";
 import type { EventKind, Privacy } from "@/lib/types";
 import { toEnglishDigits } from "@/lib/persian";
 
 const KINDS: EventKind[] = ["class", "family", "charity", "kids", "trip", "social"];
-const PRIVACIES: Privacy[] = ["A", "AB", "ABC", "referral", "approved"];
-
 export type EventInput = {
   title: string;
   description: string;
@@ -34,6 +31,8 @@ export default function AddEventSheet({
   onAdd: (input: EventInput) => void;
   onBack?: () => void;
 }) {
+  const { people } = useStore();
+  const circle = people.filter((p) => p.inMyCircle);
   const [kind, setKind] = useState<EventKind>("social");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -44,16 +43,20 @@ export default function AddEventSheet({
   const [privacy, setPrivacy] = useState<Privacy>("ABC");
 
   const canSubmit = title.trim() && date.trim() && location.trim();
+  const panelRef = useRef<HTMLDivElement>(null);
+  useSheetA11y(panelRef, onClose);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-center">
       <div className="relative w-full max-w-[480px]">
         <div className="absolute inset-0 bg-black/30" onClick={onClose} aria-hidden />
         <div
+          ref={panelRef}
           role="dialog"
           aria-modal="true"
           aria-labelledby="add-event-title"
-          className="absolute bottom-0 inset-x-0 bg-white dark:bg-zinc-900 rounded-t-2xl p-5 pb-7 animate-slide-up max-h-[88dvh] overflow-y-auto"
+          tabIndex={-1}
+          className="absolute bottom-0 inset-x-0 bg-white dark:bg-zinc-900 rounded-t-2xl p-5 pb-7 animate-slide-up max-h-[88dvh] overflow-y-auto outline-none"
         >
           <div className="w-10 h-1 bg-zinc-200 dark:bg-zinc-700 rounded-full mx-auto mb-4" />
           {onBack && (
@@ -109,9 +112,9 @@ export default function AddEventSheet({
             <div className="flex-1">
               <label className="block text-sm font-medium mb-1 text-zinc-800 dark:text-zinc-200">تاریخ</label>
               <input
+                type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                placeholder="جمعه ۲۲ خرداد"
                 className="field"
               />
             </div>
@@ -143,22 +146,8 @@ export default function AddEventSheet({
             className="field nums mb-4"
           />
 
-          <label className="block text-sm font-medium mb-2 text-zinc-800 dark:text-zinc-200">چه کسانی ببینند؟</label>
-          <div className="flex flex-wrap gap-2 mb-5">
-            {PRIVACIES.map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setPrivacy(p)}
-                className={`chip !px-3 !py-1.5 border ${
-                  privacy === p
-                    ? "bg-brand-600 text-white border-brand-600"
-                    : "bg-white dark:bg-zinc-900 text-zinc-600 border-zinc-200 dark:border-zinc-700"
-                }`}
-              >
-                {privacyEmoji[p]} {privacyLabels[p]}
-              </button>
-            ))}
+          <div className="mb-5">
+            <PrivacyPicker value={privacy} onChange={setPrivacy} circle={circle} />
           </div>
 
           <div className="flex gap-2">
@@ -174,7 +163,7 @@ export default function AddEventSheet({
                   description: description.trim(),
                   kind,
                   image: eventKindEmoji[kind],
-                  date: date.trim(),
+                  date: formatEventDateDisplay(date.trim()),
                   time: time.trim() || undefined,
                   location: location.trim(),
                   capacity: capacity

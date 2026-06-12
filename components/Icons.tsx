@@ -48,6 +48,16 @@ export function UserIcon({ className }: IconProps) {
   );
 }
 
+export function UserPlusIcon({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M4.5 19a6 6 0 0 1 9 0" />
+      <path d="M16 11v6M13 14h6" />
+    </svg>
+  );
+}
+
 export function BackIcon({ className }: IconProps) {
   // Points right (RTL "back").
   return (

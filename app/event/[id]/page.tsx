@@ -8,8 +8,9 @@ import Avatar from "@/components/Avatar";
 import TrustPath from "@/components/TrustPath";
 import { ShieldCheckIcon } from "@/components/Icons";
 import { useToast } from "@/components/Toast";
+import LockedAccess from "@/components/LockedAccess";
 import { canView } from "@/lib/trust";
-import { toPersianDigits } from "@/lib/persian";
+import { formatEventDateDisplay, toPersianDigits } from "@/lib/persian";
 import {
   eventKindChip,
   eventKindEmoji,
@@ -42,16 +43,11 @@ export default function EventDetailPage() {
     return (
       <main className="min-h-[100dvh]">
         <Header title="جزئیات رویداد" back />
-        <div className="flex flex-col items-center text-center px-8 py-20">
-          <div className="w-16 h-16 rounded-full bg-zinc-100 flex items-center justify-center text-3xl mb-4">
-            🔒
-          </div>
-          <p className="text-sm text-zinc-600 leading-relaxed">
-            این رویداد فقط برای{" "}
-            <span className="font-medium">{privacyLabels[event.privacy]}</span> قابل
-            نمایش است.
-          </p>
-        </div>
+        <LockedAccess
+          itemTitle={event.title}
+          itemKind="event"
+          privacy={event.privacy}
+        />
       </main>
     );
   }
@@ -86,7 +82,7 @@ export default function EventDetailPage() {
           <p className="flex items-center gap-2 text-zinc-700">
             <span>📅</span>
             <span className="font-medium">
-              {event.date}
+              {formatEventDateDisplay(event.date)}
               {event.time ? ` · ساعت ${event.time}` : ""}
             </span>
           </p>
@@ -125,7 +121,7 @@ export default function EventDetailPage() {
             href={`/person/${event.hostId}`}
             className="card p-4 flex items-center gap-3 active:scale-[0.99] transition-transform"
           >
-            <Avatar emoji={host.avatar} level={host.level} size="lg" />
+            <Avatar name={host.name} level={host.level} size="lg" />
             <div className="flex-1 min-w-0">
               <p className="font-bold text-zinc-900">{host.name}</p>
               <p className="text-xs text-zinc-500 mt-0.5">
@@ -159,9 +155,11 @@ export default function EventDetailPage() {
                 const me = aid === "me";
                 return (
                   <div key={aid} className="flex flex-col items-center w-14">
-                    <div className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center text-lg">
-                      {me ? "🧑" : p?.avatar ?? "🧑"}
-                    </div>
+                    {p || me ? (
+                      <Avatar name={me ? "شما" : p!.name} level={me ? undefined : p!.level} size="sm" />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-zinc-100" />
+                    )}
                     <span className="text-[11px] text-zinc-500 mt-1 truncate w-full text-center">
                       {me ? "شما" : p?.name ?? "؟"}
                     </span>

@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSheetA11y } from "@/lib/use-sheet-a11y";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import Avatar from "@/components/Avatar";
+import ListingCard from "@/components/ListingCard";
+import ListingImage from "@/components/ListingImage";
 import SocialCreditCard from "@/components/SocialCreditCard";
 import { ShieldCheckIcon, HeartIcon, PencilIcon } from "@/components/Icons";
 import {
@@ -16,14 +19,13 @@ import {
   listingTypeEmoji,
 } from "@/lib/labels";
 import { buildSocialCredit } from "@/lib/social-credit";
-import { toPersianDigits } from "@/lib/persian";
+import { formatEventDateDisplay, toPersianDigits } from "@/lib/persian";
 import { ThemeSegmented } from "@/components/ThemeToggle";
 import { useToast } from "@/components/Toast";
-
-const AVATARS = ["🧑", "👩", "🧔", "👨", "🧑‍🦱", "👩‍🦰", "🧑‍🦲", "👵", "👴", "🧑‍💼", "👩‍💻", "🧑‍🎨"];
+import { ProfileSkeleton } from "@/components/Skeleton";
 
 export default function ProfilePage() {
-  const { me, people, listings, events, saved, updateProfile } = useStore();
+  const { me, people, listings, events, saved, updateProfile, hydrated } = useStore();
   const { show } = useToast();
   const [showEdit, setShowEdit] = useState(false);
 
@@ -43,6 +45,26 @@ export default function ProfilePage() {
     l.endorsements.filter((e) => e.personId === "me").map((e) => ({ l, e })),
   );
 
+  useEffect(() => {
+    if (!hydrated || window.location.hash !== "#saved") return;
+    const el = document.getElementById("saved");
+    if (!el) return;
+    const t = window.setTimeout(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+    return () => window.clearTimeout(t);
+  }, [hydrated]);
+
+  if (!hydrated) {
+    return (
+      <main className="pb-24 min-h-[100dvh]">
+        <Header title="پروفایل اعتماد" />
+        <ProfileSkeleton />
+        <BottomNav />
+      </main>
+    );
+  }
+
   return (
     <main className="pb-24 min-h-[100dvh]">
       <Header title="پروفایل اعتماد" />
@@ -59,21 +81,33 @@ export default function ProfilePage() {
             ویرایش
           </button>
           <div className="flex items-center gap-4">
-            <Avatar emoji={me.avatar} size="lg" />
+            <Avatar name={me.name} size="lg" />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
                   {me.name}
                 </h2>
-                <span className="chip bg-green-50 text-levelA dark:bg-green-500/15">
-                  <ShieldCheckIcon className="w-3.5 h-3.5" /> تأییدشده
-                </span>
+                {socialCredit.verified && (
+                  <span className="chip bg-green-50 text-levelA dark:bg-green-500/15">
+                    <ShieldCheckIcon className="w-3.5 h-3.5" />{" "}
+                    {socialCredit.verifiedLabel}
+                  </span>
+                )}
               </div>
               <p className="text-sm text-zinc-500 mt-0.5">📍 {me.city}</p>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                 عضو از {socialCredit.memberSince} · آخرین فعالیت{" "}
                 {socialCredit.lastActive}
               </p>
+              {savedListings.length > 0 && (
+                <Link
+                  href="/profile#saved"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-pink-600 dark:text-pink-400 mt-2"
+                >
+                  <HeartIcon className="w-3.5 h-3.5" filled />
+                  {toPersianDigits(savedListings.length)} نشان‌شده
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -103,9 +137,13 @@ export default function ProfilePage() {
                 href={`/listing/${l.id}`}
                 className="card p-3 flex items-center gap-3 active:scale-[0.99] transition-transform"
               >
-                <div className="w-12 h-12 rounded-xl bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center text-2xl shrink-0">
-                  {l.image}
-                </div>
+                <ListingImage
+                  image={l.image}
+                  alt={l.title}
+                  size="lg"
+                  category={l.category}
+                  type={l.type}
+                />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm text-zinc-900 truncate">
                     {listingTypeEmoji[l.type]} {l.title}
@@ -145,42 +183,25 @@ export default function ProfilePage() {
         </Section>
       )}
 
-      {/* Saved listings */}
-      <Section title={`نشان‌شده‌ها (${toPersianDigits(savedListings.length)})`}>
+      {/* Saved listings — canonical home for bookmarks */}
+      <Section id="saved" title={`نشان‌شده‌ها (${toPersianDigits(savedListings.length)})`}>
         {savedListings.length === 0 ? (
           <div className="card p-5 text-center">
             <div className="w-12 h-12 rounded-full bg-pink-50 dark:bg-pink-500/15 flex items-center justify-center text-pink-400 mx-auto mb-3">
               <HeartIcon className="w-6 h-6" />
             </div>
             <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-              هنوز آگهی‌ای نشان نکرده‌اید. روی ❤ در هر آگهی بزنید تا اینجا ذخیره شود.
+              هنوز آگهی‌ای نشان نکرده‌اید. روی ❤ در هر آگهی بزنید تا اینجا در پروفایل
+              ذخیره شود.
             </p>
+            <Link href="/" className="btn-primary inline-block mt-4 text-sm">
+              دیدن آگهی‌ها
+            </Link>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {savedListings.map((l) => (
-              <Link
-                key={l.id}
-                href={`/listing/${l.id}`}
-                className="card p-3 flex items-center gap-3 active:scale-[0.99] transition-transform"
-              >
-                <div className="w-12 h-12 rounded-xl bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center text-2xl shrink-0">
-                  {l.image}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm text-zinc-900 truncate">
-                    {listingTypeEmoji[l.type]} {l.title}
-                  </p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    {l.price != null ? (
-                      <span className="nums">{formatPrice(l.price)}</span>
-                    ) : (
-                      "رایگان / توافقی"
-                    )}{" "}
-                    · {l.postedAt}
-                  </p>
-                </div>
-              </Link>
+              <ListingCard key={l.id} listing={l} compactTrust />
             ))}
           </div>
         )}
@@ -225,7 +246,6 @@ export default function ProfilePage() {
       {showEdit && (
         <EditProfileSheet
           name={me.name}
-          avatar={me.avatar}
           city={me.city ?? ""}
           onClose={() => setShowEdit(false)}
           onSave={(input) => {
@@ -243,46 +263,42 @@ export default function ProfilePage() {
 
 function EditProfileSheet({
   name: initialName,
-  avatar: initialAvatar,
   city: initialCity,
   onClose,
   onSave,
 }: {
   name: string;
-  avatar: string;
   city: string;
   onClose: () => void;
-  onSave: (input: { name: string; avatar: string; city: string }) => void;
+  onSave: (input: { name: string; city: string }) => void;
 }) {
   const [name, setName] = useState(initialName);
-  const [avatar, setAvatar] = useState(initialAvatar);
   const [city, setCity] = useState(initialCity);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useSheetA11y(panelRef, onClose);
 
   return (
     <div className="fixed inset-0 z-40 flex justify-center">
       <div className="relative w-full max-w-[480px]">
-        <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-        <div className="absolute bottom-0 inset-x-0 bg-white dark:bg-zinc-900 rounded-t-2xl p-5 animate-slide-up">
-          <div className="w-10 h-1 bg-zinc-200 rounded-full mx-auto mb-4" />
-          <h2 className="font-bold text-lg mb-4">ویرایش پروفایل</h2>
+        <div className="absolute inset-0 bg-black/30" onClick={onClose} aria-hidden />
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-profile-title"
+          tabIndex={-1}
+          className="absolute bottom-0 inset-x-0 bg-white dark:bg-zinc-900 rounded-t-2xl p-5 animate-slide-up outline-none"
+        >
+          <div className="w-10 h-1 bg-zinc-200 dark:bg-zinc-700 rounded-full mx-auto mb-4" />
+          <h2 id="edit-profile-title" className="font-bold text-lg mb-4 text-zinc-900 dark:text-zinc-100">
+            ویرایش پروفایل
+          </h2>
 
-          <label className="block text-sm font-medium mb-2">آواتار</label>
-          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 mb-4">
-            {AVATARS.map((a) => (
-              <button
-                key={a}
-                onClick={() => setAvatar(a)}
-                aria-label={`انتخاب آواتار ${a}`}
-                aria-pressed={avatar === a}
-                className={`w-12 h-12 shrink-0 rounded-full text-2xl flex items-center justify-center border transition-colors ${
-                  avatar === a
-                    ? "border-brand-500 bg-brand-50 dark:bg-brand-500/15"
-                    : "border-zinc-200 dark:border-zinc-700"
-                }`}
-              >
-                {a}
-              </button>
-            ))}
+          <div className="flex flex-col items-center mb-5">
+            <Avatar name={name.trim() || initialName} size="lg" />
+            <p className="text-[11px] text-zinc-400 mt-2 text-center">
+              آواتار از حرف اول نام و رنگ ثابت ساخته می‌شود
+            </p>
           </div>
 
           <label className="block text-sm font-medium mb-1">نام</label>
@@ -308,7 +324,7 @@ function EditProfileSheet({
             <button
               disabled={!name.trim()}
               onClick={() =>
-                onSave({ name: name.trim(), avatar, city: city.trim() })
+                onSave({ name: name.trim(), city: city.trim() })
               }
               className="btn-primary flex-1"
             >
@@ -335,7 +351,7 @@ function EventRow({ event }: { event: import("@/lib/types").CircleEvent }) {
           {eventKindEmoji[event.kind]} {event.title}
         </p>
         <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-          📅 {event.date}
+          📅 {formatEventDateDisplay(event.date)}
           {event.time ? ` · ${event.time}` : ""} · 📍 {event.location}
         </p>
       </div>
@@ -343,9 +359,17 @@ function EventRow({ event }: { event: import("@/lib/types").CircleEvent }) {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  id,
+  title,
+  children,
+}: {
+  id?: string;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
-    <section className="px-4 pt-5">
+    <section id={id} className={`px-4 pt-5 ${id ? "scroll-mt-24" : ""}`}>
       <h2 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">{title}</h2>
       {children}
     </section>

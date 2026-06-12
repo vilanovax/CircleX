@@ -2,6 +2,7 @@
 
 import type { Endorsement } from "@/lib/types";
 import { useStore } from "@/lib/store";
+import Avatar from "./Avatar";
 import { badgeEmoji, badgeLabels } from "@/lib/labels";
 import { toPersianDigits } from "@/lib/persian";
 
@@ -44,9 +45,11 @@ export function EndorsementList({
         const p = getPerson(e.personId);
         return (
           <li key={i} className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-base shrink-0">
-              {p?.avatar ?? "🧑"}
-            </div>
+            {p ? (
+              <Avatar name={p.name} level={p.level} size="sm" />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-zinc-100 shrink-0" />
+            )}
             <div className="text-sm leading-tight">
               <span className="font-medium text-zinc-800">{p?.name ?? "شما"}</span>
               <span className="text-zinc-500">

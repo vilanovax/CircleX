@@ -36,7 +36,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={value}>
       {children}
       {/* Toast layer, constrained to the phone column */}
-      <div className="fixed top-0 inset-x-0 z-[60] pointer-events-none">
+      <div
+        className="fixed top-0 inset-x-0 z-[60] pointer-events-none"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
         <div className="app-shell !min-h-0 !shadow-none bg-transparent">
           <div className="flex flex-col items-center gap-2 pt-3 px-4">
             {toasts.map((t) => (

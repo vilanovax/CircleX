@@ -7,6 +7,8 @@ import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import EventCard from "@/components/EventCard";
 import AddEventSheet from "@/components/AddEventSheet";
+import EmptyState from "@/components/EmptyState";
+import { CardListSkeleton } from "@/components/Skeleton";
 import { PlusIcon } from "@/components/Icons";
 import { useToast } from "@/components/Toast";
 import { canView } from "@/lib/trust";
@@ -14,7 +16,7 @@ import { canView } from "@/lib/trust";
 function EventsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { events, getPerson, addEvent } = useStore();
+  const { events, getPerson, addEvent, hydrated } = useStore();
   const { show } = useToast();
   const [showAdd, setShowAdd] = useState(false);
 
@@ -64,10 +66,16 @@ function EventsContent() {
       </div>
 
       <section className="px-4 pt-3 space-y-3">
-        {visible.length === 0 ? (
-          <div className="text-center text-zinc-400 py-16 text-sm">
-            رویدادی نیست. اولین دورهمی را بساز!
-          </div>
+        {!hydrated ? (
+          <CardListSkeleton count={4} />
+        ) : visible.length === 0 ? (
+          <EmptyState
+            icon="🎉"
+            title="رویدادی نیست"
+            description="کلاس، دورهمی، بازارچه یا سفر گروهی — بین آدم‌هایی که می‌شناسی."
+            actionLabel="ساخت اولین رویداد"
+            onAction={() => setShowAdd(true)}
+          />
         ) : (
           visible.map((e) => <EventCard key={e.id} event={e} />)
         )}

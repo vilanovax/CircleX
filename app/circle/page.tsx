@@ -1,19 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { useSheetA11y } from "@/lib/use-sheet-a11y";
 import { useStore } from "@/lib/store";
 import Link from "next/link";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
+import { CardListSkeleton } from "@/components/Skeleton";
 import Avatar from "@/components/Avatar";
 import { GraphIcon, PlusIcon } from "@/components/Icons";
 import {
+  levelChip,
   levelLabels,
+  levelShort,
   relationEmoji,
   relationLabels,
-  levelChip,
 } from "@/lib/labels";
-import type { RelationType, TrustLevel } from "@/lib/types";
+import type { Person, RelationType, TrustLevel } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
 import { useToast } from "@/components/Toast";
 
@@ -27,7 +30,7 @@ const RELATIONS: RelationType[] = [
 ];
 
 export default function CirclePage() {
-  const { people, addPerson } = useStore();
+  const { people, addPerson, setLevel, hydrated } = useStore();
   const { show } = useToast();
   const mine = people.filter((p) => p.inMyCircle);
   const [showAdd, setShowAdd] = useState(false);
@@ -111,13 +114,17 @@ export default function CirclePage() {
         </div>
         <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-2 leading-relaxed px-1">
           سطح اعتماد تعیین می‌کند چه کسانی آگهی‌های شما را می‌بینند. سطح A
-          نزدیک‌ترین و مورد اعتمادترین افراد شما هستند.
+          نزدیک‌ترین و مورد اعتمادترین افراد شما هستند — از دکمه‌های A/B/C کنار
+          هر نفر می‌توانی سطح را عوض کنی.
         </p>
       </div>
 
       {/* Groups */}
       <div className="px-4 pt-3 space-y-5">
-        {grouped.map(({ level, members }) => (
+        {!hydrated ? (
+          <CardListSkeleton count={5} />
+        ) : (
+          grouped.map(({ level, members }) => (
           <section key={level}>
             <h2 className="text-sm font-bold text-zinc-700 mb-2">
               {levelLabels[level]}
@@ -131,37 +138,20 @@ export default function CirclePage() {
             ) : (
               <div className="space-y-2">
                 {members.map((p) => (
-                  <Link
+                  <CircleMemberRow
                     key={p.id}
-                    href={`/person/${p.id}`}
-                    className="card p-3 flex items-center gap-3 active:scale-[0.99] transition-transform"
-                  >
-                    <Avatar emoji={p.avatar} level={p.level} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                          {p.name}
-                        </span>
-                        <span className="chip bg-zinc-100 text-zinc-500">
-                          {relationEmoji[p.relation]} {relationLabels[p.relation]}
-                        </span>
-                      </div>
-                      {p.note && (
-                        <p className="text-xs text-zinc-400 mt-0.5 truncate">{p.note}</p>
-                      )}
-                      <p className="text-[11px] text-zinc-400 mt-0.5">
-                        <span className="nums">{toPersianDigits(p.deals)}</span> معامله‌ی موفق
-                      </p>
-                    </div>
-                    <span className="text-zinc-300 dark:text-zinc-600 text-lg shrink-0" aria-hidden>
-                      ‹
-                    </span>
-                  </Link>
+                    person={p}
+                    onSetLevel={(lvl) => {
+                      setLevel(p.id, lvl);
+                      show(`سطح ${p.name} به ${levelShort[lvl]} تغییر کرد`);
+                    }}
+                  />
                 ))}
               </div>
             )}
           </section>
-        ))}
+          ))
+        )}
       </div>
         </>
       )}
@@ -182,6 +172,66 @@ export default function CirclePage() {
   );
 }
 
+function CircleMemberRow({
+  person,
+  onSetLevel,
+}: {
+  person: Person;
+  onSetLevel: (level: TrustLevel) => void;
+}) {
+  return (
+    <div className="card p-3 flex items-center gap-2.5">
+      <Link
+        href={`/person/${person.id}`}
+        className="flex items-center gap-3 min-w-0 flex-1 active:opacity-90"
+      >
+        <Avatar name={person.name} level={person.level} />
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+              {person.name}
+            </span>
+            <span className="chip bg-zinc-100 dark:bg-zinc-800 text-zinc-500 text-[10px]">
+              {relationEmoji[person.relation]} {relationLabels[person.relation]}
+            </span>
+          </div>
+          {person.note && (
+            <p className="text-xs text-zinc-400 mt-0.5 truncate">{person.note}</p>
+          )}
+          <p className="text-[11px] text-zinc-400 mt-0.5">
+            <span className="nums">{toPersianDigits(person.deals)}</span> معامله‌ی موفق
+          </p>
+        </div>
+      </Link>
+      <div
+        className="flex gap-1 shrink-0"
+        role="group"
+        aria-label={`سطح اعتماد ${person.name}`}
+      >
+        {LEVELS.map((lvl) => (
+          <button
+            key={lvl}
+            type="button"
+            onClick={() => {
+              if (person.level !== lvl) onSetLevel(lvl);
+            }}
+            aria-pressed={person.level === lvl}
+            aria-label={levelShort[lvl]}
+            title={levelLabels[lvl]}
+            className={`w-9 h-8 rounded-lg text-[11px] font-bold border transition-colors ${
+              person.level === lvl
+                ? `${levelChip[lvl]} border-current`
+                : "bg-white dark:bg-zinc-900 text-zinc-500 border-zinc-200 dark:border-zinc-700"
+            }`}
+          >
+            {lvl}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AddPersonSheet({
   onClose,
   onAdd,
@@ -198,14 +248,25 @@ function AddPersonSheet({
   const [relation, setRelation] = useState<RelationType>("friend");
   const [level, setLevel] = useState<TrustLevel>("A");
   const [note, setNote] = useState("");
+  const panelRef = useRef<HTMLDivElement>(null);
+  useSheetA11y(panelRef, onClose);
 
   return (
     <div className="fixed inset-0 z-40 flex justify-center">
       <div className="relative w-full max-w-[480px]">
-        <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-        <div className="absolute bottom-0 inset-x-0 bg-white rounded-t-2xl p-5 animate-slide-up">
-          <div className="w-10 h-1 bg-zinc-200 rounded-full mx-auto mb-4" />
-          <h2 className="font-bold text-lg mb-4">افزودن به حلقه‌ی من</h2>
+        <div className="absolute inset-0 bg-black/30" onClick={onClose} aria-hidden />
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-person-title"
+          tabIndex={-1}
+          className="absolute bottom-0 inset-x-0 bg-white dark:bg-zinc-900 rounded-t-2xl p-5 animate-slide-up outline-none"
+        >
+          <div className="w-10 h-1 bg-zinc-200 dark:bg-zinc-700 rounded-full mx-auto mb-4" />
+          <h2 id="add-person-title" className="font-bold text-lg mb-4 text-zinc-900 dark:text-zinc-100">
+            افزودن به حلقه‌ی من
+          </h2>
 
           <label className="block text-sm font-medium mb-1">نام</label>
           <input
