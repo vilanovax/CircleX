@@ -24,10 +24,13 @@ import { ThemeSegmented } from "@/components/ThemeToggle";
 import { useToast } from "@/components/Toast";
 import { ProfileSkeleton } from "@/components/Skeleton";
 
+type ProfileTab = "listings" | "events" | "saved" | "activity" | "settings";
+
 export default function ProfilePage() {
   const { me, people, listings, events, saved, updateProfile, hydrated } = useStore();
   const { show } = useToast();
   const [showEdit, setShowEdit] = useState(false);
+  const [tab, setTab] = useState<ProfileTab>("listings");
 
   const myCircle = people.filter((p) => p.inMyCircle);
   const myListings = listings.filter((l) => l.sellerId === "me");
@@ -45,14 +48,18 @@ export default function ProfilePage() {
     l.endorsements.filter((e) => e.personId === "me").map((e) => ({ l, e })),
   );
 
+  const eventsCount = hostedEvents.length + attendingEvents.length;
+  const tabs: { id: ProfileTab; label: string; count?: number }[] = [
+    { id: "listings", label: "آگهی‌ها", count: myListings.length },
+    { id: "events", label: "رویدادها", count: eventsCount },
+    { id: "saved", label: "نشان‌شده", count: savedListings.length },
+    { id: "activity", label: "تأییدها", count: myGivenBadges.length },
+    { id: "settings", label: "تنظیمات" },
+  ];
+
   useEffect(() => {
     if (!hydrated || window.location.hash !== "#saved") return;
-    const el = document.getElementById("saved");
-    if (!el) return;
-    const t = window.setTimeout(() => {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 120);
-    return () => window.clearTimeout(t);
+    setTab("saved");
   }, [hydrated]);
 
   if (!hydrated) {
@@ -100,13 +107,14 @@ export default function ProfilePage() {
                 {socialCredit.lastActive}
               </p>
               {savedListings.length > 0 && (
-                <Link
-                  href="/profile#saved"
+                <button
+                  type="button"
+                  onClick={() => setTab("saved")}
                   className="inline-flex items-center gap-1 text-xs font-medium text-pink-600 dark:text-pink-400 mt-2"
                 >
                   <HeartIcon className="w-3.5 h-3.5" filled />
                   {toPersianDigits(savedListings.length)} نشان‌شده
-                </Link>
+                </button>
               )}
             </div>
           </div>
@@ -121,127 +129,176 @@ export default function ProfilePage() {
         />
       </div>
 
-      {/* My listings */}
-      <Section title={`آگهی‌های من (${toPersianDigits(myListings.length)})`}>
-        {myListings.length === 0 ? (
-          <EmptyHint
-            text="هنوز آگهی‌ای ثبت نکرده‌اید."
-            href="/new"
-            cta="ثبت اولین آگهی"
-          />
-        ) : (
-          <div className="space-y-2">
-            {myListings.map((l) => (
-              <Link
-                key={l.id}
-                href={`/listing/${l.id}`}
-                className="card p-3 flex items-center gap-3 active:scale-[0.99] transition-transform"
-              >
-                <ListingImage
-                  image={l.image}
-                  alt={l.title}
-                  size="lg"
-                  category={l.category}
-                  type={l.type}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm text-zinc-900 truncate">
-                    {listingTypeEmoji[l.type]} {l.title}
-                  </p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    {l.price != null ? (
-                      <span className="nums">{formatPrice(l.price)}</span>
-                    ) : (
-                      "رایگان / توافقی"
-                    )}{" "}
-                    · {l.postedAt}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </Section>
-
-      {hostedEvents.length > 0 && (
-        <Section title={`رویدادهای من (${toPersianDigits(hostedEvents.length)})`}>
-          <div className="space-y-2">
-            {hostedEvents.map((e) => (
-              <EventRow key={e.id} event={e} />
-            ))}
-          </div>
-        </Section>
-      )}
-
-      {attendingEvents.length > 0 && (
-        <Section title={`رویدادهایی که می‌روم (${toPersianDigits(attendingEvents.length)})`}>
-          <div className="space-y-2">
-            {attendingEvents.map((e) => (
-              <EventRow key={e.id} event={e} />
-            ))}
-          </div>
-        </Section>
-      )}
-
-      {/* Saved listings — canonical home for bookmarks */}
-      <Section id="saved" title={`نشان‌شده‌ها (${toPersianDigits(savedListings.length)})`}>
-        {savedListings.length === 0 ? (
-          <div className="card p-5 text-center">
-            <div className="w-12 h-12 rounded-full bg-pink-50 dark:bg-pink-500/15 flex items-center justify-center text-pink-400 mx-auto mb-3">
-              <HeartIcon className="w-6 h-6" />
-            </div>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-              هنوز آگهی‌ای نشان نکرده‌اید. روی ❤ در هر آگهی بزنید تا اینجا در پروفایل
-              ذخیره شود.
-            </p>
-            <Link href="/" className="btn-primary inline-block mt-4 text-sm">
-              دیدن آگهی‌ها
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {savedListings.map((l) => (
-              <ListingCard key={l.id} listing={l} compactTrust />
-            ))}
-          </div>
-        )}
-      </Section>
-
-      {/* Badges given */}
-      <Section title="تأییدهایی که داده‌ام">
-        {myGivenBadges.length === 0 ? (
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 pr-1">
-            هنوز آگهی‌ای را تأیید نکرده‌اید. در صفحه‌ی هر آگهی می‌توانید نشان
-            اعتماد خود را اضافه کنید.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {myGivenBadges.map(({ l, e }, i) => (
-              <Link
-                key={i}
-                href={`/listing/${l.id}`}
-                className="card p-3 flex items-center gap-2.5 text-sm"
-              >
-                <span className="text-lg">{badgeEmoji[e.type]}</span>
-                <span className="flex-1 min-w-0">
-                  <span className="text-zinc-500">{badgeLabels[e.type]} — </span>
-                  <span className="font-medium text-zinc-800 dark:text-zinc-100 truncate">
-                    {l.title}
-                  </span>
-                </span>
-              </Link>
-            ))}
-          </div>
-        )}
-      </Section>
-
-      {/* Settings / theme — at the bottom (mobile convention) */}
-      <Section title="تنظیمات">
-        <div className="card p-4">
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">حالت نمایش برنامه</p>
-          <ThemeSegmented />
+      {/* Tabs — keep the profile short; content is grouped, not stacked */}
+      <div className="px-4 pt-4">
+        <div
+          role="tablist"
+          aria-label="بخش‌های پروفایل"
+          className="flex gap-1.5 overflow-x-auto no-scrollbar"
+        >
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              id={`ptab-${t.id}`}
+              aria-selected={tab === t.id}
+              aria-controls={`ppanel-${t.id}`}
+              onClick={() => setTab(t.id)}
+              className={`shrink-0 rounded-full px-3.5 py-2 text-[13px] font-medium transition-colors ${
+                tab === t.id
+                  ? "bg-brand-600 text-white"
+                  : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700"
+              }`}
+            >
+              {t.label}
+              {t.count != null && (
+                <span className="nums"> ({toPersianDigits(t.count)})</span>
+              )}
+            </button>
+          ))}
         </div>
-      </Section>
+      </div>
+
+      <div
+        role="tabpanel"
+        id={`ppanel-${tab}`}
+        aria-labelledby={`ptab-${tab}`}
+        className="px-4 pt-4"
+      >
+        {tab === "listings" &&
+          (myListings.length === 0 ? (
+            <EmptyHint
+              text="هنوز آگهی‌ای ثبت نکرده‌اید."
+              href="/new"
+              cta="ثبت اولین آگهی"
+            />
+          ) : (
+            <div className="space-y-2">
+              {myListings.map((l) => (
+                <Link
+                  key={l.id}
+                  href={`/listing/${l.id}`}
+                  className="card p-3 flex items-center gap-3 active:scale-[0.99] transition-transform"
+                >
+                  <ListingImage
+                    image={l.image}
+                    alt={l.title}
+                    size="lg"
+                    category={l.category}
+                    type={l.type}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm text-zinc-900 dark:text-zinc-100 truncate">
+                      {listingTypeEmoji[l.type]} {l.title}
+                    </p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                      {l.price != null ? (
+                        <span className="nums">{formatPrice(l.price)}</span>
+                      ) : (
+                        "رایگان / توافقی"
+                      )}{" "}
+                      · {l.postedAt}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ))}
+
+        {tab === "events" &&
+          (eventsCount === 0 ? (
+            <EmptyHint
+              text="هنوز رویدادی نساخته‌اید و در رویدادی شرکت نکرده‌اید."
+              href="/events"
+              cta="دیدن رویدادها"
+            />
+          ) : (
+            <div className="space-y-5">
+              {hostedEvents.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-2">
+                    میزبانی می‌کنم ({toPersianDigits(hostedEvents.length)})
+                  </h3>
+                  <div className="space-y-2">
+                    {hostedEvents.map((e) => (
+                      <EventRow key={e.id} event={e} />
+                    ))}
+                  </div>
+                </div>
+              )}
+              {attendingEvents.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-2">
+                    می‌روم ({toPersianDigits(attendingEvents.length)})
+                  </h3>
+                  <div className="space-y-2">
+                    {attendingEvents.map((e) => (
+                      <EventRow key={e.id} event={e} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+
+        {tab === "saved" &&
+          (savedListings.length === 0 ? (
+            <div className="card p-5 text-center">
+              <div className="w-12 h-12 rounded-full bg-pink-50 dark:bg-pink-500/15 flex items-center justify-center text-pink-400 mx-auto mb-3">
+                <HeartIcon className="w-6 h-6" />
+              </div>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                هنوز آگهی‌ای نشان نکرده‌اید. روی ❤ در هر آگهی بزنید تا اینجا در
+                پروفایل ذخیره شود.
+              </p>
+              <Link href="/" className="btn-primary inline-block mt-4 text-sm">
+                دیدن آگهی‌ها
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {savedListings.map((l) => (
+                <ListingCard key={l.id} listing={l} compactTrust />
+              ))}
+            </div>
+          ))}
+
+        {tab === "activity" &&
+          (myGivenBadges.length === 0 ? (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 pr-1">
+              هنوز آگهی‌ای را تأیید نکرده‌اید. در صفحه‌ی هر آگهی می‌توانید نشان
+              اعتماد خود را اضافه کنید.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {myGivenBadges.map(({ l, e }, i) => (
+                <Link
+                  key={i}
+                  href={`/listing/${l.id}`}
+                  className="card p-3 flex items-center gap-2.5 text-sm"
+                >
+                  <span className="text-lg">{badgeEmoji[e.type]}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="text-zinc-500">{badgeLabels[e.type]} — </span>
+                    <span className="font-medium text-zinc-800 dark:text-zinc-100 truncate">
+                      {l.title}
+                    </span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ))}
+
+        {tab === "settings" && (
+          <div className="card p-4">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">
+              حالت نمایش برنامه
+            </p>
+            <ThemeSegmented />
+          </div>
+        )}
+      </div>
 
       {showEdit && (
         <EditProfileSheet
@@ -356,23 +413,6 @@ function EventRow({ event }: { event: import("@/lib/types").CircleEvent }) {
         </p>
       </div>
     </Link>
-  );
-}
-
-function Section({
-  id,
-  title,
-  children,
-}: {
-  id?: string;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section id={id} className={`px-4 pt-5 ${id ? "scroll-mt-24" : ""}`}>
-      <h2 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">{title}</h2>
-      {children}
-    </section>
   );
 }
 

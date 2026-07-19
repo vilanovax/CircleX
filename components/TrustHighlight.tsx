@@ -29,7 +29,7 @@ export default function TrustHighlight({
   endorsements?: Endorsement[];
   posterRole?: string;
   contentKind?: TrustContentKind;
-  variant?: "default" | "compact";
+  variant?: "default" | "compact" | "line";
 }) {
   const { getPerson } = useStore();
   const trust = trustHighlightMessage(
@@ -55,6 +55,42 @@ export default function TrustHighlight({
     request: "درخواست شما",
     event: "رویداد شما",
   };
+
+  if (variant === "line") {
+    const relation =
+      trust.subline ?? (isOwn ? ownRelation[contentKind] : viewerRelationPhrase(poster));
+
+    const inner = (
+      <>
+        <Avatar name={poster.name} level={isOwn ? undefined : poster.level} size="sm" />
+        <span className="text-[13px] min-w-0 truncate">
+          <span className="font-semibold text-zinc-800 dark:text-zinc-100">
+            {poster.name}
+          </span>
+          <span className={isOwn ? "text-zinc-500 dark:text-zinc-400" : "text-brand-700 dark:text-brand-300"}>
+            {" · "}
+            {relation}
+          </span>
+        </span>
+      </>
+    );
+
+    return (
+      <div className="flex items-center gap-2 mb-2.5 min-w-0">
+        {isOwn ? (
+          <div className="flex items-center gap-2 min-w-0 flex-1">{inner}</div>
+        ) : (
+          <Link
+            href={`/person/${posterId}`}
+            className="flex items-center gap-2 min-w-0 flex-1 active:opacity-80"
+          >
+            {inner}
+          </Link>
+        )}
+        <ShieldCheckIcon className="w-4 h-4 text-brand-500 shrink-0" aria-hidden />
+      </div>
+    );
+  }
 
   if (variant === "compact") {
     const relation =

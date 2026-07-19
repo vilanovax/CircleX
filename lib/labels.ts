@@ -25,15 +25,22 @@ export const relationEmoji: Record<RelationType, string> = {
 };
 
 export const levelLabels: Record<TrustLevel, string> = {
-  A: "سطح A — نزدیک‌ترین",
-  B: "سطح B — مورد اعتماد",
-  C: "سطح C — آشنا",
+  A: "نزدیک‌ترین",
+  B: "مورد اعتماد",
+  C: "آشنا",
 };
 
 export const levelShort: Record<TrustLevel, string> = {
-  A: "سطح A",
-  B: "سطح B",
-  C: "سطح C",
+  A: "نزدیک",
+  B: "مورد اعتماد",
+  C: "آشنا",
+};
+
+/** Single-letter tier token — used only for compact visual badges/toggles. */
+export const levelLetter: Record<TrustLevel, string> = {
+  A: "A",
+  B: "B",
+  C: "C",
 };
 
 /** Tailwind classes for each trust level (text + subtle bg). */

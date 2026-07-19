@@ -6,6 +6,7 @@ import type { ListingType } from "@/lib/types";
 const sizeClass = {
   sm: "text-3xl",
   md: "text-4xl",
+  feed: "text-5xl",
   lg: "text-5xl",
   hero: "text-7xl",
 } as const;
@@ -36,7 +37,9 @@ export default function ListingImage({
         ? `w-16 h-16 rounded-xl bg-gradient-to-br ${tint}`
         : size === "lg"
           ? `w-12 h-12 rounded-xl bg-gradient-to-br ${tint}`
-          : `w-20 h-20 rounded-xl bg-gradient-to-br ${tint}`;
+          : size === "feed"
+            ? `w-24 h-24 rounded-2xl bg-gradient-to-br ${tint}`
+            : `w-20 h-20 rounded-xl bg-gradient-to-br ${tint}`;
 
   const frame = frameClassName ?? defaultFrame;
 

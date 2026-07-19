@@ -105,7 +105,7 @@ export default function CirclePage() {
         <div className="card p-3 flex items-center justify-around text-center">
           {LEVELS.map((lvl) => (
             <div key={lvl} className="flex-1">
-              <div className={`chip ${levelChip[lvl]} mx-auto`}>سطح {lvl}</div>
+              <div className={`chip ${levelChip[lvl]} mx-auto`}>{levelShort[lvl]}</div>
               <p className="text-lg font-bold mt-1 nums">
                 {toPersianDigits(mine.filter((p) => p.level === lvl).length)}
               </p>
@@ -113,9 +113,9 @@ export default function CirclePage() {
           ))}
         </div>
         <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-2 leading-relaxed px-1">
-          سطح اعتماد تعیین می‌کند چه کسانی آگهی‌های شما را می‌بینند. سطح A
-          نزدیک‌ترین و مورد اعتمادترین افراد شما هستند — از دکمه‌های A/B/C کنار
-          هر نفر می‌توانی سطح را عوض کنی.
+          سطح اعتماد تعیین می‌کند چه کسانی آگهی‌های شما را می‌بینند. «نزدیک»
+          صمیمی‌ترین و مورد اعتمادترین افراد شما هستند — از دکمه‌های کنار هر نفر
+          می‌توانی سطح را عوض کنی.
         </p>
       </div>
 

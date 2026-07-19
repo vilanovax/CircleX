@@ -37,7 +37,7 @@ export default function ListingCard({
           posterId={listing.sellerId}
           trustPath={listing.trustPath}
           endorsements={listing.endorsements}
-          variant={compactTrust ? "compact" : "default"}
+          variant={compactTrust ? "line" : "default"}
         />
       )}
 
@@ -46,7 +46,7 @@ export default function ListingCard({
           <ListingImage
             image={listing.image}
             alt={listing.title}
-            size="md"
+            size={compactTrust ? "feed" : "md"}
             category={listing.category}
             type={listing.type}
           />
@@ -61,7 +61,7 @@ export default function ListingCard({
             </h3>
             <div className="mt-1">
               {listing.price != null ? (
-                <span className="text-brand-700 dark:text-brand-400 font-bold text-sm nums">
+                <span className="text-brand-700 dark:text-brand-400 font-bold text-[15px] nums">
                   {formatPrice(listing.price)}
                 </span>
               ) : (
@@ -70,17 +70,21 @@ export default function ListingCard({
                 </span>
               )}
             </div>
-          </div>
-        </div>
 
-        <div className="flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400 mt-2.5 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-          <span>📍 {listing.city}</span>
-          <span>·</span>
-          <span>{listing.postedAt}</span>
-          <span>·</span>
-          <span title={privacyAudience(listing.privacy, circle)}>
-            {privacyEmoji[listing.privacy]} {privacyLabels[listing.privacy]}
-          </span>
+            <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 mt-1.5">
+              <span className="truncate min-w-0">📍 {listing.city}</span>
+              <span aria-hidden>·</span>
+              <span className="shrink-0">{listing.postedAt}</span>
+              <span aria-hidden>·</span>
+              <span
+                className="shrink-0"
+                title={privacyAudience(listing.privacy, circle)}
+                aria-label={privacyLabels[listing.privacy]}
+              >
+                {privacyEmoji[listing.privacy]}
+              </span>
+            </div>
+          </div>
         </div>
       </Link>
     </article>
