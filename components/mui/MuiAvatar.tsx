@@ -1,0 +1,59 @@
+"use client";
+
+import { Avatar, Badge } from "@mui/material";
+import type { TrustLevel } from "@/lib/types";
+import { personAvatarHex, personInitials } from "@/lib/avatar";
+import { levelHex } from "./shared";
+
+const SIZES = { sm: 36, md: 48, lg: 64 } as const;
+
+/** MUI equivalent of the classic Avatar: initials on a stable color with an
+ *  optional trust-level badge. */
+export default function MuiAvatar({
+  name,
+  level,
+  size = "md",
+}: {
+  name: string;
+  level?: TrustLevel;
+  size?: keyof typeof SIZES;
+}) {
+  const px = SIZES[size];
+  const avatar = (
+    <Avatar
+      sx={{
+        width: px,
+        height: px,
+        bgcolor: personAvatarHex(name),
+        fontWeight: 700,
+        fontSize: size === "lg" ? 24 : size === "sm" ? 14 : 18,
+      }}
+    >
+      {personInitials(name)}
+    </Avatar>
+  );
+
+  if (!level) return avatar;
+
+  return (
+    <Badge
+      overlap="circular"
+      anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+      badgeContent={level}
+      sx={{
+        "& .MuiBadge-badge": {
+          bgcolor: levelHex[level],
+          color: "#fff",
+          fontSize: 9,
+          fontWeight: 700,
+          minWidth: 16,
+          height: 16,
+          border: "2px solid",
+          borderColor: "background.paper",
+        },
+      }}
+    >
+      {avatar}
+    </Badge>
+  );
+}

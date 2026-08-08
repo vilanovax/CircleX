@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import { heroui } from "@heroui/react";
 
 const config: Config = {
   darkMode: "class",
@@ -6,6 +7,9 @@ const config: Config = {
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./lib/**/*.{js,ts,jsx,tsx}",
+    // HeroUI components (nested under @heroui/react in this install).
+    "./node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}",
+    "./node_modules/@heroui/react/node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
@@ -13,30 +17,40 @@ const config: Config = {
         sans: ["var(--font-vazir)", "Vazirmatn", "system-ui", "sans-serif"],
       },
       colors: {
-        // Circle brand — calm, trustworthy violet/indigo
+        // Circle brand — deep indigo-plum (action only; not body text)
         brand: {
-          50: "#f5f3ff",
-          100: "#ede9fe",
-          200: "#ddd6fe",
-          300: "#c4b5fd",
-          400: "#a78bfa",
-          500: "#8b5cf6",
-          600: "#7c3aed",
-          700: "#6d28d9",
-          800: "#5b21b6",
-          900: "#4c1d95",
+          50: "#f3f1fa",
+          100: "#e6e1f5",
+          200: "#cdc4eb",
+          300: "#a89ad6",
+          400: "#7f6bc0",
+          500: "#5f4aa8",
+          600: "#4a3a8f",
+          700: "#3c3075",
+          800: "#2f275c",
+          900: "#221d45",
+        },
+        // Warm stone surfaces — intimate, not cool gray marketplace
+        canvas: {
+          DEFAULT: "#ebe8e3",
+          dark: "#121110",
+        },
+        ink: {
+          DEFAULT: "#1a1816",
+          muted: "#6b6560",
+          faint: "#9a948e",
         },
         // Trust level colors
-        levelA: "#16a34a", // green — closest, most trusted
-        levelB: "#2563eb", // blue
-        levelC: "#d97706", // amber
+        levelA: "#2d8a56", // green — closest, most trusted
+        levelB: "#3b6ea5", // steel blue
+        levelC: "#c27a2d", // clay amber
       },
       boxShadow: {
-        card: "0 1px 3px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04)",
-        nav: "0 -1px 12px rgba(16,24,40,0.06)",
+        card: "0 1px 2px rgba(26,24,22,0.04), 0 4px 16px rgba(26,24,22,0.05)",
+        nav: "0 -1px 16px rgba(26,24,22,0.06)",
       },
       borderRadius: {
-        "2xl": "1.25rem",
+        "2xl": "1.125rem",
       },
       keyframes: {
         "slide-up": {
@@ -64,7 +78,25 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  // HeroUI is a Tailwind-plugin library; this only adds HeroUI's own tokens and
+  // component classes (additive) — the classic design is unaffected. The cast
+  // bridges HeroUI's bundled tailwindcss types vs. the project's.
+  plugins: [
+    heroui({
+      themes: {
+        light: {
+          colors: {
+            primary: { DEFAULT: "#4a3a8f", foreground: "#ffffff" }, // brand-600
+          },
+        },
+        dark: {
+          colors: {
+            primary: { DEFAULT: "#5f4aa8", foreground: "#ffffff" }, // brand-500
+          },
+        },
+      },
+    }),
+  ] as unknown as Config["plugins"],
 };
 
 export default config;

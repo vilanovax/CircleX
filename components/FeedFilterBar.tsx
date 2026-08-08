@@ -40,10 +40,10 @@ export default function FeedFilterBar({
   useSheetA11y(morePanelRef, () => setShowMore(false), { enabled: showMore });
 
   const chipClass = (active: boolean) =>
-    `chip whitespace-nowrap !px-3 !py-1.5 border transition-colors ${
+    `chip whitespace-nowrap !px-2.5 !py-1 border transition-colors duration-150 text-[12px] ${
       active
-        ? "bg-brand-600 text-white border-brand-600"
-        : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700"
+        ? "bg-brand-600 text-white border-brand-600 shadow-sm shadow-brand-600/20"
+        : "bg-[color:var(--circle-surface)] text-ink-muted dark:text-zinc-300 border-stone-200/70 dark:border-zinc-700"
     }`;
 
   return (
@@ -62,7 +62,7 @@ export default function FeedFilterBar({
               aria-pressed={filter === f.key}
               className={chipClass(filter === f.key)}
             >
-              {f.emoji} {f.label}
+              {f.label}
             </button>
           ))}
           <button
@@ -72,13 +72,7 @@ export default function FeedFilterBar({
             aria-haspopup="dialog"
             className={chipClass(moreActive)}
           >
-            {moreActive ? (
-              <>
-                {filterEmoji(filter)} {filterLabel(filter)}
-              </>
-            ) : (
-              <>⋯ بیشتر</>
-            )}
+            {moreActive ? filterLabel(filter) : "بیشتر"}
           </button>
         </div>
       </div>

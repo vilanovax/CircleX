@@ -14,24 +14,27 @@ type Step = "menu" | "listing" | "request" | "event";
 const MENU_OPTIONS = [
   {
     id: "listing" as const,
-    emoji: "🏷️",
+    mark: "آ",
     title: "ثبت آگهی",
-    subtitle: "چیزی برای فروش، اهدا، معاوضه یا قرض داری",
-    tint: "bg-brand-50 text-brand-600 dark:bg-brand-500/15",
+    subtitle: "فروش، اهدا، معاوضه یا قرض",
+    tint: "bg-brand-600 text-white",
+    ring: "ring-brand-600/15",
   },
   {
     id: "request" as const,
-    emoji: "🔎",
+    mark: "د",
     title: "ثبت درخواست",
-    subtitle: "دنبال کالا یا خدمتی می‌گردی — از حلقه بپرس",
-    tint: "bg-amber-50 text-amber-600 dark:bg-amber-500/15",
+    subtitle: "از حلقه بپرس چه می‌خواهی",
+    tint: "bg-levelC text-white",
+    ring: "ring-levelC/15",
   },
   {
     id: "event" as const,
-    emoji: "🎉",
+    mark: "ر",
     title: "ساخت رویداد",
-    subtitle: "کلاس، دورهمی، بازارچه، سفر گروهی یا playdate",
-    tint: "bg-violet-50 text-violet-600 dark:bg-violet-500/15",
+    subtitle: "دورهمی، کلاس یا جمع کوچک",
+    tint: "bg-levelB text-white",
+    ring: "ring-levelB/15",
   },
 ] as const;
 
@@ -98,44 +101,67 @@ export default function CreateSheet({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-40 flex justify-center">
       <div className="relative w-full max-w-[480px]">
-        <div className="absolute inset-0 bg-black/30" onClick={onClose} aria-hidden />
+        <div
+          className="absolute inset-0 bg-ink/35 backdrop-blur-[2px]"
+          onClick={onClose}
+          aria-hidden
+        />
         <div
           ref={panelRef}
           role="dialog"
           aria-modal="true"
           aria-labelledby="create-sheet-title"
           tabIndex={-1}
-          className="absolute bottom-0 inset-x-0 bg-white dark:bg-zinc-900 rounded-t-2xl p-5 pb-7 animate-slide-up outline-none"
+          className="absolute bottom-0 inset-x-0 bg-[color:var(--circle-surface)] dark:bg-zinc-900 rounded-t-[1.35rem] px-4 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] animate-slide-up outline-none shadow-[0_-8px_40px_rgba(26,24,22,0.12)]"
         >
-          <div className="w-10 h-1 bg-zinc-200 dark:bg-zinc-700 rounded-full mx-auto mb-4" />
-          <h2
-            id="create-sheet-title"
-            className="font-bold text-lg mb-1 text-zinc-900 dark:text-zinc-100"
-          >
-            چی می‌خوای ثبت کنی؟
-          </h2>
-          <p className="text-xs text-zinc-400 mb-4">
-            هر سه نوع از همین‌جا — بدون جابه‌جایی بین صفحه‌ها
-          </p>
+          <div className="w-9 h-1 bg-stone-300/80 dark:bg-zinc-600 rounded-full mx-auto mb-4" />
 
-          <div className="space-y-2">
+          <div className="flex items-start justify-between gap-3 mb-4 px-0.5">
+            <div className="min-w-0">
+              <h2
+                id="create-sheet-title"
+                className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 leading-tight"
+              >
+                ثبت در حلقه
+              </h2>
+              <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
+                آگهی، درخواست یا رویداد — از همین‌جا
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="shrink-0 text-[13px] font-semibold text-ink-muted dark:text-zinc-400 px-2 py-1 rounded-lg active:bg-stone-100 dark:active:bg-zinc-800"
+            >
+              بستن
+            </button>
+          </div>
+
+          <div className="card overflow-hidden divide-y divide-stone-100 dark:divide-zinc-800">
             {MENU_OPTIONS.map((o) => (
               <button
                 key={o.id}
                 type="button"
                 onClick={() => setStep(o.id)}
-                className="w-full flex items-center gap-3 p-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 active:scale-[0.99] transition text-right"
+                className="w-full flex items-center gap-3 px-3.5 py-3.5 text-right active:bg-stone-50/90 dark:active:bg-zinc-800/70 transition-colors"
               >
                 <div
-                  className={`w-11 h-11 rounded-full flex items-center justify-center text-xl shrink-0 ${o.tint}`}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-[15px] font-extrabold shrink-0 ring-4 ${o.tint} ${o.ring}`}
                 >
-                  {o.emoji}
+                  {o.mark}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-bold text-sm text-zinc-900 dark:text-zinc-100">{o.title}</p>
-                  <p className="text-[11px] text-zinc-400 leading-relaxed">{o.subtitle}</p>
+                  <p className="font-bold text-[14px] text-ink dark:text-zinc-100">
+                    {o.title}
+                  </p>
+                  <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-snug">
+                    {o.subtitle}
+                  </p>
                 </div>
-                <span className="text-zinc-300 dark:text-zinc-600 text-lg shrink-0" aria-hidden>
+                <span
+                  className="text-ink-faint dark:text-zinc-600 text-base shrink-0"
+                  aria-hidden
+                >
                   ‹
                 </span>
               </button>

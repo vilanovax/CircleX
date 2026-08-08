@@ -3,7 +3,7 @@ import { levelDot } from "@/lib/labels";
 import { personAvatarHex, personInitials } from "@/lib/avatar";
 
 const sizes = {
-  sm: { box: "w-9 h-9", text: "text-sm" },
+  sm: { box: "w-8 h-8", text: "text-xs" },
   md: { box: "w-12 h-12", text: "text-lg" },
   lg: { box: "w-16 h-16", text: "text-2xl" },
 };

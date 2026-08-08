@@ -32,13 +32,13 @@ export default function Header({
   }
 
   return (
-    <header className="sticky top-0 z-20 bg-white/90 dark:bg-zinc-900/90 backdrop-blur border-b border-zinc-100 dark:border-zinc-800">
+    <header className="sticky top-0 z-20 bg-[color:var(--circle-surface)]/92 dark:bg-zinc-900/90 backdrop-blur-xl border-b border-stone-200/60 dark:border-zinc-800">
       <div className="flex items-center gap-2 px-4 h-14">
         {back && (
           <button
             onClick={handleBack}
             aria-label="بازگشت"
-            className="-mr-2 w-9 h-9 flex items-center justify-center text-zinc-600 dark:text-zinc-300 active:text-zinc-900 dark:active:text-zinc-100"
+            className="-mr-2 w-9 h-9 flex items-center justify-center text-ink-muted dark:text-zinc-300 active:text-ink dark:active:text-zinc-100"
           >
             <BackIcon className="w-6 h-6" />
           </button>
@@ -46,11 +46,11 @@ export default function Header({
         <div className="min-w-0 flex-1">
           {children ?? (
             <>
-              <h1 className="font-bold text-zinc-900 dark:text-zinc-100 truncate leading-tight">
+              <h1 className="font-extrabold text-ink dark:text-zinc-100 truncate leading-tight text-[17px]">
                 {title}
               </h1>
               {subtitle && (
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                <p className="text-[11px] text-ink-muted dark:text-zinc-400 truncate mt-0.5">
                   {subtitle}
                 </p>
               )}

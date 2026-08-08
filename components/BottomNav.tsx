@@ -32,7 +32,7 @@ export default function BottomNav() {
     <>
     <nav className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
       <div className="app-shell !min-h-0 !shadow-none bg-transparent">
-        <div className="pointer-events-auto bg-white/95 dark:bg-zinc-900/95 backdrop-blur border-t border-zinc-100 dark:border-zinc-800 shadow-nav px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1.5">
+        <div className="pointer-events-auto bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-xl border-t border-stone-200/70 dark:border-zinc-800 shadow-nav px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1.5">
           <ul className="flex items-end justify-between">
             {items.map((item) => {
               const { id, label, Icon } = item;
@@ -50,7 +50,7 @@ export default function BottomNav() {
                     <button
                       onClick={() => setShowCreate(true)}
                       aria-label="ثبت آگهی، درخواست یا رویداد"
-                      className="-mt-6 w-14 h-14 rounded-full bg-brand-600 text-white flex items-center justify-center shadow-lg shadow-brand-600/30 active:bg-brand-700 transition-colors"
+                      className="-mt-6 w-14 h-14 rounded-full bg-brand-600 text-white flex items-center justify-center shadow-lg shadow-brand-600/25 ring-[3px] ring-[color:var(--circle-surface)] dark:ring-zinc-900 active:scale-95 active:bg-brand-700 transition-[transform,colors] duration-150"
                     >
                       <Icon className="w-7 h-7" />
                     </button>
