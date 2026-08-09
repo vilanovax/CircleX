@@ -8,7 +8,7 @@ export function threadPreview(
 
   if (last.listingId) {
     const title = getListing(last.listingId)?.title ?? "آگهی";
-    return `📨 معرفی آگهی: ${title}`;
+    return `📷 معرفی آگهی: ${title}`;
   }
 
   const prefix = last.fromMe ? "شما: " : "";

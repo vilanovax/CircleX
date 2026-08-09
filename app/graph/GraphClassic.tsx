@@ -1,11 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo } from "react";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import { lazyUi } from "@/lib/lazy-ui";
-import { ShieldCheckIcon } from "@/components/Icons";
+import { GraphIcon, ShieldCheckIcon } from "@/components/Icons";
 import { toPersianDigits } from "@/lib/persian";
 import { buildTrustGraph, graphInsights } from "@/lib/graph";
 
@@ -25,82 +26,111 @@ export default function GraphClassic() {
     <main className="pb-24 min-h-[100dvh]">
       <Header
         title="گراف اعتماد"
-        subtitle={`${toPersianDigits(circleCount)} نفر مستقیم · ${toPersianDigits(reach)} دسترسی`}
+        subtitle={`${toPersianDigits(circleCount)} مستقیم · ${toPersianDigits(reach)} دسترسی`}
         back
       />
 
-      <div className="px-4 pt-3 space-y-3">
-        <div className="card px-3.5 py-3">
-          <div className="flex items-center gap-2 mb-1.5">
-            <ShieldCheckIcon className="w-4 h-4 text-levelA" />
-            <p className="font-bold text-[13px] text-ink dark:text-zinc-100">
-              حلقه‌ی اعتماد من
-            </p>
+      <div className="px-4 pt-3 space-y-3 listing-detail-rise">
+        {/* Overview composition */}
+        <div className="card overflow-hidden">
+          <div className="px-3.5 pt-3.5 pb-3">
+            <div className="flex items-start gap-2.5 mb-3">
+              <span className="w-9 h-9 rounded-xl bg-[color:var(--circle-trust)]/12 text-[color:var(--circle-trust)] flex items-center justify-center shrink-0">
+                <ShieldCheckIcon className="w-[18px] h-[18px]" />
+              </span>
+              <div className="min-w-0">
+                <p className="font-bold text-[14px] text-ink dark:text-zinc-100">
+                  حلقه‌ی اعتماد من
+                </p>
+                <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-relaxed">
+                  هیچ‌کس غریبه نیست — هر نفر از یک مسیر اعتماد به تو می‌رسد.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <StatPill
+                value={toPersianDigits(reach)}
+                label="دسترسی کل"
+                accent="text-brand-600"
+                soft="bg-brand-50 dark:bg-brand-500/15"
+              />
+              <StatPill
+                value={toPersianDigits(insights.levelA)}
+                label="نزدیک‌ترین"
+                accent="text-levelA"
+                soft="bg-levelA/10"
+              />
+              <StatPill
+                value={toPersianDigits(circleCount)}
+                label="مستقیم"
+                accent="text-levelB"
+                soft="bg-levelB/10"
+              />
+            </div>
           </div>
-          <p className="text-[11px] text-ink-muted dark:text-zinc-400 leading-relaxed">
-            <span className="nums font-semibold text-ink dark:text-zinc-200">
-              {toPersianDigits(circleCount)}
-            </span>{" "}
-            نفر مستقیم، و دسترسی به{" "}
-            <span className="nums font-semibold text-ink dark:text-zinc-200">
-              {toPersianDigits(reach)}
-            </span>{" "}
-            نفر از طریق مسیرهای اعتماد. هیچ‌کس غریبه نیست.
-          </p>
+
+          {insights.hub && insights.hub.count > 0 && (
+            <Link
+              href={`/person/${insights.hub.id}`}
+              className="flex items-center gap-3 px-3.5 py-3 border-t border-stone-100 dark:border-zinc-800 active:bg-stone-50/80 dark:active:bg-zinc-800/40 transition-colors"
+            >
+              <span className="w-9 h-9 rounded-xl bg-brand-50 dark:bg-brand-500/15 text-brand-600 flex items-center justify-center shrink-0">
+                <GraphIcon className="w-5 h-5" />
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-[13px] font-bold text-ink dark:text-zinc-100">
+                  پل اصلی: {insights.hub.name}
+                </span>
+                <span className="block text-[11px] text-ink-muted mt-0.5 nums">
+                  {toPersianDigits(insights.hub.count)} مسیر اعتماد از طریق او
+                </span>
+              </span>
+              <span className="text-[12px] font-bold text-brand-600 dark:text-brand-400 shrink-0">
+                پروفایل ‹
+              </span>
+            </Link>
+          )}
         </div>
 
+        {/* Interactive map */}
         <div className="card p-3 overflow-hidden">
+          <div className="flex items-center justify-between gap-2 px-0.5 mb-2">
+            <h2 className="text-[13px] font-bold text-ink dark:text-zinc-100">
+              نقشه‌ی شبکه
+            </h2>
+            <span className="text-[11px] text-ink-faint nums">
+              {toPersianDigits(reach + 1)} گره
+            </span>
+          </div>
           <TrustGraph />
-        </div>
-
-        <div className="card px-2 py-2.5 flex items-stretch">
-          <div className="flex-1 text-center py-1">
-            <p className="text-xl font-extrabold text-ink dark:text-zinc-50 nums leading-none">
-              {toPersianDigits(reach)}
-            </p>
-            <p className="text-[11px] text-ink-faint mt-1">دسترسی کل</p>
-          </div>
-          <div className="flex-1 text-center py-1 border-s border-stone-100 dark:border-zinc-800">
-            <p className="text-xl font-extrabold text-levelA nums leading-none">
-              {toPersianDigits(insights.levelA)}
-            </p>
-            <p className="text-[11px] text-ink-faint mt-1">نزدیک‌ترین (A)</p>
-          </div>
-          <div className="flex-1 text-center py-1 border-s border-stone-100 dark:border-zinc-800">
-            <p className="text-sm font-extrabold text-ink dark:text-zinc-50 truncate px-1 leading-none mt-1">
-              {insights.hub ? insights.hub.name : "—"}
-            </p>
-            <p className="text-[11px] text-ink-faint mt-1.5">پل اصلی اعتماد</p>
-          </div>
-        </div>
-
-        {insights.hub && insights.hub.count > 0 && (
-          <p className="text-[11px] text-ink-faint dark:text-zinc-500 leading-relaxed px-0.5 text-center">
-            بیشترین مسیرهای اعتماد از طریق{" "}
-            <span className="font-bold text-ink dark:text-zinc-300">
-              {insights.hub.name}
-            </span>{" "}
-            به شما می‌رسد.
-          </p>
-        )}
-
-        <div className="flex items-center justify-center gap-4 text-[11px] text-ink-muted dark:text-zinc-400 pt-1">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-levelA" aria-hidden />
-            سطح A
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-levelB" aria-hidden />
-            سطح B
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-levelC" aria-hidden />
-            سطح C
-          </span>
         </div>
       </div>
 
       <BottomNav />
     </main>
+  );
+}
+
+function StatPill({
+  value,
+  label,
+  accent,
+  soft,
+}: {
+  value: string;
+  label: string;
+  accent: string;
+  soft: string;
+}) {
+  return (
+    <div className={`rounded-xl px-2 py-2.5 text-center ${soft}`}>
+      <p className={`text-lg font-extrabold nums leading-none ${accent}`}>
+        {value}
+      </p>
+      <p className="text-[10px] font-semibold text-ink-muted dark:text-zinc-400 mt-1.5">
+        {label}
+      </p>
+    </div>
   );
 }

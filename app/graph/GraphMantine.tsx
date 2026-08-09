@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo } from "react";
-import { Box, Card, Group, SimpleGrid, Stack, Text } from "@mantine/core";
+import { Box, Card, Group, SimpleGrid, Stack, Text, ThemeIcon } from "@mantine/core";
 import { useStore } from "@/lib/store";
 import MHeader from "@/components/mantine/MHeader";
 import MBottomNav from "@/components/mantine/MBottomNav";
 import { lazyUi } from "@/lib/lazy-ui";
+import { GraphIcon, ShieldCheckIcon } from "@/components/Icons";
 import { toPersianDigits } from "@/lib/persian";
 import { buildTrustGraph, graphInsights } from "@/lib/graph";
 
@@ -24,110 +26,131 @@ export default function GraphMantine() {
 
   return (
     <Box component="main" pb={96} mih="100dvh">
-      <MHeader title="گراف اعتماد" subtitle="نقشه‌ی شبکه‌ی شما" back />
+      <MHeader
+        title="گراف اعتماد"
+        subtitle={`${toPersianDigits(circleCount)} مستقیم · ${toPersianDigits(reach)} دسترسی`}
+        back
+      />
 
-      {/* Intro hero */}
-      <Box px="md" pt="md">
-        <Card
-          withBorder
-          radius="lg"
-          p="md"
-          style={{
-            background:
-              "linear-gradient(270deg, var(--mantine-color-brand-7), var(--mantine-color-brand-5))",
-            color: "white",
-          }}
-        >
-          <Text fw={800}>حلقه‌ی اعتماد من</Text>
-          <Text fz="xs" mt={4} style={{ lineHeight: 1.7, color: "white" }}>
-            <Text span className="nums">
-              {toPersianDigits(circleCount)}
-            </Text>{" "}
-            نفر مستقیم، و دسترسی به{" "}
-            <Text span className="nums">
-              {toPersianDigits(reach)}
-            </Text>{" "}
-            نفر از طریق مسیرهای اعتماد. هیچ‌کس غریبه نیست.
-          </Text>
+      <Box px="md" pt="sm">
+        <Card withBorder radius="lg" p={0} style={{ overflow: "hidden" }}>
+          <Box p="md">
+            <Group gap="sm" wrap="nowrap" mb="sm" align="flex-start">
+              <ThemeIcon
+                size={36}
+                radius="md"
+                variant="light"
+                color="teal"
+              >
+                <ShieldCheckIcon className="w-[18px] h-[18px]" />
+              </ThemeIcon>
+              <Box style={{ minWidth: 0 }}>
+                <Text fw={700} fz="sm">
+                  حلقه‌ی اعتماد من
+                </Text>
+                <Text fz={11} c="dimmed" mt={2} style={{ lineHeight: 1.6 }}>
+                  هیچ‌کس غریبه نیست — هر نفر از یک مسیر اعتماد به تو می‌رسد.
+                </Text>
+              </Box>
+            </Group>
+
+            <SimpleGrid cols={3} spacing="xs">
+              <StatPill
+                value={toPersianDigits(reach)}
+                label="دسترسی کل"
+                color="brand"
+              />
+              <StatPill
+                value={toPersianDigits(insights.levelA)}
+                label="نزدیک‌ترین"
+                color="green"
+              />
+              <StatPill
+                value={toPersianDigits(circleCount)}
+                label="مستقیم"
+                color="blue"
+              />
+            </SimpleGrid>
+          </Box>
+
+          {insights.hub && insights.hub.count > 0 && (
+            <Box
+              component={Link}
+              href={`/person/${insights.hub.id}`}
+              px="md"
+              py="sm"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                textDecoration: "none",
+                color: "inherit",
+                borderTop: "1px solid var(--mantine-color-default-border)",
+              }}
+            >
+              <ThemeIcon size={36} radius="md" variant="light" color="brand">
+                <GraphIcon className="w-5 h-5" />
+              </ThemeIcon>
+              <Box style={{ flex: 1, minWidth: 0 }}>
+                <Text fw={700} fz="sm">
+                  پل اصلی: {insights.hub.name}
+                </Text>
+                <Text fz={11} c="dimmed" className="nums">
+                  {toPersianDigits(insights.hub.count)} مسیر اعتماد از طریق او
+                </Text>
+              </Box>
+              <Text c="brand" fw={700} fz="xs">
+                پروفایل ‹
+              </Text>
+            </Box>
+          )}
         </Card>
       </Box>
 
-      {/* Reused classic interactive visualization, wrapped in a Mantine card. */}
-      <Box px="sm" pt="md">
+      <Box px="md" pt="sm">
         <Card withBorder radius="lg" p="sm">
+          <Group justify="space-between" mb={6} px={4}>
+            <Text fw={700} fz="sm">
+              نقشه‌ی شبکه
+            </Text>
+            <Text fz={11} c="dimmed" className="nums">
+              {toPersianDigits(reach + 1)} گره
+            </Text>
+          </Group>
           <TrustGraph />
         </Card>
       </Box>
-
-      {/* Insights */}
-      <Box px="md" pt="sm">
-        <SimpleGrid cols={3} spacing="xs">
-          <StatCard value={toPersianDigits(reach)} label="دسترسی کل" color="brand.7" />
-          <StatCard
-            value={toPersianDigits(insights.levelA)}
-            label="نزدیک‌ترین (A)"
-            color="green.7"
-          />
-          <StatCard
-            value={insights.hub ? insights.hub.name : "—"}
-            label="پل اصلی اعتماد"
-            color="brand.7"
-            truncate
-          />
-        </SimpleGrid>
-        {insights.hub && insights.hub.count > 0 && (
-          <Text fz={11} c="dimmed" mt="xs" ta="center" style={{ lineHeight: 1.7 }}>
-            بیشترین مسیرهای اعتماد از طریق{" "}
-            <Text span fw={700} c="dimmed">
-              {insights.hub.name}
-            </Text>{" "}
-            به شما می‌رسد.
-          </Text>
-        )}
-      </Box>
-
-      {/* Legend */}
-      <Group justify="center" gap="md" px="md" pt="sm">
-        <LegendDot color="#16a34a" label="سطح A" />
-        <LegendDot color="#2563eb" label="سطح B" />
-        <LegendDot color="#d97706" label="سطح C" />
-      </Group>
 
       <MBottomNav />
     </Box>
   );
 }
 
-function StatCard({
+function StatPill({
   value,
   label,
   color,
-  truncate,
 }: {
   value: string;
   label: string;
   color: string;
-  truncate?: boolean;
 }) {
   return (
-    <Card withBorder radius="lg" p="sm" ta="center">
-      <Text fz="lg" fw={800} c={color} className={truncate ? undefined : "nums"} truncate={truncate}>
+    <Stack
+      gap={4}
+      align="center"
+      p={8}
+      style={{
+        borderRadius: 12,
+        background: `var(--mantine-color-${color}-light)`,
+      }}
+    >
+      <Text fz="lg" fw={800} c={color} className="nums" lh={1}>
         {value}
       </Text>
-      <Text fz={11} c="dimmed" mt={2}>
+      <Text fz={10} c="dimmed" fw={600}>
         {label}
       </Text>
-    </Card>
-  );
-}
-
-function LegendDot({ color, label }: { color: string; label: string }) {
-  return (
-    <Group gap={6} wrap="nowrap">
-      <Box w={12} h={12} style={{ borderRadius: "50%", background: color }} />
-      <Text fz="xs" c="dimmed">
-        {label}
-      </Text>
-    </Group>
+    </Stack>
   );
 }

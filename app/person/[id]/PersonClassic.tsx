@@ -211,7 +211,6 @@ export default function PersonClassic(_props: { params: { id: string } }) {
                 type="button"
                 role="tab"
                 aria-selected={activeTab === "listings"}
-                aria-pressed={activeTab === "listings"}
                 onClick={() => setContentTab("listings")}
                 className={`flex-1 py-2 rounded-lg text-[13px] font-bold transition-colors nums ${
                   activeTab === "listings"
@@ -225,7 +224,6 @@ export default function PersonClassic(_props: { params: { id: string } }) {
                 type="button"
                 role="tab"
                 aria-selected={activeTab === "requests"}
-                aria-pressed={activeTab === "requests"}
                 onClick={() => setContentTab("requests")}
                 className={`flex-1 py-2 rounded-lg text-[13px] font-bold transition-colors nums ${
                   activeTab === "requests"

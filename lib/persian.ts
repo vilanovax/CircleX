@@ -22,11 +22,11 @@ export function toPersianDigits(input: string | number): string {
  * unify Arabic ك/ي → Persian ک/ی, strip diacritics, convert digits,
  * collapse whitespace, lowercase.
  */
-/** Format ISO date (YYYY-MM-DD) for display; pass through legacy text dates. */
+/** Format ISO date (YYYY-MM-DD) as Jalali (Shamsi); pass through legacy text dates. */
 export function formatEventDateDisplay(date: string): string {
   if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     const d = new Date(`${date}T12:00:00`);
-    return new Intl.DateTimeFormat("fa-IR", {
+    return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
       weekday: "long",
       month: "long",
       day: "numeric",

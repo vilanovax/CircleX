@@ -28,16 +28,16 @@ const RELATIONS: RelationType[] = [
   "acquaintance",
 ];
 
-const LEVEL_ACCENT: Record<TrustLevel, string> = {
-  A: "text-levelA",
-  B: "text-levelB",
-  C: "text-levelC",
-};
-
-const LEVEL_DOT: Record<TrustLevel, string> = {
+const LEVEL_BAR: Record<TrustLevel, string> = {
   A: "bg-levelA",
   B: "bg-levelB",
   C: "bg-levelC",
+};
+
+const LEVEL_SOFT: Record<TrustLevel, string> = {
+  A: "bg-levelA/12 text-levelA",
+  B: "bg-levelB/12 text-levelB",
+  C: "bg-levelC/12 text-levelC",
 };
 
 export default function CircleClassic() {
@@ -56,8 +56,10 @@ export default function CircleClassic() {
     return LEVELS.map((lvl) => ({
       level: lvl,
       members: mine.filter((p) => p.level === lvl),
-    }));
+    })).filter((g) => g.members.length > 0);
   }, [mine]);
+
+  const total = mine.length;
 
   return (
     <main className="pb-24 min-h-[100dvh]">
@@ -70,8 +72,9 @@ export default function CircleClassic() {
         }
         action={
           <button
+            type="button"
             onClick={() => setShowAdd(true)}
-            className="w-9 h-9 rounded-xl bg-brand-600 text-white flex items-center justify-center shadow-sm shadow-brand-600/20 active:bg-brand-700"
+            className="w-9 h-9 rounded-xl bg-brand-600 text-white flex items-center justify-center shadow-sm shadow-brand-600/20 active:scale-95 transition-transform duration-150"
             aria-label="افزودن فرد"
           >
             <PlusIcon className="w-5 h-5" />
@@ -80,7 +83,7 @@ export default function CircleClassic() {
       />
 
       {mine.length === 0 ? (
-        <div className="px-4 pt-10">
+        <div className="px-4 pt-10 listing-detail-rise">
           <div className="card p-6 text-center">
             <div className="w-14 h-14 rounded-2xl bg-brand-50 dark:bg-brand-500/15 text-brand-600 flex items-center justify-center mx-auto mb-3">
               <PlusIcon className="w-7 h-7" />
@@ -93,6 +96,7 @@ export default function CircleClassic() {
               اینجا دیده شود.
             </p>
             <button
+              type="button"
               onClick={() => setShowAdd(true)}
               className="btn-primary inline-block mt-4"
             >
@@ -102,92 +106,121 @@ export default function CircleClassic() {
         </div>
       ) : (
         <>
-          {/* Compact trust overview */}
-          <div className="px-4 pt-3 space-y-2.5">
-            <div className="card px-2 py-2.5 flex items-stretch">
-              {LEVELS.map((lvl, i) => (
-                <div
-                  key={lvl}
-                  className={`flex-1 text-center py-1 ${
-                    i > 0 ? "border-s border-stone-100 dark:border-zinc-800" : ""
-                  }`}
-                >
-                  <p
-                    className={`text-[11px] font-semibold ${LEVEL_ACCENT[lvl]}`}
-                  >
-                    سطح {lvl}
-                  </p>
-                  <p className="text-xl font-extrabold text-ink dark:text-zinc-50 nums mt-0.5 leading-none">
-                    {toPersianDigits(counts[lvl])}
-                  </p>
+          {/* One overview composition: distribution + graph */}
+          <div className="px-4 pt-3 listing-detail-rise">
+            <div className="card overflow-hidden">
+              <div className="px-3.5 pt-3.5 pb-3">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div>
+                    <p className="text-[13px] font-bold text-ink dark:text-zinc-100">
+                      ترکیب اعتماد
+                    </p>
+                    <p className="text-[11px] text-ink-muted mt-0.5">
+                      A نزدیک‌ترین · با A/B/C سطح را عوض کن
+                    </p>
+                  </div>
+                  <span className="text-[12px] font-bold text-ink-faint nums shrink-0">
+                    {toPersianDigits(total)} نفر
+                  </span>
                 </div>
-              ))}
+
+                {/* Proportional trust bar */}
+                <div
+                  className="h-2.5 rounded-full overflow-hidden flex bg-stone-100 dark:bg-zinc-800"
+                  role="img"
+                  aria-label={`سطح A ${counts.A}، B ${counts.B}، C ${counts.C}`}
+                >
+                  {LEVELS.map((lvl) => {
+                    const n = counts[lvl];
+                    if (!n || !total) return null;
+                    return (
+                      <div
+                        key={lvl}
+                        className={`${LEVEL_BAR[lvl]} h-full transition-[flex-grow] duration-300 ease-out`}
+                        style={{ flexGrow: n, flexBasis: 0 }}
+                        title={`${levelLabels[lvl]}: ${n}`}
+                      />
+                    );
+                  })}
+                </div>
+
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {LEVELS.map((lvl) => (
+                    <div
+                      key={lvl}
+                      className={`rounded-xl px-2 py-2 text-center ${LEVEL_SOFT[lvl]}`}
+                    >
+                      <p className="text-[10px] font-semibold opacity-90">
+                        {levelShort[lvl]}
+                      </p>
+                      <p className="text-lg font-extrabold nums leading-none mt-1">
+                        {toPersianDigits(counts[lvl])}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <Link
+                href="/graph"
+                className="flex items-center gap-3 px-3.5 py-3 border-t border-stone-100 dark:border-zinc-800 bg-gradient-to-l from-brand-600 to-brand-500 text-white active:opacity-95 transition-opacity"
+              >
+                <span className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+                  <GraphIcon className="w-5 h-5" />
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block font-bold text-[13px]">
+                    نقشه‌ی گراف اعتماد
+                  </span>
+                  <span className="block text-[11px] text-white/80 mt-0.5 truncate">
+                    تو در مرکز — مسیر تا هر نفر
+                  </span>
+                </span>
+                <span className="text-white/80 text-lg leading-none" aria-hidden>
+                  ‹
+                </span>
+              </Link>
             </div>
-
-            <Link
-              href="/graph"
-              className="card flex items-center gap-3 px-3.5 py-3 active:scale-[0.99] transition-transform"
-            >
-              <div className="w-9 h-9 rounded-xl bg-brand-50 dark:bg-brand-500/15 text-brand-600 flex items-center justify-center shrink-0">
-                <GraphIcon className="w-5 h-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-[13px] text-ink dark:text-zinc-100">
-                  نقشه‌ی گراف اعتماد
-                </p>
-                <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 truncate">
-                  مسیر اعتماد تا هر فروشنده را ببین
-                </p>
-              </div>
-              <span className="text-ink-faint text-lg leading-none" aria-hidden>
-                ‹
-              </span>
-            </Link>
-
-            <p className="text-[11px] text-ink-faint dark:text-zinc-500 leading-relaxed px-0.5">
-              سطح A نزدیک‌ترین‌اند. با دکمه‌های A / B / C سطح هر نفر را عوض کن.
-            </p>
           </div>
 
           {/* Groups */}
-          <div className="px-4 pt-4 space-y-5">
+          <div className="px-4 pt-5 space-y-5">
             {!hydrated ? (
               <CardListSkeleton count={5} />
             ) : (
-              grouped.map(({ level, members }) => (
-                <section key={level}>
-                  <div className="flex items-center gap-2 mb-2 px-0.5">
+              grouped.map(({ level, members }, sectionIndex) => (
+                <section
+                  key={level}
+                  className="listing-detail-rise"
+                  style={{ animationDelay: `${80 + sectionIndex * 40}ms` }}
+                >
+                  <div className="flex items-center gap-2 mb-2.5 px-0.5">
                     <span
-                      className={`w-1.5 h-1.5 rounded-full ${LEVEL_DOT[level]}`}
-                      aria-hidden
-                    />
+                      className={`chip !py-0.5 !px-2 font-bold ${levelChip[level]}`}
+                    >
+                      {level}
+                    </span>
                     <h2 className="text-[13px] font-bold text-ink dark:text-zinc-200">
                       {levelLabels[level]}
                     </h2>
-                    <span className="text-[11px] font-semibold text-ink-faint nums">
+                    <span className="text-[11px] font-semibold text-ink-faint nums ms-auto">
                       {toPersianDigits(members.length)}
                     </span>
                   </div>
-                  {members.length === 0 ? (
-                    <p className="text-xs text-ink-faint pr-1 py-2">
-                      کسی در این سطح نیست.
-                    </p>
-                  ) : (
-                    <div className="card divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
-                      {members.map((p) => (
-                        <CircleMemberRow
-                          key={p.id}
-                          person={p}
-                          onSetLevel={(lvl) => {
-                            setLevel(p.id, lvl);
-                            show(
-                              `سطح ${p.name} به ${levelShort[lvl]} تغییر کرد`,
-                            );
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )}
+                  <div className="card divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
+                    {members.map((p) => (
+                      <CircleMemberRow
+                        key={p.id}
+                        person={p}
+                        onSetLevel={(lvl) => {
+                          setLevel(p.id, lvl);
+                          show(
+                            `سطح ${p.name} به ${levelShort[lvl]} تغییر کرد`,
+                          );
+                        }}
+                      />
+                    ))}
+                  </div>
                 </section>
               ))
             )}
@@ -219,26 +252,27 @@ function CircleMemberRow({
   onSetLevel: (level: TrustLevel) => void;
 }) {
   return (
-    <div className="flex items-center gap-2.5 px-3 py-2.5">
+    <div className="flex items-center gap-3 px-3.5 py-3">
       <Link
         href={`/person/${person.id}`}
-        className="flex items-center gap-2.5 min-w-0 flex-1 active:opacity-90"
+        className="flex items-center gap-3 min-w-0 flex-1 active:opacity-90 transition-opacity"
       >
-        <Avatar name={person.name} level={person.level} size="sm" />
+        <Avatar name={person.name} level={person.level} size="md" />
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="font-bold text-[13px] text-ink dark:text-zinc-100 truncate">
+            <span className="font-bold text-[14px] text-ink dark:text-zinc-100 truncate">
               {person.name}
             </span>
-            <span className="shrink-0 text-[10px] font-medium text-ink-faint dark:text-zinc-500">
+            <span className="shrink-0 chip !px-1.5 !py-0.5 !text-[10px] bg-stone-100 text-ink-muted dark:bg-zinc-800 dark:text-zinc-400">
               {relationLabels[person.relation]}
             </span>
           </div>
-          <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 truncate">
+          <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-1 truncate">
             {person.note || (
               <>
                 <span className="nums">{toPersianDigits(person.deals)}</span>{" "}
                 معامله‌ی موفق
+                {person.city ? ` · ${person.city}` : ""}
               </>
             )}
           </p>
@@ -246,7 +280,7 @@ function CircleMemberRow({
       </Link>
 
       <div
-        className="flex p-0.5 rounded-lg bg-stone-100/80 dark:bg-zinc-800 shrink-0"
+        className="flex p-0.5 rounded-xl bg-stone-100/90 dark:bg-zinc-800 shrink-0"
         role="group"
         aria-label={`سطح اعتماد ${person.name}`}
       >
@@ -262,10 +296,10 @@ function CircleMemberRow({
               aria-pressed={active}
               aria-label={levelShort[lvl]}
               title={levelLabels[lvl]}
-              className={`w-7 h-7 rounded-md text-[11px] font-bold transition-colors ${
+              className={`w-8 h-8 rounded-lg text-[11px] font-bold transition-[transform,colors,box-shadow] duration-150 active:scale-95 ${
                 active
                   ? `${levelChip[lvl]} shadow-sm`
-                  : "text-ink-faint dark:text-zinc-500"
+                  : "text-ink-faint dark:text-zinc-500 hover:text-ink-muted"
               }`}
             >
               {lvl}

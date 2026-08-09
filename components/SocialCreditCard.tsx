@@ -10,7 +10,7 @@ const labelColor: Record<SocialCreditStats["label"], string> = {
   عالی: "text-levelA",
   خوب: "text-brand-600",
   متوسط: "text-amber-600",
-  تازه‌وارد: "text-ink-muted",
+  "تازه‌وارد": "text-ink-muted",
 };
 
 export default function SocialCreditCard({

@@ -48,7 +48,9 @@ export default function ListingImagePicker({
       onChange(dataUrl);
       setMode("photo");
     } catch (err) {
-      onError?.(err instanceof Error ? err.message : "بارگذاری عکس ناموفق بود.");
+      onError?.(
+        err instanceof Error ? err.message : "بارگذاری عکس ناموفق بود.",
+      );
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -56,55 +58,65 @@ export default function ListingImagePicker({
   }
 
   return (
-    <div className="mb-4">
-      <div className="flex items-center justify-between mb-2">
-        <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
+    <section className="mb-4">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <label className="text-[13px] font-bold text-ink dark:text-zinc-200">
           تصویر آگهی
         </label>
-        <div className="flex rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden text-[11px]">
-          <button
-            type="button"
-            onClick={() => setMode("photo")}
-            aria-pressed={mode === "photo"}
-            className={`px-2.5 py-1 font-medium transition-colors ${
-              mode === "photo"
-                ? "bg-brand-600 text-white"
-                : "bg-white dark:bg-zinc-900 text-zinc-500"
-            }`}
-          >
-            عکس
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("emoji")}
-            aria-pressed={mode === "emoji"}
-            className={`px-2.5 py-1 font-medium transition-colors ${
-              mode === "emoji"
-                ? "bg-brand-600 text-white"
-                : "bg-white dark:bg-zinc-900 text-zinc-500"
-            }`}
-          >
-            شکلک
-          </button>
+        <div
+          className="flex p-0.5 rounded-xl bg-stone-100/90 dark:bg-zinc-800"
+          role="group"
+          aria-label="نوع تصویر"
+        >
+          {(
+            [
+              ["photo", "عکس"],
+              ["emoji", "شکلک"],
+            ] as const
+          ).map(([id, label]) => {
+            const active = mode === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setMode(id)}
+                aria-pressed={active}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${
+                  active
+                    ? "bg-[color:var(--circle-surface)] text-brand-700 shadow-sm dark:bg-zinc-900 dark:text-brand-300"
+                    : "text-ink-faint dark:text-zinc-500"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {mode === "photo" ? (
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {value.startsWith("data:image/") ? (
             <ListingImage
               image={value}
               size="hero"
               category={category}
-              frameClassName="h-36 w-full rounded-xl"
+              frameClassName="h-36 w-full rounded-2xl"
             />
           ) : (
-            <div className="h-36 w-full rounded-xl border-2 border-dashed border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex flex-col items-center justify-center text-zinc-400 gap-1">
-              <span className="text-3xl" aria-hidden>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => inputRef.current?.click()}
+              className="h-28 w-full rounded-2xl border-2 border-dashed border-stone-200 dark:border-zinc-700 bg-stone-50/80 dark:bg-zinc-800/40 flex flex-col items-center justify-center text-ink-faint gap-1 active:bg-stone-100 dark:active:bg-zinc-800 transition-colors"
+            >
+              <span className="text-2xl" aria-hidden>
                 📷
               </span>
-              <span className="text-xs">هنوز عکسی انتخاب نشده</span>
-            </div>
+              <span className="text-[12px] font-semibold text-ink-muted">
+                {busy ? "در حال پردازش…" : "انتخاب از گالری"}
+              </span>
+            </button>
           )}
           <input
             ref={inputRef}
@@ -113,16 +125,16 @@ export default function ListingImagePicker({
             className="hidden"
             onChange={(e) => onFile(e.target.files?.[0])}
           />
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => inputRef.current?.click()}
-              className="btn-primary flex-1 !py-2.5 text-sm"
-            >
-              {busy ? "در حال پردازش…" : "انتخاب از گالری"}
-            </button>
-            {value.startsWith("data:image/") && (
+          {value.startsWith("data:image/") && (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => inputRef.current?.click()}
+                className="btn-primary flex-1 !py-2.5 text-sm"
+              >
+                {busy ? "در حال پردازش…" : "تعویض عکس"}
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -133,32 +145,32 @@ export default function ListingImagePicker({
               >
                 حذف
               </button>
-            )}
-          </div>
-          <p className="text-[11px] text-zinc-400 leading-relaxed">
-            عکس روی دستگاهت فشرده می‌شود و در مرورگر ذخیره می‌گردد — سرور جدا ندارد.
-          </p>
+            </div>
+          )}
         </div>
       ) : (
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-          {EMOJIS.map((e) => (
-            <button
-              key={e}
-              type="button"
-              onClick={() => onChange(e)}
-              aria-label={`انتخاب شکلک ${e}`}
-              aria-pressed={value === e}
-              className={`w-11 h-11 shrink-0 rounded-xl text-xl flex items-center justify-center border ${
-                value === e
-                  ? "border-brand-500 bg-brand-50 dark:bg-brand-500/20"
-                  : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
-              }`}
-            >
-              {e}
-            </button>
-          ))}
+        <div className="grid grid-cols-4 gap-2">
+          {EMOJIS.map((e) => {
+            const active = value === e;
+            return (
+              <button
+                key={e}
+                type="button"
+                onClick={() => onChange(e)}
+                aria-label={`انتخاب شکلک ${e}`}
+                aria-pressed={active}
+                className={`h-12 rounded-xl text-2xl flex items-center justify-center border transition-[transform,colors] duration-150 active:scale-95 ${
+                  active
+                    ? "border-brand-500 bg-brand-50 dark:bg-brand-500/20 shadow-sm"
+                    : "border-stone-200/80 dark:border-zinc-700 bg-stone-50/60 dark:bg-zinc-900"
+                }`}
+              >
+                {e}
+              </button>
+            );
+          })}
         </div>
       )}
-    </div>
+    </section>
   );
 }

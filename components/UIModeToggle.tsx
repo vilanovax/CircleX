@@ -61,9 +61,8 @@ export function UIModeSegmented() {
         ))}
       </div>
       <p className="text-[11px] text-zinc-400 mt-2 leading-relaxed">
-        Mantine روی همه‌ی صفحات اعمال می‌شود؛ Chakra، MUI و HeroUI فقط روی صفحه‌ی
-        اصلی و صفحه‌ی آگهی (بقیه‌ی صفحات کلاسیک می‌مانند). با انتخاب هر مدل به صفحه‌ی
-        اصلی می‌روی تا تغییر را ببینی.
+        Mantine همه‌جا؛ Chakra / MUI / HeroUI فقط خانه و آگهی. با انتخاب به خانه
+        می‌روی تا تغییر را ببینی.
       </p>
     </div>
   );

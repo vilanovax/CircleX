@@ -170,8 +170,10 @@ export interface GraphInsights {
   reach: number;
   /** Direct, closest (level-A) members. */
   levelA: number;
+  /** Direct circle size (inMyCircle / depth-1). */
+  direct: number;
   /** The connector most trust paths pass through, if any. */
-  hub: { name: string; count: number } | null;
+  hub: { id: string; name: string; count: number } | null;
 }
 
 /** Headline numbers for the trust graph. */
@@ -190,12 +192,15 @@ export function graphInsights(graph: TrustGraph): GraphInsights {
 
   let hub: GraphInsights["hub"] = null;
   through.forEach((count, id) => {
-    if (!hub || count > hub.count) hub = { name: nameById[id] ?? "؟", count };
+    if (!hub || count > hub.count) {
+      hub = { id, name: nameById[id] ?? "؟", count };
+    }
   });
 
   return {
     reach: graph.nodes.length - 1,
     levelA: graph.nodes.filter((n) => n.level === "A").length,
+    direct: graph.nodes.filter((n) => n.inCircle).length,
     hub,
   };
 }

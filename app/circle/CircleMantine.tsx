@@ -47,18 +47,30 @@ export default function CircleMantine() {
   const mine = people.filter((p) => p.inMyCircle);
   const [showAdd, setShowAdd] = useState(false);
 
+  const counts = useMemo(() => {
+    return Object.fromEntries(
+      LEVELS.map((lvl) => [lvl, mine.filter((p) => p.level === lvl).length]),
+    ) as Record<TrustLevel, number>;
+  }, [mine]);
+
   const grouped = useMemo(() => {
     return LEVELS.map((lvl) => ({
       level: lvl,
       members: mine.filter((p) => p.level === lvl),
-    }));
+    })).filter((g) => g.members.length > 0);
   }, [mine]);
+
+  const total = mine.length;
 
   return (
     <Box component="main" pb={96} mih="100dvh">
       <MHeader
         title="حلقه‌ی من"
-        subtitle={`${toPersianDigits(mine.length)} نفر مورد اعتماد`}
+        subtitle={
+          mine.length === 0
+            ? "هنوز کسی اضافه نشده"
+            : `${toPersianDigits(mine.length)} نفر مورد اعتماد`
+        }
         action={
           <ActionIcon
             color="brand"
@@ -76,15 +88,14 @@ export default function CircleMantine() {
         <Box px="md" pt={40}>
           <Card withBorder radius="lg" p="lg" ta="center">
             <ThemeIcon
-              size={64}
-              radius="xl"
+              size={56}
+              radius="lg"
               variant="light"
               color="brand"
               mx="auto"
               mb="sm"
-              style={{ fontSize: 30 }}
             >
-              👋
+              <PlusIcon className="w-7 h-7" />
             </ThemeIcon>
             <Text fw={700}>حلقه‌ات هنوز خالیه</Text>
             <Text fz="sm" c="dimmed" mt={6} style={{ lineHeight: 1.7 }}>
@@ -98,68 +109,102 @@ export default function CircleMantine() {
         </Box>
       ) : (
         <>
-          {/* Trust graph entry */}
           <Box px="md" pt="sm">
-            <Card
-              component={Link}
-              href="/graph"
-              radius="lg"
-              p="md"
-              style={{
-                textDecoration: "none",
-                color: "#fff",
-                background:
-                  "linear-gradient(to left, var(--mantine-color-brand-7), var(--mantine-color-brand-5))",
-              }}
-            >
-              <Group gap="sm" wrap="nowrap">
+            <Card withBorder radius="lg" p={0} style={{ overflow: "hidden" }}>
+              <Box p="md">
+                <Group justify="space-between" mb="sm" wrap="nowrap">
+                  <Box>
+                    <Text fw={700} fz="sm">
+                      ترکیب اعتماد
+                    </Text>
+                    <Text fz={11} c="dimmed" mt={2}>
+                      A نزدیک‌ترین · با A/B/C سطح را عوض کن
+                    </Text>
+                  </Box>
+                  <Text fz="xs" c="dimmed" fw={700} className="nums">
+                    {toPersianDigits(total)} نفر
+                  </Text>
+                </Group>
+
+                <Group gap={3} h={10} wrap="nowrap" style={{ borderRadius: 999, overflow: "hidden" }}>
+                  {LEVELS.map((lvl) => {
+                    const n = counts[lvl];
+                    if (!n || !total) return null;
+                    return (
+                      <Box
+                        key={lvl}
+                        style={{
+                          flexGrow: n,
+                          flexBasis: 0,
+                          height: "100%",
+                          background: `var(--mantine-color-${levelColor[lvl]}-6)`,
+                        }}
+                      />
+                    );
+                  })}
+                </Group>
+
+                <SimpleGrid cols={3} spacing="xs" mt="sm">
+                  {LEVELS.map((lvl) => (
+                    <Stack
+                      key={lvl}
+                      gap={4}
+                      align="center"
+                      p={8}
+                      style={{
+                        borderRadius: 12,
+                        background: `var(--mantine-color-${levelColor[lvl]}-light)`,
+                      }}
+                    >
+                      <Text fz={10} fw={700} c={levelColor[lvl]}>
+                        {levelShort[lvl]}
+                      </Text>
+                      <Text fz="lg" fw={800} className="nums" lh={1}>
+                        {toPersianDigits(counts[lvl])}
+                      </Text>
+                    </Stack>
+                  ))}
+                </SimpleGrid>
+              </Box>
+
+              <Box
+                component={Link}
+                href="/graph"
+                px="md"
+                py="sm"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  textDecoration: "none",
+                  color: "#fff",
+                  background:
+                    "linear-gradient(to left, var(--mantine-color-brand-7), var(--mantine-color-brand-5))",
+                }}
+              >
                 <ThemeIcon
-                  size={40}
-                  radius="xl"
+                  size={36}
+                  radius="md"
                   variant="transparent"
                   style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}
                 >
-                  <GraphIcon className="w-6 h-6" />
+                  <GraphIcon className="w-5 h-5" />
                 </ThemeIcon>
-                <Stack gap={2} style={{ minWidth: 0, flex: 1 }}>
+                <Box style={{ flex: 1, minWidth: 0 }}>
                   <Text fw={700} fz="sm">
-                    نقشه‌ی گرافیکی حلقه‌ات را ببین
+                    نقشه‌ی گراف اعتماد
                   </Text>
-                  <Text fz={11} c="brand.0">
-                    تو در مرکز، شاخه‌ها تا فروشنده‌ها — اعتماد قابل مشاهده
+                  <Text fz={11} style={{ color: "rgba(255,255,255,0.8)" }}>
+                    تو در مرکز — مسیر تا هر نفر
                   </Text>
-                </Stack>
-                <Text fz="lg" style={{ color: "rgba(255,255,255,0.7)" }}>
+                </Box>
+                <Text fz="lg" style={{ color: "rgba(255,255,255,0.75)" }}>
                   ‹
                 </Text>
-              </Group>
+              </Box>
             </Card>
           </Box>
 
-          {/* Level legend */}
-          <Box px="md" pt="sm">
-            <Card withBorder radius="lg" p="sm">
-              <SimpleGrid cols={3} spacing="xs">
-                {LEVELS.map((lvl) => (
-                  <Stack key={lvl} gap={4} align="center">
-                    <Badge variant="light" color={levelColor[lvl]} radius="sm">
-                      سطح {lvl}
-                    </Badge>
-                    <Text fz="lg" fw={700}>
-                      {toPersianDigits(mine.filter((p) => p.level === lvl).length)}
-                    </Text>
-                  </Stack>
-                ))}
-              </SimpleGrid>
-            </Card>
-            <Text fz={11} c="dimmed" mt="xs" px={4} style={{ lineHeight: 1.7 }}>
-              سطح اعتماد تعیین می‌کند چه کسانی آگهی‌های شما را می‌بینند. سطح A
-              نزدیک‌ترین و مورد اعتمادترین افراد شما هستند — از دکمه‌های A/B/C کنار
-              هر نفر می‌توانی سطح را عوض کنی.
-            </Text>
-          </Box>
-
-          {/* Groups */}
           <Stack gap="lg" px="md" pt="md">
             {!hydrated ? (
               <Stack gap="xs">
@@ -170,31 +215,35 @@ export default function CircleMantine() {
             ) : (
               grouped.map(({ level, members }) => (
                 <Box component="section" key={level}>
-                  <Text fw={700} fz="sm" mb="xs">
-                    {levelLabels[level]}
-                    <Text span c="dimmed" fw={400}>
-                      {" "}
-                      ({toPersianDigits(members.length)})
+                  <Group gap="xs" mb="xs" wrap="nowrap">
+                    <Badge variant="light" color={levelColor[level]} radius="sm">
+                      {level}
+                    </Badge>
+                    <Text fw={700} fz="sm">
+                      {levelLabels[level]}
                     </Text>
-                  </Text>
-                  {members.length === 0 ? (
-                    <Text fz="xs" c="dimmed" px={4}>
-                      کسی در این سطح نیست.
+                    <Text
+                      fz={11}
+                      c="dimmed"
+                      fw={600}
+                      className="nums"
+                      style={{ marginInlineStart: "auto" }}
+                    >
+                      {toPersianDigits(members.length)}
                     </Text>
-                  ) : (
-                    <Stack gap="xs">
-                      {members.map((p) => (
-                        <CircleMemberRow
-                          key={p.id}
-                          person={p}
-                          onSetLevel={(lvl) => {
-                            setLevel(p.id, lvl);
-                            show(`سطح ${p.name} به ${levelShort[lvl]} تغییر کرد`);
-                          }}
-                        />
-                      ))}
-                    </Stack>
-                  )}
+                  </Group>
+                  <Stack gap="xs">
+                    {members.map((p) => (
+                      <CircleMemberRow
+                        key={p.id}
+                        person={p}
+                        onSetLevel={(lvl) => {
+                          setLevel(p.id, lvl);
+                          show(`سطح ${p.name} به ${levelShort[lvl]} تغییر کرد`);
+                        }}
+                      />
+                    ))}
+                  </Stack>
                 </Box>
               ))
             )}

@@ -8,7 +8,7 @@ import { buildTrustGraph, pathToMe } from "@/lib/graph";
 import { relationLabels, levelShort } from "@/lib/labels";
 import type { TrustLevel } from "@/lib/types";
 
-const SIZE = 320;
+const SIZE = 340;
 const LEVEL_HEX: Record<TrustLevel, string> = {
   A: "#16a34a",
   B: "#2563eb",
@@ -32,167 +32,266 @@ export default function TrustGraph() {
     [graph],
   );
 
-  // Highlighted path (node ids + edge keys) for the selected person.
-  const { pathNodes, pathEdges } = useMemo(() => {
-    if (!selected) return { pathNodes: new Set<string>(), pathEdges: new Set<string>() };
+  const { pathNodes, pathEdges, pathChain } = useMemo(() => {
+    if (!selected) {
+      return {
+        pathNodes: new Set<string>(),
+        pathEdges: new Set<string>(),
+        pathChain: [] as string[],
+      };
+    }
     const chain = pathToMe(selected, graph.parent);
     const nodes = new Set(chain);
     const edges = new Set<string>();
-    for (let i = 0; i < chain.length - 1; i++) edges.add(ekey(chain[i], chain[i + 1]));
-    return { pathNodes: nodes, pathEdges: edges };
+    for (let i = 0; i < chain.length - 1; i++) {
+      edges.add(ekey(chain[i], chain[i + 1]));
+    }
+    return { pathNodes: nodes, pathEdges: edges, pathChain: chain };
   }, [selected, graph.parent]);
 
   const dim = (id: string) => selected != null && !pathNodes.has(id);
-  const ringRadii = [SIZE * 0.2, SIZE * 0.33, SIZE * 0.45].slice(0, graph.maxDepth);
+  const ringRadii = [SIZE * 0.2, SIZE * 0.33, SIZE * 0.45].slice(
+    0,
+    graph.maxDepth,
+  );
 
   const selectedNode = selected ? nodeById[selected] : null;
   const selectedPerson = selected ? getPerson(selected) : null;
+  const pathLabels = pathChain
+    .slice()
+    .reverse()
+    .map((id) => (id === "me" ? "شما" : nodeById[id]?.name ?? "؟"));
 
   return (
     <div>
-      <svg
-        viewBox={`-20 -16 ${SIZE + 40} ${SIZE + 48}`}
-        className="w-full select-none"
-        onClick={() => setSelected(null)}
-        role="img"
-        aria-label="گراف حلقه‌ی اعتماد"
-      >
-        {/* concentric rings */}
-        {ringRadii.map((r, i) => (
+      <div className="relative rounded-xl overflow-hidden bg-gradient-to-br from-brand-50/70 via-[color:var(--circle-surface)] to-teal-50/50 dark:from-brand-500/10 dark:via-zinc-900 dark:to-teal-500/5">
+        <svg
+          viewBox={`-12 -12 ${SIZE + 24} ${SIZE + 36}`}
+          className="w-full select-none"
+          onClick={() => setSelected(null)}
+          role="img"
+          aria-label="گراف حلقه‌ی اعتماد"
+        >
+          <defs>
+            <radialGradient id="tg-center-glow" cx="50%" cy="50%" r="45%">
+              <stop offset="0%" stopColor={BRAND} stopOpacity="0.16" />
+              <stop offset="70%" stopColor={BRAND} stopOpacity="0.04" />
+              <stop offset="100%" stopColor={BRAND} stopOpacity="0" />
+            </radialGradient>
+            <filter id="tg-soft" x="-40%" y="-40%" width="180%" height="180%">
+              <feGaussianBlur stdDeviation="2.2" result="b" />
+              <feMerge>
+                <feMergeNode in="b" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
           <circle
-            key={i}
             cx={SIZE / 2}
             cy={SIZE / 2}
-            r={r}
-            fill="none"
-            className="stroke-zinc-200/70 dark:stroke-zinc-700/60"
-            strokeWidth={1}
-            strokeDasharray="2 4"
+            r={SIZE * 0.42}
+            fill="url(#tg-center-glow)"
           />
-        ))}
 
-        {/* edges (fade in together, just before the nodes) */}
-        <g className="animate-appear">
-          {graph.edges.map((e, i) => {
-            const a = nodeById[e.from];
-            const b = nodeById[e.to];
-            if (!a || !b) return null;
-            const hot = pathEdges.has(ekey(e.from, e.to));
+          {ringRadii.map((r, i) => (
+            <circle
+              key={i}
+              cx={SIZE / 2}
+              cy={SIZE / 2}
+              r={r}
+              fill="none"
+              className="stroke-stone-300/70 dark:stroke-zinc-600/50"
+              strokeWidth={1}
+              strokeDasharray="3 5"
+            />
+          ))}
+
+          <g className="animate-appear">
+            {graph.edges.map((e, i) => {
+              const a = nodeById[e.from];
+              const b = nodeById[e.to];
+              if (!a || !b) return null;
+              const hot = pathEdges.has(ekey(e.from, e.to));
+              return (
+                <line
+                  key={i}
+                  x1={a.x}
+                  y1={a.y}
+                  x2={b.x}
+                  y2={b.y}
+                  stroke={hot ? BRAND : undefined}
+                  strokeWidth={hot ? 2.75 : 1.15}
+                  strokeLinecap="round"
+                  className={
+                    hot
+                      ? "transition-[stroke-width,opacity] duration-200"
+                      : `stroke-stone-300 dark:stroke-zinc-600 transition-opacity duration-200 ${
+                          selected ? "opacity-15" : "opacity-55"
+                        }`
+                  }
+                />
+              );
+            })}
+          </g>
+
+          {graph.nodes.map((n, i) => {
+            const isMe = n.id === "me";
+            const r = isMe ? 20 : 15.5;
+            const onPath = pathNodes.has(n.id);
+            const isSelected = selected === n.id;
             return (
-              <line
-                key={i}
-                x1={a.x}
-                y1={a.y}
-                x2={b.x}
-                y2={b.y}
-                stroke={hot ? BRAND : undefined}
-                strokeWidth={hot ? 2.5 : 1.2}
-                className={
-                  hot
-                    ? ""
-                    : `stroke-zinc-300 dark:stroke-zinc-600 ${selected ? "opacity-20" : "opacity-60"}`
-                }
-              />
-            );
-          })}
-        </g>
-
-        {/* nodes — ripple out from the centre */}
-        {graph.nodes.map((n, i) => {
-          const isMe = n.id === "me";
-          const r = isMe ? 19 : 16;
-          const onPath = pathNodes.has(n.id);
-          return (
-            <g
-              key={n.id}
-              transform={`translate(${n.x} ${n.y})`}
-              onClick={(ev) => {
-                ev.stopPropagation();
-                if (!isMe) setSelected((s) => (s === n.id ? null : n.id));
-              }}
-              className="cursor-pointer"
-            >
-              {/* entrance: opacity-only animation, holds at 1 (fill: both) */}
               <g
-                className="animate-appear"
-                style={{ animationDelay: `${n.depth * 150 + (i % 7) * 40}ms` }}
+                key={n.id}
+                transform={`translate(${n.x} ${n.y})`}
+                onClick={(ev) => {
+                  ev.stopPropagation();
+                  if (!isMe) setSelected((s) => (s === n.id ? null : n.id));
+                }}
+                className={isMe ? "cursor-default" : "cursor-pointer"}
+                role={isMe ? undefined : "button"}
+                tabIndex={isMe ? undefined : 0}
+                onKeyDown={
+                  isMe
+                    ? undefined
+                    : (ev) => {
+                        if (ev.key === "Enter" || ev.key === " ") {
+                          ev.preventDefault();
+                          setSelected((s) => (s === n.id ? null : n.id));
+                        }
+                      }
+                }
+                aria-label={isMe ? undefined : n.name}
               >
-                {/* dim layer (multiplies with entrance opacity) */}
-                <g className={`transition-opacity ${dim(n.id) ? "opacity-30" : "opacity-100"}`}>
-                  {(isMe || onPath) && (
-                    <circle r={r + 4} fill={isMe ? BRAND : LEVEL_HEX[n.level ?? "C"]} opacity={0.18} />
-                  )}
-                  <circle
-                    r={r}
-                    fill={isMe ? BRAND : personAvatarHex(n.name)}
-                    stroke={isMe ? "none" : LEVEL_HEX[n.level ?? "C"]}
-                    strokeWidth={isMe ? 0 : 2.5}
-                  />
-                  <text
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fontSize={isMe ? 14 : 12}
-                    fontWeight={700}
-                    className={isMe ? "fill-white" : "fill-white"}
+                <g
+                  className="animate-appear"
+                  style={{
+                    animationDelay: `${n.depth * 140 + (i % 7) * 36}ms`,
+                  }}
+                >
+                  <g
+                    className={`transition-opacity duration-200 ${
+                      dim(n.id) ? "opacity-25" : "opacity-100"
+                    }`}
                   >
-                    {personInitials(n.name)}
-                  </text>
-                  <text
-                    y={r + 11}
-                    textAnchor="middle"
-                    fontSize={9}
-                    fontWeight={onPath || isMe ? 700 : 500}
-                    className="fill-zinc-600 dark:fill-zinc-300"
-                  >
-                    {n.name}
-                  </text>
+                    {(isMe || onPath || isSelected) && (
+                      <circle
+                        r={r + (isSelected ? 7 : 5)}
+                        fill={isMe ? BRAND : LEVEL_HEX[n.level ?? "C"]}
+                        opacity={isSelected ? 0.28 : 0.16}
+                        filter={isMe ? "url(#tg-soft)" : undefined}
+                      />
+                    )}
+                    <circle
+                      r={r}
+                      fill={isMe ? BRAND : personAvatarHex(n.name)}
+                      stroke={
+                        isMe
+                          ? "rgba(255,255,255,0.35)"
+                          : LEVEL_HEX[n.level ?? "C"]
+                      }
+                      strokeWidth={isMe ? 2 : isSelected ? 3 : 2.4}
+                    />
+                    <text
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fontSize={isMe ? 14 : 11.5}
+                      fontWeight={700}
+                      className="fill-white"
+                    >
+                      {personInitials(n.name)}
+                    </text>
+                    <text
+                      y={r + 12}
+                      textAnchor="middle"
+                      fontSize={9.5}
+                      fontWeight={onPath || isMe || isSelected ? 700 : 500}
+                      className="fill-zinc-700 dark:fill-zinc-300"
+                    >
+                      {n.name}
+                    </text>
+                  </g>
                 </g>
               </g>
-            </g>
-          );
-        })}
-      </svg>
+            );
+          })}
+        </svg>
+      </div>
 
-      {/* Readout */}
-      <div className="px-1 mt-2 min-h-[64px]">
+      <div className="flex items-center justify-center gap-3.5 text-[11px] text-ink-muted dark:text-zinc-400 mt-3 px-1">
+        {(
+          [
+            ["A", "bg-levelA"],
+            ["B", "bg-levelB"],
+            ["C", "bg-levelC"],
+          ] as const
+        ).map(([lvl, cls]) => (
+          <span key={lvl} className="flex items-center gap-1.5">
+            <span className={`w-2 h-2 rounded-full ${cls}`} aria-hidden />
+            سطح {lvl}
+          </span>
+        ))}
+      </div>
+
+      <div className="mt-3 min-h-[72px]">
         {selectedNode && selectedPerson ? (
-          <div className="card p-3 animate-fade-up">
-            <div className="flex items-center gap-2 mb-1.5">
+          <div className="rounded-xl border border-brand-200/70 dark:border-brand-500/25 bg-brand-50/50 dark:bg-brand-500/10 p-3.5 animate-fade-up">
+            <div className="flex items-center gap-2.5 mb-2">
               <div
-                className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
-                style={{ backgroundColor: personAvatarHex(selectedPerson.name) }}
+                className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 ring-2 ring-white dark:ring-zinc-900"
+                style={{
+                  backgroundColor: personAvatarHex(selectedPerson.name),
+                }}
               >
                 {personInitials(selectedPerson.name)}
               </div>
-              <Link href={`/person/${selected!}`} className="font-bold text-ink dark:text-zinc-100 hover:text-brand-600">
-                {selectedPerson.name}
-              </Link>
-              {selectedNode.level && (
-                <span
-                  className="chip text-white"
-                  style={{ backgroundColor: LEVEL_HEX[selectedNode.level] }}
-                >
-                  {levelShort[selectedNode.level]}
-                </span>
-              )}
-              <span className="chip bg-stone-100 text-ink-muted dark:bg-zinc-800 dark:text-zinc-400">
-                {relationLabels[selectedPerson.relation]}
-              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <p className="font-bold text-[14px] text-ink dark:text-zinc-100 truncate">
+                    {selectedPerson.name}
+                  </p>
+                  {selectedNode.level && (
+                    <span
+                      className="chip !py-0.5 !px-2 text-white"
+                      style={{
+                        backgroundColor: LEVEL_HEX[selectedNode.level],
+                      }}
+                    >
+                      {levelShort[selectedNode.level]}
+                    </span>
+                  )}
+                  <span className="chip !py-0.5 !px-2 bg-[color:var(--circle-surface)] text-ink-muted ring-1 ring-stone-200/70 dark:ring-zinc-700">
+                    {relationLabels[selectedPerson.relation]}
+                  </span>
+                </div>
+                <p className="text-[12px] text-ink dark:text-zinc-200 font-medium mt-1 leading-relaxed">
+                  {pathLabels.join(" ← ")}
+                </p>
+              </div>
             </div>
-            <p className="text-sm text-ink dark:text-zinc-200 font-medium leading-relaxed">
-              {pathToMe(selected!, graph.parent)
-                .reverse()
-                .map((id) => (id === "me" ? "شما" : nodeById[id]?.name ?? "؟"))
-                .join(" ← ")}
-            </p>
             {!selectedNode.inCircle && (
-              <p className="text-[11px] text-ink-faint mt-1">
-                خارج از حلقه‌ی مستقیم — از طریق مسیر اعتماد به شما وصل است.
+              <p className="text-[11px] text-ink-muted mb-2 leading-relaxed">
+                خارج از حلقه‌ی مستقیم — از مسیر اعتماد به تو وصل است.
               </p>
             )}
+            <div className="flex gap-2">
+              <Link
+                href={`/person/${selected}`}
+                className="btn-primary flex-1 !py-2.5 text-sm text-center"
+              >
+                مشاهده پروفایل
+              </Link>
+              <button
+                type="button"
+                onClick={() => setSelected(null)}
+                className="btn-ghost !py-2.5 px-4 text-sm"
+              >
+                بستن
+              </button>
+            </div>
           </div>
         ) : (
-          <p className="text-center text-xs text-ink-faint py-4">
+          <p className="text-center text-[12px] text-ink-faint dark:text-zinc-500 py-3 leading-relaxed px-2">
             روی هر نفر بزن تا مسیر اعتمادش تا تو روشن شود.
           </p>
         )}
