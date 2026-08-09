@@ -96,9 +96,11 @@ export default function ThreadMantine({ params }: { params: { id: string } }) {
                 <Text fz={11} c="dimmed" truncate>
                   {relationLabels[peer.relation]}
                 </Text>
-                <Badge size="xs" variant="light" color="brand">
-                  {levelShort[peer.level]}
-                </Badge>
+                {levelShort[peer.level] !== relationLabels[peer.relation] && (
+                  <Badge size="xs" variant="light" color="brand">
+                    {levelShort[peer.level]}
+                  </Badge>
+                )}
               </Group>
             </Box>
           </Group>
@@ -164,6 +166,7 @@ export default function ThreadMantine({ params }: { params: { id: string } }) {
                     align="flex-end"
                     wrap="nowrap"
                     justify={msg.fromMe ? "flex-end" : "flex-start"}
+                    dir="ltr"
                   >
                     {!msg.fromMe && (
                       <Box w={32} style={{ flexShrink: 0 }}>
@@ -263,34 +266,37 @@ function Bubble({
     <Paper
       px={14}
       py={10}
+      dir="rtl"
       style={{
         maxWidth: "78%",
+        textAlign: "right",
         background: msg.fromMe
           ? "var(--mantine-color-brand-6)"
           : "var(--mantine-color-body)",
         color: msg.fromMe ? "#fff" : undefined,
         border: msg.fromMe ? "none" : "1px solid var(--mantine-color-default-border)",
         borderRadius: 16,
+        // Own on the right → tail on right; peer on the left → tail on left.
         borderBottomRightRadius: msg.fromMe
-          ? 16
-          : clusteredTop
-            ? 6
-            : 16,
-        borderTopRightRadius: msg.fromMe
-          ? 16
-          : clusteredBottom
-            ? 6
-            : 16,
-        borderBottomLeftRadius: msg.fromMe
           ? clusteredTop
             ? 6
             : 16
           : 16,
-        borderTopLeftRadius: msg.fromMe
+        borderTopRightRadius: msg.fromMe
           ? clusteredBottom
             ? 6
             : 16
           : 16,
+        borderBottomLeftRadius: msg.fromMe
+          ? 16
+          : clusteredTop
+            ? 6
+            : 16,
+        borderTopLeftRadius: msg.fromMe
+          ? 16
+          : clusteredBottom
+            ? 6
+            : 16,
       }}
     >
       {msg.listingId ? (

@@ -6,8 +6,8 @@ import type { Endorsement, TrustHop } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import {
   endorsementHighlightLine,
+  posterCardRelation,
   trustHighlightMessage,
-  viewerRelationPhrase,
   type TrustContentKind,
 } from "@/lib/trust";
 import { levelShort } from "@/lib/labels";
@@ -48,15 +48,9 @@ export default function MTrustHighlight({
     contentKind,
   );
   const isOwn = posterId === "me";
-  const ownRelation: Record<TrustContentKind, string> = {
-    listing: "آگهی شما",
-    request: "درخواست شما",
-    event: "رویداد شما",
-  };
+  const relation = posterCardRelation(poster, { isOwn, contentKind });
 
   if (variant === "compact") {
-    const relation =
-      trust.subline ?? (isOwn ? ownRelation[contentKind] : viewerRelationPhrase(poster));
     const identity = (
       <Group gap="xs" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
         <MAvatar name={poster.name} level={isOwn ? undefined : poster.level} size="sm" />

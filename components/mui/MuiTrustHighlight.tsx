@@ -7,8 +7,8 @@ import type { Endorsement, TrustHop } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import {
   endorsementHighlightLine,
+  posterCardRelation,
   trustHighlightMessage,
-  viewerRelationPhrase,
   type TrustContentKind,
 } from "@/lib/trust";
 import { levelShort } from "@/lib/labels";
@@ -38,14 +38,9 @@ export default function MuiTrustHighlight({
 
   const endorsementLine = endorsementHighlightLine(endorsements, getPerson, contentKind);
   const isOwn = posterId === "me";
-  const ownRelation: Record<TrustContentKind, string> = {
-    listing: "آگهی شما",
-    request: "درخواست شما",
-    event: "رویداد شما",
-  };
+  const relation = posterCardRelation(poster, { isOwn, contentKind });
 
   if (variant === "compact") {
-    const relation = trust.subline ?? (isOwn ? ownRelation[contentKind] : viewerRelationPhrase(poster));
     const identity = (
       <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
         <MuiAvatar name={poster.name} level={isOwn ? undefined : poster.level} size="sm" />

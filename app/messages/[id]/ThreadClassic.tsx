@@ -85,11 +85,14 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
               <span className="text-[11px] text-ink-muted dark:text-zinc-400 truncate">
                 {relationLabels[peer.relation]}
               </span>
-              <span
-                className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${levelChip[peer.level]}`}
-              >
-                {levelShort[peer.level]}
-              </span>
+              {/* Skip level chip when it repeats the relation word (e.g. آشنا / آشنا). */}
+              {levelShort[peer.level] !== relationLabels[peer.relation] && (
+                <span
+                  className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${levelChip[peer.level]}`}
+                >
+                  {levelShort[peer.level]}
+                </span>
+              )}
             </p>
           </div>
         </Link>
@@ -138,6 +141,9 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
                 <div key={msg.id}>
                   {showDay && <DayDivider label={dayKey(msg.postedAt)} />}
                   <div
+                    // LTR row geometry so justify-end = screen-right (WhatsApp-like),
+                    // while bubble text stays RTL via unicode / nested dir.
+                    dir="ltr"
                     className={`flex items-end gap-2 ${
                       msg.fromMe ? "justify-end" : "justify-start"
                     } ${samePrev && !showDay ? "mt-0.5" : "mt-2.5"}`}
@@ -225,25 +231,27 @@ function Bubble({
   clusteredBottom: boolean;
   showTime: boolean;
 }) {
+  // Tail toward the screen edge: own (right) → right corners; peer (left) → left.
   const radius = msg.fromMe
     ? [
-        "rounded-2xl",
-        clusteredTop ? "rounded-bl-md" : "rounded-bl-2xl",
-        clusteredBottom ? "rounded-tl-md" : "rounded-tl-2xl",
-        "rounded-br-2xl",
-        "rounded-tr-2xl",
-      ].join(" ")
-    : [
         "rounded-2xl",
         clusteredTop ? "rounded-br-md" : "rounded-br-2xl",
         clusteredBottom ? "rounded-tr-md" : "rounded-tr-2xl",
         "rounded-bl-2xl",
         "rounded-tl-2xl",
+      ].join(" ")
+    : [
+        "rounded-2xl",
+        clusteredTop ? "rounded-bl-md" : "rounded-bl-2xl",
+        clusteredBottom ? "rounded-tl-md" : "rounded-tl-2xl",
+        "rounded-br-2xl",
+        "rounded-tr-2xl",
       ].join(" ");
 
   return (
     <div
-      className={`max-w-[78%] px-3.5 py-2.5 text-[13px] leading-relaxed ${radius} ${
+      dir="rtl"
+      className={`max-w-[78%] px-3.5 py-2.5 text-[13px] leading-relaxed text-right ${radius} ${
         msg.fromMe
           ? "bg-brand-600 text-white shadow-sm shadow-brand-600/20"
           : "bg-[color:var(--circle-surface)] text-ink shadow-card dark:bg-zinc-900 dark:text-zinc-100 dark:border dark:border-zinc-800"

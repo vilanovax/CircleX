@@ -29,7 +29,7 @@ const items = [
 /** MUI variant of the bottom navigation bar. */
 export default function MuiBottomNav() {
   const pathname = useClientPathname();
-  const unread = useStore((s) => s.totalUnread());
+  const unread = useStore((s) => (s.hydrated ? s.totalUnread() : 0));
   const [showCreate, setShowCreate] = useState(false);
 
   return (

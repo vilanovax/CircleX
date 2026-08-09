@@ -65,6 +65,8 @@ export function canView(
   return trustScore(posterId, poster.trustPath, getPerson) >= requiredScore(poster.privacy);
 }
 
+export type TrustContentKind = "listing" | "request" | "event";
+
 /** How this person relates to the viewer — for trust copy on cards. */
 export function viewerRelationPhrase(person: Person): string {
   const note = person.note ?? "";
@@ -77,7 +79,28 @@ export function viewerRelationPhrase(person: Person): string {
   return relationLabels[person.relation];
 }
 
-export type TrustContentKind = "listing" | "request" | "event";
+const ownContentRelation: Record<TrustContentKind, string> = {
+  listing: "آگهی شما",
+  request: "درخواست شما",
+  event: "رویداد شما",
+};
+
+/**
+ * Name-line relation next to the poster (e.g. «حسین · همکار سارا»).
+ * Never uses the trust-path connector's label — that belongs on the path/endorsement line.
+ */
+export function posterCardRelation(
+  poster: Person,
+  opts?: { isOwn?: boolean; contentKind?: TrustContentKind },
+): string {
+  if (opts?.isOwn) {
+    return ownContentRelation[opts.contentKind ?? "listing"];
+  }
+  if (poster.inMyCircle) return viewerRelationPhrase(poster);
+  const note = poster.note?.trim();
+  if (note) return note;
+  return relationLabels[poster.relation];
+}
 
 const ownContentHeadline: Record<TrustContentKind, string> = {
   listing: "آگهی خودتان در حلقه",

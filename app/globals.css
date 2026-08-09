@@ -13,7 +13,7 @@
   --circle-surface: #fffcf8;
   --circle-ink: #1a1816;
   --circle-brand: #4a3a8f;
-  --circle-trust: #2d8a56;
+  --circle-trust: #1f6b42;
 }
 
 html,
@@ -49,7 +49,7 @@ body {
   background-color: var(--circle-canvas);
   background-image:
     radial-gradient(ellipse 120% 60% at 100% 0%, rgba(74, 58, 143, 0.06), transparent 55%),
-    radial-gradient(ellipse 80% 40% at 0% 100%, rgba(45, 138, 86, 0.05), transparent 50%);
+    radial-gradient(ellipse 80% 40% at 0% 100%, rgba(31, 107, 66, 0.05), transparent 50%);
   position: relative;
   box-shadow: 0 0 40px rgba(26, 24, 22, 0.06);
 }
@@ -60,7 +60,7 @@ body {
   --circle-surface: #1c1b19;
   --circle-ink: #f2efe9;
   --circle-brand: #5f4aa8;
-  --circle-trust: #3fad6e;
+  --circle-trust: #4caf74;
 }
 .dark body {
   background-color: var(--circle-canvas);
@@ -70,7 +70,7 @@ body {
   background-color: var(--circle-canvas);
   background-image:
     radial-gradient(ellipse 120% 60% at 100% 0%, rgba(95, 74, 168, 0.12), transparent 55%),
-    radial-gradient(ellipse 80% 40% at 0% 100%, rgba(45, 138, 86, 0.08), transparent 50%);
+    radial-gradient(ellipse 80% 40% at 0% 100%, rgba(76, 175, 116, 0.08), transparent 50%);
   box-shadow: 0 0 40px rgba(0, 0, 0, 0.4);
 }
 

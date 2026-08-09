@@ -503,7 +503,7 @@ export const EVENTS: CircleEvent[] = [
   },
   {
     id: "e4",
-    title: "playdate کودکان در پارک",
+    title: "قرار بازی کودکان در پارک",
     description:
       "بعدازظهر بازی برای کودکان ۳ تا ۷ سال، با چند بازی گروهی و میان‌وعده‌ی سالم.",
     kind: "kids",

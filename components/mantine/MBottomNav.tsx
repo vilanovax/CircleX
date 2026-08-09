@@ -30,7 +30,7 @@ const items = [
 export default function MBottomNav() {
   const pathname = useClientPathname();
   const theme = useMantineTheme();
-  const unread = useStore((s) => s.totalUnread());
+  const unread = useStore((s) => (s.hydrated ? s.totalUnread() : 0));
   const [showCreate, setShowCreate] = useState(false);
   const brand = theme.colors.brand[6];
 

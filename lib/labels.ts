@@ -121,10 +121,11 @@ export const badgeEmoji: Record<BadgeType, string> = {
   dealt_before: "🤝",
 };
 
+/** Plain-language audience chips for feed cards (avoid bare A/B/C jargon). */
 export const privacyLabels: Record<Privacy, string> = {
-  A: "فقط سطح A",
-  AB: "سطح A و B",
-  ABC: "تا سطح C",
+  A: "فقط نزدیک‌ترین‌ها",
+  AB: "نزدیک و مورد اعتماد",
+  ABC: "کل حلقه",
   referral: "فقط با معرفی",
   approved: "فقط با تأیید من",
 };

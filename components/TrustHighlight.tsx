@@ -5,8 +5,8 @@ import type { Endorsement, TrustHop } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import {
   endorsementHighlightLine,
+  posterCardRelation,
   trustHighlightMessage,
-  viewerRelationPhrase,
   type TrustContentKind,
 } from "@/lib/trust";
 import { ShieldCheckIcon } from "./Icons";
@@ -50,16 +50,9 @@ export default function TrustHighlight({
     contentKind,
   );
   const isOwn = posterId === "me";
-  const ownRelation: Record<TrustContentKind, string> = {
-    listing: "آگهی شما",
-    request: "درخواست شما",
-    event: "رویداد شما",
-  };
+  const relation = posterCardRelation(poster, { isOwn, contentKind });
 
   if (variant === "line") {
-    const relation =
-      trust.subline ?? (isOwn ? ownRelation[contentKind] : viewerRelationPhrase(poster));
-
     const inner = (
       <>
         <Avatar name={poster.name} level={isOwn ? undefined : poster.level} size="sm" />
@@ -93,9 +86,6 @@ export default function TrustHighlight({
   }
 
   if (variant === "compact") {
-    const relation =
-      trust.subline ?? (isOwn ? ownRelation[contentKind] : viewerRelationPhrase(poster));
-
     const personRow = (
       <>
         <Avatar name={poster.name} level={isOwn ? undefined : poster.level} size="sm" />

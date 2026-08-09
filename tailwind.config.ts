@@ -38,10 +38,11 @@ const config: Config = {
         ink: {
           DEFAULT: "#1a1816",
           muted: "#6b6560",
-          faint: "#9a948e",
+          // ≥4.5:1 on warm canvas / card surfaces (#fffcf8 / #ebe8e3)
+          faint: "#6f6a64",
         },
         // Trust level colors
-        levelA: "#2d8a56", // green — closest, most trusted
+        levelA: "#1f6b42", // green — closest; ≥4.5:1 on card cream
         levelB: "#3b6ea5", // steel blue
         levelC: "#c27a2d", // clay amber
       },

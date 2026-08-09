@@ -6,8 +6,8 @@ import type { Endorsement, TrustHop } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import {
   endorsementHighlightLine,
+  posterCardRelation,
   trustHighlightMessage,
-  viewerRelationPhrase,
   type TrustContentKind,
 } from "@/lib/trust";
 import { levelShort } from "@/lib/labels";
@@ -38,14 +38,9 @@ export default function HTrustHighlight({
 
   const endorsementLine = endorsementHighlightLine(endorsements, getPerson, contentKind);
   const isOwn = posterId === "me";
-  const ownRelation: Record<TrustContentKind, string> = {
-    listing: "آگهی شما",
-    request: "درخواست شما",
-    event: "رویداد شما",
-  };
+  const relation = posterCardRelation(poster, { isOwn, contentKind });
 
   if (variant === "compact") {
-    const relation = trust.subline ?? (isOwn ? ownRelation[contentKind] : viewerRelationPhrase(poster));
     const identity = (
       <div className="flex items-center gap-2 min-w-0 flex-1">
         <HAvatar name={poster.name} level={isOwn ? undefined : poster.level} size="sm" />

@@ -26,7 +26,8 @@ const items = [
 
 export default function BottomNav() {
   const pathname = useClientPathname();
-  const unread = useStore((s) => s.totalUnread());
+  // Hide until hydrated so mock unread (۴) doesn't flash over persisted (۳).
+  const unread = useStore((s) => (s.hydrated ? s.totalUnread() : 0));
   const [showCreate, setShowCreate] = useState(false);
 
   return (

@@ -28,7 +28,7 @@ const items = [
 /** HeroUI variant of the bottom navigation bar. */
 export default function HBottomNav() {
   const pathname = useClientPathname();
-  const unread = useStore((s) => s.totalUnread());
+  const unread = useStore((s) => (s.hydrated ? s.totalUnread() : 0));
   const [showCreate, setShowCreate] = useState(false);
 
   return (
