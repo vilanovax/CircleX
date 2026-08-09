@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import IntroRequestSheet from "./IntroRequestSheet";
+import { lazyUi } from "@/lib/lazy-ui";
 import { privacyLabels } from "@/lib/labels";
 import type { Privacy } from "@/lib/types";
+
+const IntroRequestSheet = lazyUi(() => import("./IntroRequestSheet"));
 
 type ItemKind = "listing" | "request" | "event";
 

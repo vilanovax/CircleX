@@ -6,14 +6,20 @@ import { useState } from "react";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import ListingImage from "@/components/ListingImage";
-import ReferSheet from "@/components/ReferSheet";
+import { lazyUi } from "@/lib/lazy-ui";
 import Avatar from "@/components/Avatar";
 import TrustPath from "@/components/TrustPath";
-import { EndorsementList } from "@/components/Endorsements";
-import { ChatIcon, HeartIcon, ShieldCheckIcon } from "@/components/Icons";
+import { EndorsementList, EndorsementSummary } from "@/components/Endorsements";
+import {
+  ChatIcon,
+  CircleUsersIcon,
+  HeartIcon,
+  ShieldCheckIcon,
+} from "@/components/Icons";
 import {
   badgeLabels,
   formatPrice,
+  listingTypeChip,
   listingTypeLabels,
   privacyLabels,
   relationLabels,
@@ -21,8 +27,11 @@ import {
 import type { BadgeType } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
 import LockedAccess from "@/components/LockedAccess";
-import { canView } from "@/lib/trust";
+import { canView, privacyAudience } from "@/lib/trust";
 import { useToast } from "@/components/Toast";
+import { listingImageTint } from "@/lib/listing-image";
+
+const ReferSheet = lazyUi(() => import("@/components/ReferSheet"));
 
 const ALL_BADGES: BadgeType[] = [
   "verify_item",
@@ -35,7 +44,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const params = useParams();
   const router = useRouter();
   const id = String(params.id);
-  const { getListing, getPerson, toggleEndorsement, toggleSaved, isSaved } =
+  const { getListing, getPerson, people, toggleEndorsement, toggleSaved, isSaved } =
     useStore();
   const { show } = useToast();
   const [showRefer, setShowRefer] = useState(false);
@@ -53,6 +62,14 @@ export default function ListingClassic(_props: { params: { id: string } }) {
 
   const seller = getPerson(listing.sellerId);
   const isMine = listing.sellerId === "me";
+  const circle = people.filter((p) => p.inMyCircle);
+  const tint = listingImageTint(listing.category, listing.type);
+  const ctaLabel =
+    listing.type === "donation"
+      ? "پیام برای درخواست این کالا"
+      : listing.type === "service"
+        ? "پیام برای رزرو خدمت"
+        : "پیام به فروشنده";
 
   if (!isMine && !canView(listing, getPerson)) {
     return (
@@ -83,8 +100,10 @@ export default function ListingClassic(_props: { params: { id: string } }) {
                   : "در پروفایل ذخیره شد ✓",
               );
             }}
-            className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-              saved ? "text-pink-500" : "text-ink-faint"
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+              saved
+                ? "text-pink-500 bg-pink-50 dark:bg-pink-500/10"
+                : "text-ink-faint hover:bg-stone-200/50 dark:hover:bg-zinc-800"
             }`}
             aria-label={saved ? "حذف از نشان‌شده‌ها" : "نشان کردن"}
             aria-pressed={saved}
@@ -94,31 +113,48 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         }
       />
 
-      <div className="mx-4 mt-3">
+      {/* Full-bleed hero */}
+      <div className="relative listing-detail-hero">
         <ListingImage
           image={listing.image}
           alt={listing.title}
           size="hero"
+          priority
           category={listing.category}
           type={listing.type}
-          frameClassName="h-44 w-full rounded-2xl bg-gradient-to-br ring-1 ring-black/[0.04] dark:ring-white/5 overflow-hidden"
+          frameClassName={`h-56 w-full rounded-none bg-gradient-to-br ${tint}`}
+        />
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[color:var(--circle-canvas)] via-[color:var(--circle-canvas)]/55 to-transparent"
+          aria-hidden
         />
       </div>
 
-      <div className="px-4 pt-4">
-        <p className="text-[11px] font-medium text-ink-faint">
-          {listingTypeLabels[listing.type]}
-          {listing.category ? ` · ${listing.category}` : ""}
-          {listing.condition ? ` · ${listing.condition}` : ""}
-        </p>
+      {/* Title block — one composition, not a card */}
+      <div className="px-4 -mt-3 relative listing-detail-rise">
+        <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
+          <span className={`chip ${listingTypeChip[listing.type]}`}>
+            {listingTypeLabels[listing.type]}
+          </span>
+          {listing.category && (
+            <span className="chip bg-[color:var(--circle-surface)] text-ink-muted ring-1 ring-stone-200/70 dark:ring-zinc-700">
+              {listing.category}
+            </span>
+          )}
+          {listing.condition && (
+            <span className="chip bg-[color:var(--circle-surface)] text-ink-muted ring-1 ring-stone-200/70 dark:ring-zinc-700">
+              {listing.condition}
+            </span>
+          )}
+        </div>
 
-        <h1 className="text-[1.35rem] font-extrabold text-ink dark:text-zinc-50 leading-snug mt-1">
+        <h1 className="text-[1.45rem] font-extrabold text-ink dark:text-zinc-50 leading-[1.35] tracking-tight">
           {listing.title}
         </h1>
 
-        <div className="mt-2">
+        <div className="mt-2.5 flex items-baseline gap-2 flex-wrap">
           {listing.price != null ? (
-            <span className="text-xl font-extrabold text-ink dark:text-zinc-50 nums tracking-tight">
+            <span className="text-[1.35rem] font-extrabold text-ink dark:text-zinc-50 nums tracking-tight">
               {formatPrice(listing.price)}
             </span>
           ) : (
@@ -128,103 +164,107 @@ export default function ListingClassic(_props: { params: { id: string } }) {
           )}
         </div>
 
-        <p className="text-[13px] text-ink-muted dark:text-zinc-300 leading-relaxed mt-3 whitespace-pre-line">
+        <p className="text-[13.5px] text-ink-muted dark:text-zinc-300 leading-[1.75] mt-3.5 whitespace-pre-line">
           {listing.description}
         </p>
 
-        <div className="flex items-center gap-2 text-[11px] text-ink-muted dark:text-zinc-400 mt-3">
-          <span>{listing.city}</span>
-          <span className="text-stone-300" aria-hidden>
-            ·
-          </span>
-          <span>{listing.postedAt}</span>
-          <span className="text-stone-300" aria-hidden>
-            ·
-          </span>
-          <span>{privacyLabels[listing.privacy]}</span>
-        </div>
+        <ul className="flex flex-wrap gap-2 mt-4">
+          <li className="chip bg-[color:var(--circle-surface)] text-ink-muted ring-1 ring-stone-200/60 dark:ring-zinc-700/80">
+            {listing.city}
+          </li>
+          <li className="chip bg-[color:var(--circle-surface)] text-ink-muted ring-1 ring-stone-200/60 dark:ring-zinc-700/80">
+            {listing.postedAt}
+          </li>
+          <li
+            className="chip bg-[color:var(--circle-surface)] text-ink-muted ring-1 ring-stone-200/60 dark:ring-zinc-700/80"
+            title={privacyAudience(listing.privacy, circle)}
+          >
+            {privacyLabels[listing.privacy]}
+          </li>
+        </ul>
       </div>
 
-      {/* Trust path */}
-      <section className="px-4 pt-4">
-        <div className="card p-3.5">
-          <div className="flex items-center gap-2 mb-3">
-            <ShieldCheckIcon className="w-4.5 h-4.5 w-[18px] h-[18px] text-levelA" />
-            <h2 className="font-bold text-[13px] text-ink dark:text-zinc-100">
-              مسیر اعتماد
-            </h2>
+      {/* Trust — product signature */}
+      <section className="px-4 pt-5">
+        <div className="card trust-card p-4">
+          <div className="flex items-center gap-2 mb-3.5">
+            <span className="w-8 h-8 rounded-xl bg-[color:var(--circle-trust)]/12 text-[color:var(--circle-trust)] flex items-center justify-center shrink-0">
+              <ShieldCheckIcon className="w-[18px] h-[18px]" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="font-bold text-[14px] text-ink dark:text-zinc-100 leading-tight">
+                مسیر اعتماد
+              </h2>
+              <p className="text-[11px] text-ink-muted mt-0.5">
+                چطور به این آگهی وصلی
+              </p>
+            </div>
           </div>
           <TrustPath
             posterId={listing.sellerId}
             trustPath={listing.trustPath}
             variant="full"
           />
-        </div>
-      </section>
-
-      {/* Quick referral */}
-      <section className="px-4 pt-2.5">
-        <div className="card px-3.5 py-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-brand-50 dark:bg-brand-500/15 text-brand-600 flex items-center justify-center shrink-0 text-sm font-extrabold">
-            م
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-[13px] text-ink dark:text-zinc-100">
-              مناسب کسی از حلقه‌ات است؟
-            </p>
-            <p className="text-[11px] text-ink-muted mt-0.5">
-              فقط داخل حلقه معرفی کن
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowRefer(true)}
-            className="shrink-0 text-[12px] font-bold text-brand-600 dark:text-brand-400 px-2 py-1.5"
-          >
-            معرفی ‹
-          </button>
+          {listing.endorsements.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-stone-100 dark:border-zinc-800">
+              <EndorsementSummary endorsements={listing.endorsements} />
+            </div>
+          )}
         </div>
       </section>
 
       {/* Seller */}
       {seller && !isMine && (
-        <section className="px-4 pt-2.5">
+        <section className="px-4 pt-3">
+          <p className="text-[11px] font-semibold text-ink-faint mb-2 px-0.5">
+            فروشنده
+          </p>
           <Link
             href={`/person/${listing.sellerId}`}
-            className="card px-3.5 py-3 flex items-center gap-3 active:scale-[0.99] transition-transform"
+            className="card px-3.5 py-3.5 flex items-center gap-3 active:scale-[0.99] transition-transform duration-150"
           >
             <Avatar name={seller.name} level={seller.level} size="md" />
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-[14px] text-ink dark:text-zinc-100">
+              <p className="font-bold text-[15px] text-ink dark:text-zinc-100">
                 {seller.name}
               </p>
-              <p className="text-[11px] text-ink-muted mt-0.5 truncate">
+              <p className="text-[12px] text-ink-muted mt-0.5 truncate">
                 {seller.note ? `${seller.note} · ` : ""}
                 {relationLabels[seller.relation]}
               </p>
-              <p className="text-[11px] text-ink-faint mt-0.5">
+              <p className="text-[11px] text-ink-faint mt-1">
                 <span className="nums">{toPersianDigits(seller.deals)}</span>{" "}
                 معامله · {seller.city}
               </p>
             </div>
-            <span className="text-ink-faint text-lg" aria-hidden>
-              ‹
+            <span
+              className="text-[12px] font-bold text-brand-600 dark:text-brand-400 shrink-0"
+              aria-hidden
+            >
+              پروفایل ‹
             </span>
           </Link>
         </section>
       )}
 
       {/* Endorsements */}
-      <section className="px-4 pt-2.5 pb-2">
-        <div className="card p-3.5">
-          <h2 className="font-bold text-[13px] text-ink dark:text-zinc-100 mb-3">
-            تأیید و توصیه‌ها
-          </h2>
+      <section className="px-4 pt-3">
+        <div className="card p-4">
+          <div className="flex items-baseline justify-between gap-2 mb-3">
+            <h2 className="font-bold text-[14px] text-ink dark:text-zinc-100">
+              تأیید و توصیه‌ها
+            </h2>
+            {listing.endorsements.length > 0 && (
+              <span className="text-[11px] font-semibold text-ink-faint nums">
+                {toPersianDigits(listing.endorsements.length)}
+              </span>
+            )}
+          </div>
           <EndorsementList endorsements={listing.endorsements} />
 
           {!isMine && (
-            <div className="mt-3.5 pt-3.5 border-t border-stone-100 dark:border-zinc-800">
-              <p className="text-[11px] text-ink-muted mb-2 leading-relaxed">
+            <div className="mt-4 pt-3.5 border-t border-stone-100 dark:border-zinc-800">
+              <p className="text-[12px] text-ink-muted mb-2.5 leading-relaxed">
                 اگر فروشنده یا کالا را می‌شناسی، نشان اعتماد بده:
               </p>
               <div className="flex flex-wrap gap-2">
@@ -239,7 +279,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
                       onClick={() => toggleEndorsement(listing.id, b)}
                       className={`chip !px-3 !py-1.5 border transition-colors text-[12px] ${
                         active
-                          ? "bg-levelA/10 text-levelA border-levelA/30"
+                          ? "bg-[color:var(--circle-trust)]/12 text-[color:var(--circle-trust)] border-[color:var(--circle-trust)]/35"
                           : "bg-[color:var(--circle-surface)] text-ink-muted border-stone-200 dark:border-zinc-700"
                       }`}
                     >
@@ -253,21 +293,51 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         </div>
       </section>
 
+      {/* Quiet referral — secondary, not another equal card */}
+      {!isMine && (
+        <section className="px-4 pt-3 pb-2">
+          <button
+            type="button"
+            onClick={() => setShowRefer(true)}
+            className="w-full flex items-center gap-3 px-1 py-2 rounded-xl text-start active:opacity-80 transition-opacity"
+          >
+            <span className="w-9 h-9 rounded-xl bg-brand-50 dark:bg-brand-500/15 text-brand-600 dark:text-brand-400 flex items-center justify-center shrink-0">
+              <CircleUsersIcon className="w-5 h-5" />
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="block font-bold text-[13px] text-ink dark:text-zinc-100">
+                مناسب کسی از حلقه‌ات است؟
+              </span>
+              <span className="block text-[11px] text-ink-muted mt-0.5">
+                فقط داخل حلقه معرفی کن
+              </span>
+            </span>
+            <span className="shrink-0 text-[12px] font-bold text-brand-600 dark:text-brand-400">
+              معرفی ‹
+            </span>
+          </button>
+        </section>
+      )}
+
       {!isMine && (
         <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
           <div className="app-shell !min-h-0 !shadow-none bg-transparent">
             <div className="pointer-events-auto bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-xl border-t border-stone-200/70 dark:border-zinc-800 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              {seller && (
+                <p className="text-[11px] text-ink-muted text-center mb-2 truncate">
+                  گفتگو با{" "}
+                  <span className="font-semibold text-ink dark:text-zinc-200">
+                    {seller.name}
+                  </span>
+                </p>
+              )}
               <button
                 type="button"
                 onClick={() => router.push(`/messages/${listing.sellerId}`)}
-                className="btn-primary w-full !py-3.5 flex items-center justify-center gap-2"
+                className="btn-primary w-full !py-3.5 flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20"
               >
                 <ChatIcon className="w-5 h-5" />
-                {listing.type === "donation"
-                  ? "پیام برای درخواست این کالا"
-                  : listing.type === "service"
-                    ? "پیام برای رزرو خدمت"
-                    : "پیام به فروشنده"}
+                {ctaLabel}
               </button>
             </div>
           </div>

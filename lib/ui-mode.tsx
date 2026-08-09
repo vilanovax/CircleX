@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useUILibReady } from "@/lib/ui-lib-ready";
 
 /** Which UI library renders the screens. */
 export type UIMode = "classic" | "mantine" | "chakra" | "mui" | "heroui";
@@ -97,9 +98,13 @@ export function UISwitch({
   heroui?: React.ReactNode;
 }) {
   const { mode, mounted } = useUIMode();
-  if (mounted && mode === "mantine" && mantine) return <>{mantine}</>;
-  if (mounted && mode === "chakra" && chakra) return <>{chakra}</>;
-  if (mounted && mode === "mui" && mui) return <>{mui}</>;
-  if (mounted && mode === "heroui" && heroui) return <>{heroui}</>;
+  const libReady = useUILibReady();
+  // Stay on classic until the matching library provider chunk is ready so
+  // variant trees never render without their Theme/Provider.
+  if (!mounted || !libReady) return <>{classic}</>;
+  if (mode === "mantine" && mantine) return <>{mantine}</>;
+  if (mode === "chakra" && chakra) return <>{chakra}</>;
+  if (mode === "mui" && mui) return <>{mui}</>;
+  if (mode === "heroui" && heroui) return <>{heroui}</>;
   return <>{classic}</>;
 }

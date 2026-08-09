@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { isListingPhoto, listingImageTint } from "@/lib/listing-image";
 import type { ListingType } from "@/lib/types";
 
@@ -19,6 +20,7 @@ export default function ListingImage({
   type,
   className = "",
   frameClassName,
+  priority = false,
 }: {
   image: string;
   alt?: string;
@@ -28,33 +30,55 @@ export default function ListingImage({
   className?: string;
   /** Outer frame (rounded box). Defaults by size. */
   frameClassName?: string;
+  /** LCP image on detail heroes. */
+  priority?: boolean;
 }) {
   const tint = listingImageTint(category, type);
   const photo = isListingPhoto(image);
 
   const defaultFrame =
     size === "hero"
-      ? `h-44 w-full rounded-2xl bg-gradient-to-br ${tint}`
+      ? `relative h-44 w-full rounded-2xl bg-gradient-to-br ${tint}`
       : size === "sm"
-        ? `w-14 h-14 rounded-xl bg-gradient-to-br ${tint}`
+        ? `relative w-14 h-14 rounded-xl bg-gradient-to-br ${tint}`
         : size === "lg"
-          ? `w-12 h-12 rounded-xl bg-gradient-to-br ${tint}`
+          ? `relative w-12 h-12 rounded-xl bg-gradient-to-br ${tint}`
           : photo
-            ? `w-[5.25rem] h-[5.25rem] rounded-2xl bg-gradient-to-br ring-1 ring-black/[0.04] dark:ring-white/5 ${tint}`
+            ? `relative w-[5.25rem] h-[5.25rem] rounded-2xl bg-gradient-to-br ring-1 ring-black/[0.04] dark:ring-white/5 ${tint}`
             : /* tighter box + larger glyph so emoji fills the frame */
-              `w-16 h-16 rounded-xl bg-gradient-to-br ring-1 ring-black/[0.03] dark:ring-white/5 ${tint}`;
+              `relative w-16 h-16 rounded-xl bg-gradient-to-br ring-1 ring-black/[0.03] dark:ring-white/5 ${tint}`;
 
-  const frame = frameClassName ?? defaultFrame;
+  const frame = frameClassName
+    ? frameClassName.includes("relative")
+      ? frameClassName
+      : `relative ${frameClassName}`
+    : defaultFrame;
 
   if (photo) {
+    const unoptimized =
+      image.startsWith("data:") ||
+      image.startsWith("blob:") ||
+      image.startsWith("http://") ||
+      image.startsWith("https://");
+
     return (
       <div className={`overflow-hidden shrink-0 ${frame} ${className}`}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src={image}
           alt={alt}
-          className="w-full h-full object-cover"
-          loading="lazy"
+          fill
+          className="object-cover"
+          sizes={
+            size === "hero"
+              ? "(max-width: 480px) 100vw, 480px"
+              : size === "sm"
+                ? "56px"
+                : size === "lg"
+                  ? "48px"
+                  : "84px"
+          }
+          priority={priority}
+          unoptimized={unoptimized}
         />
       </div>
     );

@@ -6,13 +6,15 @@ import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import RequestCard from "@/components/RequestCard";
-import AddRequestSheet from "@/components/AddRequestSheet";
+import { lazyUi } from "@/lib/lazy-ui";
 import EmptyState from "@/components/EmptyState";
 import { CardListSkeleton } from "@/components/Skeleton";
 import { PlusIcon } from "@/components/Icons";
 import { canView } from "@/lib/trust";
 import { useToast } from "@/components/Toast";
 import { toPersianDigits } from "@/lib/persian";
+
+const AddRequestSheet = lazyUi(() => import("@/components/AddRequestSheet"));
 
 function RequestsContent() {
   const router = useRouter();

@@ -4,10 +4,12 @@ import { useMemo } from "react";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
-import TrustGraph from "@/components/TrustGraph";
+import { lazyUi } from "@/lib/lazy-ui";
 import { ShieldCheckIcon } from "@/components/Icons";
 import { toPersianDigits } from "@/lib/persian";
 import { buildTrustGraph, graphInsights } from "@/lib/graph";
+
+const TrustGraph = lazyUi(() => import("@/components/TrustGraph"));
 
 export default function GraphClassic() {
   const { people, listings, requests, getPerson } = useStore();

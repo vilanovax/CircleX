@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Box, Indicator, Text, useMantineTheme } from "@mantine/core";
 import { useStore } from "@/lib/store";
 import { toPersianDigits } from "@/lib/persian";
-import CreateSheet from "@/components/CreateSheet";
+import { lazyUi } from "@/lib/lazy-ui";
+import { navActive, useClientPathname } from "@/lib/use-nav-active";
 import {
   ChatIcon,
   CircleUsersIcon,
@@ -15,6 +15,8 @@ import {
   UserIcon,
 } from "@/components/Icons";
 import { SHELL_MAX } from "./shared";
+
+const CreateSheet = lazyUi(() => import("@/components/CreateSheet"));
 
 const items = [
   { id: "home", href: "/", label: "خانه", Icon: HomeIcon },
@@ -26,10 +28,9 @@ const items = [
 
 /** Mantine variant of the bottom navigation bar. */
 export default function MBottomNav() {
-  const pathname = usePathname();
+  const pathname = useClientPathname();
   const theme = useMantineTheme();
-  const { totalUnread } = useStore();
-  const unread = totalUnread();
+  const unread = useStore((s) => s.totalUnread());
   const [showCreate, setShowCreate] = useState(false);
   const brand = theme.colors.brand[6];
 
@@ -72,12 +73,7 @@ export default function MBottomNav() {
                 const { id, label, Icon } = item;
                 const href = "href" in item ? item.href : undefined;
                 const center = "center" in item && item.center;
-                const active =
-                  href === "/"
-                    ? pathname === "/"
-                    : href
-                      ? pathname.startsWith(href)
-                      : false;
+                const active = navActive(pathname, href);
 
                 if (center) {
                   return (

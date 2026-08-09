@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useStore } from "@/lib/store";
 import { toPersianDigits } from "@/lib/persian";
-import CreateSheet from "./CreateSheet";
+import { lazyUi } from "@/lib/lazy-ui";
+import { navActive, useClientPathname } from "@/lib/use-nav-active";
 import {
   ChatIcon,
   CircleUsersIcon,
@@ -13,6 +13,8 @@ import {
   PlusIcon,
   UserIcon,
 } from "./Icons";
+
+const CreateSheet = lazyUi(() => import("./CreateSheet"));
 
 const items = [
   { id: "home", href: "/", label: "خانه", Icon: HomeIcon },
@@ -23,9 +25,8 @@ const items = [
 ] as const;
 
 export default function BottomNav() {
-  const pathname = usePathname();
-  const { totalUnread } = useStore();
-  const unread = totalUnread();
+  const pathname = useClientPathname();
+  const unread = useStore((s) => s.totalUnread());
   const [showCreate, setShowCreate] = useState(false);
 
   return (
@@ -38,12 +39,7 @@ export default function BottomNav() {
               const { id, label, Icon } = item;
               const href = "href" in item ? item.href : undefined;
               const center = "center" in item && item.center;
-              const active =
-                href === "/"
-                  ? pathname === "/"
-                  : href
-                    ? pathname.startsWith(href)
-                    : false;
+              const active = navActive(pathname, href);
               if (center) {
                 return (
                   <li key={id} className="flex-1 flex justify-center">

@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Badge, Button } from "@heroui/react";
 import { useStore } from "@/lib/store";
 import { toPersianDigits } from "@/lib/persian";
-import CreateSheet from "@/components/CreateSheet";
+import { lazyUi } from "@/lib/lazy-ui";
+import { navActive, useClientPathname } from "@/lib/use-nav-active";
 import {
   ChatIcon,
   CircleUsersIcon,
@@ -14,6 +14,8 @@ import {
   PlusIcon,
   UserIcon,
 } from "@/components/Icons";
+
+const CreateSheet = lazyUi(() => import("@/components/CreateSheet"));
 
 const items = [
   { id: "home", href: "/", label: "خانه", Icon: HomeIcon },
@@ -25,9 +27,8 @@ const items = [
 
 /** HeroUI variant of the bottom navigation bar. */
 export default function HBottomNav() {
-  const pathname = usePathname();
-  const { totalUnread } = useStore();
-  const unread = totalUnread();
+  const pathname = useClientPathname();
+  const unread = useStore((s) => s.totalUnread());
   const [showCreate, setShowCreate] = useState(false);
 
   return (
@@ -40,7 +41,7 @@ export default function HBottomNav() {
                 const { id, label, Icon } = item;
                 const href = "href" in item ? item.href : undefined;
                 const center = "center" in item && item.center;
-                const active = href === "/" ? pathname === "/" : href ? pathname.startsWith(href) : false;
+                const active = navActive(pathname, href);
 
                 if (center) {
                   return (

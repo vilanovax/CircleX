@@ -1,13 +1,13 @@
 "use client";
 
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
+  type ReactNode,
 } from "react";
+import { createContext, useContextSelector } from "use-context-selector";
 import {
   EVENTS,
   LISTINGS,
@@ -76,7 +76,7 @@ interface NewEventInput {
   privacy: Privacy;
 }
 
-interface StoreValue {
+export interface StoreValue {
   me: Person;
   people: Person[];
   listings: Listing[];
@@ -128,7 +128,7 @@ const STORAGE_KEY = "circle-store-v1";
 
 const AVATAR_POOL = ["🧑", "👩", "🧔", "👨", "👵", "👴", "🧑‍🦱", "👩‍🦰", "🧑‍🦲", "👨‍🦳"];
 
-export function StoreProvider({ children }: { children: React.ReactNode }) {
+export function StoreProvider({ children }: { children: ReactNode }) {
   const [meProfile, setMeProfile] = useState<Person>(ME);
   const [people, setPeople] = useState<Person[]>(PEOPLE);
   const [listings, setListings] = useState<Listing[]>(LISTINGS);
@@ -594,8 +594,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function useStore() {
-  const ctx = useContext(StoreContext);
-  if (!ctx) throw new Error("useStore must be used within StoreProvider");
-  return ctx;
+/** Full store — re-renders whenever any slice changes (legacy call sites). */
+export function useStore(): StoreValue;
+/** Selected slice — re-renders only when the selected value changes (Object.is). */
+export function useStore<T>(selector: (s: StoreValue) => T): T;
+export function useStore<T>(selector?: (s: StoreValue) => T): StoreValue | T {
+  return useContextSelector(StoreContext, (s) => {
+    if (!s) throw new Error("useStore must be used within StoreProvider");
+    return selector ? selector(s) : s;
+  });
 }

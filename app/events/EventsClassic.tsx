@@ -6,13 +6,15 @@ import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import EventCard from "@/components/EventCard";
-import AddEventSheet from "@/components/AddEventSheet";
+import { lazyUi } from "@/lib/lazy-ui";
 import EmptyState from "@/components/EmptyState";
 import { CardListSkeleton } from "@/components/Skeleton";
 import { PlusIcon } from "@/components/Icons";
 import { useToast } from "@/components/Toast";
 import { canView } from "@/lib/trust";
 import { toPersianDigits } from "@/lib/persian";
+
+const AddEventSheet = lazyUi(() => import("@/components/AddEventSheet"));
 
 function EventsContent() {
   const router = useRouter();

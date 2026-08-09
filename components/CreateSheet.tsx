@@ -4,10 +4,12 @@ import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { useSheetA11y } from "@/lib/use-sheet-a11y";
+import { lazyUi } from "@/lib/lazy-ui";
 import { useToast } from "./Toast";
-import AddListingSheet from "./AddListingSheet";
-import AddRequestSheet from "./AddRequestSheet";
-import AddEventSheet from "./AddEventSheet";
+
+const AddListingSheet = lazyUi(() => import("./AddListingSheet"));
+const AddRequestSheet = lazyUi(() => import("./AddRequestSheet"));
+const AddEventSheet = lazyUi(() => import("./AddEventSheet"));
 
 type Step = "menu" | "listing" | "request" | "event";
 
@@ -41,7 +43,9 @@ const MENU_OPTIONS = [
 export default function CreateSheet({ onClose }: { onClose: () => void }) {
   const [step, setStep] = useState<Step>("menu");
   const router = useRouter();
-  const { addListing, addRequest, addEvent } = useStore();
+  const addListing = useStore((s) => s.addListing);
+  const addRequest = useStore((s) => s.addRequest);
+  const addEvent = useStore((s) => s.addEvent);
   const { show } = useToast();
   const panelRef = useRef<HTMLDivElement>(null);
   const handleEscape = useCallback(() => {

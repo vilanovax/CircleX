@@ -4,8 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useStore } from "@/lib/store";
-import IntroRequestSheet from "@/components/IntroRequestSheet";
-import AddToCircleSheet from "@/components/AddToCircleSheet";
+import { lazyUi } from "@/lib/lazy-ui";
 import { canDirectMessage } from "@/lib/messaging";
 import Header from "@/components/Header";
 import Avatar from "@/components/Avatar";
@@ -33,6 +32,9 @@ import type {
   TrustHop,
   TrustLevel,
 } from "@/lib/types";
+
+const IntroRequestSheet = lazyUi(() => import("@/components/IntroRequestSheet"));
+const AddToCircleSheet = lazyUi(() => import("@/components/AddToCircleSheet"));
 
 const LEVELS: TrustLevel[] = ["A", "B", "C"];
 const ENDORSE_BADGES: BadgeType[] = [

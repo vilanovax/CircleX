@@ -34,13 +34,13 @@ export function EndorsementList({
   const { getPerson } = useStore();
   if (endorsements.length === 0) {
     return (
-      <p className="text-sm text-zinc-400">
+      <p className="text-[13px] text-ink-faint leading-relaxed">
         هنوز کسی از حلقه‌ی شما این آگهی را تأیید نکرده است.
       </p>
     );
   }
   return (
-    <ul className="space-y-2">
+    <ul className="space-y-2.5">
       {endorsements.map((e, i) => {
         const p = getPerson(e.personId);
         return (
@@ -48,11 +48,13 @@ export function EndorsementList({
             {p ? (
               <Avatar name={p.name} level={p.level} size="sm" />
             ) : (
-              <div className="w-9 h-9 rounded-full bg-zinc-100 shrink-0" />
+              <div className="w-9 h-9 rounded-full bg-stone-100 dark:bg-zinc-800 shrink-0" />
             )}
-            <div className="text-sm leading-tight">
-              <span className="font-medium text-zinc-800">{p?.name ?? "شما"}</span>
-              <span className="text-zinc-500">
+            <div className="text-[13px] leading-snug min-w-0">
+              <span className="font-semibold text-ink dark:text-zinc-100">
+                {p?.name ?? "شما"}
+              </span>
+              <span className="text-ink-muted">
                 {" "}
                 {badgeEmoji[e.type]} {badgeLabels[e.type]}
               </span>

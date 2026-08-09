@@ -9,6 +9,14 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_BASE_PATH: basePath,
   },
+  images: {
+    // Remote/data listing photos use `unoptimized` on the Image component.
+    // Local public paths stay eligible for the optimizer.
+    remotePatterns: [
+      { protocol: "https", hostname: "images.unsplash.com" },
+      { protocol: "https", hostname: "**.githubusercontent.com" },
+    ],
+  },
 };
 
 module.exports = nextConfig;

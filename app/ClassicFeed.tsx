@@ -1,11 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  startTransition,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
 import ListingCard from "@/components/ListingCard";
 import BottomNav from "@/components/BottomNav";
-import Onboarding from "@/components/Onboarding";
+import { lazyUi } from "@/lib/lazy-ui";
 import FeedFilterBar from "@/components/FeedFilterBar";
 import { FeedSkeleton } from "@/components/Skeleton";
 import Avatar from "@/components/Avatar";
@@ -14,6 +20,8 @@ import { formatPrice } from "@/lib/labels";
 import type { CircleEvent, ListingType, Request } from "@/lib/types";
 import { formatEventDateDisplay, normalizeFa, toPersianDigits } from "@/lib/persian";
 import { canView, filterByAccess } from "@/lib/trust";
+
+const Onboarding = lazyUi(() => import("@/components/Onboarding"));
 
 const SCROLL_COLLAPSE_THRESHOLD = 48;
 
@@ -24,6 +32,7 @@ export default function ClassicFeed() {
     useStore();
   const [filter, setFilter] = useState<ListingType | "all">("all");
   const [query, setQuery] = useState("");
+  const deferredQuery = useDeferredValue(query);
   const [headerCompact, setHeaderCompact] = useState(false);
 
   useEffect(() => {
@@ -51,7 +60,7 @@ export default function ClassicFeed() {
   );
 
   const visible = useMemo(() => {
-    const q = normalizeFa(query);
+    const q = normalizeFa(deferredQuery);
     return allowed.filter((l) => {
       if (filter !== "all" && l.type !== filter) return false;
       if (
@@ -61,7 +70,7 @@ export default function ClassicFeed() {
         return false;
       return true;
     });
-  }, [allowed, filter, query]);
+  }, [allowed, filter, deferredQuery]);
 
   const browsingAll = filter === "all" && query.trim().length === 0;
   const showSecondary = browsingAll && hydrated;
@@ -100,7 +109,7 @@ export default function ClassicFeed() {
 
         <FeedFilterBar
           filter={filter}
-          onFilter={setFilter}
+          onFilter={(next) => startTransition(() => setFilter(next))}
           compact={headerCompact}
         />
       </header>
@@ -215,7 +224,7 @@ export default function ClassicFeed() {
         </section>
       )}
 
-      <Onboarding />
+      {hydrated && !onboarded ? <Onboarding /> : null}
       <BottomNav />
     </main>
   );

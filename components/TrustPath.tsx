@@ -68,31 +68,41 @@ export default function TrustPath({
     <div>
       <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1">
         {chain.map((n, i) => (
-          <div key={i} className="flex items-center gap-1 shrink-0">
-            <div className="flex flex-col items-center w-16">
+          <div key={i} className="flex items-center gap-1.5 shrink-0">
+            <div className="flex flex-col items-center w-[4.25rem]">
               <div
-                className="w-11 h-11 rounded-full text-white font-bold flex items-center justify-center text-base"
+                className="w-11 h-11 rounded-full text-white font-bold flex items-center justify-center text-base ring-2 ring-white/80 dark:ring-zinc-900/80 shadow-sm"
                 style={{ backgroundColor: personAvatarHex(n.name) }}
               >
                 {personInitials(n.name)}
               </div>
-              <span className="text-xs font-medium mt-1 text-zinc-800 dark:text-zinc-200">{n.name}</span>
-              <span className="text-[11px] text-zinc-400 leading-tight text-center">{n.sub}</span>
+              <span className="text-[12px] font-semibold mt-1.5 text-ink dark:text-zinc-100 truncate max-w-full">
+                {n.name}
+              </span>
+              <span className="text-[10px] text-ink-faint leading-tight text-center mt-0.5">
+                {n.sub}
+              </span>
             </div>
             {i < chain.length - 1 && (
-              <span className="text-brand-300 text-lg -mt-5">←</span>
+              <span
+                className="text-[color:var(--circle-trust)]/70 text-base -mt-5 font-bold"
+                aria-hidden
+              >
+                ←
+              </span>
             )}
           </div>
         ))}
       </div>
       {direct && !isMine && (
-        <p className="text-xs text-levelA mt-1">
-          ✓ {poster.name} مستقیماً در حلقه‌ی شماست ({relationLabels[poster.relation]})
+        <p className="text-[12px] text-[color:var(--circle-trust)] font-medium mt-2.5 leading-relaxed">
+          ✓ {poster.name} مستقیماً در حلقه‌ی شماست (
+          {relationLabels[poster.relation]})
         </p>
       )}
       <Link
         href="/graph"
-        className="inline-flex items-center gap-1 text-xs text-brand-600 font-medium mt-3"
+        className="inline-flex items-center gap-1 text-[12px] text-brand-600 dark:text-brand-400 font-semibold mt-3.5"
       >
         نقشه‌ی کامل حلقه را ببین ‹
       </Link>

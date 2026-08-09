@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import IntroRequestSheet from "./IntroRequestSheet";
+import { lazyUi } from "@/lib/lazy-ui";
 import Avatar from "./Avatar";
 import type { Person } from "@/lib/types";
 import { relationLabels } from "@/lib/labels";
+
+const IntroRequestSheet = lazyUi(() => import("./IntroRequestSheet"));
 
 export default function LockedMessaging({ peer }: { peer: Person }) {
   const [showIntro, setShowIntro] = useState(false);

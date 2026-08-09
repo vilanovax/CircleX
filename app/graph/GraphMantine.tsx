@@ -5,10 +5,12 @@ import { Box, Card, Group, SimpleGrid, Stack, Text } from "@mantine/core";
 import { useStore } from "@/lib/store";
 import MHeader from "@/components/mantine/MHeader";
 import MBottomNav from "@/components/mantine/MBottomNav";
-// Reuse the classic interactive trust-graph visualization as-is — do NOT rebuild.
-import TrustGraph from "@/components/TrustGraph";
+import { lazyUi } from "@/lib/lazy-ui";
 import { toPersianDigits } from "@/lib/persian";
 import { buildTrustGraph, graphInsights } from "@/lib/graph";
+
+// Reuse the classic interactive trust-graph visualization as-is — do NOT rebuild.
+const TrustGraph = lazyUi(() => import("@/components/TrustGraph"));
 
 export default function GraphMantine() {
   const { people, listings, requests, getPerson } = useStore();

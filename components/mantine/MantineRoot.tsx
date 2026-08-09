@@ -1,5 +1,6 @@
 "use client";
 
+import "@mantine/core/styles.layer.css";
 import { DirectionProvider, MantineProvider } from "@mantine/core";
 import { useTheme } from "@/lib/theme";
 import { mantineTheme } from "@/lib/mantine-theme";
