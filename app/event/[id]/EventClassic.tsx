@@ -13,9 +13,7 @@ import { canView } from "@/lib/trust";
 import { formatEventDateDisplay, toPersianDigits } from "@/lib/persian";
 import {
   eventKindChip,
-  eventKindEmoji,
   eventKindLabels,
-  privacyEmoji,
   privacyLabels,
   relationLabels,
 } from "@/lib/labels";
@@ -31,7 +29,7 @@ export default function EventClassic(_props: { params: { id: string } }) {
     return (
       <main className="min-h-[100dvh]">
         <Header title="رویداد" back />
-        <p className="text-center text-zinc-400 py-20 text-sm">رویداد پیدا نشد.</p>
+        <p className="text-center text-ink-faint py-20 text-sm">رویداد پیدا نشد.</p>
       </main>
     );
   }
@@ -61,48 +59,44 @@ export default function EventClassic(_props: { params: { id: string } }) {
     <main className="pb-28 min-h-[100dvh]">
       <Header title="جزئیات رویداد" back />
 
-      <div className="mx-4 mt-4 h-40 rounded-2xl bg-gradient-to-br from-brand-50 to-zinc-100 dark:from-brand-500/10 dark:to-zinc-800 flex items-center justify-center text-7xl">
+      <div className="mx-4 mt-3 h-40 rounded-2xl bg-stone-50 dark:bg-zinc-800/80 ring-1 ring-stone-100 dark:ring-zinc-700/60 flex items-center justify-center text-6xl">
         {event.image}
       </div>
 
       <div className="px-4 pt-4">
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
           <span className={`chip ${eventKindChip[event.kind]}`}>
-            {eventKindEmoji[event.kind]} {eventKindLabels[event.kind]}
+            {eventKindLabels[event.kind]}
           </span>
-          <span className="text-[11px] text-zinc-400" title={privacyLabels[event.privacy]}>
-            {privacyEmoji[event.privacy]} {privacyLabels[event.privacy]}
+          <span className="text-[11px] text-ink-faint">
+            {privacyLabels[event.privacy]}
           </span>
         </div>
 
-        <h1 className="text-xl font-bold text-zinc-900 leading-snug">{event.title}</h1>
+        <h1 className="text-[1.35rem] font-extrabold text-ink dark:text-zinc-50 leading-snug">
+          {event.title}
+        </h1>
 
-        {/* Date / location */}
-        <div className="mt-3 space-y-1.5 text-sm">
-          <p className="flex items-center gap-2 text-zinc-700">
-            <span>📅</span>
-            <span className="font-medium">
-              {formatEventDateDisplay(event.date)}
-              {event.time ? ` · ساعت ${event.time}` : ""}
-            </span>
+        <div className="mt-3 space-y-1.5 text-[13px]">
+          <p className="text-ink dark:text-zinc-100 font-medium nums">
+            {formatEventDateDisplay(event.date)}
+            {event.time ? ` · ساعت ${event.time}` : ""}
           </p>
-          <p className="flex items-center gap-2 text-zinc-700">
-            <span>📍</span>
-            <span>{event.location}</span>
-          </p>
+          <p className="text-ink-muted dark:text-zinc-400">{event.location}</p>
         </div>
 
-        <p className="text-sm text-zinc-600 leading-relaxed mt-3 whitespace-pre-line">
+        <p className="text-[13px] text-ink-muted dark:text-zinc-300 leading-relaxed mt-3 whitespace-pre-line">
           {event.description}
         </p>
       </div>
 
-      {/* Trust path */}
-      <section className="px-4 pt-5">
-        <div className="card p-4">
+      <section className="px-4 pt-4">
+        <div className="card p-3.5">
           <div className="flex items-center gap-2 mb-3">
-            <ShieldCheckIcon className="w-5 h-5 text-brand-600" />
-            <h2 className="font-bold text-sm text-zinc-800">میزبان و مسیر اعتماد</h2>
+            <ShieldCheckIcon className="w-[18px] h-[18px] text-levelA" />
+            <h2 className="font-bold text-[13px] text-ink dark:text-zinc-100">
+              میزبان و مسیر اعتماد
+            </h2>
           </div>
           <TrustPath
             posterId={event.hostId}
@@ -114,53 +108,65 @@ export default function EventClassic(_props: { params: { id: string } }) {
         </div>
       </section>
 
-      {/* Host */}
       {host && !isMine && (
-        <section className="px-4 pt-3">
+        <section className="px-4 pt-2.5">
           <Link
             href={`/person/${event.hostId}`}
-            className="card p-4 flex items-center gap-3 active:scale-[0.99] transition-transform"
+            className="card px-3.5 py-3 flex items-center gap-3 active:scale-[0.99] transition-transform"
           >
-            <Avatar name={host.name} level={host.level} size="lg" />
+            <Avatar name={host.name} level={host.level} size="md" />
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-zinc-900">{host.name}</p>
-              <p className="text-xs text-zinc-500 mt-0.5">
+              <p className="font-bold text-[14px] text-ink dark:text-zinc-100">
+                {host.name}
+              </p>
+              <p className="text-[11px] text-ink-muted mt-0.5">
                 میزبان · {relationLabels[host.relation]}
               </p>
             </div>
-            <span className="text-zinc-300 text-lg">‹</span>
+            <span className="text-ink-faint text-lg" aria-hidden>
+              ‹
+            </span>
           </Link>
         </section>
       )}
 
-      {/* Attendees */}
-      <section className="px-4 pt-3">
-        <div className="card p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-sm text-zinc-800">شرکت‌کننده‌ها</h2>
-            <span className="text-xs text-zinc-400">
-              {toPersianDigits(count)} نفر
-              {event.capacity ? ` از ${toPersianDigits(event.capacity)}` : ""}
-              {spotsLeft != null && spotsLeft > 0
-                ? ` · ${toPersianDigits(spotsLeft)} جای خالی`
-                : ""}
+      <section className="px-4 pt-2.5 pb-2">
+        <div className="card p-3.5">
+          <div className="flex items-center gap-2 mb-3">
+            <h2 className="font-bold text-[13px] text-ink dark:text-zinc-100">
+              شرکت‌کننده‌ها
+            </h2>
+            <span className="text-[11px] font-semibold text-ink-faint nums">
+              {toPersianDigits(count)}
+              {event.capacity ? ` / ${toPersianDigits(event.capacity)}` : ""}
             </span>
+            {spotsLeft != null && spotsLeft > 0 && (
+              <span className="text-[11px] text-ink-faint ms-auto">
+                {toPersianDigits(spotsLeft)} جای خالی
+              </span>
+            )}
           </div>
           {count === 0 ? (
-            <p className="text-sm text-zinc-400">هنوز کسی ثبت‌نام نکرده. اولین نفر باش!</p>
+            <p className="text-[13px] text-ink-faint">
+              هنوز کسی ثبت‌نام نکرده. اولین نفر باش!
+            </p>
           ) : (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-3">
               {event.attendees.map((aid) => {
                 const p = getPerson(aid);
                 const me = aid === "me";
                 return (
                   <div key={aid} className="flex flex-col items-center w-14">
                     {p || me ? (
-                      <Avatar name={me ? "شما" : p!.name} level={me ? undefined : p!.level} size="sm" />
+                      <Avatar
+                        name={me ? "شما" : p!.name}
+                        level={me ? undefined : p!.level}
+                        size="sm"
+                      />
                     ) : (
-                      <div className="w-9 h-9 rounded-full bg-zinc-100" />
+                      <div className="w-9 h-9 rounded-full bg-stone-100 dark:bg-zinc-800" />
                     )}
-                    <span className="text-[11px] text-zinc-500 mt-1 truncate w-full text-center">
+                    <span className="text-[11px] text-ink-muted mt-1 truncate w-full text-center">
                       {me ? "شما" : p?.name ?? "؟"}
                     </span>
                   </div>
@@ -171,28 +177,29 @@ export default function EventClassic(_props: { params: { id: string } }) {
         </div>
       </section>
 
-      {/* Sticky RSVP */}
       {!isMine && (
         <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
           <div className="app-shell !min-h-0 !shadow-none bg-transparent">
-            <div className="pointer-events-auto bg-white/95 backdrop-blur border-t border-zinc-100 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <div className="pointer-events-auto bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-xl border-t border-stone-200/70 dark:border-zinc-800 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
               {going ? (
                 <div className="flex gap-2">
                   <span className="btn-ghost flex-1 text-center !text-levelA">
                     ✓ حضور شما ثبت شد
                   </span>
                   <button
+                    type="button"
                     onClick={() => {
                       toggleRsvp(id);
                       show("حضور لغو شد");
                     }}
-                    className="bg-zinc-100 text-zinc-600 font-medium rounded-xl px-4 active:bg-zinc-200"
+                    className="bg-stone-100 dark:bg-zinc-800 text-ink-muted font-medium rounded-xl px-4 active:bg-stone-200 dark:active:bg-zinc-700"
                   >
                     لغو
                   </button>
                 </div>
               ) : (
                 <button
+                  type="button"
                   onClick={() => {
                     if (full) return;
                     toggleRsvp(id);

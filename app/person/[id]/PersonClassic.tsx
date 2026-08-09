@@ -17,11 +17,9 @@ import EmptyState from "@/components/EmptyState";
 import { ProfileSkeleton } from "@/components/Skeleton";
 import { ChatIcon, ShieldCheckIcon, UserPlusIcon } from "@/components/Icons";
 import {
-  badgeEmoji,
   badgeLabels,
   levelChip,
   levelShort,
-  relationEmoji,
   relationLabels,
 } from "@/lib/labels";
 import { buildSocialCredit } from "@/lib/social-credit";
@@ -30,7 +28,6 @@ import { toPersianDigits } from "@/lib/persian";
 import { useToast } from "@/components/Toast";
 import type {
   BadgeType,
-  Endorsement,
   Listing,
   Person,
   TrustHop,
@@ -81,7 +78,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
     return (
       <main className="min-h-[100dvh]">
         <Header title="پروفایل" back />
-        <p className="text-center text-zinc-400 py-20 text-sm">کاربر پیدا نشد.</p>
+        <p className="text-center text-ink-faint py-20 text-sm">کاربر پیدا نشد.</p>
       </main>
     );
   }
@@ -156,37 +153,43 @@ export default function PersonClassic(_props: { params: { id: string } }) {
     <main className="pb-28 min-h-[100dvh]">
       <Header title="پروفایل اعتماد" back />
 
-      <div className="px-4 pt-4">
-        <div className="card p-5">
-          <div className="flex items-center gap-4">
+      <div className="px-4 pt-3">
+        <div className="card p-4">
+          <div className="flex items-start gap-3">
             <Avatar name={person.name} level={person.level} size="lg" />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                <h2 className="text-[17px] font-extrabold text-ink dark:text-zinc-100">
                   {person.name}
                 </h2>
                 <span className={`chip ${levelChip[person.level]}`}>
                   {levelShort[person.level]}
                 </span>
                 {socialCredit.verified && (
-                  <span className="chip bg-green-50 text-levelA dark:bg-green-500/15 text-[10px]">
-                    <ShieldCheckIcon className="w-3 h-3" /> {socialCredit.verifiedLabel}
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-levelA">
+                    <ShieldCheckIcon className="w-3.5 h-3.5" />
+                    {socialCredit.verifiedLabel}
                   </span>
                 )}
               </div>
-              <p className="text-xs text-zinc-500 mt-1">
-                {relationEmoji[person.relation]} {relationLabels[person.relation]}
+              <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1">
+                {relationLabels[person.relation]}
                 {person.city && (
-                  <span className="text-zinc-400"> · 📍 {person.city}</span>
+                  <>
+                    <span className="text-stone-300 mx-1" aria-hidden>
+                      ·
+                    </span>
+                    {person.city}
+                  </>
                 )}
               </p>
               {person.note && (
-                <p className="text-xs text-zinc-400 mt-1">{person.note}</p>
+                <p className="text-[11px] text-ink-faint mt-1">{person.note}</p>
               )}
-              <p className="text-xs font-medium text-brand-700 dark:text-brand-300 mt-1.5 nums">
+              <p className="text-[12px] font-medium text-ink dark:text-zinc-200 mt-1.5 nums">
                 {activityParts.join(" · ")}
               </p>
-              <p className="text-[11px] text-zinc-400 mt-1">
+              <p className="text-[11px] text-ink-faint mt-1">
                 عضو از {socialCredit.memberSince} · {socialCredit.lastActive}
               </p>
             </div>
@@ -198,7 +201,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
         <section className="px-4 pt-4">
           {showContentTabs ? (
             <div
-              className="flex gap-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-2xl p-1.5 mb-3"
+              className="flex gap-1 bg-stone-100/80 dark:bg-zinc-800 rounded-xl p-1 mb-3"
               role="tablist"
               aria-label={`محتوای ${person.name}`}
             >
@@ -208,10 +211,10 @@ export default function PersonClassic(_props: { params: { id: string } }) {
                 aria-selected={activeTab === "listings"}
                 aria-pressed={activeTab === "listings"}
                 onClick={() => setContentTab("listings")}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors nums ${
+                className={`flex-1 py-2 rounded-lg text-[13px] font-bold transition-colors nums ${
                   activeTab === "listings"
-                    ? "bg-brand-600 text-white shadow-md shadow-brand-600/25"
-                    : "text-zinc-500 dark:text-zinc-300"
+                    ? "bg-[color:var(--circle-surface)] text-ink shadow-sm dark:bg-zinc-900 dark:text-zinc-100"
+                    : "text-ink-muted dark:text-zinc-400"
                 }`}
               >
                 آگهی‌ها ({toPersianDigits(theirListings.length)})
@@ -222,24 +225,31 @@ export default function PersonClassic(_props: { params: { id: string } }) {
                 aria-selected={activeTab === "requests"}
                 aria-pressed={activeTab === "requests"}
                 onClick={() => setContentTab("requests")}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors nums ${
+                className={`flex-1 py-2 rounded-lg text-[13px] font-bold transition-colors nums ${
                   activeTab === "requests"
-                    ? "bg-brand-600 text-white shadow-md shadow-brand-600/25"
-                    : "text-zinc-500 dark:text-zinc-300"
+                    ? "bg-[color:var(--circle-surface)] text-ink shadow-sm dark:bg-zinc-900 dark:text-zinc-100"
+                    : "text-ink-muted dark:text-zinc-400"
                 }`}
               >
                 درخواست‌ها ({toPersianDigits(theirRequests.length)})
               </button>
             </div>
           ) : (
-            <h2 className="text-sm font-bold text-zinc-700 dark:text-zinc-200 mb-2">
-              {hasListings
-                ? `آگهی‌های ${person.name}`
-                : `درخواست‌های ${person.name}`}
-            </h2>
+            <div className="flex items-center gap-2 mb-2 px-0.5">
+              <h2 className="text-[13px] font-bold text-ink dark:text-zinc-200">
+                {hasListings
+                  ? `آگهی‌های ${person.name}`
+                  : `درخواست‌های ${person.name}`}
+              </h2>
+              <span className="text-[11px] font-semibold text-ink-faint nums">
+                {toPersianDigits(
+                  hasListings ? theirListings.length : theirRequests.length,
+                )}
+              </span>
+            </div>
           )}
 
-          <div className="space-y-3" role="tabpanel">
+          <div className="space-y-2.5" role="tabpanel">
             {activeTab === "listings" &&
               theirListings.map((l) => (
                 <ListingCard key={l.id} listing={l} hideTrust />
@@ -253,7 +263,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
       )}
 
       {unendorsedListings.length > 0 && (
-        <section className="px-4 pt-4">
+        <section className="px-4 pt-3">
           <EndorsePrompt
             personName={person.name}
             listings={unendorsedListings}
@@ -265,7 +275,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
         </section>
       )}
 
-      <div className="px-4 pt-4">
+      <div className="px-4 pt-3">
         <SocialCreditCard
           stats={socialCredit}
           subtitle={`شاخص اعتماد ${person.name} در شبکه`}
@@ -277,39 +287,45 @@ export default function PersonClassic(_props: { params: { id: string } }) {
       </div>
 
       {(endorsementsReceived.length > 0 || endorsementsGiven.length > 0) && (
-        <section className="px-4 pt-5">
-          <h2 className="text-sm font-bold text-zinc-700 dark:text-zinc-200 mb-2">
-            تأییدهای اجتماعی
-          </h2>
+        <section className="px-4 pt-4">
+          <div className="flex items-center gap-2 mb-2 px-0.5">
+            <h2 className="text-[13px] font-bold text-ink dark:text-zinc-200">
+              تأییدهای اجتماعی
+            </h2>
+            <span className="text-[11px] font-semibold text-ink-faint nums">
+              {toPersianDigits(
+                endorsementsReceived.length + endorsementsGiven.length,
+              )}
+            </span>
+          </div>
           <div className="space-y-3">
             {endorsementsReceived.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-zinc-500 mb-2">
+                <p className="text-[11px] font-medium text-ink-muted mb-1.5 px-0.5">
                   تأیید دریافتی ({toPersianDigits(endorsementsReceived.length)})
                 </p>
-                <div className="space-y-2">
+                <div className="card divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
                   {endorsementsReceived.map(({ listing, endorsement }, i) => {
                     const endorser = getPerson(endorsement.personId);
                     return (
                       <EndorsementRow
                         key={`r-${i}`}
                         listing={listing}
-                        endorsement={endorsement}
                         headline={
                           <>
                             {endorser && endorser.id !== "me" ? (
                               <Link
                                 href={`/person/${endorser.id}`}
-                                className="font-semibold text-zinc-800 dark:text-zinc-100 hover:text-brand-600"
+                                className="font-semibold text-ink dark:text-zinc-100"
                               >
                                 {endorser.name}
                               </Link>
                             ) : (
-                              <span className="font-semibold text-zinc-800 dark:text-zinc-100">
+                              <span className="font-semibold text-ink dark:text-zinc-100">
                                 {endorser?.name ?? "—"}
                               </span>
                             )}
-                            <span className="text-zinc-400 font-normal">
+                            <span className="text-ink-faint font-normal">
                               {" "}
                               — {badgeLabels[endorsement.type]}
                             </span>
@@ -323,17 +339,16 @@ export default function PersonClassic(_props: { params: { id: string } }) {
             )}
             {endorsementsGiven.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-zinc-500 mb-2">
+                <p className="text-[11px] font-medium text-ink-muted mb-1.5 px-0.5">
                   تأیید داده‌شده ({toPersianDigits(endorsementsGiven.length)})
                 </p>
-                <div className="space-y-2">
+                <div className="card divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
                   {endorsementsGiven.map(({ listing, endorsement }, i) => (
                     <EndorsementRow
                       key={`g-${i}`}
                       listing={listing}
-                      endorsement={endorsement}
                       headline={
-                        <span className="font-semibold text-zinc-800 dark:text-zinc-100">
+                        <span className="font-semibold text-levelA">
                           {badgeLabels[endorsement.type]}
                         </span>
                       }
@@ -343,7 +358,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
               </div>
             )}
             {endorserIds.length > 0 && (
-              <p className="text-[11px] text-zinc-400 px-1">
+              <p className="text-[11px] text-ink-faint px-0.5">
                 {toPersianDigits(endorserIds.length)} نفر از شبکه‌ی شما آگهی‌های{" "}
                 {person.name} را تأیید کرده‌اند.
               </p>
@@ -353,7 +368,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
       )}
 
       {!hasListings && !hasRequests && (
-        <section className="px-4 pt-4">
+        <section className="px-4 pt-3">
           <EmptyState
             icon="📭"
             title={`${person.name} آگهی یا درخواست فعالی ندارد`}
@@ -407,7 +422,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
 
       <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
         <div className="app-shell !min-h-0 !shadow-none bg-transparent">
-          <div className="pointer-events-auto bg-white/95 dark:bg-zinc-900/95 backdrop-blur border-t border-zinc-100 dark:border-zinc-800 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="pointer-events-auto bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-xl border-t border-stone-200/70 dark:border-zinc-800 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             {canMessage ? (
               <Link
                 href={`/messages/${id}`}
@@ -480,30 +495,28 @@ function CircleSection({
   onSetLevel: (lvl: TrustLevel) => void;
 }) {
   return (
-    <section className="px-4 pt-5 pb-2">
-      <div className="card p-4">
+    <section className="px-4 pt-4 pb-2">
+      <div className="card p-3.5">
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-base" aria-hidden>
-            👥
-          </span>
-          <h2 className="font-bold text-sm text-zinc-800 dark:text-zinc-100">
+          <ShieldCheckIcon className="w-[18px] h-[18px] text-levelA" />
+          <h2 className="font-bold text-[13px] text-ink dark:text-zinc-100">
             {person.inMyCircle ? "حلقه‌ی شما" : `ارتباط با ${person.name}`}
           </h2>
         </div>
 
         {person.inMyCircle ? (
-          <p className="text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-500/10 rounded-lg px-3 py-2 mb-3">
+          <p className="text-[12px] text-levelA bg-levelA/10 rounded-xl px-3 py-2 mb-3">
             عضو مستقیم حلقه — پیام مستقیم ✓
           </p>
         ) : (
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg px-3 py-2 mb-3">
+          <p className="text-[12px] text-ink-muted dark:text-zinc-400 bg-stone-50 dark:bg-zinc-800/50 rounded-xl px-3 py-2 mb-3">
             از مسیر اعتماد وصل است؛ هنوز در حلقه‌ی مستقیم نیست.
           </p>
         )}
 
         {person.inMyCircle && (
           <>
-            <p className="text-xs text-zinc-400 mb-2">سطح اعتماد</p>
+            <p className="text-[11px] text-ink-faint mb-2">سطح اعتماد</p>
             <div className="flex gap-2 mb-3">
               {LEVELS.map((lvl) => (
                 <button
@@ -511,10 +524,10 @@ function CircleSection({
                   type="button"
                   onClick={() => onSetLevel(lvl)}
                   aria-pressed={person.level === lvl}
-                  className={`flex-1 rounded-xl py-2 text-xs font-bold border transition-colors ${
+                  className={`flex-1 rounded-xl py-2 text-[12px] font-bold border transition-colors ${
                     person.level === lvl
                       ? `${levelChip[lvl]} border-current`
-                      : "bg-white dark:bg-zinc-900 text-zinc-500 border-zinc-200 dark:border-zinc-700"
+                      : "bg-[color:var(--circle-surface)] text-ink-faint border-stone-200 dark:border-zinc-700"
                   }`}
                 >
                   {levelShort[lvl]}
@@ -537,7 +550,7 @@ function CircleSection({
         {person.inMyCircle && !showTrustPath && (
           <Link
             href="/graph"
-            className="inline-flex items-center gap-1 text-xs text-brand-600 font-medium"
+            className="inline-flex items-center gap-1 text-[12px] text-brand-600 font-medium"
           >
             نقشه‌ی کامل حلقه را ببین ‹
           </Link>
@@ -555,11 +568,11 @@ function CircleSection({
         )}
 
         {person.inMyCircle && (
-          <div className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800 text-left">
+          <div className="mt-3 pt-3 border-t border-stone-100 dark:border-zinc-800 text-left">
             <button
               type="button"
               onClick={onRemoveFromCircle}
-              className="text-xs text-red-500 dark:text-red-400 font-medium active:opacity-70"
+              className="text-[12px] text-red-500 dark:text-red-400 font-medium active:opacity-70"
             >
               حذف از حلقه
             </button>
@@ -582,26 +595,26 @@ function EndorsePrompt({
   const visible = listings.slice(0, 3);
 
   return (
-    <div className="card p-4 border-brand-100 dark:border-brand-500/20 bg-brand-50/30 dark:bg-brand-500/5">
-      <div className="flex items-center gap-2 mb-3">
-        <ShieldCheckIcon className="w-5 h-5 text-brand-600 dark:text-brand-400" />
-        <h2 className="font-bold text-sm text-zinc-800 dark:text-zinc-100">
+    <div className="card p-3.5">
+      <div className="flex items-center gap-2 mb-2">
+        <ShieldCheckIcon className="w-[18px] h-[18px] text-levelA" />
+        <h2 className="font-bold text-[13px] text-ink dark:text-zinc-100">
           تأیید آگهی‌های {personName}
         </h2>
       </div>
-      <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3 leading-relaxed">
+      <p className="text-[11px] text-ink-muted dark:text-zinc-400 mb-3 leading-relaxed">
         اگر این آگهی‌ها را می‌شناسید یا کیفیتشان را تأیید می‌کنید، نشان خود را
         اضافه کنید.
       </p>
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         {visible.map((listing) => (
           <div
             key={listing.id}
-            className="rounded-xl bg-white/90 dark:bg-zinc-900/80 border border-zinc-100 dark:border-zinc-800 p-3"
+            className="rounded-xl bg-stone-50/80 dark:bg-zinc-800/50 border border-stone-100 dark:border-zinc-800 px-3 py-2.5"
           >
             <Link
               href={`/listing/${listing.id}`}
-              className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 line-clamp-2 active:opacity-80"
+              className="text-[13px] font-semibold text-ink dark:text-zinc-100 line-clamp-2 active:opacity-80"
             >
               {listing.title}
             </Link>
@@ -617,11 +630,11 @@ function EndorsePrompt({
                     onClick={() => onEndorse(listing.id, b)}
                     className={`chip !px-2.5 !py-1 border text-[11px] transition-colors ${
                       active
-                        ? "bg-levelA/10 text-levelA border-levelA/30 dark:bg-green-500/15"
-                        : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700"
+                        ? "bg-levelA/10 text-levelA border-levelA/30"
+                        : "bg-[color:var(--circle-surface)] text-ink-muted border-stone-200 dark:border-zinc-700"
                     }`}
                   >
-                    {badgeEmoji[b]} {badgeLabels[b]}
+                    {badgeLabels[b]}
                   </button>
                 );
               })}
@@ -630,7 +643,7 @@ function EndorsePrompt({
         ))}
       </div>
       {listings.length > 3 && (
-        <p className="text-[11px] text-zinc-400 mt-2 text-center">
+        <p className="text-[11px] text-ink-faint mt-2 text-center">
           {toPersianDigits(listings.length - 3)} آگهی دیگر در تب آگهی‌ها
         </p>
       )}
@@ -640,29 +653,22 @@ function EndorsePrompt({
 
 function EndorsementRow({
   listing,
-  endorsement,
   headline,
 }: {
   listing: Listing;
-  endorsement: Endorsement;
   headline: React.ReactNode;
 }) {
   return (
-    <div className="card p-3 active:scale-[0.99] transition-transform">
-      <div className="flex items-start gap-2.5">
-        <span className="text-lg shrink-0" aria-hidden>
-          {badgeEmoji[endorsement.type]}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm leading-snug">{headline}</p>
-          <Link
-            href={`/listing/${listing.id}`}
-            className="text-xs text-brand-600 dark:text-brand-400 font-medium mt-1 block truncate"
-          >
-            آگهی: {listing.title} ‹
-          </Link>
-        </div>
-      </div>
+    <div className="px-3.5 py-3">
+      <p className="text-[13px] leading-snug text-ink dark:text-zinc-100">
+        {headline}
+      </p>
+      <Link
+        href={`/listing/${listing.id}`}
+        className="text-[12px] text-brand-600 dark:text-brand-400 font-medium mt-1 block truncate"
+      >
+        آگهی: {listing.title} ‹
+      </Link>
     </div>
   );
 }

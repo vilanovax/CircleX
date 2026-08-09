@@ -28,17 +28,17 @@ export default function LockedAccess({
   return (
     <>
       <div className="flex flex-col items-center text-center px-8 py-16">
-        <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-3xl mb-4">
+        <div className="w-14 h-14 rounded-2xl bg-stone-100/80 dark:bg-zinc-800 flex items-center justify-center text-2xl mb-4 text-ink-muted">
           🔒
         </div>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed">
+        <p className="text-sm text-ink dark:text-zinc-200 leading-relaxed">
           این {kindLabel} فقط برای{" "}
           <span className="font-medium">{privacyLabels[privacy]}</span> قابل نمایش است
           {itemKind === "listing"
             ? " و شما در این محدوده‌ی اعتماد قرار نمی‌گیرید."
             : "."}
         </p>
-        <p className="text-xs text-zinc-400 mt-3 leading-relaxed max-w-xs">
+        <p className="text-xs text-ink-faint mt-3 leading-relaxed max-w-xs">
           از کسی در حلقه‌ات بخواه تو را معرفی کند تا بتوانی این {kindLabel} را ببینی.
         </p>
         <button

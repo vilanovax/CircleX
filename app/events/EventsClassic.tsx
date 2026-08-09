@@ -12,6 +12,7 @@ import { CardListSkeleton } from "@/components/Skeleton";
 import { PlusIcon } from "@/components/Icons";
 import { useToast } from "@/components/Toast";
 import { canView } from "@/lib/trust";
+import { toPersianDigits } from "@/lib/persian";
 
 function EventsContent() {
   const router = useRouter();
@@ -42,12 +43,17 @@ function EventsContent() {
     <main className="pb-24 min-h-[100dvh]">
       <Header
         title="رویدادها و دورهمی‌ها"
-        subtitle="با حلقه‌ات وقت بگذران"
+        subtitle={
+          hydrated && visible.length > 0
+            ? `${toPersianDigits(visible.length)} رویداد`
+            : "با حلقه‌ات وقت بگذران"
+        }
         back
         action={
           <button
+            type="button"
             onClick={() => setShowAdd(true)}
-            className="w-9 h-9 rounded-full bg-brand-600 text-white flex items-center justify-center active:bg-brand-700"
+            className="w-9 h-9 rounded-xl bg-brand-600 text-white flex items-center justify-center shadow-sm shadow-brand-600/20 active:bg-brand-700"
             aria-label="ساخت رویداد"
           >
             <PlusIcon className="w-5 h-5" />
@@ -55,17 +61,17 @@ function EventsContent() {
         }
       />
 
-      <div className="px-4 pt-3">
-        <div className="rounded-2xl bg-gradient-to-l from-brand-700 to-brand-500 text-white p-4">
-          <p className="font-extrabold text-sm">سیرکل فقط خریدوفروش نیست</p>
-          <p className="text-xs text-brand-50 mt-1 leading-relaxed">
+      <div className="px-4 pt-3 space-y-3">
+        <div className="card px-3.5 py-3">
+          <p className="font-bold text-[13px] text-ink dark:text-zinc-100">
+            سیرکل فقط خریدوفروش نیست
+          </p>
+          <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
             کلاس، دورهمی خانوادگی، بازارچه‌ی خیریه، بازی کودکان و سفر گروهی — همه
             بین آدم‌هایی که می‌شناسی و بهشان اعتماد داری.
           </p>
         </div>
-      </div>
 
-      <section className="px-4 pt-3 space-y-3">
         {!hydrated ? (
           <CardListSkeleton count={4} />
         ) : visible.length === 0 ? (
@@ -77,9 +83,13 @@ function EventsContent() {
             onAction={() => setShowAdd(true)}
           />
         ) : (
-          visible.map((e) => <EventCard key={e.id} event={e} />)
+          <div className="space-y-2.5">
+            {visible.map((e) => (
+              <EventCard key={e.id} event={e} />
+            ))}
+          </div>
         )}
-      </section>
+      </div>
 
       {showAdd && (
         <AddEventSheet

@@ -20,14 +20,16 @@ export default function NewClassic() {
       <div className="px-4 pt-4 space-y-5">
         <Link
           href="/requests?compose=1"
-          className="flex items-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 px-3 py-2.5 active:scale-[0.99] transition"
+          className="card block px-3.5 py-3 active:scale-[0.99] transition"
         >
-          <span className="text-base">🔎</span>
-          <span className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed flex-1">
-            دنبال چیزی می‌گردی (مثل «کلاس نقاشی کودک»)؟ به‌جای آگهی، اینجا{" "}
-            <span className="font-bold">درخواست</span> ثبت کن.
-          </span>
-          <span className="text-amber-400 text-lg">‹</span>
+          <p className="font-bold text-[13px] text-ink dark:text-zinc-100">
+            دنبال چیزی می‌گردی؟
+          </p>
+          <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
+            مثلاً «کلاس نقاشی کودک» — به‌جای آگهی،{" "}
+            <span className="font-semibold text-amber-800/80 dark:text-amber-200/90">درخواست</span>{" "}
+            ثبت کن تا حلقه کمکت کند.
+          </p>
         </Link>
 
         <ListingComposeForm

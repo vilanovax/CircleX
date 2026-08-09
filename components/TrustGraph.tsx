@@ -164,7 +164,7 @@ export default function TrustGraph() {
               >
                 {personInitials(selectedPerson.name)}
               </div>
-              <Link href={`/person/${selected!}`} className="font-bold text-zinc-900 dark:text-zinc-100 hover:text-brand-600">
+              <Link href={`/person/${selected!}`} className="font-bold text-ink dark:text-zinc-100 hover:text-brand-600">
                 {selectedPerson.name}
               </Link>
               {selectedNode.level && (
@@ -175,24 +175,24 @@ export default function TrustGraph() {
                   {levelShort[selectedNode.level]}
                 </span>
               )}
-              <span className="chip bg-zinc-100 text-zinc-500">
+              <span className="chip bg-stone-100 text-ink-muted dark:bg-zinc-800 dark:text-zinc-400">
                 {relationLabels[selectedPerson.relation]}
               </span>
             </div>
-            <p className="text-sm text-brand-700 dark:text-brand-300 font-medium leading-relaxed">
+            <p className="text-sm text-ink dark:text-zinc-200 font-medium leading-relaxed">
               {pathToMe(selected!, graph.parent)
                 .reverse()
                 .map((id) => (id === "me" ? "شما" : nodeById[id]?.name ?? "؟"))
                 .join(" ← ")}
             </p>
             {!selectedNode.inCircle && (
-              <p className="text-[11px] text-zinc-400 mt-1">
+              <p className="text-[11px] text-ink-faint mt-1">
                 خارج از حلقه‌ی مستقیم — از طریق مسیر اعتماد به شما وصل است.
               </p>
             )}
           </div>
         ) : (
-          <p className="text-center text-xs text-zinc-400 py-4">
+          <p className="text-center text-xs text-ink-faint py-4">
             روی هر نفر بزن تا مسیر اعتمادش تا تو روشن شود.
           </p>
         )}

@@ -65,20 +65,20 @@ export default function ListingComposeForm({
 
   return (
     <>
-      <label className="block text-sm font-medium mb-2 text-zinc-800 dark:text-zinc-200">نوع آگهی</label>
+      <label className="block text-sm font-medium mb-2 text-ink dark:text-zinc-200">نوع آگهی</label>
       <div className="grid grid-cols-3 gap-2 mb-4">
         {TYPES.map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setType(t)}
-            className={`rounded-xl py-2.5 text-[11px] font-medium border flex flex-col items-center gap-1 ${
+            className={`rounded-xl py-2.5 text-[11px] font-medium border flex flex-col items-center gap-0.5 ${
               type === t
                 ? "bg-brand-600 text-white border-brand-600"
-                : "bg-white dark:bg-zinc-900 text-zinc-600 border-zinc-200 dark:border-zinc-700"
+                : "bg-[color:var(--circle-surface)] dark:bg-zinc-900 text-ink-muted border-stone-200/70 dark:border-zinc-700"
             }`}
           >
-            <span className="text-lg">{listingTypeEmoji[t]}</span>
+            <span className="text-sm opacity-80">{listingTypeEmoji[t]}</span>
             {listingTypeLabels[t]}
           </button>
         ))}
@@ -91,7 +91,7 @@ export default function ListingComposeForm({
         category={category || listingTypeLabels[type]}
       />
 
-      <label className="block text-sm font-medium mb-1 text-zinc-800 dark:text-zinc-200">عنوان</label>
+      <label className="block text-sm font-medium mb-1 text-ink dark:text-zinc-200">عنوان</label>
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
@@ -99,7 +99,7 @@ export default function ListingComposeForm({
         className="field mb-4"
       />
 
-      <label className="block text-sm font-medium mb-1 text-zinc-800 dark:text-zinc-200">توضیحات</label>
+      <label className="block text-sm font-medium mb-1 text-ink dark:text-zinc-200">توضیحات</label>
       <textarea
         value={description}
         onChange={(e) => setDescription(e.target.value)}
@@ -111,7 +111,7 @@ export default function ListingComposeForm({
       <div className="flex gap-3 mb-4">
         {needsPrice && (
           <div className="flex-1">
-            <label className="block text-sm font-medium mb-1 text-zinc-800 dark:text-zinc-200">قیمت (تومان)</label>
+            <label className="block text-sm font-medium mb-1 text-ink dark:text-zinc-200">قیمت (تومان)</label>
             <input
               value={price}
               onChange={(e) => setPrice(e.target.value)}
@@ -122,7 +122,7 @@ export default function ListingComposeForm({
           </div>
         )}
         <div className="flex-1">
-          <label className="block text-sm font-medium mb-1 text-zinc-800 dark:text-zinc-200">دسته‌بندی</label>
+          <label className="block text-sm font-medium mb-1 text-ink dark:text-zinc-200">دسته‌بندی</label>
           <input
             value={category}
             onChange={(e) => setCategory(e.target.value)}
