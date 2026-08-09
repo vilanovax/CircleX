@@ -10,7 +10,14 @@ import { GraphIcon, ShieldCheckIcon } from "@/components/Icons";
 import { toPersianDigits } from "@/lib/persian";
 import { buildTrustGraph, graphInsights } from "@/lib/graph";
 
-const TrustGraph = lazyUi(() => import("@/components/TrustGraph"));
+const TrustGraph = lazyUi(() => import("@/components/TrustGraph"), {
+  loading: () => (
+    <div
+      className="w-full aspect-square max-h-[340px] rounded-xl bg-stone-100/80 dark:bg-zinc-800/60 animate-pulse"
+      aria-hidden
+    />
+  ),
+});
 
 export default function GraphClassic() {
   const { people, listings, requests, getPerson } = useStore();

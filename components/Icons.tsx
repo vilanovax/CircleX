@@ -167,3 +167,20 @@ export function MapPinIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+export function SendIcon({ className }: IconProps) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M20 4 3 11l6 2 2 6 9-15Z" />
+      <path d="M9 13l4-4" />
+    </svg>
+  );
+}

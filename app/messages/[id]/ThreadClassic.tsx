@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import Avatar from "@/components/Avatar";
 import ListingImage from "@/components/ListingImage";
 import Header from "@/components/Header";
 import LockedMessaging from "@/components/LockedMessaging";
-import { relationLabels, formatPrice } from "@/lib/labels";
+import { SendIcon, ShieldCheckIcon } from "@/components/Icons";
+import { levelChip, levelShort, relationLabels, formatPrice } from "@/lib/labels";
 import { canDirectMessage } from "@/lib/messaging";
+import type { Message } from "@/lib/types";
 
 export default function ThreadClassic(_props: { params: { id: string } }) {
   const params = useParams();
@@ -17,6 +19,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   const { getPerson, getThread, addMessage, markThreadRead } = useStore();
   const [text, setText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const peer = getPerson(peerId);
   const thread = getThread(peerId);
@@ -25,9 +28,16 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
     markThreadRead(peerId);
   }, [peerId, markThreadRead]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [thread.length]);
+
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 112)}px`;
+  }, [text]);
 
   if (!peer) {
     return (
@@ -39,8 +49,13 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
 
   if (!canDirectMessage(peer, thread.length > 0)) {
     return (
-      <main className="min-h-[100dvh]">
-        <Header back title="پیام" />
+      <main className="min-h-[100dvh] pb-8">
+        <Header
+          back
+          fallbackHref="/messages"
+          title={peer.name}
+          subtitle="پیام قفل است"
+        />
         <LockedMessaging peer={peer} />
       </main>
     );
@@ -51,11 +66,12 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
     if (!t) return;
     addMessage(peerId, t);
     setText("");
+    inputRef.current?.focus();
   }
 
   return (
     <main className="flex flex-col h-[100dvh]">
-      <Header back>
+      <Header back fallbackHref="/messages">
         <Link
           href={`/person/${peerId}`}
           className="flex items-center gap-2.5 min-w-0 active:opacity-70"
@@ -65,75 +81,93 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
             <p className="font-extrabold text-[14px] text-ink dark:text-zinc-100 leading-tight truncate">
               {peer.name}
             </p>
-            <p className="text-[11px] text-ink-muted dark:text-zinc-400">
-              {relationLabels[peer.relation]}
+            <p className="flex items-center gap-1.5 mt-0.5 min-w-0">
+              <span className="text-[11px] text-ink-muted dark:text-zinc-400 truncate">
+                {relationLabels[peer.relation]}
+              </span>
+              <span
+                className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${levelChip[peer.level]}`}
+              >
+                {levelShort[peer.level]}
+              </span>
             </p>
           </div>
         </Link>
       </Header>
 
+      <div className="shrink-0 px-3 py-1.5 bg-levelA/8 dark:bg-levelA/10 border-b border-levelA/15">
+        <p className="flex items-center justify-center gap-1.5 text-[11px] text-levelA font-medium">
+          <ShieldCheckIcon className="w-3.5 h-3.5 shrink-0" />
+          گفتگوی امن داخل حلقه
+        </p>
+      </div>
+
       <div
-        className="flex-1 overflow-y-auto px-3 py-4 space-y-2.5"
-        style={{ backgroundColor: "var(--circle-canvas)" }}
+        className="flex-1 overflow-y-auto overscroll-contain px-3 py-3"
+        style={{
+          backgroundColor: "var(--circle-canvas)",
+          backgroundImage:
+            "radial-gradient(circle at 1px 1px, rgba(0,0,0,0.035) 1px, transparent 0)",
+          backgroundSize: "18px 18px",
+        }}
       >
         {thread.length === 0 ? (
-          <div className="flex flex-col items-center text-center pt-14 px-6">
+          <div className="flex flex-col items-center text-center pt-16 px-6">
             <Avatar name={peer.name} level={peer.level} size="lg" />
             <p className="font-bold text-ink dark:text-zinc-100 mt-4">
               گفتگو با {peer.name}
             </p>
-            <p className="text-[13px] text-ink-muted mt-1.5 leading-relaxed">
-              اولین پیام را بفرست — داخل حلقه‌ی اعتمادت امن است.
+            <p className="text-[13px] text-ink-muted mt-1.5 leading-relaxed max-w-xs">
+              اولین پیام را بفرست — فقط افراد حلقه‌ات اینجا هستند.
             </p>
           </div>
         ) : (
-          thread.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex items-end gap-2 ${msg.fromMe ? "justify-end" : "justify-start"}`}
-            >
-              {!msg.fromMe && (
-                <Avatar name={peer.name} level={peer.level} size="sm" />
-              )}
-              <div
-                className={`max-w-[78%] px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed ${
-                  msg.fromMe
-                    ? "bg-brand-600 text-white rounded-bl-md shadow-sm shadow-brand-600/20"
-                    : "bg-[color:var(--circle-surface)] text-ink shadow-card rounded-br-md dark:bg-zinc-900 dark:text-zinc-100 dark:border dark:border-zinc-800"
-                }`}
-              >
-                {msg.listingId ? (
-                  <>
-                    <p className="text-[11px] font-medium mb-1.5 opacity-80">
-                      {msg.fromMe ? "آگهی‌ای که فرستادی:" : "آگهی معرفی‌شده:"}
-                    </p>
-                    <ReferralCard listingId={msg.listingId} fromMe={msg.fromMe} />
-                    {msg.text.trim() && (
-                      <p className="whitespace-pre-line mt-2 opacity-90">
-                        {msg.text}
-                      </p>
+          <div className="space-y-1">
+            {thread.map((msg, i) => {
+              const prev = thread[i - 1];
+              const next = thread[i + 1];
+              const showDay =
+                !prev || dayKey(prev.postedAt) !== dayKey(msg.postedAt);
+              const samePrev = Boolean(prev && prev.fromMe === msg.fromMe);
+              const sameNext = Boolean(next && next.fromMe === msg.fromMe);
+              const showAvatar = !msg.fromMe && !sameNext;
+              // Day chip covers relative labels; keep per-bubble time for clock-like stamps.
+              const showTime = !sameNext && isClockStamp(msg.postedAt);
+
+              return (
+                <div key={msg.id}>
+                  {showDay && <DayDivider label={dayKey(msg.postedAt)} />}
+                  <div
+                    className={`flex items-end gap-2 ${
+                      msg.fromMe ? "justify-end" : "justify-start"
+                    } ${samePrev && !showDay ? "mt-0.5" : "mt-2.5"}`}
+                  >
+                    {!msg.fromMe && (
+                      <div className="w-8 shrink-0">
+                        {showAvatar ? (
+                          <Avatar name={peer.name} level={peer.level} size="sm" />
+                        ) : null}
+                      </div>
                     )}
-                  </>
-                ) : (
-                  <p className="whitespace-pre-line">{msg.text}</p>
-                )}
-                <span
-                  className={`block text-[10px] mt-1.5 nums ${
-                    msg.fromMe ? "text-white/70" : "text-ink-faint"
-                  }`}
-                >
-                  {msg.postedAt}
-                </span>
-              </div>
-            </div>
-          ))
+                    <Bubble
+                      msg={msg}
+                      clusteredTop={samePrev && !showDay}
+                      clusteredBottom={sameNext}
+                      showTime={showTime}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
         <div ref={bottomRef} />
       </div>
 
-      <div className="shrink-0 bg-[color:var(--circle-surface)] dark:bg-zinc-900 border-t border-stone-200/70 dark:border-zinc-800 p-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
+      <div className="shrink-0 bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-xl border-t border-stone-200/70 dark:border-zinc-800 px-2.5 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
         <div className="flex items-end gap-2">
           <textarea
+            ref={inputRef}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
@@ -144,20 +178,100 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
             }}
             rows={1}
             placeholder="پیام بنویس…"
-            className="field !py-2.5 resize-none max-h-28 flex-1"
+            className="flex-1 resize-none max-h-28 min-h-[44px] rounded-2xl border border-stone-200 dark:border-zinc-700 bg-stone-50/80 dark:bg-zinc-800/80 px-3.5 py-2.5 text-[13px] text-ink dark:text-zinc-100 placeholder:text-ink-faint outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/15 leading-relaxed"
           />
           <button
             type="button"
             onClick={send}
             disabled={!text.trim()}
             aria-label="ارسال"
-            className="shrink-0 w-11 h-11 rounded-xl bg-brand-600 text-white flex items-center justify-center active:bg-brand-700 disabled:opacity-40 shadow-sm shadow-brand-600/20"
+            className="shrink-0 w-11 h-11 rounded-full bg-brand-600 text-white flex items-center justify-center active:scale-95 disabled:opacity-35 shadow-md shadow-brand-600/25 transition-transform duration-150"
           >
-            <SendIcon className="w-5 h-5" />
+            <SendIcon className="w-5 h-5 -ms-0.5" />
           </button>
         </div>
       </div>
     </main>
+  );
+}
+
+function dayKey(postedAt: string): string {
+  // Mock data uses relative Persian labels; treat each label as a day bucket.
+  return postedAt.trim() || "—";
+}
+
+function isClockStamp(postedAt: string): boolean {
+  return /[:：]/.test(postedAt) || postedAt.includes("همین");
+}
+
+function DayDivider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center justify-center my-3">
+      <span className="text-[11px] font-semibold text-ink-muted dark:text-zinc-400 bg-[color:var(--circle-surface)]/90 dark:bg-zinc-900/90 border border-stone-200/60 dark:border-zinc-700 px-2.5 py-0.5 rounded-full shadow-sm nums">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function Bubble({
+  msg,
+  clusteredTop,
+  clusteredBottom,
+  showTime,
+}: {
+  msg: Message;
+  clusteredTop: boolean;
+  clusteredBottom: boolean;
+  showTime: boolean;
+}) {
+  const radius = msg.fromMe
+    ? [
+        "rounded-2xl",
+        clusteredTop ? "rounded-bl-md" : "rounded-bl-2xl",
+        clusteredBottom ? "rounded-tl-md" : "rounded-tl-2xl",
+        "rounded-br-2xl",
+        "rounded-tr-2xl",
+      ].join(" ")
+    : [
+        "rounded-2xl",
+        clusteredTop ? "rounded-br-md" : "rounded-br-2xl",
+        clusteredBottom ? "rounded-tr-md" : "rounded-tr-2xl",
+        "rounded-bl-2xl",
+        "rounded-tl-2xl",
+      ].join(" ");
+
+  return (
+    <div
+      className={`max-w-[78%] px-3.5 py-2.5 text-[13px] leading-relaxed ${radius} ${
+        msg.fromMe
+          ? "bg-brand-600 text-white shadow-sm shadow-brand-600/20"
+          : "bg-[color:var(--circle-surface)] text-ink shadow-card dark:bg-zinc-900 dark:text-zinc-100 dark:border dark:border-zinc-800"
+      }`}
+    >
+      {msg.listingId ? (
+        <>
+          <p className="text-[11px] font-medium mb-1.5 opacity-80">
+            {msg.fromMe ? "آگهی‌ای که فرستادی:" : "آگهی معرفی‌شده:"}
+          </p>
+          <ReferralCard listingId={msg.listingId} fromMe={msg.fromMe} />
+          {msg.text.trim() && (
+            <p className="whitespace-pre-line mt-2 opacity-95">{msg.text}</p>
+          )}
+        </>
+      ) : (
+        <p className="whitespace-pre-line">{msg.text}</p>
+      )}
+      {showTime && (
+        <span
+          className={`block text-[10px] mt-1.5 nums ${
+            msg.fromMe ? "text-white/70" : "text-ink-faint"
+          }`}
+        >
+          {msg.postedAt}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -217,22 +331,5 @@ function ReferralCard({
         ‹
       </span>
     </Link>
-  );
-}
-
-function SendIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M20 4 3 11l6 2 2 6 9-15Z" />
-      <path d="M9 13l4-4" />
-    </svg>
   );
 }

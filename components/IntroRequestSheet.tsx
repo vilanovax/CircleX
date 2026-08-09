@@ -1,11 +1,14 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import SheetShell from "@/components/SheetShell";
 import { useStore } from "@/lib/store";
 import { useToast } from "./Toast";
 import Avatar from "./Avatar";
-import { relationLabels } from "@/lib/labels";
+import { SearchIcon, SendIcon, ShieldCheckIcon } from "./Icons";
+import { levelChip, relationLabels } from "@/lib/labels";
+import { toPersianDigits } from "@/lib/persian";
 
 type ItemKind = "listing" | "request" | "event" | "person";
 
@@ -28,8 +31,18 @@ export default function IntroRequestSheet({
   const router = useRouter();
   const { people, addMessage } = useStore();
   const { show } = useToast();
+  const [query, setQuery] = useState("");
   const circle = people.filter((p) => p.inMyCircle);
   const message = TEMPLATES[itemKind](itemTitle);
+
+  const filtered = useMemo(() => {
+    const q = query.trim();
+    if (!q) return circle;
+    return circle.filter(
+      (p) =>
+        p.name.includes(q) || relationLabels[p.relation].includes(q),
+    );
+  }, [circle, query]);
 
   function request(peerId: string, name: string) {
     addMessage(peerId, message);
@@ -42,51 +55,99 @@ export default function IntroRequestSheet({
     <SheetShell
       onClose={onClose}
       labelledBy="intro-request-title"
-      maxHeight="85dvh"
+      maxHeight="88dvh"
+      zClass="z-50"
+      footer={
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full py-2.5 text-[13px] font-semibold text-ink-muted dark:text-zinc-400 active:text-ink"
+        >
+          انصراف
+        </button>
+      }
     >
-      <h2 id="intro-request-title" className="font-bold text-lg shrink-0 text-ink dark:text-zinc-100">
+      <h2
+        id="intro-request-title"
+        className="font-extrabold text-[1.1rem] text-ink dark:text-zinc-50"
+      >
         درخواست معرفی
       </h2>
-      <p className="text-xs text-ink-faint mt-1 mb-3 shrink-0 leading-relaxed">
-        {itemKind === "person"
-          ? `از کسی در حلقه‌ات بخواه تو را به ${itemTitle} معرفی کند.`
-          : `از کسی در حلقه‌ات بخواه تو را به «${itemTitle}» معرفی کند.`}
+      <p className="flex items-center gap-1 text-[11px] text-levelA mt-1 mb-2.5 font-medium">
+        <ShieldCheckIcon className="w-3.5 h-3.5 shrink-0" />
+        پیام از طریق حلقه — نه تماس مستقیم با غریبه
       </p>
 
-      <p className="text-xs font-medium text-ink-muted mb-2 shrink-0">
-        از چه کسی بخواهم؟
-      </p>
-      <div className="overflow-y-auto -mx-1 px-1 space-y-0.5 divide-y divide-stone-100 dark:divide-zinc-800">
+      <div className="rounded-2xl border border-stone-200/80 dark:border-zinc-700 bg-stone-50/70 dark:bg-zinc-800/50 px-3 py-2.5 mb-2.5">
+        <p className="text-[11px] text-ink-muted mb-1">پیام پیشنهادی</p>
+        <p className="text-[12px] text-ink dark:text-zinc-100 leading-relaxed">
+          {message}
+        </p>
+      </div>
+
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <p className="text-[12px] font-bold text-ink dark:text-zinc-200">
+          از چه کسی بخواهم؟
+        </p>
+        <p className="text-[11px] text-ink-faint nums">
+          {toPersianDigits(filtered.length)} نفر
+        </p>
+      </div>
+
+      {circle.length > 3 && (
+        <label className="relative block mb-2">
+          <SearchIcon className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="جستجوی نام…"
+            className="field !pr-9 !py-2 !text-[13px]"
+            autoComplete="off"
+          />
+        </label>
+      )}
+
+      <div className="rounded-2xl border border-stone-200/80 dark:border-zinc-700 overflow-hidden divide-y divide-stone-100 dark:divide-zinc-800 bg-[color:var(--circle-surface)] dark:bg-zinc-900">
         {circle.length === 0 ? (
-          <p className="text-sm text-ink-faint py-6 text-center">
+          <p className="text-sm text-ink-muted py-8 px-4 text-center leading-relaxed">
             اول باید حلقه‌ات را بسازی.
           </p>
+        ) : filtered.length === 0 ? (
+          <p className="text-sm text-ink-muted py-8 px-4 text-center">
+            کسی با این نام پیدا نشد.
+          </p>
         ) : (
-          circle.map((p) => (
+          filtered.map((p) => (
             <button
               key={p.id}
               type="button"
               onClick={() => request(p.id, p.name)}
-              className="w-full flex items-center gap-3 py-2.5 px-1 rounded-lg active:bg-stone-50 dark:active:bg-zinc-800 text-right"
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-right active:bg-stone-50/90 dark:active:bg-zinc-800/70 transition-colors"
             >
               <Avatar name={p.name} level={p.level} size="sm" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-ink dark:text-zinc-200">{p.name}</p>
-                <p className="text-[11px] text-ink-faint">
-                  {relationLabels[p.relation]}
+                <p className="text-[13px] font-bold text-ink dark:text-zinc-100 truncate">
+                  {p.name}
+                </p>
+                <p className="flex items-center gap-1.5 mt-0.5">
+                  <span className="text-[11px] text-ink-muted truncate">
+                    {relationLabels[p.relation]}
+                  </span>
+                  <span
+                    className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${levelChip[p.level]}`}
+                  >
+                    سطح {p.level}
+                  </span>
                 </p>
               </div>
-              <span className="text-[11px] font-medium text-brand-600 dark:text-brand-300">
+              <span className="shrink-0 inline-flex items-center gap-1 rounded-xl bg-brand-600 text-white text-[11px] font-bold px-2.5 py-1.5 shadow-sm shadow-brand-600/20">
+                <SendIcon className="w-3.5 h-3.5" />
                 درخواست
               </span>
             </button>
           ))
         )}
       </div>
-
-      <button type="button" onClick={onClose} className="btn-ghost w-full mt-4 shrink-0">
-        انصراف
-      </button>
     </SheetShell>
   );
 }

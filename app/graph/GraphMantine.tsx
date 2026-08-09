@@ -12,7 +12,20 @@ import { toPersianDigits } from "@/lib/persian";
 import { buildTrustGraph, graphInsights } from "@/lib/graph";
 
 // Reuse the classic interactive trust-graph visualization as-is — do NOT rebuild.
-const TrustGraph = lazyUi(() => import("@/components/TrustGraph"));
+const TrustGraph = lazyUi(() => import("@/components/TrustGraph"), {
+  loading: () => (
+    <Box
+      w="100%"
+      style={{
+        aspectRatio: "1",
+        maxHeight: 340,
+        borderRadius: 12,
+        background: "var(--mantine-color-default-hover)",
+      }}
+      aria-hidden
+    />
+  ),
+});
 
 export default function GraphMantine() {
   const { people, listings, requests, getPerson } = useStore();
