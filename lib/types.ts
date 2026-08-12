@@ -186,4 +186,6 @@ export interface Listing {
    */
   trustPath: TrustHop[];
   city?: string;
+  /** Soft deal state after buyer interest (mock marketplace flow). */
+  dealStatus?: "available" | "reserved" | "agreed";
 }

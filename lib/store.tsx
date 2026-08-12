@@ -119,6 +119,10 @@ export interface StoreValue {
   removePerson: (id: string) => void;
   setLevel: (id: string, level: TrustLevel) => void;
   addListing: (input: NewListingInput) => string;
+  setListingDealStatus: (
+    listingId: string,
+    status: NonNullable<Listing["dealStatus"]>,
+  ) => void;
   toggleEndorsement: (listingId: string, type: BadgeType) => void;
   addRequest: (input: NewRequestInput) => string;
   addOffer: (input: NewOfferInput) => void;
@@ -421,6 +425,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return id;
   }, []);
 
+  const setListingDealStatus = useCallback(
+    (listingId: string, status: NonNullable<Listing["dealStatus"]>) => {
+      setListings((prev) =>
+        prev.map((l) => (l.id === listingId ? { ...l, dealStatus: status } : l)),
+      );
+    },
+    [],
+  );
+
   // Toggle MY endorsement of a listing (acting as the current user).
   const toggleEndorsement = useCallback(
     (listingId: string, type: BadgeType) => {
@@ -595,6 +608,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       removePerson,
       setLevel,
       addListing,
+      setListingDealStatus,
       toggleEndorsement,
       addRequest,
       addOffer,
@@ -638,6 +652,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       removePerson,
       setLevel,
       addListing,
+      setListingDealStatus,
       toggleEndorsement,
       addRequest,
       addOffer,

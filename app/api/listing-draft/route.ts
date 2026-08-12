@@ -99,5 +99,17 @@ export async function POST(req: Request) {
     condition: draft.condition,
   });
 
-  return NextResponse.json({ draft, priceHints, source });
+  return NextResponse.json({
+    draft,
+    priceHints,
+    source,
+    aiConfigured: Boolean(process.env.OPENAI_API_KEY),
+  });
+}
+
+/** Capability probe for the compose UI. */
+export async function GET() {
+  return NextResponse.json({
+    aiConfigured: Boolean(process.env.OPENAI_API_KEY),
+  });
 }

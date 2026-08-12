@@ -107,6 +107,9 @@ const ListingComposeForm = forwardRef<
   const [draftSource, setDraftSource] = useState<"local" | "openai" | null>(
     null,
   );
+  const [aiConfigured, setAiConfigured] = useState(false);
+  const [voiceInterim, setVoiceInterim] = useState("");
+  const [voiceListening, setVoiceListening] = useState(false);
 
   const coverImage = photos[0] ?? emoji;
   const needsPrice = type === "sale" || type === "service";
@@ -160,6 +163,21 @@ const ListingComposeForm = forwardRef<
     onCanSubmitChange,
     onFooterMetaChange,
   ]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(withBasePath("/api/listing-draft"))
+      .then((r) => r.json())
+      .then((d) => {
+        if (!cancelled) setAiConfigured(Boolean(d?.aiConfigured));
+      })
+      .catch(() => {
+        /* ignore */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function mergeSpecs(
     computed: DraftSpec[],
@@ -239,6 +257,49 @@ const ListingComposeForm = forwardRef<
       condition: next.condition,
     });
     applyDraftToForm(next, hints, "local");
+  }
+
+  async function rePolish() {
+    if (!rawText.trim() || polishing) return;
+    setPolishing(true);
+    try {
+      const res = await fetch(withBasePath("/api/listing-draft"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: rawText,
+          type,
+          price: parsedPrice,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const next = data.draft as ListingDraft;
+        setDraft(next);
+        setTitle(next.title);
+        setDescription(next.description);
+        setCategory(next.category);
+        setCondition(next.condition ?? "");
+        setEditableSpecs((prev) =>
+          mergeSpecs(next.specs, prev, removedLabels),
+        );
+        setPriceHints((data.priceHints as PriceHint[]) ?? []);
+        setDraftSource(data.source === "openai" ? "openai" : "local");
+        setAiConfigured(Boolean(data.aiConfigured));
+        show(
+          data.source === "openai"
+            ? "عنوان و توضیح با مدل بهبود یافت ✓"
+            : aiConfigured
+              ? "پولیش محلی اعمال شد"
+              : "استخراج محلی — برای مدل، OPENAI_API_KEY بگذار",
+        );
+        return;
+      }
+    } catch {
+      show("پولیش ممکن نشد");
+    } finally {
+      setPolishing(false);
+    }
   }
 
   function publish() {
@@ -403,14 +464,17 @@ const ListingComposeForm = forwardRef<
                 درباره آگهی بنویس یا بگو
               </label>
               <VoiceDictateButton
+                disabled={polishing}
                 onError={(msg) => show(msg)}
-                onTranscript={(chunk, isFinal) => {
-                  if (!isFinal) return;
-                  const piece = chunk.trim();
+                onListeningChange={setVoiceListening}
+                onInterim={setVoiceInterim}
+                onFinal={(phrase) => {
+                  const piece = phrase.trim();
                   if (!piece) return;
                   setRawText((prev) =>
                     prev.trim() ? `${prev.trim()} ${piece}` : piece,
                   );
+                  setVoiceInterim("");
                 }}
               />
             </div>
@@ -422,6 +486,16 @@ const ListingComposeForm = forwardRef<
               rows={5}
               className="field resize-none min-h-[8rem] leading-relaxed"
             />
+            {voiceListening && (
+              <div className="mt-2 rounded-xl border border-rose-200/80 dark:border-rose-500/30 bg-rose-50/80 dark:bg-rose-500/10 px-3 py-2">
+                <p className="text-[10px] font-bold text-rose-700 dark:text-rose-300 mb-0.5">
+                  در حال شنیدن…
+                </p>
+                <p className="text-[12px] text-ink dark:text-zinc-100 leading-relaxed min-h-[1.25rem]">
+                  {voiceInterim || "صحبت کن — متن موقت اینجا می‌آید"}
+                </p>
+              </div>
+            )}
             <p className="text-[11px] text-ink-faint mt-1.5 leading-relaxed">
               وضعیت، ابعاد، بازدید و ایرادها را همین‌جا بگو — بعد جدا می‌کنیم.
             </p>
@@ -488,14 +562,34 @@ const ListingComposeForm = forwardRef<
       ) : (
         <>
           <div className="mb-3.5 rounded-xl bg-brand-50/80 dark:bg-brand-500/10 px-3 py-2.5 border border-brand-100/80 dark:border-brand-500/20">
-            <p className="text-[12px] text-brand-800 dark:text-brand-200 leading-relaxed">
-              پیش‌نمایش ساختاریافته
-              {draftSource === "openai"
-                ? " (بهبود با مدل)"
-                : " (استخراج محلی)"}
-              . هر ردیف را ویرایش یا حذف کن؛ موارد «پیشنهاد» را قبل از انتشار چک
-              کن.
-            </p>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[12px] text-brand-800 dark:text-brand-200 leading-relaxed">
+                پیش‌نمایش ساختاریافته
+                {draftSource === "openai"
+                  ? " · بهبود با مدل"
+                  : " · استخراج محلی"}
+                . ردیف‌ها را ویرایش یا حذف کن.
+              </p>
+              <button
+                type="button"
+                disabled={polishing}
+                onClick={() => void rePolish()}
+                className="shrink-0 text-[11px] font-bold text-brand-700 dark:text-brand-300 px-2 py-1 rounded-lg bg-white/70 dark:bg-zinc-900/50 border border-brand-200/60 dark:border-brand-500/30 disabled:opacity-50"
+              >
+                {polishing
+                  ? "…"
+                  : aiConfigured
+                    ? "دوباره با AI"
+                    : "دوباره پولیش"}
+              </button>
+            </div>
+            {!aiConfigured && (
+              <p className="text-[10px] text-brand-700/80 dark:text-brand-300/70 mt-1.5 leading-relaxed">
+                برای پولیش مدل، متغیر{" "}
+                <span className="font-mono">OPENAI_API_KEY</span> را در محیط
+                سرور بگذار.
+              </p>
+            )}
           </div>
 
           {photos.length > 0 && (

@@ -109,10 +109,13 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const emptySpecPrompts =
     gapPrompts.length > 0 ? gapPrompts : buyerPrompts;
   const sellerId = listing.sellerId;
+  const listingId = listing.id;
 
   function goAsk(prompt: BuyerPrompt) {
     const q = encodeURIComponent(prompt.draft);
-    router.push(`/messages/${sellerId}?draft=${q}`);
+    router.push(
+      `/messages/${sellerId}?draft=${q}&listing=${encodeURIComponent(listingId)}`,
+    );
   }
 
   return (

@@ -17,7 +17,14 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   const params = useParams();
   const searchParams = useSearchParams();
   const peerId = String(params.id);
-  const { getPerson, getThread, addMessage, markThreadRead } = useStore();
+  const {
+    getPerson,
+    getThread,
+    getListing,
+    addMessage,
+    markThreadRead,
+    setListingDealStatus,
+  } = useStore();
   const [text, setText] = useState("");
   const draftApplied = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -25,6 +32,10 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
 
   const peer = getPerson(peerId);
   const thread = getThread(peerId);
+  const listingId = searchParams.get("listing");
+  const contextListing = listingId ? getListing(listingId) : undefined;
+  const isSellerOfContext = contextListing?.sellerId === "me";
+  const dealStatus = contextListing?.dealStatus ?? "available";
 
   useEffect(() => {
     markThreadRead(peerId);
@@ -115,6 +126,103 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
           گفتگوی امن داخل حلقه
         </p>
       </div>
+
+      {contextListing && (
+        <div className="shrink-0 border-b border-stone-200/70 dark:border-zinc-800 bg-[color:var(--circle-surface)] dark:bg-zinc-900 px-3 py-2.5">
+          <Link
+            href={`/listing/${contextListing.id}`}
+            className="flex items-center gap-2.5 active:opacity-80"
+          >
+            <ListingImage
+              image={contextListing.image}
+              alt={contextListing.title}
+              size="sm"
+              category={contextListing.category}
+              type={contextListing.type}
+              frameClassName="w-11 h-11 rounded-lg overflow-hidden shrink-0"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-bold text-ink dark:text-zinc-100 truncate">
+                {contextListing.title}
+              </p>
+              <p className="text-[11px] text-ink-muted nums">
+                {contextListing.price != null
+                  ? formatPrice(contextListing.price)
+                  : contextListing.type === "service"
+                    ? "توافقی"
+                    : "رایگان"}
+                {" · "}
+                {dealStatus === "reserved"
+                  ? "رزرو شده"
+                  : dealStatus === "agreed"
+                    ? "توافق شده"
+                    : "موجود"}
+              </p>
+            </div>
+            <span className="text-ink-faint text-sm" aria-hidden>
+              ‹
+            </span>
+          </Link>
+          <div className="mt-2.5">
+            <p className="text-[10px] font-semibold text-ink-faint mb-1.5">
+              {isSellerOfContext
+                ? "وضعیت آگهی را برای طرف مقابل مشخص کن"
+                : "وضعیت این آگهی"}
+            </p>
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+              {(
+                [
+                  ["available", "موجود"],
+                  ["reserved", "رزرو"],
+                  ["agreed", "توافق"],
+                ] as const
+              ).map(([id, label]) => {
+                const active = dealStatus === id;
+                if (!isSellerOfContext) {
+                  return (
+                    <span
+                      key={id}
+                      className={`shrink-0 chip !px-2.5 !py-1 !text-[11px] border ${
+                        active
+                          ? "bg-brand-600 text-white border-brand-600"
+                          : "bg-stone-50 text-ink-faint border-stone-200/60 dark:bg-zinc-800/60 dark:border-zinc-700 opacity-60"
+                      }`}
+                    >
+                      {label}
+                    </span>
+                  );
+                }
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => {
+                      setListingDealStatus(contextListing.id, id);
+                      if (id === "reserved") {
+                        addMessage(
+                          peerId,
+                          "این آگهی را موقتاً رزرو کردم تا هماهنگ کنیم.",
+                        );
+                      } else if (id === "agreed") {
+                        addMessage(peerId, "روی این آگهی به توافق رسیدیم ✓");
+                      } else {
+                        addMessage(peerId, "آگهی دوباره موجود است.");
+                      }
+                    }}
+                    className={`shrink-0 chip !px-2.5 !py-1 !text-[11px] border ${
+                      active
+                        ? "bg-brand-600 text-white border-brand-600"
+                        : "bg-stone-50 text-ink-muted border-stone-200/80 dark:bg-zinc-800 dark:border-zinc-700"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div
         className="flex-1 overflow-y-auto overscroll-contain px-3 py-3"
