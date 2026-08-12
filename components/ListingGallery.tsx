@@ -1,10 +1,18 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { isListingPhoto, listingImageTint } from "@/lib/listing-image";
 import type { ListingType } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
+
+function slideIndex(el: HTMLElement, total: number): number {
+  const w = el.clientWidth;
+  if (!w || total <= 0) return 0;
+  // Some RTL engines report negative scrollLeft even on dir=ltr children.
+  const left = Math.abs(el.scrollLeft);
+  return Math.max(0, Math.min(total - 1, Math.round(left / w)));
+}
 
 export default function ListingGallery({
   images,
@@ -20,46 +28,55 @@ export default function ListingGallery({
   const tint = listingImageTint(category, type);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
-  const total = images.length;
+  const slides = images.length > 0 ? images : ["📦"];
+  const total = slides.length;
   const multi = total > 1;
 
-  const onScroll = useCallback(() => {
+  const syncIndex = useCallback(() => {
     const el = scrollerRef.current;
-    if (!el || el.clientWidth === 0) return;
-    const next = Math.round(el.scrollLeft / el.clientWidth);
-    setIndex(Math.max(0, Math.min(total - 1, next)));
+    if (!el) return;
+    setIndex(slideIndex(el, total));
   }, [total]);
+
+  useEffect(() => {
+    syncIndex();
+  }, [slides, syncIndex]);
 
   const goTo = (i: number) => {
     const el = scrollerRef.current;
     if (!el) return;
-    el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" });
-    setIndex(i);
+    const clamped = Math.max(0, Math.min(total - 1, i));
+    el.scrollTo({ left: clamped * el.clientWidth, behavior: "smooth" });
+    setIndex(clamped);
   };
 
   return (
     <div className="relative listing-detail-hero">
       <div
         ref={scrollerRef}
-        onScroll={onScroll}
+        onScroll={syncIndex}
         dir="ltr"
-        className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar h-56 w-full"
+        className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar h-[17.5rem] w-full"
         role="region"
         aria-roledescription="carousel"
         aria-label={`گالری تصاویر ${alt}`}
       >
-        {images.map((src, i) => {
+        {slides.map((src, i) => {
           const photo = isListingPhoto(src);
           return (
             <div
-              key={`${src}-${i}`}
-              className={`relative h-56 w-full shrink-0 snap-center overflow-hidden bg-gradient-to-br ${tint}`}
+              key={`${i}-${src.slice(0, 48)}`}
+              className={`relative h-[17.5rem] w-full shrink-0 snap-center overflow-hidden bg-gradient-to-br ${tint}`}
               aria-hidden={i !== index}
             >
               {photo ? (
                 <Image
                   src={src}
-                  alt={i === 0 ? alt : `${alt} — تصویر ${toPersianDigits(i + 1)}`}
+                  alt={
+                    i === 0
+                      ? alt
+                      : `${alt} — تصویر ${toPersianDigits(i + 1)}`
+                  }
                   fill
                   className="object-cover"
                   sizes="(max-width: 480px) 100vw, 480px"
@@ -83,21 +100,23 @@ export default function ListingGallery({
       </div>
 
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[color:var(--circle-canvas)] via-[color:var(--circle-canvas)]/55 to-transparent"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[color:var(--circle-canvas)] via-[color:var(--circle-canvas)]/50 to-transparent"
         aria-hidden
       />
 
       {multi && (
         <>
-          <div className="absolute top-3 left-3 z-10 rounded-full bg-black/55 text-white text-[11px] font-bold px-2.5 py-1 nums backdrop-blur-sm">
-            {toPersianDigits(index + 1)} از {toPersianDigits(total)}
+          <div className="absolute top-3 start-3 z-10 rounded-full bg-black/50 text-white text-[11px] font-bold px-2.5 py-1 nums backdrop-blur-md tracking-wide">
+            {toPersianDigits(index + 1)}
+            <span className="opacity-70 font-semibold mx-1">/</span>
+            {toPersianDigits(total)}
           </div>
           <div
-            className="absolute bottom-3 inset-x-0 z-10 flex justify-center gap-1.5"
+            className="absolute bottom-4 inset-x-0 z-10 flex justify-center gap-1.5"
             role="tablist"
             aria-label="انتخاب تصویر"
           >
-            {images.map((_, i) => (
+            {slides.map((_, i) => (
               <button
                 key={i}
                 type="button"
@@ -108,7 +127,7 @@ export default function ListingGallery({
                 className={`h-1.5 rounded-full transition-all duration-200 ${
                   i === index
                     ? "w-5 bg-white shadow-sm"
-                    : "w-1.5 bg-white/55"
+                    : "w-1.5 bg-white/50 hover:bg-white/75"
                 }`}
               />
             ))}

@@ -111,5 +111,5 @@ export function suggestListingPrices(input: {
 }
 
 export function formatPriceAmount(amount: number): string {
-  return toPersianDigits(amount.toLocaleString("en-US"));
+  return toPersianDigits(amount.toLocaleString("en-US").replace(/,/g, "٬"));
 }

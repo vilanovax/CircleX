@@ -162,7 +162,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (raw) {
         const data = JSON.parse(raw);
         if (data.me && typeof data.me === "object") setMeProfile(data.me);
-        if (Array.isArray(data.people)) setPeople(data.people);
+        if (Array.isArray(data.people)) {
+          setPeople(
+            data.people.map((p: Person) => {
+              const seed = PEOPLE.find((s) => s.id === p.id);
+              if (!seed) return p;
+              return {
+                ...p,
+                avatar: seed.avatar,
+                name: seed.name,
+                note: seed.note ?? p.note,
+              };
+            }),
+          );
+        }
         if (Array.isArray(data.listings)) {
           setListings(
             data.listings.map((l: Listing) => {

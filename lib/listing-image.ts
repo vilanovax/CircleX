@@ -14,10 +14,19 @@ export function listingGalleryImages(listing: {
   image: string;
   images?: string[];
 }): string[] {
-  if (listing.images && listing.images.length > 0) {
-    return listing.images;
+  const raw =
+    listing.images && listing.images.length > 0
+      ? listing.images
+      : [listing.image];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const src of raw) {
+    const v = src?.trim();
+    if (!v || seen.has(v)) continue;
+    seen.add(v);
+    out.push(v);
   }
-  return [listing.image];
+  return out.length > 0 ? out : [listing.image];
 }
 
 /** Category / type tint for emoji placeholders. */

@@ -8,13 +8,16 @@ import ActiveUIProviders from "@/components/ActiveUIProviders";
 import RequireAuth from "@/components/RequireAuth";
 import { vazirmatn } from "@/lib/fonts";
 
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
 export const metadata: Metadata = {
   title: "سیرکل | Circle",
   description:
     "شبکه‌ی اجتماعی اعتمادمحور برای خرید، فروش و معرفی خدمات بین خانواده، دوستان و آشنایان.",
+  // Do not set metadata.manifest — Next 14 ignores basePath and 404s at /.
   icons: {
-    icon: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/icon.svg`,
-    apple: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/icon.svg`,
+    icon: `${BASE}/icon.svg`,
+    apple: `${BASE}/icon.svg`,
   },
   appleWebApp: {
     capable: true,
@@ -39,6 +42,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script dangerouslySetInnerHTML={{ __html: uiModeScript }} />
+        <link rel="manifest" href={`${BASE}/manifest.webmanifest`} />
       </head>
       <body className={`${vazirmatn.className} font-sans`}>
         <ThemeProvider>

@@ -5,16 +5,24 @@ export interface SocialCreditStats {
   successfulDeals: number;
   endorsementsReceived: number;
   endorsementsGiven: number;
-  circleSize: number;
+  /** Optional network/activity count — not mixed into trust score. */
+  activityCount: number;
   memberSince: string;
   responseRate: number;
   lastActive: string;
+  /**
+   * Internal composite for optional “how is this calculated?” — not a
+   * platform certification. Excludes endorsements the person gave to others.
+   */
   score: number;
   label: "عالی" | "خوب" | "متوسط" | "تازه‌وارد";
-  /** Data-driven trust badge — not shown for everyone. */
+  /** Soft membership / activity hint — never “identity verified”. */
   verified: boolean;
   verifiedLabel: string;
 }
+
+/** @deprecated Use activityCount — kept for older call sites that passed circleSize. */
+export type SocialCreditStatsLegacy = SocialCreditStats & { circleSize: number };
 
 function endorsementsReceivedCount(personId: string, listings: Listing[]): number {
   const endorsers = new Set<string>();
@@ -39,48 +47,54 @@ function scoreLabel(score: number): SocialCreditStats["label"] {
   return "تازه‌وارد";
 }
 
-function trustVerified(
+/**
+ * Soft labels only — never imply KYC / platform certification.
+ * Prefer empty when the person is already in the viewer’s direct circle.
+ */
+function trustHint(
   person: Person,
   stats: Pick<
     SocialCreditStats,
-    "score" | "endorsementsReceived" | "successfulDeals" | "endorsementsGiven"
+    "score" | "endorsementsReceived" | "successfulDeals"
   >,
 ): { verified: boolean; verifiedLabel: string } {
-  if (stats.score >= 75 && stats.endorsementsReceived >= 1) {
-    return { verified: true, verifiedLabel: "تأییدشده در شبکه" };
+  if (person.inMyCircle) {
+    return { verified: true, verifiedLabel: "عضو مستقیم شبکه شما" };
+  }
+  if (stats.endorsementsReceived >= 1) {
+    return {
+      verified: true,
+      verifiedLabel: `${toPersianDigits(stats.endorsementsReceived)} نفر از شبکه تأیید کرده‌اند`,
+    };
   }
   if (stats.successfulDeals >= 5) {
-    return { verified: true, verifiedLabel: "معامله‌گر باتجربه" };
-  }
-  if (stats.endorsementsGiven >= 3) {
-    return { verified: true, verifiedLabel: "تأییدکننده‌ی فعال" };
-  }
-  if (person.inMyCircle && stats.score >= 60) {
-    return { verified: true, verifiedLabel: "عضو حلقه‌ی شما" };
+    return { verified: true, verifiedLabel: "سابقهٔ چند معامله تکمیل‌شده" };
   }
   return { verified: false, verifiedLabel: "" };
 }
 
-/** Airbnb / LinkedIn-style trust signals for a profile. */
+/**
+ * Evidence-first stats for a profile.
+ * Third argument is activity count (e.g. visible listings+requests), not “circle size”.
+ */
 export function buildSocialCredit(
   person: Person,
   listings: Listing[],
-  circleSize: number,
-): SocialCreditStats {
+  activityCount = 0,
+): SocialCreditStats & { circleSize: number } {
   const endorsementsReceived =
     person.endorsementsReceived ?? endorsementsReceivedCount(person.id, listings);
   const endorsementsGiven = endorsementsGivenCount(person.id, listings);
   const responseRate = person.responseRate ?? 80;
   const successfulDeals = person.deals;
 
+  // Trust-relevant only — giving endorsements is participation, not credibility.
   const score = Math.min(
     100,
     Math.round(
-      successfulDeals * 4 +
-        endorsementsReceived * 6 +
-        endorsementsGiven * 2 +
-        circleSize * 2 +
-        responseRate * 0.25,
+      successfulDeals * 5 +
+        endorsementsReceived * 8 +
+        responseRate * 0.3,
     ),
   );
 
@@ -88,7 +102,8 @@ export function buildSocialCredit(
     successfulDeals,
     endorsementsReceived,
     endorsementsGiven,
-    circleSize,
+    activityCount,
+    circleSize: activityCount,
     memberSince: person.memberSince ?? "۱۴۰۴",
     responseRate,
     lastActive: person.lastActive ?? "این هفته",
@@ -96,11 +111,27 @@ export function buildSocialCredit(
     label: scoreLabel(score),
   };
 
-  const { verified, verifiedLabel } = trustVerified(person, base);
+  const { verified, verifiedLabel } = trustHint(person, base);
 
   return { ...base, verified, verifiedLabel };
 }
 
 export function formatPercent(value: number): string {
   return `${toPersianDigits(value)}٪`;
+}
+
+/** Human-readable evidence line for profile heroes (no opaque score). */
+export function evidenceSummaryLine(stats: SocialCreditStats): string {
+  const parts: string[] = [];
+  if (stats.successfulDeals > 0) {
+    parts.push(
+      `${toPersianDigits(stats.successfulDeals)} معامله تکمیل‌شده`,
+    );
+  }
+  if (stats.endorsementsReceived > 0) {
+    parts.push(
+      `${toPersianDigits(stats.endorsementsReceived)} تأیید از شبکه`,
+    );
+  }
+  return parts.join(" · ");
 }

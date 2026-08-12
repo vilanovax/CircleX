@@ -4,35 +4,53 @@ import { useState } from "react";
 import type { SocialCreditStats } from "@/lib/social-credit";
 import { formatPercent } from "@/lib/social-credit";
 import { toPersianDigits } from "@/lib/persian";
-import { ShieldCheckIcon } from "./Icons";
-
-const labelColor: Record<SocialCreditStats["label"], string> = {
-  عالی: "text-levelA",
-  خوب: "text-brand-600",
-  متوسط: "text-amber-600",
-  تازه‌وارد: "text-ink-muted",
-};
 
 export default function SocialCreditCard({
   stats,
   subtitle,
-  circleLabel = "نفر در حلقه",
+  activityLabel,
+  circleLabel,
   hideVerified = false,
   collapsible = false,
   defaultCollapsed = false,
+  title = "اعتماد و سابقه",
 }: {
   stats: SocialCreditStats;
   subtitle?: string;
+  /** Label for activityCount / legacy circleSize metric. */
+  activityLabel?: string;
+  /** @deprecated Prefer activityLabel */
   circleLabel?: string;
-  /** When verified badge is shown elsewhere (e.g. profile hero). */
   hideVerified?: boolean;
-  /** Tap header to expand/collapse details. */
   collapsible?: boolean;
   defaultCollapsed?: boolean;
+  title?: string;
 }) {
   const [open, setOpen] = useState(!defaultCollapsed);
+  const [showCalc, setShowCalc] = useState(false);
+  const resolvedActivityLabel =
+    activityLabel ?? circleLabel ?? "فعالیت قابل‌مشاهده";
 
-  const collapsedSummary = `${toPersianDigits(stats.score)}/۱۰۰ · ${stats.label} · ${toPersianDigits(stats.successfulDeals)} معامله`;
+  const activity =
+    stats.activityCount ??
+    (stats as SocialCreditStats & { circleSize?: number }).circleSize ??
+    0;
+
+  const evidenceBits: string[] = [];
+  if (stats.successfulDeals > 0) {
+    evidenceBits.push(
+      `${toPersianDigits(stats.successfulDeals)} معامله تکمیل‌شده`,
+    );
+  }
+  if (stats.endorsementsReceived > 0) {
+    evidenceBits.push(
+      `${toPersianDigits(stats.endorsementsReceived)} تأیید از شبکه`,
+    );
+  }
+  const collapsedSummary =
+    evidenceBits.length > 0
+      ? evidenceBits.join(" · ")
+      : `عضو از ${stats.memberSince}`;
 
   return (
     <div className="card overflow-hidden">
@@ -43,15 +61,12 @@ export default function SocialCreditCard({
           aria-expanded={open}
           className="w-full px-3.5 py-3 flex items-center gap-3 text-right active:bg-stone-50/80 dark:active:bg-zinc-800/50 transition-colors"
         >
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-50 to-levelA/10 dark:from-brand-500/20 dark:to-levelA/15 text-brand-600 dark:text-brand-300 flex items-center justify-center shrink-0 ring-1 ring-brand-100/80 dark:ring-brand-500/25">
-            <ShieldCheckIcon className="w-5 h-5" />
-          </div>
           <div className="flex-1 min-w-0">
             <p className="text-[13px] font-extrabold text-ink dark:text-zinc-100">
-              اعتبار اجتماعی
+              {title}
             </p>
             <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 nums truncate">
-              {open ? subtitle ?? "جزئیات شاخص اعتماد" : collapsedSummary}
+              {open ? subtitle ?? "شواهد قابل‌فهم، نه امتیاز رسمی" : collapsedSummary}
             </p>
           </div>
           <span
@@ -64,12 +79,24 @@ export default function SocialCreditCard({
           </span>
         </button>
       ) : (
-        <div className="px-3.5 pt-3.5">
-          <CardHeader
-            stats={stats}
-            subtitle={subtitle}
-            hideVerified={hideVerified}
-          />
+        <div className="px-3.5 pt-3.5 pb-1">
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <div className="min-w-0">
+              <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-100">
+                {title}
+              </h2>
+              {subtitle && (
+                <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5">
+                  {subtitle}
+                </p>
+              )}
+              {stats.verified && !hideVerified && stats.verifiedLabel && (
+                <p className="text-[11px] font-medium text-ink-muted dark:text-zinc-400 mt-1">
+                  {stats.verifiedLabel}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -77,94 +104,56 @@ export default function SocialCreditCard({
         <div
           className={`px-3.5 pb-3.5 animate-fade-up ${collapsible ? "pt-0" : ""}`}
         >
-          <div className="h-2 rounded-full bg-stone-100 dark:bg-zinc-800 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-gradient-to-l from-levelA to-brand-600 transition-[width] duration-500 ease-out"
-              style={{ width: `${stats.score}%` }}
-            />
-          </div>
-          <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-2 mb-3 leading-relaxed">
-            نرخ پاسخگویی {formatPercent(stats.responseRate)} · بر اساس معامله و
-            تأیید
-            {stats.endorsementsGiven > 0 ? " (دریافتی و داده‌شده)" : " دریافتی"}
-          </p>
-
           <div className="grid grid-cols-2 gap-2">
             <Metric
               value={toPersianDigits(stats.successfulDeals)}
-              label="معامله‌ی موفق"
+              label="معامله تکمیل‌شده"
             />
             <Metric
               value={toPersianDigits(stats.endorsementsReceived)}
-              label="تأیید دریافتی"
+              label="تأیید از شبکه"
             />
+            <Metric value={stats.memberSince} label="عضو از" />
             <Metric
-              value={toPersianDigits(stats.endorsementsGiven)}
-              label="تأیید داده‌شده"
-            />
-            <Metric
-              value={toPersianDigits(stats.circleSize)}
-              label={circleLabel}
+              value={formatPercent(stats.responseRate)}
+              label="نرخ پاسخ‌گویی"
             />
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
-function CardHeader({
-  stats,
-  subtitle,
-  hideVerified,
-  compactScore = false,
-}: {
-  stats: SocialCreditStats;
-  subtitle?: string;
-  hideVerified: boolean;
-  compactScore?: boolean;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-3 mb-3">
-      <div className="flex items-center gap-2.5 min-w-0">
-        {!compactScore && (
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-50 to-levelA/10 dark:from-brand-500/20 dark:to-levelA/15 text-brand-600 dark:text-brand-300 flex items-center justify-center shrink-0 ring-1 ring-brand-100/80 dark:ring-brand-500/25">
-            <ShieldCheckIcon className="w-5 h-5" />
-          </div>
-        )}
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {!compactScore && (
-              <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-100">
-                اعتبار اجتماعی
-              </h2>
-            )}
-            {stats.verified && !hideVerified && (
-              <span className="text-[10px] font-semibold text-levelA">
-                {stats.verifiedLabel}
-              </span>
-            )}
-          </div>
-          {subtitle && !compactScore && (
-            <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5">
-              {subtitle}
+          {stats.endorsementsGiven > 0 && (
+            <p className="text-[11px] text-ink-faint mt-3 leading-relaxed px-0.5">
+              مشارکت در شبکه: {toPersianDigits(stats.endorsementsGiven)} تأیید
+              ثبت‌شده توسط این عضو — در اعتبار او حساب نمی‌شود.
             </p>
           )}
+
+          {activity > 0 && (
+            <p className="text-[11px] text-ink-faint mt-1.5 leading-relaxed px-0.5">
+              {resolvedActivityLabel}: {toPersianDigits(activity)}
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setShowCalc((v) => !v)}
+            className="mt-3 text-[11px] font-semibold text-brand-600 dark:text-brand-400"
+            aria-expanded={showCalc}
+          >
+            {showCalc ? "بستن توضیح محاسبه" : "این اعداد چطور به هم مربوط‌اند؟"}
+          </button>
+
+          {showCalc && (
+            <div className="mt-2 rounded-xl bg-stone-50/90 dark:bg-zinc-800/60 px-3 py-2.5 text-[11px] text-ink-muted dark:text-zinc-400 leading-relaxed">
+              <p>
+                سیرکل امتیاز رسمی یا احراز هویت نیست. شاخص داخلی فعلی بر اساس
+                معامله‌های تکمیل‌شده، تأییدهای دریافتی از شبکه، و نرخ پاسخ ساخته
+                می‌شود ({toPersianDigits(stats.score)} از ۱۰۰ · {stats.label}).
+                تأییدهایی که این عضو برای دیگران ثبت کرده فقط مشارکت است.
+              </p>
+            </div>
+          )}
         </div>
-      </div>
-      <div className="text-left shrink-0 leading-none">
-        <p
-          className={`font-extrabold text-ink dark:text-zinc-50 nums ${
-            compactScore ? "text-xl" : "text-2xl"
-          }`}
-        >
-          {toPersianDigits(stats.score)}
-          <span className="text-[11px] text-ink-faint font-bold"> / ۱۰۰</span>
-        </p>
-        <p className={`text-[11px] font-bold mt-1 ${labelColor[stats.label]}`}>
-          {stats.label}
-        </p>
-      </div>
+      )}
     </div>
   );
 }

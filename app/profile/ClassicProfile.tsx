@@ -208,7 +208,7 @@ export default function ClassicProfile() {
                 <div className="flex items-end justify-between gap-2">
                   <div>
                     <p className="text-[10px] font-semibold text-ink-muted tracking-wide">
-                      اعتبار اجتماعی
+                      سابقه در سیرکل
                     </p>
                     <p
                       className={`text-[13px] font-extrabold mt-0.5 ${SCORE_TINT[socialCredit.label]}`}
@@ -252,7 +252,9 @@ export default function ClassicProfile() {
 
         <SocialCreditCard
           stats={socialCredit}
-          subtitle="جزئیات شاخص اعتماد"
+          title="اعتماد و سابقه"
+          subtitle="شواهد قابل‌فهم از فعالیت شما"
+          activityLabel="نفر در حلقه شما"
           hideVerified
           collapsible
           defaultCollapsed

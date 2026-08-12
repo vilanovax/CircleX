@@ -25,15 +25,16 @@ export const relationEmoji: Record<RelationType, string> = {
 };
 
 export const levelLabels: Record<TrustLevel, string> = {
-  A: "نزدیک‌ترین",
+  A: "نزدیکان",
   B: "مورد اعتماد",
-  C: "آشنا",
+  C: "آشنایان",
 };
 
+/** Placement inside the viewer's personal circle (not a global trust score). */
 export const levelShort: Record<TrustLevel, string> = {
-  A: "نزدیک",
+  A: "نزدیکان",
   B: "مورد اعتماد",
-  C: "آشنا",
+  C: "آشنایان",
 };
 
 /** Single-letter tier token — used only for compact visual badges/toggles. */
@@ -65,9 +66,9 @@ export const levelDegreeFa: Record<TrustLevel, string> = {
 
 /** Accessible explanation of A/B/C trust tiers. */
 export const levelHint: Record<TrustLevel, string> = {
-  A: "حلقه نزدیک — درجه ۱",
-  B: "مورد اعتماد — درجه ۲",
-  C: "آشنا — درجه ۳",
+  A: "جایگاه در حلقه شما: نزدیکان",
+  B: "جایگاه در حلقه شما: مورد اعتماد",
+  C: "جایگاه در حلقه شما: آشنایان",
 };
 
 export const listingTypeLabels: Record<ListingType, string> = {
@@ -122,18 +123,18 @@ export const eventKindChip: Record<EventKind, string> = {
 };
 
 export const badgeLabels: Record<BadgeType, string> = {
-  verify_item: "این کالا را تأیید می‌کنم",
-  know_seller: "فروشنده را می‌شناسم",
-  verify_quality: "کیفیت کالا را تأیید می‌کنم",
-  dealt_before: "قبلاً معامله کرده‌ام",
+  verify_item: "این مورد را از نزدیک دیده‌ام",
+  know_seller: "فروشنده را شخصاً می‌شناسم",
+  verify_quality: "وضعیت اعلام‌شده را شخصاً بررسی کرده‌ام",
+  dealt_before: "قبلاً با این فروشنده معامله داشته‌ام",
 };
 
 /** Past-tense / third-person lines for endorsement feed. */
 export const badgeResultLabels: Record<BadgeType, string> = {
-  verify_item: "این کالا را تأیید کرده است",
-  know_seller: "فروشنده را می‌شناسد",
-  verify_quality: "کیفیت کالا را تأیید کرده است",
-  dealt_before: "قبلاً با فروشنده معامله کرده است",
+  verify_item: "این مورد را از نزدیک دیده است",
+  know_seller: "فروشنده را شخصاً می‌شناسد",
+  verify_quality: "وضعیت اعلام‌شده را شخصاً بررسی کرده است",
+  dealt_before: "قبلاً با این فروشنده معامله داشته است",
 };
 
 export const badgeEmoji: Record<BadgeType, string> = {
@@ -152,13 +153,13 @@ export const privacyLabels: Record<Privacy, string> = {
   approved: "با تأیید من",
 };
 
-/** Longer privacy copy for listing detail chips. */
+/** Longer privacy copy for listing detail — matches A/AB/ABC model, not named rings. */
 export const privacyDetailLabels: Record<Privacy, string> = {
-  A: "قابل‌مشاهده برای نزدیک‌ترین‌ها",
-  AB: "قابل‌مشاهده برای نزدیک و مطمئن",
-  ABC: "قابل‌مشاهده برای همهٔ حلقه",
+  A: "قابل‌مشاهده فقط برای نزدیک‌ترین‌های فروشنده",
+  AB: "قابل‌مشاهده برای نزدیک و مطمئن فروشنده",
+  ABC: "قابل‌مشاهده تا سطح آشنایان فروشنده — نه عموم",
   referral: "فقط با معرفی دیده می‌شود",
-  approved: "فقط با تأیید شما دیده می‌شود",
+  approved: "فقط با تأیید فروشنده دیده می‌شود",
 };
 
 export const privacyEmoji: Record<Privacy, string> = {
@@ -169,8 +170,11 @@ export const privacyEmoji: Record<Privacy, string> = {
   approved: "✋",
 };
 
-/** Format a Toman price with thousands separators and Persian digits. */
+/** Format a Toman price with Persian digits and Persian thousands separators. */
 export function formatPrice(price?: number): string {
   if (price == null) return "";
-  return toPersianDigits(price.toLocaleString("en-US")) + " تومان";
+  const grouped = price
+    .toLocaleString("en-US")
+    .replace(/,/g, "٬");
+  return `${toPersianDigits(grouped)} تومان`;
 }

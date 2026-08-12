@@ -3,10 +3,10 @@
 import type { Endorsement } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import Avatar from "./Avatar";
-import { badgeEmoji, badgeResultLabels } from "@/lib/labels";
+import { badgeResultLabels } from "@/lib/labels";
 import { toPersianDigits } from "@/lib/persian";
 
-/** Summary line for trust cards — names the endorser when there's only one. */
+/** Compact member note — no official shield; uses endorser avatar. */
 export function EndorsementSummary({
   endorsements,
 }: {
@@ -16,25 +16,35 @@ export function EndorsementSummary({
   const uniqueIds = Array.from(new Set(endorsements.map((e) => e.personId)));
   if (uniqueIds.length === 0) return null;
 
-  let text: string;
   if (uniqueIds.length === 1) {
     const person = getPerson(uniqueIds[0]);
-    const name = person?.name ?? "یکی از حلقه شما";
+    const name = person?.name ?? "یکی از حلقه";
     const first = endorsements.find((e) => e.personId === uniqueIds[0])!;
-    text = `${name} ${badgeResultLabels[first.type]}`;
-  } else {
-    text = `${toPersianDigits(uniqueIds.length)} نفر از حلقه شما این آگهی را تأیید کرده‌اند`;
+    return (
+      <div className="flex items-start gap-2 text-[12px] text-ink-muted dark:text-zinc-400 leading-snug">
+        {person ? (
+          <Avatar name={person.name} src={person.avatar} showLevel={false} size="sm" />
+        ) : (
+          <span className="w-8 h-8 rounded-full bg-stone-100 dark:bg-zinc-800 shrink-0" />
+        )}
+        <p className="pt-1.5">
+          <span className="font-semibold text-ink dark:text-zinc-200">{name}</span>
+          {" گفته "}
+          {badgeResultLabels[first.type].replace(/^این /, "این ")}
+        </p>
+      </div>
+    );
   }
 
   return (
-    <div className="flex items-start gap-1.5 text-[12px] text-levelA font-medium leading-snug">
-      <span aria-hidden>🛡</span>
-      <span>{text}</span>
-    </div>
+    <p className="text-[12px] text-ink-muted leading-snug">
+      {toPersianDigits(uniqueIds.length)} نفر از حلقه گفته‌اند این آگهی را
+      دیده‌اند یا فروشنده را می‌شناسند.
+    </p>
   );
 }
 
-/** Detailed list of who endorsed and with which badge. */
+/** Detailed list of who endorsed — member claims, not platform certification. */
 export function EndorsementList({
   endorsements,
 }: {
@@ -44,16 +54,19 @@ export function EndorsementList({
   if (endorsements.length === 0) {
     return (
       <p className="text-[13px] text-ink-faint leading-relaxed">
-        هنوز کسی از حلقه‌ی شما این آگهی را تأیید نکرده است.
+        هنوز کسی از حلقه درباره این آگهی چیزی نگفته است.
       </p>
     );
   }
   return (
-    <ul className="space-y-2.5">
+    <ul className="space-y-3">
       {endorsements.map((e, i) => {
         const p = getPerson(e.personId);
         return (
-          <li key={`${e.personId}-${e.type}-${i}`} className="flex items-center gap-2.5">
+          <li
+            key={`${e.personId}-${e.type}-${i}`}
+            className="flex items-start gap-2.5"
+          >
             {p ? (
               <Avatar
                 name={p.name}
@@ -64,18 +77,36 @@ export function EndorsementList({
             ) : (
               <div className="w-9 h-9 rounded-full bg-stone-100 dark:bg-zinc-800 shrink-0" />
             )}
-            <div className="text-[13px] leading-snug min-w-0">
-              <span className="font-semibold text-ink dark:text-zinc-100">
-                {p?.name ?? "شما"}
-              </span>
-              <span className="text-ink-muted">
-                {" "}
-                {badgeEmoji[e.type]} {badgeResultLabels[e.type]}
-              </span>
+            <div className="text-[13px] leading-snug min-w-0 pt-0.5">
+              <p className="text-ink dark:text-zinc-100">
+                <span className="font-semibold">{p?.name ?? "شما"}</span>
+                {" گفته "}
+                {claimPhrase(e.type)}
+              </p>
+              <p className="text-[11px] text-ink-faint mt-0.5">
+                اظهارنظر عضو حلقه — نه تأیید رسمی سیرکل
+              </p>
             </div>
           </li>
         );
       })}
     </ul>
   );
+}
+
+function claimPhrase(
+  type: Endorsement["type"],
+): string {
+  switch (type) {
+    case "verify_item":
+      return "این کالا را از نزدیک دیده است.";
+    case "know_seller":
+      return "فروشنده را شخصاً می‌شناسد.";
+    case "verify_quality":
+      return "وضعیت اعلام‌شده را از نزدیک بررسی کرده است.";
+    case "dealt_before":
+      return "قبلاً با این فروشنده معامله کرده است.";
+    default:
+      return badgeResultLabels[type];
+  }
 }
