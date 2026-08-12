@@ -96,16 +96,17 @@ export function EndorsementList({
 
 function claimPhrase(
   type: Endorsement["type"],
+  sellerName = "فروشنده",
 ): string {
   switch (type) {
     case "verify_item":
       return "این کالا را از نزدیک دیده است.";
     case "know_seller":
-      return "فروشنده را شخصاً می‌شناسد.";
+      return `${sellerName} را شخصاً می‌شناسد.`;
     case "verify_quality":
-      return "وضعیت اعلام‌شده را از نزدیک بررسی کرده است.";
+      return "وضعیت اعلام‌شده را شخصاً بررسی کرده است.";
     case "dealt_before":
-      return "قبلاً با این فروشنده معامله کرده است.";
+      return `قبلاً با ${sellerName} معامله داشته است.`;
     default:
       return badgeResultLabels[type];
   }

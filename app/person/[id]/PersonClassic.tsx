@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useStore } from "@/lib/store";
 import { lazyUi } from "@/lib/lazy-ui";
 import { canDirectMessage } from "@/lib/messaging";
 import Header from "@/components/Header";
 import Avatar from "@/components/Avatar";
-import SocialCreditCard from "@/components/SocialCreditCard";
+import SheetShell from "@/components/SheetShell";
 import TrustPath from "@/components/TrustPath";
 import ListingCard from "@/components/ListingCard";
 import RequestCard from "@/components/RequestCard";
@@ -16,7 +16,8 @@ import EmptyState from "@/components/EmptyState";
 import { ProfileSkeleton } from "@/components/Skeleton";
 import { ChatIcon, UserPlusIcon } from "@/components/Icons";
 import {
-  badgeLabels,
+  formatEndorsementReport,
+  isPersonAboutBadge,
   levelChip,
   levelShort,
   relationLabels,
@@ -25,11 +26,10 @@ import {
   buildSocialCredit,
   evidenceSummaryLine,
 } from "@/lib/social-credit";
-import { canView } from "@/lib/trust";
+import { canView, viewerRelationPhrase } from "@/lib/trust";
 import { toPersianDigits } from "@/lib/persian";
 import { useToast } from "@/components/Toast";
 import type {
-  BadgeType,
   Listing,
   Person,
   TrustHop,
@@ -40,13 +40,12 @@ const IntroRequestSheet = lazyUi(() => import("@/components/IntroRequestSheet"))
 const AddToCircleSheet = lazyUi(() => import("@/components/AddToCircleSheet"));
 
 const LEVELS: TrustLevel[] = ["A", "B", "C"];
-const ENDORSE_BADGES: BadgeType[] = [
-  "know_seller",
-  "verify_quality",
-  "verify_item",
-  "dealt_before",
-];
 type ContentTab = "listings" | "requests";
+
+type EndorsementItem = {
+  listing: Listing;
+  endorsement: Listing["endorsements"][number];
+};
 
 export default function PersonClassic(_props: { params: { id: string } }) {
   const params = useParams();
@@ -60,19 +59,20 @@ export default function PersonClassic(_props: { params: { id: string } }) {
     setLevel,
     addToCircle,
     getThread,
-    toggleEndorsement,
     hydrated,
   } = useStore();
   const { show } = useToast();
   const [showIntro, setShowIntro] = useState(false);
   const [showAddToCircle, setShowAddToCircle] = useState(false);
+  const [showTrustDetails, setShowTrustDetails] = useState(false);
+  const [showEditRelation, setShowEditRelation] = useState(false);
   const [contentTab, setContentTab] = useState<ContentTab>("listings");
 
   const person = getPerson(id);
 
   if (!hydrated) {
     return (
-      <main className="pb-28 min-h-[100dvh]">
+      <main className="pb-24 min-h-[100dvh]">
         <Header title="پروفایل" back />
         <ProfileSkeleton />
       </main>
@@ -106,30 +106,29 @@ export default function PersonClassic(_props: { params: { id: string } }) {
   const networkActivity = theirListings.length + theirRequests.length;
   const socialCredit = buildSocialCredit(person, listings, networkActivity);
 
-  const endorsementsReceived = theirListings.flatMap((l) =>
+  const endorsementsReceived: EndorsementItem[] = theirListings.flatMap((l) =>
     l.endorsements.map((e) => ({ listing: l, endorsement: e })),
   );
-  const endorsementsGiven = listings.flatMap((l) =>
+  const endorsementsGiven: EndorsementItem[] = listings.flatMap((l) =>
     l.endorsements
       .filter((e) => e.personId === id)
       .map((e) => ({ listing: l, endorsement: e })),
   );
 
-  const receivedListingIds = new Set(
-    endorsementsReceived.map((x) => x.listing.id),
-  );
   const uniqueEndorsers = Array.from(
     new Set(endorsementsReceived.map((x) => x.endorsement.personId)),
   );
 
-  const relationLine = [
-    person.note || relationLabels[person.relation],
-    person.inMyCircle ? "عضو مستقیم شبکه شما" : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-
-  const evidenceLine = evidenceSummaryLine(socialCredit);
+  const relationPhrase = viewerRelationPhrase(person);
+  const evidenceLine = evidenceSummaryLine(socialCredit, {
+    uniqueEndorsers: uniqueEndorsers.length || undefined,
+  });
+  const aboutPersonEndorsements = endorsementsReceived.filter((x) =>
+    isPersonAboutBadge(x.endorsement.type),
+  );
+  const aboutListingEndorsements = endorsementsReceived.filter(
+    (x) => !isPersonAboutBadge(x.endorsement.type),
+  );
   const showTrustPath = !person.inMyCircle || trustPath.length > 0;
   const personName = person.name;
   const hasListings = theirListings.length > 0;
@@ -137,10 +136,6 @@ export default function PersonClassic(_props: { params: { id: string } }) {
   const showContentTabs = hasListings && hasRequests;
   const activeTab: ContentTab =
     showContentTabs ? contentTab : hasListings ? "listings" : "requests";
-
-  const unendorsedListings = theirListings.filter(
-    (l) => !l.endorsements.some((e) => e.personId === "me"),
-  );
 
   function handleRemoveFromCircle() {
     if (
@@ -155,41 +150,43 @@ export default function PersonClassic(_props: { params: { id: string } }) {
     router.push("/circle");
   }
 
+  const metaLine = [
+    person.city,
+    socialCredit.lastActive ? `آخرین فعالیت ${socialCredit.lastActive}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
-    <main className="pb-28 min-h-[100dvh]">
+    <main className="pb-24 min-h-[100dvh]">
       <Header title={`پروفایل ${person.name}`} back />
 
+      {/* 1. Compact intro */}
       <div className="px-4 pt-3">
-        <div className="card p-4">
-          <div className="flex items-start gap-3">
+        <div className="card p-3.5">
+          <div className="flex items-center gap-3">
             <Avatar
               name={person.name}
               src={person.avatar}
               level={person.level}
-              size="lg"
+              size="md"
               showLevel={false}
             />
             <div className="flex-1 min-w-0">
-              <h2 className="text-[17px] font-extrabold text-ink dark:text-zinc-100">
+              <h2 className="text-[16px] font-extrabold text-ink dark:text-zinc-100 leading-tight">
                 {person.name}
               </h2>
-              <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
-                {relationLine}
-                {person.city && (
-                  <>
-                    <span className="text-stone-300 mx-1" aria-hidden>
-                      ·
-                    </span>
-                    {person.city}
-                  </>
-                )}
+              <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-snug">
+                {relationPhrase}
+                {person.inMyCircle ? " · عضو مستقیم شبکه" : ""}
               </p>
-              <p className="text-[11px] text-ink-faint mt-1.5">
-                عضو سیرکل از {socialCredit.memberSince}
-                {socialCredit.lastActive ? ` · ${socialCredit.lastActive}` : ""}
-              </p>
+              {metaLine && (
+                <p className="text-[11px] text-ink-faint mt-1 leading-snug">
+                  {metaLine}
+                </p>
+              )}
               {evidenceLine && (
-                <p className="text-[12px] font-medium text-ink dark:text-zinc-200 mt-1.5 nums">
+                <p className="text-[12px] font-semibold text-ink dark:text-zinc-200 mt-1.5 nums leading-snug">
                   {evidenceLine}
                 </p>
               )}
@@ -198,40 +195,27 @@ export default function PersonClassic(_props: { params: { id: string } }) {
         </div>
       </div>
 
+      {/* 2. Activity */}
       {(hasListings || hasRequests) && (
-        <section className="px-4 pt-4">
+        <section className="px-4 pt-3.5">
           {showContentTabs ? (
             <div
-              className="flex gap-1 bg-stone-100/80 dark:bg-zinc-800 rounded-xl p-1 mb-3"
+              className="flex gap-1 bg-stone-100/80 dark:bg-zinc-800 rounded-xl p-1 mb-2.5"
               role="tablist"
               aria-label={`محتوای ${person.name}`}
             >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === "listings"}
+              <TabButton
+                selected={activeTab === "listings"}
                 onClick={() => setContentTab("listings")}
-                className={`flex-1 py-2 rounded-lg text-[13px] font-bold transition-colors nums ${
-                  activeTab === "listings"
-                    ? "bg-[color:var(--circle-surface)] text-ink shadow-sm dark:bg-zinc-900 dark:text-zinc-100"
-                    : "text-ink-muted dark:text-zinc-400"
-                }`}
-              >
-                آگهی‌ها ({toPersianDigits(theirListings.length)})
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === "requests"}
+                label="آگهی‌ها"
+                count={theirListings.length}
+              />
+              <TabButton
+                selected={activeTab === "requests"}
                 onClick={() => setContentTab("requests")}
-                className={`flex-1 py-2 rounded-lg text-[13px] font-bold transition-colors nums ${
-                  activeTab === "requests"
-                    ? "bg-[color:var(--circle-surface)] text-ink shadow-sm dark:bg-zinc-900 dark:text-zinc-100"
-                    : "text-ink-muted dark:text-zinc-400"
-                }`}
-              >
-                نیازمندی‌ها ({toPersianDigits(theirRequests.length)})
-              </button>
+                label="نیازمندی‌ها"
+                count={theirRequests.length}
+              />
             </div>
           ) : (
             <div className="flex items-center gap-2 mb-2 px-0.5">
@@ -240,7 +224,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
                   ? `آگهی‌های ${person.name}`
                   : `نیازمندی‌های ${person.name}`}
               </h2>
-              <span className="text-[11px] font-semibold text-ink-faint nums">
+              <span className="inline-flex min-w-[1.25rem] h-5 px-1.5 items-center justify-center rounded-full bg-stone-100 dark:bg-zinc-800 text-[11px] font-bold text-ink-muted nums">
                 {toPersianDigits(
                   hasListings ? theirListings.length : theirRequests.length,
                 )}
@@ -258,125 +242,6 @@ export default function PersonClassic(_props: { params: { id: string } }) {
                 <RequestCard key={r.id} request={r} hideTrust />
               ))}
           </div>
-        </section>
-      )}
-
-      <div className="px-4 pt-3">
-        <SocialCreditCard
-          stats={socialCredit}
-          title="اعتماد و سابقه"
-          subtitle={`شواهد مربوط به ${person.name}`}
-          activityLabel="آگهی و نیازمندی قابل‌مشاهده"
-          hideVerified
-          collapsible
-          defaultCollapsed={person.inMyCircle}
-        />
-      </div>
-
-      {(endorsementsReceived.length > 0 || endorsementsGiven.length > 0) && (
-        <section className="px-4 pt-4">
-          <div className="flex items-center gap-2 mb-2 px-0.5">
-            <h2 className="text-[13px] font-bold text-ink dark:text-zinc-200">
-              تأییدهای شبکه
-            </h2>
-            {endorsementsReceived.length > 0 && (
-              <span className="text-[11px] font-semibold text-ink-faint nums">
-                {toPersianDigits(endorsementsReceived.length)}
-              </span>
-            )}
-          </div>
-          <div className="space-y-3">
-            {endorsementsReceived.length > 0 && (
-              <div>
-                <p className="text-[11px] font-medium text-ink-muted mb-1.5 px-0.5">
-                  درباره {person.name} ·{" "}
-                  {toPersianDigits(endorsementsReceived.length)}
-                </p>
-                <div className="card divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
-                  {endorsementsReceived.map(({ listing, endorsement }, i) => {
-                    const endorser = getPerson(endorsement.personId);
-                    return (
-                      <EndorsementRow
-                        key={`r-${i}`}
-                        listing={listing}
-                        headline={
-                          <>
-                            {endorser && endorser.id !== "me" ? (
-                              <Link
-                                href={`/person/${endorser.id}`}
-                                className="font-semibold text-ink dark:text-zinc-100"
-                              >
-                                {endorser.name}
-                              </Link>
-                            ) : (
-                              <span className="font-semibold text-ink dark:text-zinc-100">
-                                {endorser?.name ?? "—"}
-                              </span>
-                            )}
-                            <span className="text-ink-faint font-normal">
-                              {" "}
-                              — {badgeLabels[endorsement.type]}
-                            </span>
-                          </>
-                        }
-                      />
-                    );
-                  })}
-                </div>
-                {uniqueEndorsers.length > 0 && (
-                  <p className="text-[11px] text-ink-faint px-0.5 mt-2 leading-relaxed">
-                    {endorsementNetworkSummary(
-                      uniqueEndorsers,
-                      receivedListingIds.size,
-                      endorsementsReceived.length,
-                      person.name,
-                      getPerson,
-                    )}
-                  </p>
-                )}
-              </div>
-            )}
-            {endorsementsGiven.length > 0 && (
-              <div>
-                <p className="text-[11px] font-medium text-ink-muted mb-1.5 px-0.5">
-                  ثبت‌شده توسط {person.name} ·{" "}
-                  {toPersianDigits(endorsementsGiven.length)}
-                  <span className="text-ink-faint font-normal">
-                    {" "}
-                    (مشارکت، نه اعتبار)
-                  </span>
-                </p>
-                <div className="card divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden opacity-90">
-                  {endorsementsGiven.map(({ listing, endorsement }, i) => (
-                    <EndorsementRow
-                      key={`g-${i}`}
-                      listing={listing}
-                      headline={
-                        <span className="font-semibold text-ink-muted dark:text-zinc-300">
-                          {badgeLabels[endorsement.type]}
-                        </span>
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {unendorsedListings.length > 0 && (
-        <section className="px-4 pt-3">
-          <EndorsePrompt
-            personName={person.name}
-            listings={unendorsedListings}
-            receivedCount={endorsementsReceived.length}
-            listingCountWithEndorsements={receivedListingIds.size}
-            onEndorse={(listingId, type) => {
-              toggleEndorsement(listingId, type);
-              show("تأیید شما ثبت شد ✓");
-            }}
-          />
         </section>
       )}
 
@@ -420,30 +285,73 @@ export default function PersonClassic(_props: { params: { id: string } }) {
         </section>
       )}
 
-      <CircleSection
-        person={person}
-        personId={id}
-        showTrustPath={showTrustPath}
-        trustPath={trustPath}
-        onAddToCircle={() => setShowAddToCircle(true)}
-        onRemoveFromCircle={handleRemoveFromCircle}
-        onSetLevel={(lvl) => {
-          setLevel(id, lvl);
-          show(
-            `جایگاه ${person.name} در حلقه شما: ${levelShort[lvl]}`,
-          );
-        }}
-      />
+      {/* 3. Single trust + relation summary */}
+      <section className="px-4 pt-3.5 pb-2">
+        <div className="card p-3.5">
+          <button
+            type="button"
+            onClick={() => setShowTrustDetails(true)}
+            className="w-full text-right active:opacity-80"
+          >
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-100">
+                اعتماد و رابطه
+              </h2>
+              <span className="text-ink-faint text-sm leading-none mt-0.5" aria-hidden>
+                ‹
+              </span>
+            </div>
+            <p className="text-[12px] text-ink-muted dark:text-zinc-400 leading-snug">
+              {relationPhrase}
+              {person.inMyCircle
+                ? ` · حلقه ${relationLabels[person.relation]}`
+                : " · هنوز عضو مستقیم شبکه نیست"}
+            </p>
+            {uniqueEndorsers.length > 0 && (
+              <p className="text-[11px] text-ink-faint mt-1.5 nums leading-snug">
+                {toPersianDigits(endorsementsReceived.length)} تأیید از{" "}
+                {toPersianDigits(uniqueEndorsers.length)} عضو شبکه
+              </p>
+            )}
+          </button>
+          <div className="flex gap-2 mt-3">
+            <button
+              type="button"
+              onClick={() => setShowTrustDetails(true)}
+              className="flex-1 rounded-xl border border-stone-200 dark:border-zinc-700 py-2 text-[12px] font-bold text-ink dark:text-zinc-100 active:bg-stone-50 dark:active:bg-zinc-800"
+            >
+              جزئیات اعتماد
+            </button>
+            {person.inMyCircle ? (
+              <button
+                type="button"
+                onClick={() => setShowEditRelation(true)}
+                className="flex-1 rounded-xl border border-stone-200 dark:border-zinc-700 py-2 text-[12px] font-bold text-ink dark:text-zinc-100 active:bg-stone-50 dark:active:bg-zinc-800"
+              >
+                ویرایش رابطه
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowAddToCircle(true)}
+                className="flex-1 rounded-xl bg-brand-600 text-white py-2 text-[12px] font-bold active:opacity-90"
+              >
+                افزودن به شبکه
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
 
       <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
         <div className="app-shell !min-h-0 !shadow-none bg-transparent">
-          <div className="pointer-events-auto bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-xl border-t border-stone-200/70 dark:border-zinc-800 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="pointer-events-auto px-4 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-[color:var(--circle-bg)] via-[color:var(--circle-bg)]/95 to-transparent">
             {canMessage ? (
               <Link
                 href={`/messages/${id}`}
-                className="btn-primary w-full !py-3.5 text-base flex items-center justify-center gap-2"
+                className="btn-primary w-full !py-2.5 !text-[14px] font-bold flex items-center justify-center gap-2 shadow-md shadow-brand-600/15"
               >
-                <ChatIcon className="w-5 h-5" />
+                <ChatIcon className="w-[18px] h-[18px]" />
                 پیام به {person.name}
               </Link>
             ) : (
@@ -451,15 +359,15 @@ export default function PersonClassic(_props: { params: { id: string } }) {
                 <button
                   type="button"
                   onClick={() => setShowAddToCircle(true)}
-                  className="btn-primary flex-1 !py-3.5 text-base flex items-center justify-center gap-2"
+                  className="btn-primary flex-1 !py-2.5 text-[15px] flex items-center justify-center gap-2"
                 >
-                  <UserPlusIcon className="w-5 h-5" />
+                  <UserPlusIcon className="w-[18px] h-[18px]" />
                   افزودن به شبکه
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowIntro(true)}
-                  className="btn-ghost flex-1 !py-3.5 text-sm"
+                  className="btn-ghost flex-1 !py-2.5 text-sm"
                 >
                   درخواست معرفی
                 </button>
@@ -468,6 +376,39 @@ export default function PersonClassic(_props: { params: { id: string } }) {
           </div>
         </div>
       </div>
+
+      {showTrustDetails && (
+        <TrustDetailsSheet
+          person={person}
+          socialCredit={socialCredit}
+          evidenceLine={evidenceLine}
+          uniqueEndorserCount={uniqueEndorsers.length}
+          aboutPerson={aboutPersonEndorsements}
+          aboutListings={aboutListingEndorsements}
+          given={endorsementsGiven}
+          getPerson={getPerson}
+          onClose={() => setShowTrustDetails(false)}
+        />
+      )}
+
+      {showEditRelation && person.inMyCircle && (
+        <EditRelationSheet
+          person={person}
+          personId={id}
+          relationPhrase={relationPhrase}
+          showTrustPath={showTrustPath}
+          trustPath={trustPath}
+          onClose={() => setShowEditRelation(false)}
+          onSetLevel={(lvl) => {
+            setLevel(id, lvl);
+            show(`جایگاه ${person.name}: ${levelShort[lvl]}`);
+          }}
+          onRemove={() => {
+            setShowEditRelation(false);
+            handleRemoveFromCircle();
+          }}
+        />
+      )}
 
       {showIntro && (
         <IntroRequestSheet
@@ -492,262 +433,293 @@ export default function PersonClassic(_props: { params: { id: string } }) {
   );
 }
 
-function endorsementNetworkSummary(
-  endorserIds: string[],
-  listingCount: number,
-  endorsementCount: number,
-  personName: string,
-  getPerson: (id: string) => Person | undefined,
-): string {
-  if (endorserIds.length === 1) {
-    const name = getPerson(endorserIds[0])?.name ?? "یکی از اعضای شبکه";
-    if (endorsementCount === 1) {
-      return `${name} ۱ مورد درباره آگهی‌های ${personName} را تأیید کرده است.`;
-    }
-    return `${name} ${toPersianDigits(endorsementCount)} مورد درباره آگهی‌های ${personName} را تأیید کرده است.`;
-  }
-  return `${toPersianDigits(endorserIds.length)} نفر از اعضای شبکه شما ${toPersianDigits(endorsementCount)} مورد درباره ${toPersianDigits(listingCount)} آگهی ${personName} را تأیید کرده‌اند.`;
-}
-
-function CircleSection({
-  person,
-  personId,
-  showTrustPath,
-  trustPath,
-  onAddToCircle,
-  onRemoveFromCircle,
-  onSetLevel,
+function TabButton({
+  selected,
+  onClick,
+  label,
+  count,
 }: {
-  person: Person;
-  personId: string;
-  showTrustPath: boolean;
-  trustPath: TrustHop[];
-  onAddToCircle: () => void;
-  onRemoveFromCircle: () => void;
-  onSetLevel: (lvl: TrustLevel) => void;
+  selected: boolean;
+  onClick: () => void;
+  label: string;
+  count: number;
 }) {
   return (
-    <section className="px-4 pt-4 pb-2">
-      <div className="card p-3.5">
-        <h2 className="font-bold text-[13px] text-ink dark:text-zinc-100 mb-3">
-          رابطه شما با {person.name}
-        </h2>
+    <button
+      type="button"
+      role="tab"
+      aria-selected={selected}
+      onClick={onClick}
+      className={`flex-1 py-2 rounded-lg text-[13px] font-bold transition-colors flex items-center justify-center gap-1.5 ${
+        selected
+          ? "bg-[color:var(--circle-surface)] text-ink shadow-sm dark:bg-zinc-900 dark:text-zinc-100"
+          : "text-ink-muted dark:text-zinc-400"
+      }`}
+    >
+      {label}
+      <span
+        className={`inline-flex min-w-[1.2rem] h-[1.15rem] px-1 items-center justify-center rounded-full text-[10px] font-extrabold nums ${
+          selected
+            ? "bg-stone-100 text-ink-muted dark:bg-zinc-800"
+            : "bg-stone-200/70 text-ink-faint dark:bg-zinc-700"
+        }`}
+      >
+        {toPersianDigits(count)}
+      </span>
+    </button>
+  );
+}
 
-        {person.inMyCircle ? (
-          <div className="text-[12px] text-ink-muted dark:text-zinc-400 bg-stone-50 dark:bg-zinc-800/50 rounded-xl px-3 py-2 mb-3 leading-relaxed">
-            <p className="font-semibold text-ink dark:text-zinc-200">
-              عضو مستقیم شبکه شما
-            </p>
-            <p className="mt-0.5">
-              {person.note
-                ? `${person.note} · ${relationLabels[person.relation]}`
-                : relationLabels[person.relation]}
-            </p>
+function TrustDetailsSheet({
+  person,
+  socialCredit,
+  evidenceLine,
+  uniqueEndorserCount,
+  aboutPerson,
+  aboutListings,
+  given,
+  getPerson,
+  onClose,
+}: {
+  person: Person;
+  socialCredit: ReturnType<typeof buildSocialCredit>;
+  evidenceLine: string;
+  uniqueEndorserCount: number;
+  aboutPerson: EndorsementItem[];
+  aboutListings: EndorsementItem[];
+  given: EndorsementItem[];
+  getPerson: (id: string) => Person | undefined;
+  onClose: () => void;
+}) {
+  const titleId = useId();
+
+  return (
+    <SheetShell onClose={onClose} labelledBy={titleId} maxHeight="88dvh">
+      <h2
+        id={titleId}
+        className="text-[16px] font-extrabold text-ink dark:text-zinc-100 mb-1"
+      >
+        جزئیات اعتماد
+      </h2>
+      <p className="text-[12px] text-ink-muted mb-4">
+        شواهد مربوط به {person.name} — نه احراز هویت رسمی سیرکل
+      </p>
+
+      <section className="mb-4">
+        <h3 className="text-[12px] font-bold text-ink-faint mb-2">سابقه</h3>
+        <div className="rounded-xl bg-stone-50 dark:bg-zinc-800/60 px-3 py-2.5 text-[13px] leading-relaxed">
+          <p className="font-semibold text-ink dark:text-zinc-100 nums">
+            {evidenceLine || "هنوز سابقهٔ قابل‌نمایش نیست"}
+          </p>
+          <p className="text-[12px] text-ink-muted mt-1">
+            عضو سیرکل از {socialCredit.memberSince}
+            {uniqueEndorserCount > 0 && (
+              <>
+                {" "}
+                · {toPersianDigits(uniqueEndorserCount)} عضو مستقل تأیید
+                کرده‌اند
+              </>
+            )}
+          </p>
+          <p className="text-[12px] text-ink-faint mt-1">
+            نرخ پاسخ‌گویی {toPersianDigits(socialCredit.responseRate)}٪
+          </p>
+        </div>
+      </section>
+
+      {aboutPerson.length > 0 && (
+        <EndorsementBlock
+          title={`درباره ${person.name}`}
+          count={aboutPerson.length}
+          items={aboutPerson}
+          render={(item) => {
+            const endorser = getPerson(item.endorsement.personId);
+            return formatEndorsementReport(item.endorsement.type, {
+              endorserName: endorser?.name ?? "یکی از اعضای شبکه",
+              sellerName: person.name,
+            });
+          }}
+          hideListingLink
+        />
+      )}
+
+      {aboutListings.length > 0 && (
+        <EndorsementBlock
+          title={`درباره آگهی‌های ${person.name}`}
+          count={aboutListings.length}
+          items={aboutListings}
+          render={(item) => {
+            const endorser = getPerson(item.endorsement.personId);
+            return formatEndorsementReport(item.endorsement.type, {
+              endorserName: endorser?.name ?? "یکی از اعضای شبکه",
+              sellerName: person.name,
+              listingTitle: item.listing.title,
+            });
+          }}
+        />
+      )}
+
+      {given.length > 0 && (
+        <section className="mb-2">
+          <h3 className="text-[12px] font-bold text-ink-faint mb-1">
+            مشارکت {person.name}
+          </h3>
+          <p className="text-[11px] text-ink-faint mb-2 leading-relaxed">
+            {toPersianDigits(given.length)} تأیید ثبت‌شده برای دیگران — در اعتبار{" "}
+            {person.name} حساب نمی‌شود.
+          </p>
+          <div className="rounded-xl border border-stone-100 dark:border-zinc-800 divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
+            {given.map((item, i) => (
+              <div key={`g-${i}`} className="px-3 py-2.5">
+                <p className="text-[13px] text-ink-muted leading-snug">
+                  {formatEndorsementReport(item.endorsement.type, {
+                    endorserName: person.name,
+                    sellerName:
+                      getPerson(item.listing.sellerId)?.name ?? "فروشنده",
+                    listingTitle: item.listing.title,
+                  })}
+                </p>
+                <Link
+                  href={`/listing/${item.listing.id}`}
+                  className="text-[12px] text-brand-600 font-medium mt-1 block truncate"
+                  onClick={onClose}
+                >
+                  آگهی: {item.listing.title} ‹
+                </Link>
+              </div>
+            ))}
           </div>
-        ) : (
-          <p className="text-[12px] text-ink-muted dark:text-zinc-400 bg-stone-50 dark:bg-zinc-800/50 rounded-xl px-3 py-2 mb-3 leading-relaxed">
-            از مسیر اعتماد وصل است؛ هنوز عضو مستقیم شبکه شما نیست.
+        </section>
+      )}
+
+      {aboutPerson.length === 0 &&
+        aboutListings.length === 0 &&
+        given.length === 0 && (
+          <p className="text-[13px] text-ink-faint py-4 text-center">
+            هنوز تأیید شبکه‌ای برای نمایش نیست.
           </p>
         )}
+    </SheetShell>
+  );
+}
 
-        {person.inMyCircle && (
-          <>
-            <p className="text-[11px] text-ink-faint mb-2">
-              جایگاه در حلقه شخصی شما
+function EndorsementBlock({
+  title,
+  count,
+  items,
+  render,
+  hideListingLink = false,
+}: {
+  title: string;
+  count: number;
+  items: EndorsementItem[];
+  render: (item: EndorsementItem) => string;
+  hideListingLink?: boolean;
+}) {
+  return (
+    <section className="mb-4">
+      <div className="flex items-center gap-2 mb-2">
+        <h3 className="text-[12px] font-bold text-ink-faint">{title}</h3>
+        <span className="inline-flex min-w-[1.2rem] h-5 px-1.5 items-center justify-center rounded-full bg-stone-100 dark:bg-zinc-800 text-[10px] font-extrabold text-ink-muted nums">
+          {toPersianDigits(count)}
+        </span>
+      </div>
+      <div className="rounded-xl border border-stone-100 dark:border-zinc-800 divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
+        {items.map((item, i) => (
+          <div key={`${title}-${i}`} className="px-3 py-2.5">
+            <p className="text-[13px] text-ink dark:text-zinc-100 leading-snug">
+              {render(item)}
             </p>
-            <div className="flex gap-2 mb-3">
-              {LEVELS.map((lvl) => (
-                <button
-                  key={lvl}
-                  type="button"
-                  onClick={() => onSetLevel(lvl)}
-                  aria-pressed={person.level === lvl}
-                  className={`flex-1 rounded-xl py-2 text-[12px] font-bold border transition-colors ${
-                    person.level === lvl
-                      ? `${levelChip[lvl]} border-current`
-                      : "bg-[color:var(--circle-surface)] text-ink-faint border-stone-200 dark:border-zinc-700"
-                  }`}
-                >
-                  {levelShort[lvl]}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-
-        {showTrustPath && (
-          <TrustPath
-            posterId={personId}
-            trustPath={trustPath}
-            variant="full"
-          />
-        )}
-
-        {person.inMyCircle && !showTrustPath && (
-          <Link
-            href="/graph"
-            className="inline-flex items-center gap-1 text-[12px] text-brand-600 font-medium"
-          >
-            نقشه‌ی کامل شبکه را ببین ‹
-          </Link>
-        )}
-
-        {!person.inMyCircle && (
-          <button
-            type="button"
-            onClick={onAddToCircle}
-            className="btn-primary mt-3 w-full !py-2.5 text-sm flex items-center justify-center gap-2"
-          >
-            <UserPlusIcon className="w-4 h-4" />
-            افزودن به شبکه
-          </button>
-        )}
-
-        {person.inMyCircle && (
-          <div className="mt-3 pt-3 border-t border-stone-100 dark:border-zinc-800 text-left">
-            <button
-              type="button"
-              onClick={onRemoveFromCircle}
-              className="text-[12px] text-red-500 dark:text-red-400 font-medium active:opacity-70"
-            >
-              حذف از شبکه من
-            </button>
+            {!hideListingLink && (
+              <Link
+                href={`/listing/${item.listing.id}`}
+                className="text-[12px] text-brand-600 font-medium mt-1 block truncate"
+              >
+                آگهی: {item.listing.title} ‹
+              </Link>
+            )}
           </div>
-        )}
+        ))}
       </div>
     </section>
   );
 }
 
-function EndorsePrompt({
-  personName,
-  listings,
-  receivedCount,
-  listingCountWithEndorsements,
-  onEndorse,
+function EditRelationSheet({
+  person,
+  personId,
+  relationPhrase,
+  showTrustPath,
+  trustPath,
+  onClose,
+  onSetLevel,
+  onRemove,
 }: {
-  personName: string;
-  listings: Listing[];
-  receivedCount: number;
-  listingCountWithEndorsements: number;
-  onEndorse: (listingId: string, type: BadgeType) => void;
+  person: Person;
+  personId: string;
+  relationPhrase: string;
+  showTrustPath: boolean;
+  trustPath: TrustHop[];
+  onClose: () => void;
+  onSetLevel: (lvl: TrustLevel) => void;
+  onRemove: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const visible = listings.slice(0, 3);
+  const titleId = useId();
 
   return (
-    <div className="card p-3.5">
-      <h2 className="font-bold text-[13px] text-ink dark:text-zinc-100">
-        تأییدهای آگهی‌های {personName}
+    <SheetShell onClose={onClose} labelledBy={titleId} maxHeight="85dvh">
+      <h2
+        id={titleId}
+        className="text-[16px] font-extrabold text-ink dark:text-zinc-100 mb-1"
+      >
+        ویرایش رابطه
       </h2>
-      <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-1.5 leading-relaxed">
-        {receivedCount > 0
-          ? `${toPersianDigits(receivedCount)} تأیید درباره ${toPersianDigits(Math.max(listingCountWithEndorsements, 1))} آگهی ثبت شده. فقط مواردی را تأیید کنید که شخصاً درباره آن‌ها اطلاع دارید.`
-          : "فقط مواردی را تأیید کنید که شخصاً درباره آن‌ها اطلاع دارید."}
+      <p className="text-[12px] text-ink-muted mb-4 leading-relaxed">
+        {relationPhrase} · حلقه {relationLabels[person.relation]}
       </p>
-      {!open ? (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="mt-3 w-full rounded-xl border border-stone-200 dark:border-zinc-700 py-2.5 text-[13px] font-bold text-ink dark:text-zinc-100 active:bg-stone-50 dark:active:bg-zinc-800"
-        >
-          مشاهده و افزودن تأیید
-          {listings.length > 0 && (
-            <span className="text-ink-faint font-semibold nums">
-              {" "}
-              · {toPersianDigits(listings.length)} آگهی
-            </span>
-          )}
-        </button>
-      ) : (
-        <div className="space-y-2.5 mt-3">
-          {visible.map((listing) => {
-            const expanded = expandedId === listing.id;
-            return (
-              <div
-                key={listing.id}
-                className="rounded-xl bg-stone-50/80 dark:bg-zinc-800/50 border border-stone-100 dark:border-zinc-800 px-3 py-2.5"
-              >
-                <Link
-                  href={`/listing/${listing.id}`}
-                  className="text-[13px] font-semibold text-ink dark:text-zinc-100 line-clamp-2 active:opacity-80"
-                >
-                  {listing.title}
-                </Link>
-                {!expanded ? (
-                  <button
-                    type="button"
-                    onClick={() => setExpandedId(listing.id)}
-                    className="mt-2 text-[12px] font-bold text-brand-600 dark:text-brand-400"
-                  >
-                    افزودن تأیید
-                  </button>
-                ) : (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {ENDORSE_BADGES.map((b) => {
-                      const active = listing.endorsements.some(
-                        (e) => e.personId === "me" && e.type === b,
-                      );
-                      return (
-                        <button
-                          key={b}
-                          type="button"
-                          onClick={() => onEndorse(listing.id, b)}
-                          className={`chip !px-2.5 !py-1 border text-[11px] transition-colors ${
-                            active
-                              ? "bg-levelA/10 text-levelA border-levelA/30"
-                              : "bg-[color:var(--circle-surface)] text-ink-muted border-stone-200 dark:border-zinc-700"
-                          }`}
-                        >
-                          {badgeLabels[b]}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          {listings.length > 3 && (
-            <p className="text-[11px] text-ink-faint text-center">
-              {toPersianDigits(listings.length - 3)} آگهی دیگر در تب آگهی‌ها
-            </p>
-          )}
+
+      <p className="text-[11px] text-ink-faint mb-2">جایگاه در حلقه شخصی شما</p>
+      <div className="flex gap-2 mb-4">
+        {LEVELS.map((lvl) => (
           <button
+            key={lvl}
             type="button"
-            onClick={() => {
-              setOpen(false);
-              setExpandedId(null);
-            }}
-            className="w-full text-[12px] font-medium text-ink-faint py-1"
+            onClick={() => onSetLevel(lvl)}
+            aria-pressed={person.level === lvl}
+            className={`flex-1 rounded-xl py-2.5 text-[12px] font-bold border transition-colors ${
+              person.level === lvl
+                ? `${levelChip[lvl]} border-current`
+                : "bg-[color:var(--circle-surface)] text-ink-faint border-stone-200 dark:border-zinc-700"
+            }`}
           >
-            بستن
+            {levelShort[lvl]}
           </button>
+        ))}
+      </div>
+
+      {showTrustPath && (
+        <div className="mb-4">
+          <TrustPath posterId={personId} trustPath={trustPath} variant="full" />
         </div>
       )}
-    </div>
-  );
-}
 
-function EndorsementRow({
-  listing,
-  headline,
-}: {
-  listing: Listing;
-  headline: React.ReactNode;
-}) {
-  return (
-    <div className="px-3.5 py-3">
-      <p className="text-[13px] leading-snug text-ink dark:text-zinc-100">
-        {headline}
-      </p>
-      <Link
-        href={`/listing/${listing.id}`}
-        className="text-[12px] text-brand-600 dark:text-brand-400 font-medium mt-1 block truncate"
+      {!showTrustPath && (
+        <Link
+          href="/graph"
+          onClick={onClose}
+          className="inline-flex items-center gap-1 text-[12px] text-brand-600 font-medium mb-4"
+        >
+          نقشه‌ی کامل شبکه را ببین ‹
+        </Link>
+      )}
+
+      <button
+        type="button"
+        onClick={onRemove}
+        className="w-full text-[13px] text-red-500 dark:text-red-400 font-semibold py-3 border-t border-stone-100 dark:border-zinc-800"
       >
-        آگهی: {listing.title} ‹
-      </Link>
-    </div>
+        حذف از شبکه من
+      </button>
+    </SheetShell>
   );
 }

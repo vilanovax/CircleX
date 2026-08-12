@@ -137,6 +137,46 @@ export const badgeResultLabels: Record<BadgeType, string> = {
   dealt_before: "قبلاً با این فروشنده معامله داشته است",
 };
 
+/** Badges that speak about the seller/person, not a specific listing item. */
+export const personAboutBadges: BadgeType[] = ["know_seller", "dealt_before"];
+
+export function isPersonAboutBadge(type: BadgeType): boolean {
+  return personAboutBadges.includes(type);
+}
+
+/**
+ * Third-person report for feeds/profile (not first-person chip labels).
+ * Example: «رضا، سارا را شخصاً می‌شناسد.»
+ */
+export function formatEndorsementReport(
+  type: BadgeType,
+  opts: {
+    endorserName: string;
+    sellerName: string;
+    listingTitle?: string;
+  },
+): string {
+  const who = opts.endorserName;
+  const seller = opts.sellerName;
+  const item = opts.listingTitle?.trim();
+  switch (type) {
+    case "know_seller":
+      return `${who}، ${seller} را شخصاً می‌شناسد.`;
+    case "dealt_before":
+      return `${who} قبلاً با ${seller} معامله داشته است.`;
+    case "verify_item":
+      return item
+        ? `${who} «${item}» را از نزدیک دیده است.`
+        : `${who} این مورد را از نزدیک دیده است.`;
+    case "verify_quality":
+      return item
+        ? `${who} وضعیت اعلام‌شدهٔ «${item}» را شخصاً بررسی کرده است.`
+        : `${who} وضعیت اعلام‌شده را شخصاً بررسی کرده است.`;
+    default:
+      return `${who} — ${badgeResultLabels[type]}`;
+  }
+}
+
 export const badgeEmoji: Record<BadgeType, string> = {
   verify_item: "✅",
   know_seller: "👤",

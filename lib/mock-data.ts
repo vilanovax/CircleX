@@ -38,7 +38,8 @@ export const PEOPLE: Person[] = [
     memberSince: "۱۴۰۲",
     responseRate: 92,
     lastActive: "دیروز",
-    endorsementsReceived: 4,
+    // Display count is derived from listing endorsements; keep in sync if set.
+    endorsementsReceived: 2,
   },
   {
     id: "reza",

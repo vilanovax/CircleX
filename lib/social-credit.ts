@@ -24,7 +24,20 @@ export interface SocialCreditStats {
 /** @deprecated Use activityCount — kept for older call sites that passed circleSize. */
 export type SocialCreditStatsLegacy = SocialCreditStats & { circleSize: number };
 
+/** Count of endorsement records on this person's listings (not unique people). */
 function endorsementsReceivedCount(personId: string, listings: Listing[]): number {
+  let n = 0;
+  for (const listing of listings) {
+    if (listing.sellerId !== personId) continue;
+    n += listing.endorsements.length;
+  }
+  return n;
+}
+
+function uniqueEndorsersReceivedCount(
+  personId: string,
+  listings: Listing[],
+): number {
   const endorsers = new Set<string>();
   for (const listing of listings) {
     if (listing.sellerId !== personId) continue;
@@ -64,7 +77,7 @@ function trustHint(
   if (stats.endorsementsReceived >= 1) {
     return {
       verified: true,
-      verifiedLabel: `${toPersianDigits(stats.endorsementsReceived)} نفر از شبکه تأیید کرده‌اند`,
+      verifiedLabel: `${toPersianDigits(stats.endorsementsReceived)} تأیید از اعضای شبکه`,
     };
   }
   if (stats.successfulDeals >= 5) {
@@ -82,18 +95,21 @@ export function buildSocialCredit(
   listings: Listing[],
   activityCount = 0,
 ): SocialCreditStats & { circleSize: number } {
-  const endorsementsReceived =
-    person.endorsementsReceived ?? endorsementsReceivedCount(person.id, listings);
+  // Always derive from listings so hero/list never disagree with mock overrides.
+  const endorsementsReceived = endorsementsReceivedCount(person.id, listings);
+  const uniqueEndorsers = uniqueEndorsersReceivedCount(person.id, listings);
   const endorsementsGiven = endorsementsGivenCount(person.id, listings);
   const responseRate = person.responseRate ?? 80;
   const successfulDeals = person.deals;
 
   // Trust-relevant only — giving endorsements is participation, not credibility.
+  // Weight unique endorsers more than raw badge spam from one person.
   const score = Math.min(
     100,
     Math.round(
       successfulDeals * 5 +
-        endorsementsReceived * 8 +
+        uniqueEndorsers * 10 +
+        endorsementsReceived * 2 +
         responseRate * 0.3,
     ),
   );
@@ -121,17 +137,25 @@ export function formatPercent(value: number): string {
 }
 
 /** Human-readable evidence line for profile heroes (no opaque score). */
-export function evidenceSummaryLine(stats: SocialCreditStats): string {
+export function evidenceSummaryLine(
+  stats: SocialCreditStats,
+  opts?: { uniqueEndorsers?: number },
+): string {
   const parts: string[] = [];
   if (stats.successfulDeals > 0) {
-    parts.push(
-      `${toPersianDigits(stats.successfulDeals)} معامله تکمیل‌شده`,
-    );
+    parts.push(`${toPersianDigits(stats.successfulDeals)} معامله تکمیل‌شده`);
   }
   if (stats.endorsementsReceived > 0) {
-    parts.push(
-      `${toPersianDigits(stats.endorsementsReceived)} تأیید از شبکه`,
-    );
+    const unique = opts?.uniqueEndorsers;
+    if (unique != null && unique > 0) {
+      parts.push(
+        `${toPersianDigits(stats.endorsementsReceived)} تأیید از ${toPersianDigits(unique)} عضو شبکه`,
+      );
+    } else {
+      parts.push(
+        `${toPersianDigits(stats.endorsementsReceived)} تأیید از اعضای شبکه`,
+      );
+    }
   }
   return parts.join(" · ");
 }

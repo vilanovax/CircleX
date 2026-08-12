@@ -44,7 +44,7 @@ export default function SocialCreditCard({
   }
   if (stats.endorsementsReceived > 0) {
     evidenceBits.push(
-      `${toPersianDigits(stats.endorsementsReceived)} تأیید از شبکه`,
+      `${toPersianDigits(stats.endorsementsReceived)} تأیید از اعضای شبکه`,
     );
   }
   const collapsedSummary =
@@ -111,7 +111,7 @@ export default function SocialCreditCard({
             />
             <Metric
               value={toPersianDigits(stats.endorsementsReceived)}
-              label="تأیید از شبکه"
+              label="تأیید از اعضای شبکه"
             />
             <Metric value={stats.memberSince} label="عضو از" />
             <Metric
