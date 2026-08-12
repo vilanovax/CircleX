@@ -9,6 +9,7 @@ import {
 } from "react";
 import { createContext, useContextSelector } from "use-context-selector";
 import { AVATAR_IMAGES } from "./avatar";
+import { isListingPhoto } from "./listing-image";
 import {
   EVENTS,
   LISTINGS,
@@ -40,7 +41,10 @@ interface NewListingInput {
   price?: number;
   category: string;
   image: string;
+  images?: string[];
   privacy: Privacy;
+  condition?: string;
+  specs?: Listing["specs"];
 }
 
 interface NewPersonInput {
@@ -155,7 +159,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const data = JSON.parse(raw);
         if (data.me && typeof data.me === "object") setMeProfile(data.me);
         if (Array.isArray(data.people)) setPeople(data.people);
-        if (Array.isArray(data.listings)) setListings(data.listings);
+        if (Array.isArray(data.listings)) {
+          setListings(
+            data.listings.map((l: Listing) => {
+              const seed = LISTINGS.find((s) => s.id === l.id);
+              if (!seed) return l;
+              return {
+                ...l,
+                image: isListingPhoto(l.image) ? l.image : seed.image,
+                images: l.images?.length ? l.images : seed.images,
+                specs: seed.specs ?? l.specs,
+                description: seed.description,
+                condition: seed.condition ?? l.condition,
+              };
+            }),
+          );
+        }
         if (Array.isArray(data.requests)) {
           setRequests(
             data.requests.map((r: Request) => ({
@@ -388,6 +407,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       price: input.price,
       category: input.category,
       image: input.image,
+      images: input.images,
+      specs: input.specs,
+      condition: input.condition,
       sellerId: "me",
       postedAt: "همین حالا",
       privacy: input.privacy,

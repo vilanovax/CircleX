@@ -5,7 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
-import ListingImage from "@/components/ListingImage";
+import ListingGallery from "@/components/ListingGallery";
+import ListingSpecs from "@/components/ListingSpecs";
 import { lazyUi } from "@/lib/lazy-ui";
 import Avatar from "@/components/Avatar";
 import TrustPath from "@/components/TrustPath";
@@ -29,7 +30,7 @@ import { toPersianDigits } from "@/lib/persian";
 import LockedAccess from "@/components/LockedAccess";
 import { canView, privacyAudience, viewerRelationPhrase } from "@/lib/trust";
 import { useToast } from "@/components/Toast";
-import { listingImageTint } from "@/lib/listing-image";
+import { listingGalleryImages } from "@/lib/listing-image";
 
 const ReferSheet = lazyUi(() => import("@/components/ReferSheet"));
 
@@ -74,7 +75,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const isMine = listing.sellerId === "me";
   const isDirect = isDirectTrust;
   const circle = people.filter((p) => p.inMyCircle);
-  const tint = listingImageTint(listing.category, listing.type);
+  const gallery = listingGalleryImages(listing);
 
   const ctaLabel = (() => {
     if (listing.type === "donation") return "پیام برای درخواست این کالا";
@@ -99,7 +100,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const relationLine = seller ? viewerRelationPhrase(seller) : "";
 
   return (
-    <main className="pb-28 min-h-[100dvh]">
+    <main className="pb-36 min-h-[100dvh]">
       <Header
         title="جزئیات آگهی"
         back
@@ -127,21 +128,12 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         }
       />
 
-      <div className="relative listing-detail-hero">
-        <ListingImage
-          image={listing.image}
-          alt={listing.title}
-          size="hero"
-          priority
-          category={listing.category}
-          type={listing.type}
-          frameClassName={`h-56 w-full rounded-none bg-gradient-to-br ${tint}`}
-        />
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[color:var(--circle-canvas)] via-[color:var(--circle-canvas)]/55 to-transparent"
-          aria-hidden
-        />
-      </div>
+      <ListingGallery
+        images={gallery}
+        alt={listing.title}
+        category={listing.category}
+        type={listing.type}
+      />
 
       <div className="px-4 -mt-3 relative listing-detail-rise">
         <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
@@ -179,6 +171,10 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         <p className="text-[13.5px] text-ink-muted dark:text-zinc-300 leading-[1.75] mt-3.5 whitespace-pre-line">
           {listing.description}
         </p>
+
+        {listing.specs && listing.specs.length > 0 && (
+          <ListingSpecs specs={listing.specs} />
+        )}
 
         <ul className="flex flex-wrap gap-2 mt-4">
           <li className="chip bg-[color:var(--circle-surface)] text-ink-muted ring-1 ring-stone-200/60 dark:ring-zinc-700/80">
@@ -268,16 +264,15 @@ export default function ListingClassic(_props: { params: { id: string } }) {
 
             {isDirect && seller ? (
               <>
-                <p className="text-[15px] font-extrabold text-ink dark:text-zinc-50 leading-snug">
-                  {seller.name}، {relationLine} است
-                </p>
-                <p className="text-[12px] text-ink-muted mt-1">
-                  ارتباط مستقیم · حلقه {relationLabels[seller.relation]}
-                </p>
-                {listing.endorsements.length > 0 && (
-                  <div className="mt-2.5">
+                {listing.endorsements.length > 0 ? (
+                  <div className="mb-1">
                     <EndorsementSummary endorsements={listing.endorsements} />
                   </div>
+                ) : (
+                  <p className="text-[13px] text-ink-muted leading-relaxed">
+                    فروشنده در حلقه مستقیم شماست — جزئیات رابطه را در کارت بالا
+                    می‌بینی.
+                  </p>
                 )}
                 <button
                   type="button"

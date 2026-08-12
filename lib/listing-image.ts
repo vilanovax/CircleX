@@ -9,6 +9,17 @@ export function isListingPhoto(image: string): boolean {
   return PHOTO_PREFIXES.some((p) => v.startsWith(p));
 }
 
+/** Gallery slides for detail — prefers `images`, else cover `image`. */
+export function listingGalleryImages(listing: {
+  image: string;
+  images?: string[];
+}): string[] {
+  if (listing.images && listing.images.length > 0) {
+    return listing.images;
+  }
+  return [listing.image];
+}
+
 /** Category / type tint for emoji placeholders. */
 export function listingImageTint(
   category?: string,

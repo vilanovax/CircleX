@@ -19,10 +19,37 @@ export default function AddListingSheet({
   onBack?: () => void;
 }) {
   const formRef = useRef<ListingComposeHandle>(null);
-  const [canSubmit, setCanSubmit] = useState(false);
-  const onCanSubmitChange = useCallback((can: boolean) => {
-    setCanSubmit(can);
-  }, []);
+  const [footer, setFooter] = useState<{
+    canSubmit: boolean;
+    primaryLabel: string;
+    hint?: string;
+    step: "compose" | "review";
+  }>({
+    canSubmit: false,
+    primaryLabel: "ادامه و پیش‌نمایش",
+    hint: "چند جمله درباره کالا بنویس (حداقل ۱۲ حرف)",
+    step: "compose",
+  });
+
+  const onFooterMetaChange = useCallback(
+    (meta: {
+      canSubmit: boolean;
+      primaryLabel: string;
+      hint?: string;
+      step: "compose" | "review";
+    }) => {
+      setFooter(meta);
+    },
+    [],
+  );
+
+  const handleSheetBack = () => {
+    if (footer.step === "review") {
+      formRef.current?.goBack?.();
+      return;
+    }
+    onBack?.();
+  };
 
   return (
     <SheetShell
@@ -31,9 +58,9 @@ export default function AddListingSheet({
       zClass="z-50"
       footer={
         <div>
-          {!canSubmit && (
+          {footer.hint && (
             <p className="text-[11px] text-ink-faint text-center mb-2">
-              عنوان و توضیحات را کامل کن
+              {footer.hint}
             </p>
           )}
           <div className="flex gap-2">
@@ -46,34 +73,36 @@ export default function AddListingSheet({
             </button>
             <button
               type="button"
-              disabled={!canSubmit}
+              disabled={!footer.canSubmit}
               onClick={() => formRef.current?.submit()}
               className="btn-primary flex-1 !py-3.5 shadow-lg shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150"
             >
-              انتشار آگهی
+              {footer.primaryLabel}
             </button>
           </div>
         </div>
       }
     >
       <div className="mb-1">
-        {onBack && (
+        {(onBack || footer.step === "review") && (
           <button
             type="button"
-            onClick={onBack}
+            onClick={handleSheetBack}
             className="text-[12px] text-brand-600 dark:text-brand-400 font-semibold mb-1.5 active:opacity-80"
           >
-            ‹ بازگشت
+            ‹ {footer.step === "review" ? "بازگشت به متن" : "بازگشت"}
           </button>
         )}
         <h2
           id="add-listing-title"
           className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 leading-tight"
         >
-          ثبت آگهی جدید
+          {footer.step === "review" ? "پیش‌نمایش آگهی" : "ثبت آگهی جدید"}
         </h2>
         <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
-          فقط برای حلقه‌ی اعتمادت دیده می‌شود — نه غریبه‌ها.
+          {footer.step === "review"
+            ? "پیشنهادها را تأیید یا اصلاح کن، بعد منتشر کن."
+            : "فقط برای حلقه‌ی اعتمادت دیده می‌شود — نه غریبه‌ها."}
         </p>
       </div>
 
@@ -81,7 +110,7 @@ export default function AddListingSheet({
         <ListingComposeForm
           ref={formRef}
           hideActions
-          onCanSubmitChange={onCanSubmitChange}
+          onFooterMetaChange={onFooterMetaChange}
           onSubmit={onAdd}
         />
       </div>

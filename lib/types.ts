@@ -150,6 +150,12 @@ export interface Offer {
   postedAt: string;
 }
 
+/** One labeled fact on a listing detail (dimensions, fabric, visit, …). */
+export interface ListingSpec {
+  label: string;
+  value: string;
+}
+
 export interface Listing {
   id: string;
   title: string;
@@ -158,8 +164,15 @@ export interface Listing {
   /** Price in Toman; undefined for donation / loan / exchange. */
   price?: number;
   category: string;
-  /** Photo URL / data URL, or emoji placeholder when no photo. */
+  /** Cover photo URL / data URL, or emoji placeholder when no photo. */
   image: string;
+  /**
+   * Gallery photos (detail). When omitted, detail falls back to `[image]`.
+   * Feed cards keep using `image` as the cover.
+   */
+  images?: string[];
+  /** Product / service facts shown under the description. */
+  specs?: ListingSpec[];
   sellerId: string;
   /** Relative time label, e.g. "۲ ساعت پیش". */
   postedAt: string;
