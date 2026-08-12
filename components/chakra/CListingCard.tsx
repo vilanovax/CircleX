@@ -73,10 +73,14 @@ export default function CListingCard({
           <Text>📍 {listing.city}</Text>
           <Text>·</Text>
           <Text>{listing.postedAt}</Text>
-          <Text>·</Text>
-          <Text title={privacyLabels[listing.privacy]}>
-            {privacyEmoji[listing.privacy]} {privacyLabels[listing.privacy]}
-          </Text>
+          {!compactTrust && (
+            <>
+              <Text>·</Text>
+              <Text title={privacyLabels[listing.privacy]}>
+                {privacyEmoji[listing.privacy]} {privacyLabels[listing.privacy]}
+              </Text>
+            </>
+          )}
         </HStack>
       </Box>
     </Box>

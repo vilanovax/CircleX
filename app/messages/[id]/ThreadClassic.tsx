@@ -76,7 +76,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
           href={`/person/${peerId}`}
           className="flex items-center gap-2.5 min-w-0 active:opacity-70"
         >
-          <Avatar name={peer.name} level={peer.level} size="sm" />
+          <Avatar name={peer.name} src={peer.avatar} level={peer.level} size="sm" />
           <div className="min-w-0">
             <p className="font-extrabold text-[14px] text-ink dark:text-zinc-100 leading-tight truncate">
               {peer.name}
@@ -116,7 +116,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
       >
         {thread.length === 0 ? (
           <div className="flex flex-col items-center text-center pt-16 px-6">
-            <Avatar name={peer.name} level={peer.level} size="lg" />
+            <Avatar name={peer.name} src={peer.avatar} level={peer.level} size="lg" />
             <p className="font-bold text-ink dark:text-zinc-100 mt-4">
               گفتگو با {peer.name}
             </p>
@@ -151,7 +151,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
                     {!msg.fromMe && (
                       <div className="w-8 shrink-0">
                         {showAvatar ? (
-                          <Avatar name={peer.name} level={peer.level} size="sm" />
+                          <Avatar name={peer.name} src={peer.avatar} level={peer.level} size="sm" />
                         ) : null}
                       </div>
                     )}

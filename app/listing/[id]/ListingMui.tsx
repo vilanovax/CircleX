@@ -179,7 +179,7 @@ export default function ListingMui(_props: { params: { id: string } }) {
           <Card sx={{ borderRadius: 3 }}>
             <CardActionArea component={Link} href={`/person/${listing.sellerId}`} sx={{ p: 2 }}>
               <Stack direction="row" spacing={1.5} alignItems="center">
-                <MuiAvatar name={seller.name} level={seller.level} size="lg" />
+                <MuiAvatar name={seller.name} src={seller.avatar} level={seller.level} size="lg" />
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography fontWeight={700}>{seller.name}</Typography>
                   <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.25 }}>

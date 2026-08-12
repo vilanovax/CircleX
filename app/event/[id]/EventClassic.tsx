@@ -192,8 +192,6 @@ export default function EventClassic(_props: { params: { id: string } }) {
             posterId={event.hostId}
             trustPath={event.trustPath}
             variant="full"
-            posterRole="میزبان"
-            viewerRole="شما"
           />
 
           {host && !isMine && (
@@ -201,7 +199,7 @@ export default function EventClassic(_props: { params: { id: string } }) {
               href={`/person/${event.hostId}`}
               className="mt-3.5 pt-3.5 border-t border-stone-100 dark:border-zinc-800 flex items-center gap-3 active:opacity-80 transition-opacity"
             >
-              <Avatar name={host.name} level={host.level} size="md" />
+              <Avatar name={host.name} src={host.avatar} level={host.level} size="md" />
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-[14px] text-ink dark:text-zinc-100">
                   {host.name}
@@ -267,6 +265,7 @@ export default function EventClassic(_props: { params: { id: string } }) {
                     {p || me ? (
                       <Avatar
                         name={name}
+                        src={p?.avatar}
                         level={me ? undefined : p!.level}
                         size="sm"
                       />

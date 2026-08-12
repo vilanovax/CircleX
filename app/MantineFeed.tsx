@@ -20,6 +20,7 @@ import MListingCard from "@/components/mantine/MListingCard";
 import MBottomNav from "@/components/mantine/MBottomNav";
 import MAvatar from "@/components/mantine/MAvatar";
 import Onboarding from "@/components/Onboarding";
+import NewUserHomePlaceholder from "@/components/NewUserHomePlaceholder";
 import { CircleUsersIcon, SearchIcon, ShieldCheckIcon } from "@/components/Icons";
 import { formatPrice, listingTypeEmoji, listingTypeLabels } from "@/lib/labels";
 import type { CircleEvent, ListingType, Request } from "@/lib/types";
@@ -131,109 +132,93 @@ export default function MantineFeed() {
         </ScrollArea>
       </Box>
 
-      {/* Trust banner — before onboarding */}
-      {!onboarded && (
-        <Box px="md" pt="sm">
-          <Paper
-            radius="lg"
-            p="md"
-            style={{
-              background:
-                "linear-gradient(to left, var(--mantine-color-brand-6), var(--mantine-color-brand-5))",
-              color: "#fff",
-            }}
-          >
-            <Text fw={700} fz="sm">
-              اینجا کسی غریبه نیست
+      {hydrated && !onboarded ? (
+        <NewUserHomePlaceholder />
+      ) : (
+        <>
+          {/* Quick access — while circle is small */}
+          {circleCount <= 2 && (
+            <Group grow gap="xs" px="md" pt="sm">
+              <Shortcut href="/requests" emoji="🔎" label="درخواست‌ها" color="orange" />
+              <Shortcut href="/events" emoji="🎉" label="رویدادها" color="brand" />
+            </Group>
+          )}
+
+          {/* Empty-circle CTA after onboarding */}
+          {hydrated && circleCount === 0 && (
+            <Box px="md" pt="md">
+              <Card withBorder radius="lg" p="md" ta="center">
+                <ThemeIcon size={48} radius="xl" variant="light" color="brand" mx="auto" mb="xs">
+                  <CircleUsersIcon className="w-6 h-6" />
+                </ThemeIcon>
+                <Text fw={700} fz="sm">
+                  اول حلقه‌ات را بساز
+                </Text>
+                <Text fz="xs" c="dimmed" mt={4} style={{ lineHeight: 1.7 }}>
+                  با افزودن خانواده و دوستان مورد اعتماد، آگهی‌ها و رویدادهای آن‌ها اینجا ظاهر می‌شود.
+                </Text>
+                <Anchor component={Link} href="/circle" mt="sm" fz="sm" fw={600}>
+                  افزودن به حلقه ←
+                </Anchor>
+              </Card>
+            </Box>
+          )}
+
+          {/* Listings feed */}
+          <Box px="md" pt="lg">
+            <Text fw={700} fz="sm" c="dimmed" mb="xs">
+              آگهی‌ها
             </Text>
-            <Text fz="xs" mt={4} style={{ opacity: 0.9, lineHeight: 1.7 }}>
-              هر آگهی از مسیر اعتمادی به شما می‌رسد: «این فروشنده، دوستِ همکارِ خواهرِ شماست.»
-            </Text>
-          </Paper>
-        </Box>
-      )}
+            {!hydrated ? (
+              <Stack gap="sm">
+                {[0, 1, 2].map((i) => (
+                  <Card key={i} withBorder radius="lg" p="sm" h={120} />
+                ))}
+              </Stack>
+            ) : visible.length === 0 ? (
+              <FeedEmptyState
+                hasFilter={hasFilter}
+                onClear={() => {
+                  setFilter("all");
+                  setQuery("");
+                }}
+              />
+            ) : (
+              <Stack gap="sm">
+                {visible.map((l) => (
+                  <MListingCard key={l.id} listing={l} compactTrust />
+                ))}
+              </Stack>
+            )}
 
-      {/* Quick access — while circle is small */}
-      {circleCount <= 2 && (
-        <Group grow gap="xs" px="md" pt="sm">
-          <Shortcut href="/requests" emoji="🔎" label="درخواست‌ها" color="orange" />
-          <Shortcut href="/events" emoji="🎉" label="رویدادها" color="brand" />
-        </Group>
-      )}
+            {hidden > 0 && (
+              <Group justify="center" gap={6} py="sm" c="dimmed">
+                <CircleUsersIcon className="w-4 h-4" />
+                <Text fz={11}>
+                  {toPersianDigits(hidden)} آگهی به‌دلیل تنظیمات حریم خصوصی برای شما قابل نمایش نیست
+                </Text>
+              </Group>
+            )}
+          </Box>
 
-      {/* New-user first step */}
-      {hydrated && circleCount === 0 && (
-        <Box px="md" pt="md">
-          <Card withBorder radius="lg" p="md" ta="center">
-            <ThemeIcon size={48} radius="xl" variant="light" color="brand" mx="auto" mb="xs">
-              <CircleUsersIcon className="w-6 h-6" />
-            </ThemeIcon>
-            <Text fw={700} fz="sm">
-              اول حلقه‌ات را بساز
-            </Text>
-            <Text fz="xs" c="dimmed" mt={4} style={{ lineHeight: 1.7 }}>
-              با افزودن خانواده و دوستان مورد اعتماد، آگهی‌ها و رویدادهای آن‌ها اینجا ظاهر می‌شود.
-            </Text>
-            <Anchor component={Link} href="/circle" mt="sm" fz="sm" fw={600}>
-              افزودن به حلقه ←
-            </Anchor>
-          </Card>
-        </Box>
-      )}
+          {/* Events strip */}
+          {onboarded && visibleEvents.length > 0 && (
+            <StripSection title="رویدادهای پیش‌رو" href="/events">
+              {visibleEvents.map((ev) => (
+                <EventStripCard key={ev.id} event={ev} />
+              ))}
+            </StripSection>
+          )}
 
-      {/* Listings feed */}
-      <Box px="md" pt="lg">
-        <Text fw={700} fz="sm" c="dimmed" mb="xs">
-          آگهی‌ها
-        </Text>
-        {!hydrated ? (
-          <Stack gap="sm">
-            {[0, 1, 2].map((i) => (
-              <Card key={i} withBorder radius="lg" p="sm" h={120} />
-            ))}
-          </Stack>
-        ) : visible.length === 0 ? (
-          <FeedEmptyState
-            hasFilter={hasFilter}
-            onClear={() => {
-              setFilter("all");
-              setQuery("");
-            }}
-          />
-        ) : (
-          <Stack gap="sm">
-            {visible.map((l) => (
-              <MListingCard key={l.id} listing={l} compactTrust />
-            ))}
-          </Stack>
-        )}
-
-        {hidden > 0 && (
-          <Group justify="center" gap={6} py="sm" c="dimmed">
-            <CircleUsersIcon className="w-4 h-4" />
-            <Text fz={11}>
-              {toPersianDigits(hidden)} آگهی به‌دلیل تنظیمات حریم خصوصی برای شما قابل نمایش نیست
-            </Text>
-          </Group>
-        )}
-      </Box>
-
-      {/* Events strip */}
-      {visibleEvents.length > 0 && (
-        <StripSection title="رویدادهای پیش‌رو" href="/events">
-          {visibleEvents.map((ev) => (
-            <EventStripCard key={ev.id} event={ev} />
-          ))}
-        </StripSection>
-      )}
-
-      {/* Requests strip */}
-      {visibleRequests.length > 0 && (
-        <StripSection title="درخواست‌های حلقه" href="/requests">
-          {visibleRequests.map((r) => (
-            <RequestStripCard key={r.id} request={r} />
-          ))}
-        </StripSection>
+          {/* Requests strip */}
+          {onboarded && visibleRequests.length > 0 && (
+            <StripSection title="درخواست‌های حلقه" href="/requests">
+              {visibleRequests.map((r) => (
+                <RequestStripCard key={r.id} request={r} />
+              ))}
+            </StripSection>
+          )}
+        </>
       )}
 
       <Onboarding />
@@ -355,7 +340,7 @@ function EventStripCard({ event }: { event: CircleEvent }) {
     >
       {host && (
         <Group gap="xs" mb="xs" wrap="nowrap">
-          <MAvatar name={host.name} level={host.level} size="sm" />
+          <MAvatar name={host.name} src={host.avatar} level={host.level} size="sm" />
           <Text fz={11} c="dimmed" truncate>
             {host.name}
           </Text>
@@ -410,7 +395,7 @@ function RequestStripCard({ request }: { request: Request }) {
     >
       {requester && (
         <Group gap="xs" mb="xs" wrap="nowrap">
-          <MAvatar name={requester.name} level={requester.level} size="sm" />
+          <MAvatar name={requester.name} src={requester.avatar} level={requester.level} size="sm" />
           <Text fz={11} c="dimmed" truncate>
             {requester.name}
           </Text>

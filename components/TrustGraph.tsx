@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
-import { personAvatarHex, personInitials } from "@/lib/avatar";
+import { resolveAvatarSrc } from "@/lib/avatar";
 import { buildTrustGraph, pathToMe } from "@/lib/graph";
 import { relationLabels, levelShort } from "@/lib/labels";
 import type { TrustLevel } from "@/lib/types";
@@ -182,9 +182,23 @@ export default function TrustGraph() {
                         filter={isMe ? "url(#tg-soft)" : undefined}
                       />
                     )}
+                    <defs>
+                      <clipPath id={`tg-clip-${n.id}`}>
+                        <circle r={r} />
+                      </clipPath>
+                    </defs>
+                    <image
+                      href={resolveAvatarSrc(n.name, n.avatar)}
+                      x={-r}
+                      y={-r}
+                      width={r * 2}
+                      height={r * 2}
+                      clipPath={`url(#tg-clip-${n.id})`}
+                      preserveAspectRatio="xMidYMid slice"
+                    />
                     <circle
                       r={r}
-                      fill={isMe ? BRAND : personAvatarHex(n.name)}
+                      fill="none"
                       stroke={
                         isMe
                           ? "rgba(255,255,255,0.35)"
@@ -192,15 +206,6 @@ export default function TrustGraph() {
                       }
                       strokeWidth={isMe ? 2 : isSelected ? 3 : 2.4}
                     />
-                    <text
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                      fontSize={isMe ? 14 : 11.5}
-                      fontWeight={700}
-                      className="fill-white"
-                    >
-                      {personInitials(n.name)}
-                    </text>
                     <text
                       y={r + 12}
                       textAnchor="middle"
@@ -237,13 +242,19 @@ export default function TrustGraph() {
         {selectedNode && selectedPerson ? (
           <div className="rounded-xl border border-brand-200/70 dark:border-brand-500/25 bg-brand-50/50 dark:bg-brand-500/10 p-3.5 animate-fade-up">
             <div className="flex items-center gap-2.5 mb-2">
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 ring-2 ring-white dark:ring-zinc-900"
-                style={{
-                  backgroundColor: personAvatarHex(selectedPerson.name),
-                }}
-              >
-                {personInitials(selectedPerson.name)}
+              <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 ring-2 ring-white dark:ring-zinc-900 bg-zinc-100 dark:bg-zinc-800">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={resolveAvatarSrc(
+                    selectedPerson.name,
+                    selectedPerson.avatar,
+                  )}
+                  alt=""
+                  width={40}
+                  height={40}
+                  className="w-full h-full object-cover"
+                  draggable={false}
+                />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 flex-wrap">

@@ -105,7 +105,7 @@ export default function MantineProfile() {
         {/* Identity + score */}
         <Card withBorder radius="lg" p="md">
           <Group gap="md" wrap="nowrap" align="flex-start">
-            <MAvatar name={me.name} size="lg" />
+            <MAvatar name={me.name} src={me.avatar} size="lg" />
             <Box style={{ flex: 1, minWidth: 0 }}>
               <Group justify="space-between" align="flex-start" wrap="nowrap">
                 <Box style={{ minWidth: 0 }}>
@@ -430,6 +430,7 @@ export default function MantineProfile() {
         opened={showEdit}
         name={me.name}
         city={me.city ?? ""}
+        avatar={me.avatar}
         onClose={() => setShowEdit(false)}
         onSave={(input) => {
           updateProfile(input);
@@ -597,12 +598,14 @@ function EditProfileModal({
   opened,
   name: initialName,
   city: initialCity,
+  avatar,
   onClose,
   onSave,
 }: {
   opened: boolean;
   name: string;
   city: string;
+  avatar?: string;
   onClose: () => void;
   onSave: (input: { name: string; city: string }) => void;
 }) {
@@ -627,9 +630,9 @@ function EditProfileModal({
     >
       <Stack gap="md" align="stretch">
         <Stack gap={6} align="center">
-          <MAvatar name={name.trim() || initialName} size="lg" />
+          <MAvatar name={name.trim() || initialName} src={avatar} size="lg" />
           <Text fz={11} c="dimmed" ta="center">
-            آواتار از حرف اول نام ساخته می‌شود
+            آواتار اختصاصی پروفایل شما
           </Text>
         </Stack>
         <TextInput

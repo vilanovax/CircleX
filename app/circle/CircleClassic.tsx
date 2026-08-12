@@ -257,7 +257,7 @@ function CircleMemberRow({
         href={`/person/${person.id}`}
         className="flex items-center gap-3 min-w-0 flex-1 active:opacity-90 transition-opacity"
       >
-        <Avatar name={person.name} level={person.level} size="md" />
+        <Avatar name={person.name} src={person.avatar} level={person.level} size="md" />
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="font-bold text-[14px] text-ink dark:text-zinc-100 truncate">

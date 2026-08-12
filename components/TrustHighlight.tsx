@@ -6,15 +6,22 @@ import { useStore } from "@/lib/store";
 import {
   endorsementHighlightLine,
   posterCardRelation,
+  posterProximityLabel,
   trustHighlightMessage,
   type TrustContentKind,
 } from "@/lib/trust";
 import { ShieldCheckIcon } from "./Icons";
 import Avatar from "./Avatar";
 
+const ENDORSED_SHORT: Record<TrustContentKind, string> = {
+  listing: "تأیید آگهی",
+  request: "تأیید درخواست",
+  event: "تأیید رویداد",
+};
+
 /**
  * Trust signal for cards — full on detail pages, compact one-line row on feed.
- * Compact variant is the product signature: who + one endorsement line.
+ * Compact: name (ink) · relation (muted) + optional degree for FoF + endorsement chip.
  */
 export default function TrustHighlight({
   posterId,
@@ -51,19 +58,33 @@ export default function TrustHighlight({
   );
   const isOwn = posterId === "me";
   const relation = posterCardRelation(poster, { isOwn, contentKind });
+  const proximity = isOwn ? null : posterProximityLabel(poster, trustPath);
+  const endorsedLabel = ENDORSED_SHORT[contentKind];
 
   if (variant === "line") {
     const inner = (
       <>
-        <Avatar name={poster.name} level={isOwn ? undefined : poster.level} size="sm" />
+        <Avatar
+          name={poster.name}
+          src={poster.avatar}
+          level={isOwn ? undefined : poster.level}
+          showLevel={false}
+          size="sm"
+        />
         <span className="text-[13px] min-w-0 truncate">
-          <span className="font-semibold text-zinc-800 dark:text-zinc-100">
+          <span className="font-bold text-ink dark:text-zinc-50">
             {poster.name}
           </span>
-          <span className={isOwn ? "text-zinc-500 dark:text-zinc-400" : "text-brand-700 dark:text-brand-300"}>
+          <span className="font-medium text-ink-muted dark:text-zinc-400">
             {" · "}
             {relation}
           </span>
+          {proximity && (
+            <span className="text-zinc-400 dark:text-zinc-500">
+              {" · "}
+              {proximity}
+            </span>
+          )}
         </span>
       </>
     );
@@ -80,7 +101,15 @@ export default function TrustHighlight({
             {inner}
           </Link>
         )}
-        <ShieldCheckIcon className="w-4 h-4 text-brand-500 shrink-0" aria-hidden />
+        {endorsementLine && !isOwn && (
+          <span
+            className="shrink-0 inline-flex items-center gap-0.5 text-levelA"
+            title={endorsementLine}
+            aria-label={endorsementLine}
+          >
+            <ShieldCheckIcon className="w-3.5 h-3.5" aria-hidden />
+          </span>
+        )}
       </div>
     );
   }
@@ -88,22 +117,39 @@ export default function TrustHighlight({
   if (variant === "compact") {
     const personRow = (
       <>
-        <Avatar name={poster.name} level={isOwn ? undefined : poster.level} size="sm" />
-        <div className="min-w-0 flex-1">
-          <p className="text-[12px] font-bold text-ink dark:text-zinc-100 truncate leading-tight">
-            {poster.name}
+        <Avatar
+          name={poster.name}
+          src={poster.avatar}
+          level={isOwn ? undefined : poster.level}
+          showLevel={false}
+          size="sm"
+        />
+        <div className="min-w-0 flex-1 leading-tight">
+          <p className="text-[12.5px] truncate">
+            <span className="font-extrabold text-ink dark:text-zinc-50">
+              {poster.name}
+            </span>
             <span className="font-medium text-ink-muted dark:text-zinc-400">
-              {" "}
-              · {relation}
+              {" · "}
+              {relation}
             </span>
           </p>
-          {endorsementLine && !isOwn && (
-            <p className="flex items-center gap-1 text-[11px] text-levelA font-semibold mt-0.5 truncate leading-tight">
-              <ShieldCheckIcon className="w-3 h-3 shrink-0" aria-hidden />
-              <span className="truncate">{endorsementLine}</span>
+          {proximity && (
+            <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5 truncate">
+              {proximity}
             </p>
           )}
         </div>
+        {endorsementLine && !isOwn && (
+          <span
+            className="shrink-0 inline-flex items-center gap-1 rounded-md bg-levelA/10 text-levelA px-1.5 py-0.5 text-[10px] font-bold"
+            title={endorsementLine}
+            aria-label={endorsementLine}
+          >
+            <ShieldCheckIcon className="w-3 h-3" aria-hidden />
+            {endorsedLabel}
+          </span>
+        )}
       </>
     );
 
@@ -138,6 +184,7 @@ export default function TrustHighlight({
               ? "bg-stone-200/80 text-stone-600 dark:bg-zinc-700"
               : "bg-levelA/15 text-levelA"
           }`}
+          title={isOwn ? undefined : endorsedLabel}
         >
           <ShieldCheckIcon className="w-5 h-5" />
         </div>
@@ -158,6 +205,11 @@ export default function TrustHighlight({
               }`}
             >
               {trust.subline}
+            </p>
+          )}
+          {proximity && !isOwn && (
+            <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1">
+              {proximity}
             </p>
           )}
           {endorsementLine && !isOwn && (

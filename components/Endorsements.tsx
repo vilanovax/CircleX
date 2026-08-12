@@ -3,24 +3,33 @@
 import type { Endorsement } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import Avatar from "./Avatar";
-import { badgeEmoji, badgeLabels } from "@/lib/labels";
+import { badgeEmoji, badgeResultLabels } from "@/lib/labels";
 import { toPersianDigits } from "@/lib/persian";
 
-/** Summary line: "۳ نفر از آدم‌های مورد اعتماد شما این را تأیید کرده‌اند". */
+/** Summary line for trust cards — names the endorser when there's only one. */
 export function EndorsementSummary({
   endorsements,
 }: {
   endorsements: Endorsement[];
 }) {
-  const people = new Set(endorsements.map((e) => e.personId));
-  if (people.size === 0) return null;
+  const { getPerson } = useStore();
+  const uniqueIds = Array.from(new Set(endorsements.map((e) => e.personId)));
+  if (uniqueIds.length === 0) return null;
+
+  let text: string;
+  if (uniqueIds.length === 1) {
+    const person = getPerson(uniqueIds[0]);
+    const name = person?.name ?? "یکی از حلقه شما";
+    const first = endorsements.find((e) => e.personId === uniqueIds[0])!;
+    text = `${name} ${badgeResultLabels[first.type]}`;
+  } else {
+    text = `${toPersianDigits(uniqueIds.length)} نفر از حلقه شما این آگهی را تأیید کرده‌اند`;
+  }
+
   return (
-    <div className="flex items-center gap-1.5 text-xs text-levelA font-medium">
-      <span>🛡️</span>
-      <span>
-        <span className="nums">{toPersianDigits(people.size)}</span> نفر از
-        آدم‌های مورد اعتماد شما تأیید کرده‌اند
-      </span>
+    <div className="flex items-start gap-1.5 text-[12px] text-levelA font-medium leading-snug">
+      <span aria-hidden>🛡</span>
+      <span>{text}</span>
     </div>
   );
 }
@@ -44,9 +53,14 @@ export function EndorsementList({
       {endorsements.map((e, i) => {
         const p = getPerson(e.personId);
         return (
-          <li key={i} className="flex items-center gap-2.5">
+          <li key={`${e.personId}-${e.type}-${i}`} className="flex items-center gap-2.5">
             {p ? (
-              <Avatar name={p.name} level={p.level} size="sm" />
+              <Avatar
+                name={p.name}
+                src={p.avatar}
+                showLevel={false}
+                size="sm"
+              />
             ) : (
               <div className="w-9 h-9 rounded-full bg-stone-100 dark:bg-zinc-800 shrink-0" />
             )}
@@ -56,7 +70,7 @@ export function EndorsementList({
               </span>
               <span className="text-ink-muted">
                 {" "}
-                {badgeEmoji[e.type]} {badgeLabels[e.type]}
+                {badgeEmoji[e.type]} {badgeResultLabels[e.type]}
               </span>
             </div>
           </li>

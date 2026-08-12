@@ -110,8 +110,6 @@ export default function RequestClassic(_props: { params: { id: string } }) {
             posterId={request.requesterId}
             trustPath={request.trustPath}
             variant="full"
-            posterRole="درخواست‌دهنده"
-            viewerRole="شما"
           />
         </div>
       </section>
@@ -122,7 +120,7 @@ export default function RequestClassic(_props: { params: { id: string } }) {
             href={`/person/${request.requesterId}`}
             className="card px-3.5 py-3 flex items-center gap-3 active:scale-[0.99] transition-transform"
           >
-            <Avatar name={requester.name} level={requester.level} size="md" />
+            <Avatar name={requester.name} src={requester.avatar} level={requester.level} size="md" />
             <div className="flex-1 min-w-0">
               <p className="font-bold text-[14px] text-ink dark:text-zinc-100">
                 {requester.name}
@@ -167,6 +165,7 @@ export default function RequestClassic(_props: { params: { id: string } }) {
                     {from || mine ? (
                       <Avatar
                         name={mine ? "شما" : from!.name}
+                        src={from?.avatar}
                         level={mine ? undefined : from!.level}
                         size="sm"
                       />

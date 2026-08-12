@@ -84,10 +84,14 @@ export default function MListingCard({
           </Text>
           <Text fz={11} c="dimmed">·</Text>
           <Text fz={11} c="dimmed">{listing.postedAt}</Text>
-          <Text fz={11} c="dimmed">·</Text>
-          <Text fz={11} c="dimmed" title={privacyLabels[listing.privacy]}>
-            {privacyEmoji[listing.privacy]} {privacyLabels[listing.privacy]}
-          </Text>
+          {!compactTrust && (
+            <>
+              <Text fz={11} c="dimmed">·</Text>
+              <Text fz={11} c="dimmed" title={privacyLabels[listing.privacy]}>
+                {privacyEmoji[listing.privacy]} {privacyLabels[listing.privacy]}
+              </Text>
+            </>
+          )}
         </Group>
       </Card.Section>
     </Card>

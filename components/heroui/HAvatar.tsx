@@ -2,29 +2,30 @@
 
 import { Avatar, Badge } from "@heroui/react";
 import type { TrustLevel } from "@/lib/types";
-import { personAvatarHex, personInitials } from "@/lib/avatar";
+import { resolveAvatarSrc } from "@/lib/avatar";
 import { levelHex } from "./shared";
 
 const SIZES = { sm: "sm", md: "md", lg: "lg" } as const;
 
-/** HeroUI equivalent of the classic Avatar: initials on a stable color with an
- *  optional trust-level badge. */
+/** HeroUI avatar with funny illustration + optional trust-level badge. */
 export default function HAvatar({
   name,
   level,
   size = "md",
+  src,
 }: {
   name: string;
   level?: TrustLevel;
   size?: keyof typeof SIZES;
+  src?: string;
 }) {
+  const imageSrc = resolveAvatarSrc(name, src);
   const avatar = (
     <Avatar
       size={SIZES[size]}
-      name={personInitials(name)}
-      getInitials={(s) => s}
-      style={{ backgroundColor: personAvatarHex(name), color: "#fff" }}
-      classNames={{ name: "font-bold" }}
+      src={imageSrc}
+      name={name}
+      classNames={{ img: "object-cover" }}
     />
   );
 

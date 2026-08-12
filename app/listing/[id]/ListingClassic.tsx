@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import ListingImage from "@/components/ListingImage";
@@ -21,13 +21,13 @@ import {
   formatPrice,
   listingTypeChip,
   listingTypeLabels,
-  privacyLabels,
+  privacyDetailLabels,
   relationLabels,
 } from "@/lib/labels";
 import type { BadgeType } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
 import LockedAccess from "@/components/LockedAccess";
-import { canView, privacyAudience } from "@/lib/trust";
+import { canView, privacyAudience, viewerRelationPhrase } from "@/lib/trust";
 import { useToast } from "@/components/Toast";
 import { listingImageTint } from "@/lib/listing-image";
 
@@ -48,9 +48,19 @@ export default function ListingClassic(_props: { params: { id: string } }) {
     useStore();
   const { show } = useToast();
   const [showRefer, setShowRefer] = useState(false);
+  const [pathExpanded, setPathExpanded] = useState(true);
   const saved = isSaved(id);
 
   const listing = getListing(id);
+  const isDirectTrust =
+    !!listing &&
+    listing.sellerId !== "me" &&
+    listing.trustPath.length === 0;
+
+  useEffect(() => {
+    setPathExpanded(!isDirectTrust);
+  }, [id, isDirectTrust]);
+
   if (!listing) {
     return (
       <main className="min-h-[100dvh]">
@@ -62,14 +72,16 @@ export default function ListingClassic(_props: { params: { id: string } }) {
 
   const seller = getPerson(listing.sellerId);
   const isMine = listing.sellerId === "me";
+  const isDirect = isDirectTrust;
   const circle = people.filter((p) => p.inMyCircle);
   const tint = listingImageTint(listing.category, listing.type);
-  const ctaLabel =
-    listing.type === "donation"
-      ? "پیام برای درخواست این کالا"
-      : listing.type === "service"
-        ? "پیام برای رزرو خدمت"
-        : "پیام به فروشنده";
+
+  const ctaLabel = (() => {
+    if (listing.type === "donation") return "پیام برای درخواست این کالا";
+    if (listing.type === "service") return "پیام برای رزرو خدمت";
+    if (seller) return `پیام به ${seller.name}`;
+    return "پیام به فروشنده";
+  })();
 
   if (!isMine && !canView(listing, getPerson)) {
     return (
@@ -83,6 +95,8 @@ export default function ListingClassic(_props: { params: { id: string } }) {
       </main>
     );
   }
+
+  const relationLine = seller ? viewerRelationPhrase(seller) : "";
 
   return (
     <main className="pb-28 min-h-[100dvh]">
@@ -113,7 +127,6 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         }
       />
 
-      {/* Full-bleed hero */}
       <div className="relative listing-detail-hero">
         <ListingImage
           image={listing.image}
@@ -130,7 +143,6 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         />
       </div>
 
-      {/* Title block — one composition, not a card */}
       <div className="px-4 -mt-3 relative listing-detail-rise">
         <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
           <span className={`chip ${listingTypeChip[listing.type]}`}>
@@ -179,43 +191,14 @@ export default function ListingClassic(_props: { params: { id: string } }) {
             className="chip bg-[color:var(--circle-surface)] text-ink-muted ring-1 ring-stone-200/60 dark:ring-zinc-700/80"
             title={privacyAudience(listing.privacy, circle)}
           >
-            {privacyLabels[listing.privacy]}
+            {privacyDetailLabels[listing.privacy]}
           </li>
         </ul>
       </div>
 
-      {/* Trust — product signature */}
-      <section className="px-4 pt-5">
-        <div className="card trust-card p-4">
-          <div className="flex items-center gap-2 mb-3.5">
-            <span className="w-8 h-8 rounded-xl bg-[color:var(--circle-trust)]/12 text-[color:var(--circle-trust)] flex items-center justify-center shrink-0">
-              <ShieldCheckIcon className="w-[18px] h-[18px]" />
-            </span>
-            <div className="min-w-0">
-              <h2 className="font-bold text-[14px] text-ink dark:text-zinc-100 leading-tight">
-                مسیر اعتماد
-              </h2>
-              <p className="text-[11px] text-ink-muted mt-0.5">
-                چطور به این آگهی وصلی
-              </p>
-            </div>
-          </div>
-          <TrustPath
-            posterId={listing.sellerId}
-            trustPath={listing.trustPath}
-            variant="full"
-          />
-          {listing.endorsements.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-stone-100 dark:border-zinc-800">
-              <EndorsementSummary endorsements={listing.endorsements} />
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Seller */}
+      {/* Seller first — decide who, then trust details */}
       {seller && !isMine && (
-        <section className="px-4 pt-3">
+        <section className="px-4 pt-5">
           <p className="text-[11px] font-semibold text-ink-faint mb-2 px-0.5">
             فروشنده
           </p>
@@ -223,18 +206,30 @@ export default function ListingClassic(_props: { params: { id: string } }) {
             href={`/person/${listing.sellerId}`}
             className="card px-3.5 py-3.5 flex items-center gap-3 active:scale-[0.99] transition-transform duration-150"
           >
-            <Avatar name={seller.name} level={seller.level} size="md" />
+            <Avatar
+              name={seller.name}
+              src={seller.avatar}
+              showLevel={false}
+              size="md"
+            />
             <div className="flex-1 min-w-0">
               <p className="font-bold text-[15px] text-ink dark:text-zinc-100">
                 {seller.name}
               </p>
               <p className="text-[12px] text-ink-muted mt-0.5 truncate">
-                {seller.note ? `${seller.note} · ` : ""}
-                {relationLabels[seller.relation]}
+                {relationLine}
+                {" · "}
+                حلقه {relationLabels[seller.relation]}
               </p>
               <p className="text-[11px] text-ink-faint mt-1">
                 <span className="nums">{toPersianDigits(seller.deals)}</span>{" "}
-                معامله · {seller.city}
+                معامله در سیرکل · {seller.city}
+                {seller.memberSince ? (
+                  <>
+                    {" · "}عضو از{" "}
+                    <span className="nums">{seller.memberSince}</span>
+                  </>
+                ) : null}
               </p>
             </div>
             <span
@@ -247,7 +242,81 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         </section>
       )}
 
-      {/* Endorsements */}
+      {/* Trust — compact for direct, expandable path */}
+      {!isMine && (
+        <section className="px-4 pt-3">
+          <div className="card p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="w-8 h-8 rounded-xl bg-[color:var(--circle-trust)]/12 text-[color:var(--circle-trust)] flex items-center justify-center shrink-0">
+                <ShieldCheckIcon className="w-[18px] h-[18px]" />
+              </span>
+              <div className="min-w-0">
+                <h2 className="font-bold text-[14px] text-ink dark:text-zinc-100 leading-tight">
+                  ارتباط شما با فروشنده
+                </h2>
+                {isDirect && seller ? (
+                  <p className="text-[11px] text-ink-muted mt-0.5">
+                    این آگهی از حلقه مستقیم شماست
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-ink-muted mt-0.5">
+                    مسیر اعتماد تا این آگهی
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {isDirect && seller ? (
+              <>
+                <p className="text-[15px] font-extrabold text-ink dark:text-zinc-50 leading-snug">
+                  {seller.name}، {relationLine} است
+                </p>
+                <p className="text-[12px] text-ink-muted mt-1">
+                  ارتباط مستقیم · حلقه {relationLabels[seller.relation]}
+                </p>
+                {listing.endorsements.length > 0 && (
+                  <div className="mt-2.5">
+                    <EndorsementSummary endorsements={listing.endorsements} />
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setPathExpanded((v) => !v)}
+                  className="mt-3 text-[12px] font-bold text-brand-600 dark:text-brand-400"
+                  aria-expanded={pathExpanded}
+                >
+                  {pathExpanded
+                    ? "بستن مسیر ارتباط"
+                    : "مشاهده مسیر ارتباط ‹"}
+                </button>
+                {pathExpanded && (
+                  <div className="mt-3 pt-3 border-t border-stone-100 dark:border-zinc-800">
+                    <TrustPath
+                      posterId={listing.sellerId}
+                      trustPath={listing.trustPath}
+                      variant="full"
+                    />
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <TrustPath
+                  posterId={listing.sellerId}
+                  trustPath={listing.trustPath}
+                  variant="full"
+                />
+                {listing.endorsements.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-stone-100 dark:border-zinc-800">
+                    <EndorsementSummary endorsements={listing.endorsements} />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </section>
+      )}
+
       <section className="px-4 pt-3">
         <div className="card p-4">
           <div className="flex items-baseline justify-between gap-2 mb-3">
@@ -293,7 +362,6 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         </div>
       </section>
 
-      {/* Quiet referral — secondary, not another equal card */}
       {!isMine && (
         <section className="px-4 pt-3 pb-2">
           <button
@@ -306,10 +374,10 @@ export default function ListingClassic(_props: { params: { id: string } }) {
             </span>
             <span className="flex-1 min-w-0">
               <span className="block font-bold text-[13px] text-ink dark:text-zinc-100">
-                مناسب کسی از حلقه‌ات است؟
+                کسی در حلقه‌ات دنبال چنین چیزی است؟
               </span>
               <span className="block text-[11px] text-ink-muted mt-0.5">
-                فقط داخل حلقه معرفی کن
+                آگهی را فقط داخل حلقه برایش بفرست
               </span>
             </span>
             <span className="shrink-0 text-[12px] font-bold text-brand-600 dark:text-brand-400">
@@ -323,14 +391,6 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
           <div className="app-shell !min-h-0 !shadow-none bg-transparent">
             <div className="pointer-events-auto bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-xl border-t border-stone-200/70 dark:border-zinc-800 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-              {seller && (
-                <p className="text-[11px] text-ink-muted text-center mb-2 truncate">
-                  گفتگو با{" "}
-                  <span className="font-semibold text-ink dark:text-zinc-200">
-                    {seller.name}
-                  </span>
-                </p>
-              )}
               <button
                 type="button"
                 onClick={() => router.push(`/messages/${listing.sellerId}`)}

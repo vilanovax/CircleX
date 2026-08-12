@@ -155,7 +155,7 @@ export default function ListingHero(_props: { params: { id: string } }) {
         <section className="px-4 pt-3">
           <Card as={Link} href={`/person/${listing.sellerId}`} radius="lg" shadow="sm" isPressable className="w-full">
             <CardBody className="p-4 flex flex-row items-center gap-3">
-              <HAvatar name={seller.name} level={seller.level} size="lg" />
+              <HAvatar name={seller.name} src={seller.avatar} level={seller.level} size="lg" />
               <div className="flex-1 min-w-0">
                 <p className="font-bold">{seller.name}</p>
                 <p className="text-xs text-default-500 mt-0.5">

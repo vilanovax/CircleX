@@ -158,7 +158,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
       <div className="px-4 pt-3">
         <div className="card p-4">
           <div className="flex items-start gap-3">
-            <Avatar name={person.name} level={person.level} size="lg" />
+            <Avatar name={person.name} src={person.avatar} level={person.level} size="lg" />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <h2 className="text-[17px] font-extrabold text-ink dark:text-zinc-100">
@@ -542,8 +542,6 @@ function CircleSection({
             posterId={personId}
             trustPath={trustPath}
             variant="full"
-            posterRole={relationLabels[person.relation]}
-            viewerRole="شما"
           />
         )}
 

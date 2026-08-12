@@ -43,7 +43,7 @@ export default function HTrustHighlight({
   if (variant === "compact") {
     const identity = (
       <div className="flex items-center gap-2 min-w-0 flex-1">
-        <HAvatar name={poster.name} level={isOwn ? undefined : poster.level} size="sm" />
+        <HAvatar name={poster.name} src={poster.avatar} level={isOwn ? undefined : poster.level} size="sm" />
         <div className="min-w-0">
           <p className="text-sm font-semibold truncate">{poster.name}</p>
           <p className={`text-[11px] truncate ${isOwn ? "text-default-500" : "text-primary"}`}>{relation}</p>
@@ -60,11 +60,14 @@ export default function HTrustHighlight({
               {levelShort[poster.level]}
             </Chip>
           )}
-          <ShieldCheckIcon className="w-4 h-4 text-primary shrink-0" />
+          {endorsementLine && !isOwn ? (
+            <span title={endorsementLine} aria-label={endorsementLine} className="shrink-0 text-success">
+              <ShieldCheckIcon className="w-4 h-4" aria-hidden />
+            </span>
+          ) : (
+            <ShieldCheckIcon className="w-4 h-4 text-primary shrink-0" aria-hidden />
+          )}
         </div>
-        {endorsementLine && !isOwn && (
-          <p className="text-[11px] font-medium text-success mt-1">✓ {endorsementLine}</p>
-        )}
       </div>
     );
   }

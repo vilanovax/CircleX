@@ -53,7 +53,7 @@ export default function MTrustHighlight({
   if (variant === "compact") {
     const identity = (
       <Group gap="xs" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
-        <MAvatar name={poster.name} level={isOwn ? undefined : poster.level} size="sm" />
+        <MAvatar name={poster.name} src={poster.avatar} level={isOwn ? undefined : poster.level} size="sm" />
         <div style={{ minWidth: 0 }}>
           <Text fz="sm" fw={600} truncate>
             {poster.name}
@@ -85,15 +85,22 @@ export default function MTrustHighlight({
               {levelShort[poster.level]}
             </Badge>
           )}
-          <ThemeIcon size="sm" variant="transparent" color="brand">
-            <ShieldCheckIcon className="w-4 h-4" />
-          </ThemeIcon>
+          {endorsementLine && !isOwn ? (
+            <ThemeIcon
+              size="sm"
+              variant="transparent"
+              color="green"
+              title={endorsementLine}
+              aria-label={endorsementLine}
+            >
+              <ShieldCheckIcon className="w-4 h-4" />
+            </ThemeIcon>
+          ) : (
+            <ThemeIcon size="sm" variant="transparent" color="brand" aria-hidden>
+              <ShieldCheckIcon className="w-4 h-4" />
+            </ThemeIcon>
+          )}
         </Group>
-        {endorsementLine && !isOwn && (
-          <Text fz={11} fw={500} c="green.7">
-            ✓ {endorsementLine}
-          </Text>
-        )}
       </Stack>
     );
   }

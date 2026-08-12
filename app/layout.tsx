@@ -5,6 +5,7 @@ import { ToastProvider } from "@/components/Toast";
 import { ThemeProvider, themeScript } from "@/lib/theme";
 import { UIModeProvider, uiModeScript } from "@/lib/ui-mode";
 import ActiveUIProviders from "@/components/ActiveUIProviders";
+import RequireAuth from "@/components/RequireAuth";
 import { vazirmatn } from "@/lib/fonts";
 
 export const metadata: Metadata = {
@@ -45,7 +46,9 @@ export default function RootLayout({
             <ActiveUIProviders>
               <StoreProvider>
                 <ToastProvider>
-                  <div className="app-shell">{children}</div>
+                  <div className="app-shell">
+                    <RequireAuth>{children}</RequireAuth>
+                  </div>
                 </ToastProvider>
               </StoreProvider>
             </ActiveUIProviders>

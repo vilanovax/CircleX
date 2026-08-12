@@ -26,8 +26,10 @@ const items = [
 
 export default function BottomNav() {
   const pathname = useClientPathname();
-  // Hide until hydrated so mock unread (۴) doesn't flash over persisted (۳).
-  const unread = useStore((s) => (s.hydrated ? s.totalUnread() : 0));
+  // Hide until logged-in + onboarded so new users never see seeded unread (۴).
+  const unread = useStore((s) =>
+    s.hydrated && s.sessionPhone && s.onboarded ? s.totalUnread() : 0,
+  );
   const [showCreate, setShowCreate] = useState(false);
 
   return (
@@ -47,9 +49,14 @@ export default function BottomNav() {
                     <button
                       onClick={() => setShowCreate(true)}
                       aria-label="ثبت آگهی، درخواست یا رویداد"
-                      className="-mt-6 w-14 h-14 rounded-full bg-brand-600 text-white flex items-center justify-center shadow-lg shadow-brand-600/25 ring-[3px] ring-[color:var(--circle-surface)] dark:ring-zinc-900 active:scale-95 active:bg-brand-700 transition-[transform,colors] duration-150"
+                      className="flex flex-col items-center gap-0.5 -mt-6 active:scale-95 transition-transform duration-150"
                     >
-                      <Icon className="w-7 h-7" />
+                      <span className="w-14 h-14 rounded-full bg-brand-600 text-white flex items-center justify-center shadow-lg shadow-brand-600/25 ring-[3px] ring-[color:var(--circle-surface)] dark:ring-zinc-900 active:bg-brand-700">
+                        <Icon className="w-7 h-7" />
+                      </span>
+                      <span className="text-[11px] font-medium text-brand-600 dark:text-brand-400">
+                        {label}
+                      </span>
                     </button>
                   </li>
                 );

@@ -21,10 +21,13 @@ export function useSheetA11y(
     onEscape?: () => boolean;
     /** When false, trap is inactive (e.g. conditionally mounted sheet). */
     enabled?: boolean;
+    /** When false, caller owns initial focus (step changes, custom CTA). */
+    autoFocus?: boolean;
   },
 ) {
   const onEscape = options?.onEscape;
   const enabled = options?.enabled ?? true;
+  const autoFocus = options?.autoFocus ?? true;
 
   useEffect(() => {
     if (!enabled) return;
@@ -34,10 +37,12 @@ export function useSheetA11y(
 
     const previouslyFocused = document.activeElement as HTMLElement | null;
 
-    const focusFrame = requestAnimationFrame(() => {
-      const items = getFocusables(panel);
-      (items[0] ?? panel).focus();
-    });
+    const focusFrame = autoFocus
+      ? requestAnimationFrame(() => {
+          const items = getFocusables(panel);
+          (items[0] ?? panel).focus();
+        })
+      : null;
 
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
@@ -72,9 +77,9 @@ export function useSheetA11y(
 
     document.addEventListener("keydown", onKeyDown);
     return () => {
-      cancelAnimationFrame(focusFrame);
+      if (focusFrame != null) cancelAnimationFrame(focusFrame);
       document.removeEventListener("keydown", onKeyDown);
       previouslyFocused?.focus?.();
     };
-  }, [enabled, onClose, onEscape, panelRef]);
+  }, [autoFocus, enabled, onClose, onEscape, panelRef]);
 }

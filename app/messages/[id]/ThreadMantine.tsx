@@ -87,7 +87,7 @@ export default function ThreadMantine({ params }: { params: { id: string } }) {
           style={{ display: "block", minWidth: 0 }}
         >
           <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
-            <MAvatar name={peer.name} level={peer.level} size="sm" />
+            <MAvatar name={peer.name} src={peer.avatar} level={peer.level} size="sm" />
             <Box style={{ minWidth: 0 }}>
               <Text fw={800} fz="sm" lh={1.2} truncate>
                 {peer.name}
@@ -138,7 +138,7 @@ export default function ThreadMantine({ params }: { params: { id: string } }) {
       >
         {thread.length === 0 ? (
           <Stack align="center" gap={6} pt={64} px="lg" ta="center">
-            <MAvatar name={peer.name} level={peer.level} size="lg" />
+            <MAvatar name={peer.name} src={peer.avatar} level={peer.level} size="lg" />
             <Text fw={700} mt="sm">
               گفتگو با {peer.name}
             </Text>
@@ -171,7 +171,7 @@ export default function ThreadMantine({ params }: { params: { id: string } }) {
                     {!msg.fromMe && (
                       <Box w={32} style={{ flexShrink: 0 }}>
                         {showAvatar ? (
-                          <MAvatar name={peer.name} level={peer.level} size="sm" />
+                          <MAvatar name={peer.name} src={peer.avatar} level={peer.level} size="sm" />
                         ) : null}
                       </Box>
                     )}

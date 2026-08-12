@@ -32,7 +32,7 @@ export default function LockedMessaging({ peer }: { peer: Person }) {
           href={`/person/${peer.id}`}
           className="card flex items-center gap-3 p-3.5 active:bg-stone-50/80 dark:active:bg-zinc-800/60 transition-colors"
         >
-          <Avatar name={peer.name} level={peer.level} size="lg" />
+          <Avatar name={peer.name} src={peer.avatar} level={peer.level} size="lg" />
           <div className="flex-1 min-w-0 text-right">
             <p className="font-extrabold text-[16px] text-ink dark:text-zinc-50 truncate">
               {peer.name}

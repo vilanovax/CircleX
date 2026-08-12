@@ -2,38 +2,35 @@
 
 import { Avatar, Indicator } from "@mantine/core";
 import type { TrustLevel } from "@/lib/types";
-import { personAvatarHex, personInitials } from "@/lib/avatar";
+import { resolveAvatarSrc } from "@/lib/avatar";
 import { levelColor } from "./shared";
 
 const SIZES = { sm: 36, md: 48, lg: 64 } as const;
 
-/** Mantine equivalent of the classic Avatar: initials on a stable color,
- *  with an optional trust-level indicator. */
+/** Mantine avatar with funny illustration + optional trust-level indicator. */
 export default function MAvatar({
   name,
   level,
   size = "md",
+  src,
 }: {
   name: string;
   level?: TrustLevel;
   size?: keyof typeof SIZES;
+  src?: string;
 }) {
   const px = SIZES[size];
+  const imageSrc = resolveAvatarSrc(name, src);
   const avatar = (
     <Avatar
+      src={imageSrc}
+      alt={name}
       size={px}
       radius="xl"
-      variant="filled"
       styles={{
-        placeholder: {
-          backgroundColor: personAvatarHex(name),
-          color: "#fff",
-          fontWeight: 700,
-        },
+        root: { border: "1px solid rgba(0,0,0,0.06)" },
       }}
-    >
-      {personInitials(name)}
-    </Avatar>
+    />
   );
 
   if (!level) return avatar;

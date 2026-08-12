@@ -288,7 +288,7 @@ function CircleMemberRow({
           }}
         >
           <Group gap="sm" wrap="nowrap">
-            <MAvatar name={person.name} level={person.level} />
+            <MAvatar name={person.name} src={person.avatar} level={person.level} />
             <Stack gap={2} style={{ minWidth: 0 }}>
               <Group gap={6} wrap="wrap">
                 <Text fw={600}>{person.name}</Text>

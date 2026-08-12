@@ -29,7 +29,9 @@ const items = [
 /** Chakra variant of the bottom navigation bar. */
 export default function CBottomNav() {
   const pathname = useClientPathname();
-  const unread = useStore((s) => (s.hydrated ? s.totalUnread() : 0));
+  const unread = useStore((s) =>
+    s.hydrated && s.sessionPhone && s.onboarded ? s.totalUnread() : 0,
+  );
   const [showCreate, setShowCreate] = useState(false);
 
   return (

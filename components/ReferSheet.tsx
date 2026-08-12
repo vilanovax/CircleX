@@ -166,7 +166,7 @@ export default function ReferSheet({
                       : "active:bg-stone-50/90 dark:active:bg-zinc-800/70"
                   } disabled:opacity-60`}
                 >
-                  <Avatar name={p.name} level={p.level} size="sm" />
+                  <Avatar name={p.name} src={p.avatar} level={p.level} size="sm" />
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-bold text-ink dark:text-zinc-100 truncate">
                       {p.name}

@@ -46,7 +46,7 @@ export default function AddToCircleSheet({
       </p>
 
       <div className="flex items-center gap-3 mb-4 p-3 rounded-xl bg-stone-50 dark:bg-zinc-800/50 border border-stone-200/70 dark:border-zinc-700">
-        <Avatar name={person.name} level={person.level} size="md" />
+        <Avatar name={person.name} src={person.avatar} level={person.level} size="md" />
         <div>
           <p className="font-semibold text-ink dark:text-zinc-100">{person.name}</p>
           {person.city && (

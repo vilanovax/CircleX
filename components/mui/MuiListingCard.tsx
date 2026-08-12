@@ -73,10 +73,14 @@ export default function MuiListingCard({
           <Typography sx={{ fontSize: 11 }}>📍 {listing.city}</Typography>
           <Typography sx={{ fontSize: 11 }}>·</Typography>
           <Typography sx={{ fontSize: 11 }}>{listing.postedAt}</Typography>
-          <Typography sx={{ fontSize: 11 }}>·</Typography>
-          <Typography sx={{ fontSize: 11 }} title={privacyLabels[listing.privacy]}>
-            {privacyEmoji[listing.privacy]} {privacyLabels[listing.privacy]}
-          </Typography>
+          {!compactTrust && (
+            <>
+              <Typography sx={{ fontSize: 11 }}>·</Typography>
+              <Typography sx={{ fontSize: 11 }} title={privacyLabels[listing.privacy]}>
+                {privacyEmoji[listing.privacy]} {privacyLabels[listing.privacy]}
+              </Typography>
+            </>
+          )}
         </Stack>
       </CardActionArea>
     </Card>

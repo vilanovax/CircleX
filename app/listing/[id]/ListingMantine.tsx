@@ -219,7 +219,7 @@ export default function ListingMantine({ params }: { params: { id: string } }) {
             style={{ textDecoration: "none", color: "inherit" }}
           >
             <Group gap="sm" wrap="nowrap">
-              <MAvatar name={seller.name} level={seller.level} size="lg" />
+              <MAvatar name={seller.name} src={seller.avatar} level={seller.level} size="lg" />
               <Box style={{ flex: 1, minWidth: 0 }}>
                 <Text fw={700}>{seller.name}</Text>
                 <Text fz="xs" c="dimmed" mt={2}>

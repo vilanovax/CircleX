@@ -330,7 +330,7 @@ function ThreadRow({
     >
       <Group gap="sm" wrap="nowrap" align="flex-start">
         <Indicator disabled={!hasUnread} color="brand" size={12} offset={4} withBorder>
-          <MAvatar name={peer.name} level={peer.level} size="md" />
+          <MAvatar name={peer.name} src={peer.avatar} level={peer.level} size="md" />
         </Indicator>
 
         <Box style={{ flex: 1, minWidth: 0 }}>
@@ -464,7 +464,7 @@ function ComposeModal({ opened, onClose }: { opened: boolean; onClose: () => voi
               style={{ padding: 12, borderRadius: 12 }}
             >
               <Group gap="sm" wrap="nowrap">
-                <MAvatar name={p.name} level={p.level} size="sm" />
+                <MAvatar name={p.name} src={p.avatar} level={p.level} size="sm" />
                 <Box style={{ flex: 1, minWidth: 0 }}>
                   <Text fz="sm" fw={600} truncate>
                     {p.name}

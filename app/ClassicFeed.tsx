@@ -6,34 +6,61 @@ import {
   useEffect,
   useMemo,
   useState,
+  type ReactNode,
 } from "react";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
 import ListingCard from "@/components/ListingCard";
 import BottomNav from "@/components/BottomNav";
+import NewUserHomePlaceholder from "@/components/NewUserHomePlaceholder";
 import { lazyUi } from "@/lib/lazy-ui";
 import FeedFilterBar from "@/components/FeedFilterBar";
 import { FeedSkeleton } from "@/components/Skeleton";
 import Avatar from "@/components/Avatar";
-import { CircleUsersIcon, SearchIcon, ShieldCheckIcon } from "@/components/Icons";
+import { CircleUsersIcon, LockIcon, SearchIcon, ShieldCheckIcon } from "@/components/Icons";
 import { formatPrice } from "@/lib/labels";
 import type { CircleEvent, ListingType, Request } from "@/lib/types";
 import { formatEventDateDisplay, normalizeFa, toPersianDigits } from "@/lib/persian";
-import { canView, filterByAccess } from "@/lib/trust";
+import { canView, filterByAccess, trustScore } from "@/lib/trust";
 
 const Onboarding = lazyUi(() => import("@/components/Onboarding"));
 
 const SCROLL_COLLAPSE_THRESHOLD = 48;
-
 const PREVIEW_LIMIT = 8;
+const CONCEPT_TIP_KEY = "circle-home-concept-tip-v1";
+
+/** Who in the circle the feed draws from (maps to trustScore floors). */
+type CircleScope = "all" | "near" | "trusted";
+
+const SCOPE_OPTIONS: { key: CircleScope; label: string; hint: string }[] = [
+  { key: "all", label: "همهٔ حلقه", hint: "نزدیک، مورد اعتماد و آشنا" },
+  { key: "trusted", label: "تا مورد اعتماد", hint: "درجات ۱ و ۲" },
+  { key: "near", label: "فقط نزدیک", hint: "درجه ۱ — نزدیک‌ترین‌ها" },
+];
+
+function scopeMinScore(scope: CircleScope): number {
+  if (scope === "near") return 3;
+  if (scope === "trusted") return 2;
+  return 0;
+}
 
 export default function ClassicFeed() {
-  const { listings, requests, events, people, getPerson, hydrated, onboarded } =
-    useStore();
+  const {
+    listings,
+    requests,
+    events,
+    people,
+    getPerson,
+    hydrated,
+    onboarded,
+  } = useStore();
   const [filter, setFilter] = useState<ListingType | "all">("all");
+  const [circleScope, setCircleScope] = useState<CircleScope>("all");
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const [headerCompact, setHeaderCompact] = useState(false);
+  const [showConceptTip, setShowConceptTip] = useState(false);
+  const [conceptTipReady, setConceptTipReady] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setHeaderCompact(window.scrollY > SCROLL_COLLAPSE_THRESHOLD);
@@ -41,6 +68,38 @@ export default function ClassicFeed() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    if (!hydrated || !onboarded) {
+      setShowConceptTip(false);
+      setConceptTipReady(false);
+      return;
+    }
+    try {
+      setShowConceptTip(localStorage.getItem(CONCEPT_TIP_KEY) !== "1");
+    } catch {
+      setShowConceptTip(true);
+    }
+    setConceptTipReady(true);
+  }, [hydrated, onboarded]);
+
+  function dismissConceptTip() {
+    try {
+      localStorage.setItem(CONCEPT_TIP_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+    setShowConceptTip(false);
+  }
+
+  function restoreConceptTip() {
+    try {
+      localStorage.removeItem(CONCEPT_TIP_KEY);
+    } catch {
+      /* ignore */
+    }
+    setShowConceptTip(true);
+  }
 
   const circleCount = people.filter((p) => p.inMyCircle).length;
 
@@ -61,6 +120,7 @@ export default function ClassicFeed() {
 
   const visible = useMemo(() => {
     const q = normalizeFa(deferredQuery);
+    const minScore = scopeMinScore(circleScope);
     return allowed.filter((l) => {
       if (filter !== "all" && l.type !== filter) return false;
       if (
@@ -68,20 +128,30 @@ export default function ClassicFeed() {
         !normalizeFa(`${l.title} ${l.description} ${l.category}`).includes(q)
       )
         return false;
+      if (minScore > 0) {
+        const score = trustScore(l.sellerId, l.trustPath, getPerson);
+        if (score < minScore) return false;
+      }
       return true;
     });
-  }, [allowed, filter, deferredQuery]);
+  }, [allowed, filter, deferredQuery, circleScope, getPerson]);
 
-  const browsingAll = filter === "all" && query.trim().length === 0;
-  const showSecondary = browsingAll && hydrated;
+  const browsingAll =
+    filter === "all" &&
+    query.trim().length === 0 &&
+    circleScope === "all";
+  const showSecondary = browsingAll && hydrated && onboarded;
+  const isNewUser = hydrated && !onboarded;
+  const scopeLabel =
+    SCOPE_OPTIONS.find((o) => o.key === circleScope)?.label ?? "همهٔ حلقه";
 
   return (
     <main className="pb-24 min-h-[100dvh]">
       <header
-        className={`sticky top-0 z-20 backdrop-blur-xl border-b transition-shadow duration-200 ${
+        className={`sticky top-0 z-20 border-b transition-[box-shadow,background-color] duration-200 ${
           headerCompact
-            ? "bg-[color:var(--circle-surface)]/92 border-stone-200/60 shadow-sm dark:border-zinc-800"
-            : "bg-[color:var(--circle-canvas)]/85 border-transparent"
+            ? "bg-[color:var(--circle-surface)] border-stone-200/70 shadow-sm dark:bg-zinc-950 dark:border-zinc-800"
+            : "bg-[color:var(--circle-canvas)] border-transparent dark:bg-zinc-950"
         }`}
       >
         <div className="px-4 pt-[max(0.85rem,env(safe-area-inset-top))] pb-1.5">
@@ -101,130 +171,175 @@ export default function ClassicFeed() {
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="جستجو…"
                 aria-label="جستجو در حلقه‌ی شما"
-                className="field !pr-9 !py-2 !px-3 text-sm !border-stone-200/80 dark:!border-zinc-700"
+                disabled={isNewUser}
+                className="field !pr-9 !py-2 !px-3 text-sm !border-stone-200/80 dark:!border-zinc-700 disabled:opacity-60"
               />
             </div>
           </div>
         </div>
 
-        <FeedFilterBar
-          filter={filter}
-          onFilter={(next) => startTransition(() => setFilter(next))}
-          compact={headerCompact}
-        />
+        {!isNewUser && (
+          <FeedFilterBar
+            filter={filter}
+            onFilter={(next) => startTransition(() => setFilter(next))}
+            compact={headerCompact}
+          />
+        )}
       </header>
 
-      {/* Trust banner — only before onboarding completes */}
-      {!onboarded && (
-        <div className="px-4 pt-3">
-          <div className="rounded-2xl border border-levelA/20 bg-levelA/[0.07] px-3.5 py-3">
-            <p className="font-bold text-[13px] text-ink dark:text-zinc-100">
-              اینجا کسی غریبه نیست
-            </p>
-            <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-relaxed">
-              هر آگهی از مسیر اعتماد حلقه‌ات به تو می‌رسد.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Quick access — only while circle is still small */}
-      {circleCount <= 2 && (
-        <div className="grid grid-cols-2 gap-2.5 px-4 pt-3">
-          <Shortcut href="/requests" emoji="🔎" label="درخواست‌ها" tint="bg-amber-50 dark:bg-amber-500/15 text-amber-600" />
-          <Shortcut href="/events" emoji="🎉" label="رویدادها" tint="bg-brand-50 dark:bg-brand-500/15 text-brand-600" />
-        </div>
-      )}
-
-      {/* New-user first step — build your circle */}
-      {hydrated && circleCount === 0 && (
-        <div className="px-4 pt-4">
-          <div className="card p-4 text-center">
-            <div className="w-12 h-12 rounded-full bg-brand-50 dark:bg-brand-500/15 text-brand-600 flex items-center justify-center mx-auto mb-2">
-              <CircleUsersIcon className="w-6 h-6" />
+      {isNewUser ? (
+        <NewUserHomePlaceholder />
+      ) : (
+        <>
+          {showConceptTip && (
+            <div className="px-4 pt-3">
+              <div className="relative rounded-2xl bg-brand-50/80 dark:bg-brand-500/10 ring-1 ring-brand-100/70 dark:ring-brand-500/20 px-3.5 py-2.5">
+                <p className="text-[13px] font-bold text-ink dark:text-zinc-100 leading-snug pe-7">
+                  خرید، فروش و کمک گرفتن از آدم‌های مورد اعتماد
+                </p>
+                <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-snug pe-7">
+                  همه‌چیز از حلقه‌های تو می‌آید، نه از غریبه‌ها.
+                </p>
+                <button
+                  type="button"
+                  onClick={dismissConceptTip}
+                  className="absolute top-2 left-2 w-7 h-7 rounded-full text-ink-faint hover:bg-stone-200/60 dark:hover:bg-zinc-800 flex items-center justify-center text-sm"
+                  aria-label="بستن راهنما"
+                >
+                  ×
+                </button>
+              </div>
             </div>
-            <p className="font-bold text-sm text-zinc-800 dark:text-zinc-100">
-              اول حلقه‌ات را بساز
-            </p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
-              با افزودن خانواده و دوستان مورد اعتماد، آگهی‌ها و رویدادهای آن‌ها
-              اینجا ظاهر می‌شود.
-            </p>
-            <Link href="/circle" className="btn-primary inline-block mt-3">
-              افزودن به حلقه
-            </Link>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Listings first — home's primary job */}
-      <FeedSection
-        title="آگهی‌ها"
-        count={hydrated ? visible.length : undefined}
-      >
-        {!hydrated ? (
-          <FeedSkeleton />
-        ) : visible.length === 0 ? (
-          <FeedEmptyState
-            hasFilter={!browsingAll}
-            onClear={() => {
-              setFilter("all");
-              setQuery("");
-            }}
-          />
-        ) : (
-          visible.map((l, i) => (
-            <div
-              key={l.id}
-              className={i < 4 ? "animate-fade-up" : undefined}
-              style={i < 4 ? { animationDelay: `${i * 45}ms` } : undefined}
-            >
-              <ListingCard listing={l} compactTrust />
+          {conceptTipReady && !showConceptTip && (
+            <div className="px-4 pt-2.5">
+              <button
+                type="button"
+                onClick={restoreConceptTip}
+                className="text-[11px] font-medium text-brand-600 dark:text-brand-400"
+              >
+                سیرکل چطور کار می‌کند؟
+              </button>
             </div>
-          ))
-        )}
+          )}
 
-        {hidden > 0 && (
-          <div className="flex items-center justify-center gap-2 text-[11px] text-ink-faint py-1">
-            <CircleUsersIcon className="w-4 h-4 shrink-0" />
-            <span>
-              {toPersianDigits(hidden)} آگهی به‌دلیل حریم خصوصی پنهان است
-            </span>
-          </div>
-        )}
-      </FeedSection>
+          {/* Quick access — only while circle is still small */}
+          {circleCount <= 2 && (
+            <div className="grid grid-cols-2 gap-2.5 px-4 pt-3">
+              <Shortcut href="/requests" emoji="🔎" label="درخواست‌ها" tint="bg-amber-50 dark:bg-amber-500/15 text-amber-600" />
+              <Shortcut href="/events" emoji="🎉" label="رویدادها" tint="bg-brand-50 dark:bg-brand-500/15 text-brand-600" />
+            </div>
+          )}
 
-      {/* Secondary: events + requests only when browsing the full feed */}
-      {showSecondary && visibleEvents.length > 0 && (
-        <StripSection title="رویدادهای پیش‌رو" href="/events">
-          {visibleEvents.slice(0, 4).map((ev) => (
-            <EventStripCard key={ev.id} event={ev} />
-          ))}
-        </StripSection>
+          {/* Empty circle CTA — after onboarding, before anyone is added */}
+          {hydrated && circleCount === 0 && (
+            <div className="px-4 pt-4">
+              <div className="card p-4 text-center">
+                <div className="w-12 h-12 rounded-full bg-brand-50 dark:bg-brand-500/15 text-brand-600 flex items-center justify-center mx-auto mb-2">
+                  <CircleUsersIcon className="w-6 h-6" />
+                </div>
+                <p className="font-bold text-sm text-zinc-800 dark:text-zinc-100">
+                  اول حلقه‌ات را بساز
+                </p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
+                  با افزودن خانواده و دوستان مورد اعتماد، آگهی‌ها و رویدادهای آن‌ها
+                  اینجا ظاهر می‌شود.
+                </p>
+                <Link href="/circle" className="btn-primary inline-block mt-3">
+                  افزودن به حلقه
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* Listings first — home's primary job */}
+          <FeedSection
+            title="آگهی‌ها"
+            count={hydrated ? visible.length : undefined}
+            scopeControl={
+              circleCount > 0 ? (
+                <CircleScopeControl
+                  value={circleScope}
+                  label={scopeLabel}
+                  onChange={(next) =>
+                    startTransition(() => setCircleScope(next))
+                  }
+                />
+              ) : undefined
+            }
+          >
+            {!hydrated ? (
+              <FeedSkeleton />
+            ) : visible.length === 0 ? (
+              <FeedEmptyState
+                hasFilter={!browsingAll}
+                onClear={() => {
+                  setFilter("all");
+                  setCircleScope("all");
+                  setQuery("");
+                }}
+              />
+            ) : (
+              visible.map((l, i) => (
+                <div
+                  key={l.id}
+                  className={i < 4 ? "animate-fade-up" : undefined}
+                  style={i < 4 ? { animationDelay: `${i * 45}ms` } : undefined}
+                >
+                  <ListingCard listing={l} compactTrust />
+                </div>
+              ))
+            )}
+
+            {hidden > 0 && (
+              <button
+                type="button"
+                className="flex items-center justify-center gap-2 text-[12px] font-medium text-ink-muted dark:text-zinc-400 py-2 w-full"
+                title="این آگهی‌ها فقط برای حلقهٔ نزدیک‌تر صاحب آگهی قابل‌مشاهده‌اند"
+              >
+                <LockIcon className="w-3.5 h-3.5 shrink-0 text-ink-muted" />
+                <span>
+                  {toPersianDigits(hidden)} آگهی به‌دلیل تنظیمات حریم خصوصی نمایش
+                  داده نمی‌شود
+                </span>
+              </button>
+            )}
+          </FeedSection>
+
+          {/* Secondary: events + requests only when browsing the full feed */}
+          {showSecondary && visibleEvents.length > 0 && (
+            <StripSection title="رویدادهای پیش‌رو" href="/events">
+              {visibleEvents.slice(0, 4).map((ev) => (
+                <EventStripCard key={ev.id} event={ev} />
+              ))}
+            </StripSection>
+          )}
+
+          {showSecondary && visibleRequests.length > 0 && (
+            <section className="pt-5 px-4 pb-1">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-[13px] font-bold text-ink dark:text-zinc-200">
+                  درخواست‌های حلقه
+                </h2>
+                <Link
+                  href="/requests"
+                  className="text-[11px] text-ink-muted dark:text-zinc-500 font-medium"
+                >
+                  همه
+                </Link>
+              </div>
+              <div className="card divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
+                {visibleRequests.slice(0, 2).map((r) => (
+                  <RequestDenseRow key={r.id} request={r} />
+                ))}
+              </div>
+            </section>
+          )}
+        </>
       )}
 
-      {showSecondary && visibleRequests.length > 0 && (
-        <section className="pt-5 px-4 pb-1">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-[13px] font-bold text-ink dark:text-zinc-200">
-              درخواست‌های حلقه
-            </h2>
-            <Link
-              href="/requests"
-              className="text-[11px] text-ink-muted dark:text-zinc-500 font-medium"
-            >
-              همه
-            </Link>
-          </div>
-          <div className="card divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
-            {visibleRequests.slice(0, 2).map((r) => (
-              <RequestDenseRow key={r.id} request={r} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {hydrated && !onboarded ? <Onboarding /> : null}
+      {isNewUser ? <Onboarding /> : null}
       <BottomNav />
     </main>
   );
@@ -234,35 +349,120 @@ function FeedSection({
   title,
   href,
   count,
+  scopeControl,
   children,
 }: {
   title: string;
   href?: string;
   count?: number;
-  children: React.ReactNode;
+  scopeControl?: ReactNode;
+  children: ReactNode;
 }) {
   return (
     <section className="px-4 pt-3.5">
-      <div className="flex items-baseline justify-between mb-2.5">
-        <h2 className="flex items-center gap-2 text-[13px] font-bold text-ink dark:text-zinc-200">
+      <div className="flex items-baseline justify-between gap-2 mb-1.5">
+        <h2 className="flex items-center gap-1.5 text-[13px] font-bold text-ink dark:text-zinc-200 min-w-0">
           <span>{title}</span>
           {count != null && count > 0 && (
             <span
-              className="inline-flex items-center justify-center min-w-[1.35rem] h-5 px-1.5 rounded-md bg-stone-200/70 dark:bg-zinc-800 text-[11px] font-bold text-ink-muted dark:text-zinc-400 nums"
+              className="text-[12px] font-semibold text-ink-muted dark:text-zinc-400 nums"
               aria-label={`${toPersianDigits(count)} مورد`}
             >
-              {toPersianDigits(count)}
+              · {toPersianDigits(count)} مورد
             </span>
           )}
         </h2>
         {href && (
-          <Link href={href} className="text-[11px] text-ink-muted dark:text-zinc-500 font-medium">
+          <Link href={href} className="text-[11px] text-ink-muted dark:text-zinc-500 font-medium shrink-0">
             همه
           </Link>
         )}
       </div>
+      {scopeControl && <div className="mb-2.5">{scopeControl}</div>}
       <div className="space-y-2.5">{children}</div>
     </section>
+  );
+}
+
+function CircleScopeControl({
+  value,
+  label,
+  onChange,
+}: {
+  value: CircleScope;
+  label: string;
+  onChange: (next: CircleScope) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="inline-flex items-center gap-1.5 rounded-xl bg-[color:var(--circle-surface)] dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-700 px-2.5 py-1.5 text-[12px] font-medium text-ink dark:text-zinc-200 active:scale-[0.98] transition-transform"
+      >
+        <CircleUsersIcon className="w-3.5 h-3.5 text-brand-600 shrink-0" />
+        <span className="text-ink-muted dark:text-zinc-500">نمایش از:</span>
+        <span className="font-bold text-brand-700 dark:text-brand-300">
+          {label}
+        </span>
+        <span className="text-ink-faint text-[10px]" aria-hidden>
+          ▾
+        </span>
+      </button>
+
+      {open && (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-30 cursor-default"
+            aria-label="بستن"
+            onClick={() => setOpen(false)}
+          />
+          <ul
+            role="listbox"
+            aria-label="محدوده حلقه"
+            className="absolute top-full right-0 z-40 mt-1.5 min-w-[13.5rem] rounded-xl border border-stone-200/80 dark:border-zinc-700 bg-[color:var(--circle-surface)] dark:bg-zinc-900 shadow-lg overflow-hidden py-1"
+          >
+            {SCOPE_OPTIONS.map((opt) => {
+              const active = opt.key === value;
+              return (
+                <li key={opt.key} role="option" aria-selected={active}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onChange(opt.key);
+                      setOpen(false);
+                    }}
+                    className={`w-full text-right px-3 py-2.5 transition-colors ${
+                      active
+                        ? "bg-brand-50 dark:bg-brand-500/15"
+                        : "hover:bg-stone-50 dark:hover:bg-zinc-800"
+                    }`}
+                  >
+                    <span
+                      className={`block text-[13px] font-bold ${
+                        active
+                          ? "text-brand-700 dark:text-brand-300"
+                          : "text-ink dark:text-zinc-100"
+                      }`}
+                    >
+                      {opt.label}
+                    </span>
+                    <span className="block text-[11px] text-ink-muted dark:text-zinc-500 mt-0.5">
+                      {opt.hint}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -396,7 +596,12 @@ function RequestDenseRow({ request }: { request: Request }) {
       className="flex items-center gap-3 px-3.5 py-3 active:bg-stone-50/80 dark:active:bg-zinc-800/60 transition-colors"
     >
       {requester ? (
-        <Avatar name={requester.name} level={requester.level} size="sm" />
+        <Avatar
+          name={requester.name}
+          src={requester.avatar}
+          showLevel={false}
+          size="sm"
+        />
       ) : (
         <div className="w-8 h-8 rounded-full bg-stone-100 dark:bg-zinc-800" />
       )}
@@ -410,8 +615,8 @@ function RequestDenseRow({ request }: { request: Request }) {
         </p>
       </div>
       {offers.length > 0 && (
-        <span className="text-[10px] font-bold text-levelA shrink-0 nums">
-          {toPersianDigits(offers.length)} پیشنهاد
+        <span className="text-[11px] font-bold text-brand-600 dark:text-brand-400 shrink-0 nums">
+          مشاهده {toPersianDigits(offers.length)} پیشنهاد
         </span>
       )}
     </Link>

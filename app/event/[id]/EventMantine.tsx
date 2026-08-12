@@ -230,7 +230,7 @@ export default function EventMantine({ params }: { params: { id: string } }) {
                 borderTop: "1px solid var(--mantine-color-default-border)",
               }}
             >
-              <MAvatar name={host.name} level={host.level} size="lg" />
+              <MAvatar name={host.name} src={host.avatar} level={host.level} size="lg" />
               <Box style={{ flex: 1, minWidth: 0 }}>
                 <Text fw={700}>{host.name}</Text>
                 <Text fz="xs" c="dimmed" mt={2} truncate>
@@ -292,6 +292,7 @@ export default function EventMantine({ params }: { params: { id: string } }) {
                     {p || me ? (
                       <MAvatar
                         name={name}
+                        src={p?.avatar}
                         level={me ? undefined : p!.level}
                         size="sm"
                       />

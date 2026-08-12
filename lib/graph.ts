@@ -1,4 +1,5 @@
 import type { Listing, Person, Request, TrustLevel } from "./types";
+import { resolveAvatarSrc } from "./avatar";
 
 export interface GraphNode {
   id: string;
@@ -135,7 +136,7 @@ export function buildTrustGraph(
     return {
       id,
       name: id === "me" ? "شما" : p?.name ?? "؟",
-      avatar: id === "me" ? "🧑" : p?.avatar ?? "❓",
+      avatar: p?.avatar ?? resolveAvatarSrc(p?.name ?? id),
       level: id === "me" ? undefined : p?.level,
       depth: d,
       parentId: parent.get(id),

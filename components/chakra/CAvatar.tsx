@@ -1,8 +1,8 @@
 "use client";
 
-import { Box, Center } from "@chakra-ui/react";
+import { Box, Image } from "@chakra-ui/react";
 import type { TrustLevel } from "@/lib/types";
-import { personAvatarHex, personInitials } from "@/lib/avatar";
+import { resolveAvatarSrc } from "@/lib/avatar";
 
 const SIZES = { sm: 36, md: 48, lg: 64 } as const;
 const LEVEL_BG: Record<TrustLevel, string> = {
@@ -11,34 +11,35 @@ const LEVEL_BG: Record<TrustLevel, string> = {
   C: "#d97706",
 };
 
-/** Chakra equivalent of the classic Avatar: initials on a stable color,
- *  with an optional trust-level badge. */
+/** Chakra avatar with funny illustration + optional trust-level badge. */
 export default function CAvatar({
   name,
   level,
   size = "md",
+  src,
 }: {
   name: string;
   level?: TrustLevel;
   size?: keyof typeof SIZES;
+  src?: string;
 }) {
   const px = SIZES[size];
+  const imageSrc = resolveAvatarSrc(name, src);
   return (
     <Box position="relative" flexShrink={0} w={`${px}px`} h={`${px}px`}>
-      <Center
+      <Image
+        src={imageSrc}
+        alt={name}
         w={`${px}px`}
         h={`${px}px`}
         rounded="full"
-        color="white"
-        fontWeight="bold"
-        fontSize={size === "lg" ? "2xl" : size === "sm" ? "sm" : "lg"}
-        bg={personAvatarHex(name)}
+        objectFit="cover"
+        bg="gray.100"
         userSelect="none"
-      >
-        {personInitials(name)}
-      </Center>
+        draggable={false}
+      />
       {level && (
-        <Center
+        <Box
           position="absolute"
           bottom="-2px"
           insetStart="-2px"
@@ -49,13 +50,16 @@ export default function CAvatar({
           color="white"
           fontSize="9px"
           fontWeight="bold"
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
           ring="2px"
           ringColor="chakra-body-bg"
           border="2px solid"
           borderColor="chakra-body-bg"
         >
           {level}
-        </Center>
+        </Box>
       )}
     </Box>
   );

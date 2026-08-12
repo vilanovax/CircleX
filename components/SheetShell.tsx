@@ -15,6 +15,9 @@ export default function SheetShell({
   maxHeight = "90dvh",
   zClass = "z-40",
   onEscape,
+  closeOnBackdrop = true,
+  backdropClassName,
+  autoFocus = true,
 }: {
   onClose: () => void;
   labelledBy: string;
@@ -23,16 +26,23 @@ export default function SheetShell({
   maxHeight?: string;
   zClass?: string;
   onEscape?: () => boolean;
+  /** When false, backdrop clicks do nothing (Escape still uses onEscape/onClose). */
+  closeOnBackdrop?: boolean;
+  backdropClassName?: string;
+  /** When false, caller manages initial focus (e.g. step titles). */
+  autoFocus?: boolean;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
-  useSheetA11y(panelRef, onClose, onEscape ? { onEscape } : undefined);
+  useSheetA11y(panelRef, onClose, { onEscape, autoFocus });
 
   return (
     <div className={`fixed inset-0 ${zClass} flex justify-center`}>
       <div className="relative w-full max-w-[480px]">
         <div
-          className="absolute inset-0 bg-ink/35 backdrop-blur-[2px]"
-          onClick={onClose}
+          className={`absolute inset-0 ${
+            backdropClassName ?? "bg-ink/35 backdrop-blur-[2px]"
+          }`}
+          onClick={closeOnBackdrop ? onClose : undefined}
           aria-hidden
         />
         <div

@@ -60,10 +60,14 @@ export default function HListingCard({
             <span>📍 {listing.city}</span>
             <span>·</span>
             <span>{listing.postedAt}</span>
-            <span>·</span>
-            <span title={privacyLabels[listing.privacy]}>
-              {privacyEmoji[listing.privacy]} {privacyLabels[listing.privacy]}
-            </span>
+            {!compactTrust && (
+              <>
+                <span>·</span>
+                <span title={privacyLabels[listing.privacy]}>
+                  {privacyEmoji[listing.privacy]} {privacyLabels[listing.privacy]}
+                </span>
+              </>
+            )}
           </div>
         </Link>
       </CardBody>

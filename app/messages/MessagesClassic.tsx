@@ -283,7 +283,7 @@ function ThreadRow({
         hasUnread ? "bg-brand-50/55 dark:bg-brand-500/10" : ""
       }`}
     >
-      <Avatar name={peer.name} level={peer.level} size="md" />
+      <Avatar name={peer.name} src={peer.avatar} level={peer.level} size="md" />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline justify-between gap-2">
@@ -427,7 +427,7 @@ function ComposeSheet({ onClose }: { onClose: () => void }) {
               }}
               className="w-full flex items-center gap-3 px-3.5 py-3 text-right active:bg-stone-50/90 dark:active:bg-zinc-800/70 transition-colors"
             >
-              <Avatar name={p.name} level={p.level} size="sm" />
+              <Avatar name={p.name} src={p.avatar} level={p.level} size="sm" />
               <div className="flex-1 min-w-0 text-right">
                 <p className="text-[13px] font-bold text-ink dark:text-zinc-100">
                   {p.name}

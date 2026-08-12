@@ -184,7 +184,7 @@ export default function ListingChakra(_props: { params: { id: string } }) {
       {seller && !isMine && (
         <Box px={4} pt={3}>
           <Flex as={Link} href={`/person/${listing.sellerId}`} borderWidth="1px" borderColor="chakra-border-color" rounded="2xl" p={4} align="center" gap={3} bg="chakra-body-bg" _active={{ transform: "scale(0.99)" }} transition="transform 0.1s">
-            <CAvatar name={seller.name} level={seller.level} size="lg" />
+            <CAvatar name={seller.name} src={seller.avatar} level={seller.level} size="lg" />
             <Box flex={1} minW={0}>
               <Text fontWeight={700}>{seller.name}</Text>
               <Text fontSize="xs" color="gray.500" _dark={{ color: "gray.400" }} mt={0.5}>

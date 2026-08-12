@@ -8,6 +8,7 @@ import HListingCard from "@/components/heroui/HListingCard";
 import HBottomNav from "@/components/heroui/HBottomNav";
 import HAvatar from "@/components/heroui/HAvatar";
 import Onboarding from "@/components/Onboarding";
+import NewUserHomePlaceholder from "@/components/NewUserHomePlaceholder";
 import { CircleUsersIcon, SearchIcon, ShieldCheckIcon } from "@/components/Icons";
 import { formatPrice, listingTypeLabels } from "@/lib/labels";
 import type { CircleEvent, ListingType, Request } from "@/lib/types";
@@ -26,7 +27,8 @@ const FILTERS: { key: ListingType | "all"; label: string }[] = [
 ];
 
 export default function HeroFeed() {
-  const { listings, requests, events, people, getPerson, hydrated, onboarded } = useStore();
+  const { listings, requests, events, people, getPerson, hydrated, onboarded } =
+    useStore();
   const [filter, setFilter] = useState<ListingType | "all">("all");
   const [query, setQuery] = useState("");
 
@@ -100,85 +102,79 @@ export default function HeroFeed() {
         </div>
       </header>
 
-      {/* Trust banner */}
-      {!onboarded && (
-        <div className="px-4 pt-3">
-          <div className="rounded-large p-4 text-white bg-gradient-to-l from-primary-600 to-primary-400">
-            <p className="font-bold text-sm">اینجا کسی غریبه نیست</p>
-            <p className="text-xs mt-1 opacity-90 leading-relaxed">
-              هر آگهی از مسیر اعتمادی به شما می‌رسد: «این فروشنده، دوستِ همکارِ خواهرِ شماست.»
-            </p>
-          </div>
-        </div>
-      )}
+      {hydrated && !onboarded ? (
+        <NewUserHomePlaceholder />
+      ) : (
+        <>
+          {/* Quick access */}
+          {circleCount <= 2 && (
+            <div className="grid grid-cols-2 gap-2.5 px-4 pt-3">
+              <Shortcut href="/requests" emoji="🔎" label="درخواست‌ها" />
+              <Shortcut href="/events" emoji="🎉" label="رویدادها" />
+            </div>
+          )}
 
-      {/* Quick access */}
-      {circleCount <= 2 && (
-        <div className="grid grid-cols-2 gap-2.5 px-4 pt-3">
-          <Shortcut href="/requests" emoji="🔎" label="درخواست‌ها" />
-          <Shortcut href="/events" emoji="🎉" label="رویدادها" />
-        </div>
-      )}
+          {/* New-user first step */}
+          {hydrated && circleCount === 0 && (
+            <div className="px-4 pt-4">
+              <Card radius="lg" shadow="sm">
+                <CardBody className="p-4 text-center">
+                  <div className="w-12 h-12 rounded-full bg-primary-50 text-primary flex items-center justify-center mx-auto mb-2">
+                    <CircleUsersIcon className="w-6 h-6" />
+                  </div>
+                  <p className="font-bold text-sm">اول حلقه‌ات را بساز</p>
+                  <p className="text-xs text-default-500 mt-1 leading-relaxed">
+                    با افزودن خانواده و دوستان مورد اعتماد، آگهی‌ها و رویدادهای آن‌ها اینجا ظاهر می‌شود.
+                  </p>
+                  <Link href="/circle" className="inline-block mt-3 text-sm font-semibold text-primary">
+                    افزودن به حلقه ←
+                  </Link>
+                </CardBody>
+              </Card>
+            </div>
+          )}
 
-      {/* New-user first step */}
-      {hydrated && circleCount === 0 && (
-        <div className="px-4 pt-4">
-          <Card radius="lg" shadow="sm">
-            <CardBody className="p-4 text-center">
-              <div className="w-12 h-12 rounded-full bg-primary-50 text-primary flex items-center justify-center mx-auto mb-2">
-                <CircleUsersIcon className="w-6 h-6" />
+          {/* Listings feed */}
+          <div className="px-4 pt-5">
+            <h2 className="text-sm font-bold text-default-600 mb-2.5">آگهی‌ها</h2>
+            {!hydrated ? (
+              <div className="space-y-3">
+                {[0, 1, 2].map((i) => (
+                  <Card key={i} radius="lg" shadow="sm" className="h-28" />
+                ))}
               </div>
-              <p className="font-bold text-sm">اول حلقه‌ات را بساز</p>
-              <p className="text-xs text-default-500 mt-1 leading-relaxed">
-                با افزودن خانواده و دوستان مورد اعتماد، آگهی‌ها و رویدادهای آن‌ها اینجا ظاهر می‌شود.
-              </p>
-              <Link href="/circle" className="inline-block mt-3 text-sm font-semibold text-primary">
-                افزودن به حلقه ←
-              </Link>
-            </CardBody>
-          </Card>
-        </div>
-      )}
+            ) : visible.length === 0 ? (
+              <FeedEmptyState hasFilter={hasFilter} onClear={() => { setFilter("all"); setQuery(""); }} />
+            ) : (
+              <div className="space-y-3">
+                {visible.map((l) => (
+                  <HListingCard key={l.id} listing={l} compactTrust />
+                ))}
+              </div>
+            )}
 
-      {/* Listings feed */}
-      <div className="px-4 pt-5">
-        <h2 className="text-sm font-bold text-default-600 mb-2.5">آگهی‌ها</h2>
-        {!hydrated ? (
-          <div className="space-y-3">
-            {[0, 1, 2].map((i) => (
-              <Card key={i} radius="lg" shadow="sm" className="h-28" />
-            ))}
+            {hidden > 0 && (
+              <div className="flex items-center justify-center gap-2 text-[11px] text-default-400 py-2">
+                <CircleUsersIcon className="w-4 h-4" />
+                <span>{toPersianDigits(hidden)} آگهی به‌دلیل تنظیمات حریم خصوصی برای شما قابل نمایش نیست</span>
+              </div>
+            )}
           </div>
-        ) : visible.length === 0 ? (
-          <FeedEmptyState hasFilter={hasFilter} onClear={() => { setFilter("all"); setQuery(""); }} />
-        ) : (
-          <div className="space-y-3">
-            {visible.map((l) => (
-              <HListingCard key={l.id} listing={l} compactTrust />
-            ))}
-          </div>
-        )}
 
-        {hidden > 0 && (
-          <div className="flex items-center justify-center gap-2 text-[11px] text-default-400 py-2">
-            <CircleUsersIcon className="w-4 h-4" />
-            <span>{toPersianDigits(hidden)} آگهی به‌دلیل تنظیمات حریم خصوصی برای شما قابل نمایش نیست</span>
-          </div>
-        )}
-      </div>
+          {/* Events strip */}
+          {onboarded && visibleEvents.length > 0 && (
+            <StripSection title="رویدادهای پیش‌رو" href="/events">
+              {visibleEvents.map((ev) => <EventStripCard key={ev.id} event={ev} />)}
+            </StripSection>
+          )}
 
-      {/* Events strip */}
-      {visibleEvents.length > 0 && (
-        <StripSection title="رویدادهای پیش‌رو" href="/events">
-          {visibleEvents.map((ev) => <EventStripCard key={ev.id} event={ev} />)}
-        </StripSection>
-      )}
-
-      {/* Requests strip */}
-      {visibleRequests.length > 0 && (
-        <StripSection title="درخواست‌های حلقه" href="/requests">
-          {visibleRequests.map((r) => <RequestStripCard key={r.id} request={r} />)}
-        </StripSection>
+          {/* Requests strip */}
+          {onboarded && visibleRequests.length > 0 && (
+            <StripSection title="درخواست‌های حلقه" href="/requests">
+              {visibleRequests.map((r) => <RequestStripCard key={r.id} request={r} />)}
+            </StripSection>
+          )}
+        </>
       )}
 
       <Onboarding />
@@ -250,7 +246,7 @@ function EventStripCard({ event }: { event: CircleEvent }) {
       <CardBody className="p-3">
         {host && (
           <div className="flex items-center gap-2 mb-2">
-            <HAvatar name={host.name} level={host.level} size="sm" />
+            <HAvatar name={host.name} src={host.avatar} level={host.level} size="sm" />
             <span className="text-[11px] text-default-500 truncate">{host.name}</span>
           </div>
         )}
@@ -278,7 +274,7 @@ function RequestStripCard({ request }: { request: Request }) {
       <CardBody className="p-3">
         {requester && (
           <div className="flex items-center gap-2 mb-2">
-            <HAvatar name={requester.name} level={requester.level} size="sm" />
+            <HAvatar name={requester.name} src={requester.avatar} level={requester.level} size="sm" />
             <span className="text-[11px] text-default-500 truncate">{requester.name}</span>
           </div>
         )}

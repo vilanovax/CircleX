@@ -11,7 +11,7 @@ import type {
 export const ME: Person = {
   id: "me",
   name: "من",
-  avatar: "🧑",
+  avatar: "/avatars/01.webp",
   relation: "friend",
   level: "A",
   deals: 12,
@@ -28,7 +28,7 @@ export const PEOPLE: Person[] = [
   {
     id: "sara",
     name: "سارا",
-    avatar: "👩",
+    avatar: "/avatars/02.webp",
     relation: "family",
     level: "A",
     note: "خواهرم",
@@ -43,7 +43,7 @@ export const PEOPLE: Person[] = [
   {
     id: "reza",
     name: "رضا",
-    avatar: "🧔",
+    avatar: "/avatars/03.webp",
     relation: "friend",
     level: "A",
     note: "دوست صمیمی از دوران دانشگاه",
@@ -58,7 +58,7 @@ export const PEOPLE: Person[] = [
   {
     id: "mina",
     name: "مینا",
-    avatar: "👩‍💼",
+    avatar: "/avatars/04.webp",
     relation: "colleague",
     level: "B",
     note: "همکار در شرکت",
@@ -69,7 +69,7 @@ export const PEOPLE: Person[] = [
   {
     id: "ali",
     name: "علی",
-    avatar: "👨",
+    avatar: "/avatars/05.webp",
     relation: "neighbor",
     level: "B",
     note: "همسایه‌ی واحد روبه‌رو",
@@ -80,7 +80,7 @@ export const PEOPLE: Person[] = [
   {
     id: "nima",
     name: "نیما",
-    avatar: "🧑‍🦱",
+    avatar: "/avatars/06.webp",
     relation: "friend",
     level: "C",
     note: "دوستِ باشگاه",
@@ -93,7 +93,7 @@ export const PEOPLE: Person[] = [
   {
     id: "hossein",
     name: "حسین",
-    avatar: "👨‍🏫",
+    avatar: "/avatars/07.webp",
     relation: "acquaintance",
     level: "C",
     note: "همکار سارا",
@@ -104,7 +104,7 @@ export const PEOPLE: Person[] = [
   {
     id: "maryam",
     name: "مریم",
-    avatar: "👩‍🔧",
+    avatar: "/avatars/08.webp",
     relation: "acquaintance",
     level: "C",
     note: "دوست رضا",
@@ -115,7 +115,7 @@ export const PEOPLE: Person[] = [
   {
     id: "kaveh",
     name: "کاوه",
-    avatar: "🧑‍🦲",
+    avatar: "/avatars/09.webp",
     relation: "acquaintance",
     level: "C",
     note: "برادر مینا",
@@ -126,7 +126,7 @@ export const PEOPLE: Person[] = [
   {
     id: "dariush",
     name: "داریوش",
-    avatar: "👴",
+    avatar: "/avatars/10.webp",
     relation: "acquaintance",
     level: "C",
     note: "دوست کاوه",
@@ -137,7 +137,7 @@ export const PEOPLE: Person[] = [
   {
     id: "leila",
     name: "لیلا",
-    avatar: "👩‍🦰",
+    avatar: "/avatars/11.webp",
     relation: "acquaintance",
     level: "C",
     note: "آشنای نیما",

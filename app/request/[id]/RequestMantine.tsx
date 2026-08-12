@@ -160,7 +160,7 @@ export default function RequestMantine(_props: { params: { id: string } }) {
             style={{ textDecoration: "none", color: "inherit" }}
           >
             <Group gap="sm" wrap="nowrap">
-              <MAvatar name={requester.name} level={requester.level} size="lg" />
+              <MAvatar name={requester.name} src={requester.avatar} level={requester.level} size="lg" />
               <Box style={{ flex: 1, minWidth: 0 }}>
                 <Text fw={700}>{requester.name}</Text>
                 <Text fz="xs" c="dimmed" mt={2}>
@@ -203,6 +203,7 @@ export default function RequestMantine(_props: { params: { id: string } }) {
                     {from || mine ? (
                       <MAvatar
                         name={mine ? "شما" : from!.name}
+                        src={from?.avatar}
                         level={mine ? undefined : from!.level}
                         size="sm"
                       />

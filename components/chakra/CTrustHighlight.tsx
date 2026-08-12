@@ -43,7 +43,7 @@ export default function CTrustHighlight({
   if (variant === "compact") {
     const identity = (
       <HStack gap={2} minW={0} flex={1}>
-        <CAvatar name={poster.name} level={isOwn ? undefined : poster.level} size="sm" />
+        <CAvatar name={poster.name} src={poster.avatar} level={isOwn ? undefined : poster.level} size="sm" />
         <Box minW={0}>
           <Text fontSize="sm" fontWeight={600} noOfLines={1}>
             {poster.name}
@@ -64,13 +64,20 @@ export default function CTrustHighlight({
               {levelShort[poster.level]}
             </Badge>
           )}
-          <Box as={ShieldCheckIcon} className="w-4 h-4" color="brand.500" flexShrink={0} />
+          {endorsementLine && !isOwn ? (
+            <Box
+              as={ShieldCheckIcon}
+              className="w-4 h-4"
+              color="green.600"
+              _dark={{ color: "green.300" }}
+              flexShrink={0}
+              title={endorsementLine}
+              aria-label={endorsementLine}
+            />
+          ) : (
+            <Box as={ShieldCheckIcon} className="w-4 h-4" color="brand.500" flexShrink={0} aria-hidden />
+          )}
         </HStack>
-        {endorsementLine && !isOwn && (
-          <Text fontSize="11px" fontWeight={500} color="green.600" _dark={{ color: "green.300" }} mt={1}>
-            ✓ {endorsementLine}
-          </Text>
-        )}
       </Box>
     );
   }

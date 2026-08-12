@@ -1,4 +1,7 @@
-/** Stable avatar background from a display name. */
+/** Stable avatar palette + funny illustration pool for Circle people. */
+
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
 const PALETTE = [
   { className: "bg-brand-600 text-white", hex: "#7c3aed" },
   { className: "bg-emerald-600 text-white", hex: "#059669" },
@@ -10,6 +13,20 @@ const PALETTE = [
   { className: "bg-indigo-600 text-white", hex: "#4f46e5" },
 ] as const;
 
+/** Root-relative paths in /public/avatars (before basePath). */
+export const AVATAR_IMAGES = Array.from(
+  { length: 27 },
+  (_, i) => `/avatars/${String(i + 1).padStart(2, "0")}.webp`,
+);
+
+/** Prefix a public `/…` path with Next `basePath` (e.g. `/circle`). */
+export function withBasePath(path: string): string {
+  if (!path.startsWith("/")) return path;
+  if (!BASE) return path;
+  if (path === BASE || path.startsWith(`${BASE}/`)) return path;
+  return `${BASE}${path}`;
+}
+
 export function personInitials(name: string): string {
   const trimmed = name.trim();
   if (!trimmed) return "؟";
@@ -17,17 +34,50 @@ export function personInitials(name: string): string {
 }
 
 export function personAvatarColor(name: string): string {
-  return PALETTE[personAvatarIndex(name)].className;
+  return PALETTE[hashName(name) % PALETTE.length].className;
 }
 
 export function personAvatarHex(name: string): string {
-  return PALETTE[personAvatarIndex(name)].hex;
+  return PALETTE[hashName(name) % PALETTE.length].hex;
 }
 
-function personAvatarIndex(name: string): number {
+/** True when `avatar` is an image path/URL (not a legacy emoji). */
+export function isAvatarImage(avatar?: string | null): boolean {
+  if (!avatar) return false;
+  return (
+    avatar.startsWith("/") ||
+    avatar.startsWith("http://") ||
+    avatar.startsWith("https://") ||
+    avatar.startsWith("data:")
+  );
+}
+
+/**
+ * Resolve the image to show for a person.
+ * Prefers an explicit avatar URL; otherwise picks a stable image from the pool.
+ * Root-relative `/avatars/…` paths get `basePath` so they work under `/circle`.
+ */
+export function resolveAvatarSrc(
+  name: string,
+  avatar?: string | null,
+): string {
+  if (isAvatarImage(avatar)) {
+    if (
+      avatar!.startsWith("http://") ||
+      avatar!.startsWith("https://") ||
+      avatar!.startsWith("data:")
+    ) {
+      return avatar!;
+    }
+    return withBasePath(avatar!);
+  }
+  return withBasePath(AVATAR_IMAGES[hashName(name) % AVATAR_IMAGES.length]);
+}
+
+function hashName(name: string): number {
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
-    hash = (hash + name.charCodeAt(i)) % PALETTE.length;
+    hash = (hash + name.charCodeAt(i)) % 9973;
   }
   return hash;
 }

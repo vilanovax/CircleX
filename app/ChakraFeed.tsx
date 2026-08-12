@@ -20,6 +20,7 @@ import CListingCard from "@/components/chakra/CListingCard";
 import CBottomNav from "@/components/chakra/CBottomNav";
 import CAvatar from "@/components/chakra/CAvatar";
 import Onboarding from "@/components/Onboarding";
+import NewUserHomePlaceholder from "@/components/NewUserHomePlaceholder";
 import { CircleUsersIcon, SearchIcon, ShieldCheckIcon } from "@/components/Icons";
 import { formatPrice, listingTypeLabels } from "@/lib/labels";
 import type { CircleEvent, ListingType, Request } from "@/lib/types";
@@ -38,7 +39,8 @@ const FILTERS: { key: ListingType | "all"; label: string }[] = [
 ];
 
 export default function ChakraFeed() {
-  const { listings, requests, events, people, getPerson, hydrated, onboarded } = useStore();
+  const { listings, requests, events, people, getPerson, hydrated, onboarded } =
+    useStore();
   const [filter, setFilter] = useState<ListingType | "all">("all");
   const [query, setQuery] = useState("");
 
@@ -135,91 +137,83 @@ export default function ChakraFeed() {
         </HStack>
       </Box>
 
-      {/* Trust banner */}
-      {!onboarded && (
-        <Box px={4} pt={3}>
-          <Box rounded="2xl" p={4} color="white" bgGradient="linear(to-l, brand.600, brand.500)">
-            <Text fontWeight={700} fontSize="sm">
-              اینجا کسی غریبه نیست
+      {hydrated && !onboarded ? (
+        <NewUserHomePlaceholder />
+      ) : (
+        <>
+          {/* Quick access */}
+          {circleCount <= 2 && (
+            <HStack gap={2.5} px={4} pt={3} align="stretch">
+              <Shortcut href="/requests" emoji="🔎" label="درخواست‌ها" scheme="orange" />
+              <Shortcut href="/events" emoji="🎉" label="رویدادها" scheme="brand" />
+            </HStack>
+          )}
+
+          {/* Empty-circle CTA after onboarding */}
+          {hydrated && circleCount === 0 && (
+            <Box px={4} pt={4}>
+              <Box borderWidth="1px" borderColor="chakra-border-color" rounded="2xl" p={4} textAlign="center" bg="chakra-body-bg">
+                <Center w="48px" h="48px" rounded="full" bg="brand.50" color="brand.600" _dark={{ bg: "whiteAlpha.100" }} mx="auto" mb={2}>
+                  <Box as={CircleUsersIcon} className="w-6 h-6" />
+                </Center>
+                <Text fontWeight={700} fontSize="sm">
+                  اول حلقه‌ات را بساز
+                </Text>
+                <Text fontSize="xs" color="gray.500" _dark={{ color: "gray.400" }} mt={1} lineHeight={1.7}>
+                  با افزودن خانواده و دوستان مورد اعتماد، آگهی‌ها و رویدادهای آن‌ها اینجا ظاهر می‌شود.
+                </Text>
+                <CLink as={Link} href="/circle" display="inline-block" mt={3} fontSize="sm" fontWeight={600} color="brand.600">
+                  افزودن به حلقه ←
+                </CLink>
+              </Box>
+            </Box>
+          )}
+
+          {/* Listings feed */}
+          <Box px={4} pt={5}>
+            <Text fontWeight={700} fontSize="sm" color="gray.600" _dark={{ color: "gray.300" }} mb={2.5}>
+              آگهی‌ها
             </Text>
-            <Text fontSize="xs" mt={1} opacity={0.9} lineHeight={1.7}>
-              هر آگهی از مسیر اعتمادی به شما می‌رسد: «این فروشنده، دوستِ همکارِ خواهرِ شماست.»
-            </Text>
+            {!hydrated ? (
+              <VStack gap={3} align="stretch">
+                {[0, 1, 2].map((i) => (
+                  <Box key={i} borderWidth="1px" borderColor="chakra-border-color" rounded="2xl" h="120px" />
+                ))}
+              </VStack>
+            ) : visible.length === 0 ? (
+              <FeedEmptyState hasFilter={hasFilter} onClear={() => { setFilter("all"); setQuery(""); }} />
+            ) : (
+              <VStack gap={3} align="stretch">
+                {visible.map((l) => (
+                  <CListingCard key={l.id} listing={l} compactTrust />
+                ))}
+              </VStack>
+            )}
+
+            {hidden > 0 && (
+              <HStack justify="center" gap={2} py={2} color="gray.400">
+                <Box as={CircleUsersIcon} className="w-4 h-4" />
+                <Text fontSize="11px">
+                  {toPersianDigits(hidden)} آگهی به‌دلیل تنظیمات حریم خصوصی برای شما قابل نمایش نیست
+                </Text>
+              </HStack>
+            )}
           </Box>
-        </Box>
-      )}
 
-      {/* Quick access */}
-      {circleCount <= 2 && (
-        <HStack gap={2.5} px={4} pt={3} align="stretch">
-          <Shortcut href="/requests" emoji="🔎" label="درخواست‌ها" scheme="orange" />
-          <Shortcut href="/events" emoji="🎉" label="رویدادها" scheme="brand" />
-        </HStack>
-      )}
+          {/* Events strip */}
+          {onboarded && visibleEvents.length > 0 && (
+            <StripSection title="رویدادهای پیش‌رو" href="/events">
+              {visibleEvents.map((ev) => <EventStripCard key={ev.id} event={ev} />)}
+            </StripSection>
+          )}
 
-      {/* New-user first step */}
-      {hydrated && circleCount === 0 && (
-        <Box px={4} pt={4}>
-          <Box borderWidth="1px" borderColor="chakra-border-color" rounded="2xl" p={4} textAlign="center" bg="chakra-body-bg">
-            <Center w="48px" h="48px" rounded="full" bg="brand.50" color="brand.600" _dark={{ bg: "whiteAlpha.100" }} mx="auto" mb={2}>
-              <Box as={CircleUsersIcon} className="w-6 h-6" />
-            </Center>
-            <Text fontWeight={700} fontSize="sm">
-              اول حلقه‌ات را بساز
-            </Text>
-            <Text fontSize="xs" color="gray.500" _dark={{ color: "gray.400" }} mt={1} lineHeight={1.7}>
-              با افزودن خانواده و دوستان مورد اعتماد، آگهی‌ها و رویدادهای آن‌ها اینجا ظاهر می‌شود.
-            </Text>
-            <CLink as={Link} href="/circle" display="inline-block" mt={3} fontSize="sm" fontWeight={600} color="brand.600">
-              افزودن به حلقه ←
-            </CLink>
-          </Box>
-        </Box>
-      )}
-
-      {/* Listings feed */}
-      <Box px={4} pt={5}>
-        <Text fontWeight={700} fontSize="sm" color="gray.600" _dark={{ color: "gray.300" }} mb={2.5}>
-          آگهی‌ها
-        </Text>
-        {!hydrated ? (
-          <VStack gap={3} align="stretch">
-            {[0, 1, 2].map((i) => (
-              <Box key={i} borderWidth="1px" borderColor="chakra-border-color" rounded="2xl" h="120px" />
-            ))}
-          </VStack>
-        ) : visible.length === 0 ? (
-          <FeedEmptyState hasFilter={hasFilter} onClear={() => { setFilter("all"); setQuery(""); }} />
-        ) : (
-          <VStack gap={3} align="stretch">
-            {visible.map((l) => (
-              <CListingCard key={l.id} listing={l} compactTrust />
-            ))}
-          </VStack>
-        )}
-
-        {hidden > 0 && (
-          <HStack justify="center" gap={2} py={2} color="gray.400">
-            <Box as={CircleUsersIcon} className="w-4 h-4" />
-            <Text fontSize="11px">
-              {toPersianDigits(hidden)} آگهی به‌دلیل تنظیمات حریم خصوصی برای شما قابل نمایش نیست
-            </Text>
-          </HStack>
-        )}
-      </Box>
-
-      {/* Events strip */}
-      {visibleEvents.length > 0 && (
-        <StripSection title="رویدادهای پیش‌رو" href="/events">
-          {visibleEvents.map((ev) => <EventStripCard key={ev.id} event={ev} />)}
-        </StripSection>
-      )}
-
-      {/* Requests strip */}
-      {visibleRequests.length > 0 && (
-        <StripSection title="درخواست‌های حلقه" href="/requests">
-          {visibleRequests.map((r) => <RequestStripCard key={r.id} request={r} />)}
-        </StripSection>
+          {/* Requests strip */}
+          {onboarded && visibleRequests.length > 0 && (
+            <StripSection title="درخواست‌های حلقه" href="/requests">
+              {visibleRequests.map((r) => <RequestStripCard key={r.id} request={r} />)}
+            </StripSection>
+          )}
+        </>
       )}
 
       <Onboarding />
@@ -298,7 +292,7 @@ function EventStripCard({ event }: { event: CircleEvent }) {
     <Box as={Link} href={`/event/${event.id}`} borderWidth="1px" borderColor="chakra-border-color" rounded="2xl" p={3} w="192px" flexShrink={0} bg="chakra-body-bg">
       {host && (
         <HStack gap={2} mb={2}>
-          <CAvatar name={host.name} level={host.level} size="sm" />
+          <CAvatar name={host.name} src={host.avatar} level={host.level} size="sm" />
           <Text fontSize="11px" color="gray.500" _dark={{ color: "gray.400" }} noOfLines={1}>
             {host.name}
           </Text>
@@ -332,7 +326,7 @@ function RequestStripCard({ request }: { request: Request }) {
     <Box as={Link} href={`/request/${request.id}`} borderWidth="1px" borderColor="chakra-border-color" rounded="2xl" p={3} w="192px" flexShrink={0} bg="chakra-body-bg">
       {requester && (
         <HStack gap={2} mb={2}>
-          <CAvatar name={requester.name} level={requester.level} size="sm" />
+          <CAvatar name={requester.name} src={requester.avatar} level={requester.level} size="sm" />
           <Text fontSize="11px" color="gray.500" _dark={{ color: "gray.400" }} noOfLines={1}>
             {requester.name}
           </Text>

@@ -182,7 +182,7 @@ export default function PersonMantine({ params }: { params: { id: string } }) {
       <Box px="md" pt="md">
         <Card withBorder radius="lg" p="lg">
           <Group gap="md" wrap="nowrap" align="flex-start">
-            <MAvatar name={person.name} level={person.level} size="lg" />
+            <MAvatar name={person.name} src={person.avatar} level={person.level} size="lg" />
             <Stack gap={2} style={{ minWidth: 0, flex: 1 }}>
               <Group gap={6} wrap="wrap">
                 <Text fw={700} fz="lg">
@@ -662,8 +662,6 @@ function CircleSection({
             posterId={personId}
             trustPath={trustPath}
             variant="full"
-            posterRole={relationLabels[person.relation]}
-            viewerRole="شما"
           />
         )}
 

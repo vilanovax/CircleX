@@ -18,6 +18,7 @@ import MuiListingCard from "@/components/mui/MuiListingCard";
 import MuiBottomNav from "@/components/mui/MuiBottomNav";
 import MuiAvatar from "@/components/mui/MuiAvatar";
 import Onboarding from "@/components/Onboarding";
+import NewUserHomePlaceholder from "@/components/NewUserHomePlaceholder";
 import { CircleUsersIcon, SearchIcon, ShieldCheckIcon } from "@/components/Icons";
 import { formatPrice, listingTypeLabels } from "@/lib/labels";
 import type { CircleEvent, ListingType, Request } from "@/lib/types";
@@ -36,7 +37,8 @@ const FILTERS: { key: ListingType | "all"; label: string }[] = [
 ];
 
 export default function MuiFeed() {
-  const { listings, requests, events, people, getPerson, hydrated, onboarded } = useStore();
+  const { listings, requests, events, people, getPerson, hydrated, onboarded } =
+    useStore();
   const [filter, setFilter] = useState<ListingType | "all">("all");
   const [query, setQuery] = useState("");
 
@@ -128,91 +130,83 @@ export default function MuiFeed() {
         </Stack>
       </Box>
 
-      {/* Trust banner */}
-      {!onboarded && (
-        <Box sx={{ px: 2, pt: 1.5 }}>
-          <Box sx={{ borderRadius: 3, p: 2, color: "#fff", background: (t) => `linear-gradient(to left, ${t.palette.primary.dark}, ${t.palette.primary.main})` }}>
-            <Typography fontWeight={700} variant="body2">
-              اینجا کسی غریبه نیست
-            </Typography>
-            <Typography sx={{ fontSize: 12, mt: 0.5, opacity: 0.9, lineHeight: 1.7 }}>
-              هر آگهی از مسیر اعتمادی به شما می‌رسد: «این فروشنده، دوستِ همکارِ خواهرِ شماست.»
-            </Typography>
-          </Box>
-        </Box>
-      )}
+      {hydrated && !onboarded ? (
+        <NewUserHomePlaceholder />
+      ) : (
+        <>
+          {/* Quick access */}
+          {circleCount <= 2 && (
+            <Stack direction="row" spacing={1.25} sx={{ px: 2, pt: 1.5 }}>
+              <Shortcut href="/requests" emoji="🔎" label="درخواست‌ها" />
+              <Shortcut href="/events" emoji="🎉" label="رویدادها" />
+            </Stack>
+          )}
 
-      {/* Quick access */}
-      {circleCount <= 2 && (
-        <Stack direction="row" spacing={1.25} sx={{ px: 2, pt: 1.5 }}>
-          <Shortcut href="/requests" emoji="🔎" label="درخواست‌ها" />
-          <Shortcut href="/events" emoji="🎉" label="رویدادها" />
-        </Stack>
-      )}
-
-      {/* New-user first step */}
-      {hydrated && circleCount === 0 && (
-        <Box sx={{ px: 2, pt: 2 }}>
-          <Card sx={{ p: 2, textAlign: "center", borderRadius: 3 }}>
-            <Box sx={{ width: 48, height: 48, borderRadius: "50%", bgcolor: (t) => `${t.palette.primary.main}1a`, color: "primary.main", display: "flex", alignItems: "center", justifyContent: "center", mx: "auto", mb: 1 }}>
-              <Box component={CircleUsersIcon} className="w-6 h-6" />
+          {/* Empty-circle CTA after onboarding */}
+          {hydrated && circleCount === 0 && (
+            <Box sx={{ px: 2, pt: 2 }}>
+              <Card sx={{ p: 2, textAlign: "center", borderRadius: 3 }}>
+                <Box sx={{ width: 48, height: 48, borderRadius: "50%", bgcolor: (t) => `${t.palette.primary.main}1a`, color: "primary.main", display: "flex", alignItems: "center", justifyContent: "center", mx: "auto", mb: 1 }}>
+                  <Box component={CircleUsersIcon} className="w-6 h-6" />
+                </Box>
+                <Typography fontWeight={700} variant="body2">
+                  اول حلقه‌ات را بساز
+                </Typography>
+                <Typography sx={{ fontSize: 12, mt: 0.5, lineHeight: 1.7 }} color="text.secondary">
+                  با افزودن خانواده و دوستان مورد اعتماد، آگهی‌ها و رویدادهای آن‌ها اینجا ظاهر می‌شود.
+                </Typography>
+                <MuiLink component={Link} href="/circle" sx={{ display: "inline-block", mt: 1.5, fontWeight: 600 }} underline="none">
+                  افزودن به حلقه ←
+                </MuiLink>
+              </Card>
             </Box>
-            <Typography fontWeight={700} variant="body2">
-              اول حلقه‌ات را بساز
+          )}
+
+          {/* Listings feed */}
+          <Box sx={{ px: 2, pt: 2.5 }}>
+            <Typography fontWeight={700} variant="body2" color="text.secondary" sx={{ mb: 1.25 }}>
+              آگهی‌ها
             </Typography>
-            <Typography sx={{ fontSize: 12, mt: 0.5, lineHeight: 1.7 }} color="text.secondary">
-              با افزودن خانواده و دوستان مورد اعتماد، آگهی‌ها و رویدادهای آن‌ها اینجا ظاهر می‌شود.
-            </Typography>
-            <MuiLink component={Link} href="/circle" sx={{ display: "inline-block", mt: 1.5, fontWeight: 600 }} underline="none">
-              افزودن به حلقه ←
-            </MuiLink>
-          </Card>
-        </Box>
-      )}
+            {!hydrated ? (
+              <Stack spacing={1.5}>
+                {[0, 1, 2].map((i) => (
+                  <Card key={i} sx={{ height: 120, borderRadius: 3 }} />
+                ))}
+              </Stack>
+            ) : visible.length === 0 ? (
+              <FeedEmptyState hasFilter={hasFilter} onClear={() => { setFilter("all"); setQuery(""); }} />
+            ) : (
+              <Stack spacing={1.5}>
+                {visible.map((l) => (
+                  <MuiListingCard key={l.id} listing={l} compactTrust />
+                ))}
+              </Stack>
+            )}
 
-      {/* Listings feed */}
-      <Box sx={{ px: 2, pt: 2.5 }}>
-        <Typography fontWeight={700} variant="body2" color="text.secondary" sx={{ mb: 1.25 }}>
-          آگهی‌ها
-        </Typography>
-        {!hydrated ? (
-          <Stack spacing={1.5}>
-            {[0, 1, 2].map((i) => (
-              <Card key={i} sx={{ height: 120, borderRadius: 3 }} />
-            ))}
-          </Stack>
-        ) : visible.length === 0 ? (
-          <FeedEmptyState hasFilter={hasFilter} onClear={() => { setFilter("all"); setQuery(""); }} />
-        ) : (
-          <Stack spacing={1.5}>
-            {visible.map((l) => (
-              <MuiListingCard key={l.id} listing={l} compactTrust />
-            ))}
-          </Stack>
-        )}
+            {hidden > 0 && (
+              <Stack direction="row" justifyContent="center" spacing={1} sx={{ py: 1, color: "text.disabled" }}>
+                <Box component={CircleUsersIcon} className="w-4 h-4" />
+                <Typography sx={{ fontSize: 11 }}>
+                  {toPersianDigits(hidden)} آگهی به‌دلیل تنظیمات حریم خصوصی برای شما قابل نمایش نیست
+                </Typography>
+              </Stack>
+            )}
+          </Box>
 
-        {hidden > 0 && (
-          <Stack direction="row" justifyContent="center" spacing={1} sx={{ py: 1, color: "text.disabled" }}>
-            <Box component={CircleUsersIcon} className="w-4 h-4" />
-            <Typography sx={{ fontSize: 11 }}>
-              {toPersianDigits(hidden)} آگهی به‌دلیل تنظیمات حریم خصوصی برای شما قابل نمایش نیست
-            </Typography>
-          </Stack>
-        )}
-      </Box>
+          {/* Events strip */}
+          {onboarded && visibleEvents.length > 0 && (
+            <StripSection title="رویدادهای پیش‌رو" href="/events">
+              {visibleEvents.map((ev) => <EventStripCard key={ev.id} event={ev} />)}
+            </StripSection>
+          )}
 
-      {/* Events strip */}
-      {visibleEvents.length > 0 && (
-        <StripSection title="رویدادهای پیش‌رو" href="/events">
-          {visibleEvents.map((ev) => <EventStripCard key={ev.id} event={ev} />)}
-        </StripSection>
-      )}
-
-      {/* Requests strip */}
-      {visibleRequests.length > 0 && (
-        <StripSection title="درخواست‌های حلقه" href="/requests">
-          {visibleRequests.map((r) => <RequestStripCard key={r.id} request={r} />)}
-        </StripSection>
+          {/* Requests strip */}
+          {onboarded && visibleRequests.length > 0 && (
+            <StripSection title="درخواست‌های حلقه" href="/requests">
+              {visibleRequests.map((r) => <RequestStripCard key={r.id} request={r} />)}
+            </StripSection>
+          )}
+        </>
       )}
 
       <Onboarding />
@@ -294,7 +288,7 @@ function EventStripCard({ event }: { event: CircleEvent }) {
       <CardActionArea component={Link} href={`/event/${event.id}`} sx={{ p: 1.5 }}>
         {host && (
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-            <MuiAvatar name={host.name} level={host.level} size="sm" />
+            <MuiAvatar name={host.name} src={host.avatar} level={host.level} size="sm" />
             <Typography sx={{ fontSize: 11 }} color="text.secondary" noWrap>
               {host.name}
             </Typography>
@@ -330,7 +324,7 @@ function RequestStripCard({ request }: { request: Request }) {
       <CardActionArea component={Link} href={`/request/${request.id}`} sx={{ p: 1.5 }}>
         {requester && (
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-            <MuiAvatar name={requester.name} level={requester.level} size="sm" />
+            <MuiAvatar name={requester.name} src={requester.avatar} level={requester.level} size="sm" />
             <Typography sx={{ fontSize: 11 }} color="text.secondary" noWrap>
               {requester.name}
             </Typography>

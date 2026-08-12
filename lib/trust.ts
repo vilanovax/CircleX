@@ -102,6 +102,23 @@ export function posterCardRelation(
   return relationLabels[poster.relation];
 }
 
+/**
+ * Proximity line for feed cards — only when relation alone is not enough.
+ * Direct circle with a clear relation → null (avoid «خواهر شما» + «نزدیک»).
+ * Indirect / FoF → «ارتباط درجه ۲».
+ */
+export function posterProximityLabel(
+  poster: Person,
+  trustPath: TrustHop[],
+): string | null {
+  if (poster.id === "me") return null;
+  if (poster.inMyCircle && trustPath.length === 0) {
+    return null;
+  }
+  const hops = Math.max(trustPath.length, 1);
+  return `ارتباط درجه ${toPersianDigits(hops + 1)}`;
+}
+
 const ownContentHeadline: Record<TrustContentKind, string> = {
   listing: "آگهی خودتان در حلقه",
   request: "درخواست خودتان در حلقه",

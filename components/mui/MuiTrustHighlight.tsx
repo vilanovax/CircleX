@@ -43,7 +43,7 @@ export default function MuiTrustHighlight({
   if (variant === "compact") {
     const identity = (
       <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
-        <MuiAvatar name={poster.name} level={isOwn ? undefined : poster.level} size="sm" />
+        <MuiAvatar name={poster.name} src={poster.avatar} level={isOwn ? undefined : poster.level} size="sm" />
         <Box sx={{ minWidth: 0 }}>
           <Typography variant="body2" fontWeight={600} noWrap>
             {poster.name}
@@ -66,13 +66,16 @@ export default function MuiTrustHighlight({
             </Box>
           )}
           {!isOwn && poster.level && <Chip size="small" label={levelShort[poster.level]} sx={{ height: 20, fontSize: 10 }} />}
-          <VerifiedUserOutlinedIcon sx={{ fontSize: 18, color: "primary.main", flexShrink: 0 }} />
+          {endorsementLine && !isOwn ? (
+            <VerifiedUserOutlinedIcon
+              sx={{ fontSize: 18, color: "success.main", flexShrink: 0 }}
+              titleAccess={endorsementLine}
+              aria-label={endorsementLine}
+            />
+          ) : (
+            <VerifiedUserOutlinedIcon sx={{ fontSize: 18, color: "primary.main", flexShrink: 0 }} aria-hidden />
+          )}
         </Stack>
-        {endorsementLine && !isOwn && (
-          <Typography sx={{ fontSize: 11, mt: 0.5 }} color="success.main" fontWeight={500}>
-            ✓ {endorsementLine}
-          </Typography>
-        )}
       </Box>
     );
   }

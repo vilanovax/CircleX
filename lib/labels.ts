@@ -56,6 +56,20 @@ export const levelDot: Record<TrustLevel, string> = {
   C: "bg-levelC",
 };
 
+/** Compact degree digit for avatar badges (A=۱ closest). */
+export const levelDegreeFa: Record<TrustLevel, string> = {
+  A: "۱",
+  B: "۲",
+  C: "۳",
+};
+
+/** Accessible explanation of A/B/C trust tiers. */
+export const levelHint: Record<TrustLevel, string> = {
+  A: "حلقه نزدیک — درجه ۱",
+  B: "مورد اعتماد — درجه ۲",
+  C: "آشنا — درجه ۳",
+};
+
 export const listingTypeLabels: Record<ListingType, string> = {
   sale: "فروش",
   donation: "اهدا / خیریه",
@@ -114,6 +128,14 @@ export const badgeLabels: Record<BadgeType, string> = {
   dealt_before: "قبلاً معامله کرده‌ام",
 };
 
+/** Past-tense / third-person lines for endorsement feed. */
+export const badgeResultLabels: Record<BadgeType, string> = {
+  verify_item: "این کالا را تأیید کرده است",
+  know_seller: "فروشنده را می‌شناسد",
+  verify_quality: "کیفیت کالا را تأیید کرده است",
+  dealt_before: "قبلاً با فروشنده معامله کرده است",
+};
+
 export const badgeEmoji: Record<BadgeType, string> = {
   verify_item: "✅",
   know_seller: "👤",
@@ -121,13 +143,22 @@ export const badgeEmoji: Record<BadgeType, string> = {
   dealt_before: "🤝",
 };
 
-/** Plain-language audience chips for feed cards (avoid bare A/B/C jargon). */
+/** Plain-language audience labels (detail / picker). Keep short — feed hides these. */
 export const privacyLabels: Record<Privacy, string> = {
-  A: "فقط نزدیک‌ترین‌ها",
-  AB: "نزدیک و مورد اعتماد",
-  ABC: "کل حلقه",
-  referral: "فقط با معرفی",
-  approved: "فقط با تأیید من",
+  A: "نزدیک‌ترین‌ها",
+  AB: "نزدیک و مطمئن",
+  ABC: "همهٔ حلقه",
+  referral: "با معرفی",
+  approved: "با تأیید من",
+};
+
+/** Longer privacy copy for listing detail chips. */
+export const privacyDetailLabels: Record<Privacy, string> = {
+  A: "قابل‌مشاهده برای نزدیک‌ترین‌ها",
+  AB: "قابل‌مشاهده برای نزدیک و مطمئن",
+  ABC: "قابل‌مشاهده برای همهٔ حلقه",
+  referral: "فقط با معرفی دیده می‌شود",
+  approved: "فقط با تأیید شما دیده می‌شود",
 };
 
 export const privacyEmoji: Record<Privacy, string> = {

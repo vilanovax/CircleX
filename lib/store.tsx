@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { createContext, useContextSelector } from "use-context-selector";
+import { AVATAR_IMAGES } from "./avatar";
 import {
   EVENTS,
   LISTINGS,
@@ -85,6 +86,8 @@ export interface StoreValue {
   messages: Message[];
   events: CircleEvent[];
   saved: string[];
+  /** Null until mock phone/OTP login succeeds. */
+  sessionPhone: string | null;
   onboarded: boolean;
   hydrated: boolean;
   getPerson: (id: string) => Person | undefined;
@@ -119,14 +122,17 @@ export interface StoreValue {
   toggleSaved: (listingId: string) => void;
   isSaved: (listingId: string) => boolean;
   completeOnboarding: () => void;
+  /** Mark session authenticated after mock OTP (sample code 12345). */
+  completeLogin: (phone: string) => void;
+  signOut: () => void;
   updateProfile: (input: Partial<Pick<Person, "name" | "avatar" | "city">>) => void;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
 
-const STORAGE_KEY = "circle-store-v1";
+const STORAGE_KEY = "circle-store-v2";
 
-const AVATAR_POOL = ["🧑", "👩", "🧔", "👨", "👵", "👴", "🧑‍🦱", "👩‍🦰", "🧑‍🦲", "👨‍🦳"];
+const AVATAR_POOL = AVATAR_IMAGES;
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [meProfile, setMeProfile] = useState<Person>(ME);
@@ -137,6 +143,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [messages, setMessages] = useState<Message[]>(MESSAGES);
   const [events, setEvents] = useState<CircleEvent[]>(EVENTS);
   const [saved, setSaved] = useState<string[]>([]);
+  const [sessionPhone, setSessionPhone] = useState<string | null>(null);
   const [onboarded, setOnboarded] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
@@ -169,6 +176,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
         if (Array.isArray(data.saved)) setSaved(data.saved);
         if (typeof data.onboarded === "boolean") setOnboarded(data.onboarded);
+        // New field; migrate prior demos that already finished onboarding.
+        if (typeof data.sessionPhone === "string" && data.sessionPhone.length > 0) {
+          setSessionPhone(data.sessionPhone);
+        } else if (data.onboarded) {
+          setSessionPhone("09121234567");
+        }
       }
     } catch {
       // ignore corrupt storage
@@ -191,13 +204,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           messages,
           events,
           saved,
+          sessionPhone,
           onboarded,
         }),
       );
     } catch {
       // ignore quota errors
     }
-  }, [meProfile, people, listings, requests, offers, messages, events, saved, onboarded, hydrated]);
+  }, [
+    meProfile,
+    people,
+    listings,
+    requests,
+    offers,
+    messages,
+    events,
+    saved,
+    sessionPhone,
+    onboarded,
+    hydrated,
+  ]);
 
   const getPerson = useCallback(
     (id: string) => (id === "me" ? meProfile : people.find((p) => p.id === id)),
@@ -504,6 +530,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const completeOnboarding = useCallback(() => setOnboarded(true), []);
 
+  const completeLogin = useCallback((phone: string) => {
+    setSessionPhone(phone);
+  }, []);
+
+  const signOut = useCallback(() => {
+    setSessionPhone(null);
+    setOnboarded(false);
+  }, []);
+
   const value = useMemo<StoreValue>(
     () => ({
       me: meProfile,
@@ -514,6 +549,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       messages,
       events,
       saved,
+      sessionPhone,
       onboarded,
       hydrated,
       getPerson,
@@ -544,6 +580,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       toggleSaved,
       isSaved,
       completeOnboarding,
+      completeLogin,
+      signOut,
       updateProfile,
     }),
     [
@@ -554,6 +592,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       messages,
       events,
       saved,
+      sessionPhone,
       onboarded,
       hydrated,
       getPerson,
@@ -584,6 +623,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       toggleSaved,
       isSaved,
       completeOnboarding,
+      completeLogin,
+      signOut,
       updateProfile,
       meProfile,
     ],

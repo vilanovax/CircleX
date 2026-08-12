@@ -37,7 +37,7 @@ export type BadgeType =
 export interface Person {
   id: string;
   name: string;
-  /** Emoji used as a lightweight avatar in this prototype. */
+  /** Avatar image path (e.g. /avatars/01.webp) or legacy emoji. */
   avatar: string;
   relation: RelationType;
   level: TrustLevel;

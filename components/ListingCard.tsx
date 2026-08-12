@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { Listing } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { formatPrice, privacyLabels } from "@/lib/labels";
-import { endorsementHighlightLine, privacyAudience } from "@/lib/trust";
+import { privacyAudience } from "@/lib/trust";
 import ListingImage from "./ListingImage";
 import TrustHighlight from "./TrustHighlight";
 
@@ -19,21 +19,12 @@ export default function ListingCard({
   /** Hide trust banner — e.g. on the poster's own profile page. */
   hideTrust?: boolean;
 }) {
-  const { people, getPerson } = useStore();
+  const { people } = useStore();
   const circle = people.filter((p) => p.inMyCircle);
   const isService = listing.type === "service";
-  const endorsed =
-    !!endorsementHighlightLine(listing.endorsements, getPerson, "listing") &&
-    listing.sellerId !== "me";
-  /** Signature rail only when someone in the circle endorsed this listing. */
-  const showRail = compactTrust && !hideTrust && endorsed;
 
   return (
-    <article
-      className={`card p-3 active:scale-[0.99] transition-transform duration-150 ${
-        showRail ? "trust-card" : ""
-      }`}
-    >
+    <article className="card p-3 active:scale-[0.99] transition-transform duration-150">
       {!hideTrust && (
         <TrustHighlight
           posterId={listing.sellerId}
@@ -76,12 +67,15 @@ export default function ListingCard({
             ·
           </span>
           <span className="shrink-0">{listing.postedAt}</span>
-          <span
-            className="mr-auto shrink-0 text-[10px] text-ink-muted dark:text-zinc-500"
-            title={privacyAudience(listing.privacy, circle)}
-          >
-            {privacyLabels[listing.privacy]}
-          </span>
+          {/* Feed: privacy lives on the detail page — keep the footer to place + time. */}
+          {!compactTrust && (
+            <span
+              className="mr-auto shrink-0 text-[10px] text-ink-muted dark:text-zinc-500"
+              title={privacyAudience(listing.privacy, circle)}
+            >
+              {privacyLabels[listing.privacy]}
+            </span>
+          )}
         </div>
       </Link>
     </article>
