@@ -28,7 +28,7 @@ export const PEOPLE: Person[] = [
   {
     id: "sara",
     name: "سارا",
-    avatar: "initials",
+    avatar: "/avatars/02.webp",
     relation: "family",
     level: "A",
     note: "خواهرم",

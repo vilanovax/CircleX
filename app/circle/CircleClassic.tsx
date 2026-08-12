@@ -170,10 +170,10 @@ export default function CircleClassic() {
                 </span>
                 <span className="flex-1 min-w-0">
                   <span className="block font-bold text-[13px]">
-                    نقشه‌ی گراف اعتماد
+                    نقشه‌ی شبکه من
                   </span>
                   <span className="block text-[11px] text-white/80 mt-0.5 truncate">
-                    تو در مرکز — مسیر تا هر نفر
+                    ببین هر فرد چگونه به تو وصل است
                   </span>
                 </span>
                 <span className="text-white/80 text-lg leading-none" aria-hidden>

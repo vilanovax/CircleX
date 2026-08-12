@@ -192,10 +192,10 @@ export default function CircleMantine() {
                 </ThemeIcon>
                 <Box style={{ flex: 1, minWidth: 0 }}>
                   <Text fw={700} fz="sm">
-                    نقشه‌ی گراف اعتماد
+                    نقشه‌ی شبکه من
                   </Text>
                   <Text fz={11} style={{ color: "rgba(255,255,255,0.8)" }}>
-                    تو در مرکز — مسیر تا هر نفر
+                    ببین هر فرد چگونه به تو وصل است
                   </Text>
                 </Box>
                 <Text fz="lg" style={{ color: "rgba(255,255,255,0.75)" }}>

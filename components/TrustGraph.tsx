@@ -4,8 +4,14 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { resolveAvatarSrc } from "@/lib/avatar";
-import { buildTrustGraph, pathToMe } from "@/lib/graph";
+import {
+  buildTrustGraph,
+  connectionPathSentence,
+  depthRingLabel,
+  pathToMe,
+} from "@/lib/graph";
 import { relationLabels, levelShort } from "@/lib/labels";
+import { viewerRelationPhrase } from "@/lib/trust";
 import type { TrustLevel } from "@/lib/types";
 
 const SIZE = 340;
@@ -57,10 +63,13 @@ export default function TrustGraph() {
 
   const selectedNode = selected ? nodeById[selected] : null;
   const selectedPerson = selected ? getPerson(selected) : null;
-  const pathLabels = pathChain
-    .slice()
-    .reverse()
-    .map((id) => (id === "me" ? "شما" : nodeById[id]?.name ?? "؟"));
+
+  const pathCopy = useMemo(() => {
+    if (!selected || pathChain.length === 0) return null;
+    return connectionPathSentence(pathChain, (id) =>
+      id === "me" ? "شما" : (nodeById[id]?.name ?? "؟"),
+    );
+  }, [selected, pathChain, nodeById]);
 
   return (
     <div>
@@ -70,7 +79,7 @@ export default function TrustGraph() {
           className="w-full select-none"
           onClick={() => setSelected(null)}
           role="img"
-          aria-label="گراف حلقه‌ی اعتماد"
+          aria-label="نقشه ارتباطات شبکه شما"
         >
           <defs>
             <radialGradient id="tg-center-glow" cx="50%" cy="50%" r="45%">
@@ -94,18 +103,42 @@ export default function TrustGraph() {
             fill="url(#tg-center-glow)"
           />
 
-          {ringRadii.map((r, i) => (
-            <circle
-              key={i}
-              cx={SIZE / 2}
-              cy={SIZE / 2}
-              r={r}
-              fill="none"
-              className="stroke-stone-300/70 dark:stroke-zinc-600/50"
-              strokeWidth={1}
-              strokeDasharray="3 5"
-            />
-          ))}
+          {ringRadii.map((r, i) => {
+            const depth = i + 1;
+            const labelY = SIZE / 2 - r;
+            return (
+              <g key={i}>
+                <circle
+                  cx={SIZE / 2}
+                  cy={SIZE / 2}
+                  r={r}
+                  fill="none"
+                  className="stroke-stone-300/80 dark:stroke-zinc-600/55"
+                  strokeWidth={1.15}
+                  strokeDasharray="4 5"
+                />
+                <rect
+                  x={SIZE / 2 - 28}
+                  y={labelY - 7}
+                  width={56}
+                  height={14}
+                  rx={7}
+                  className="fill-[color:var(--circle-surface)] dark:fill-zinc-900"
+                  opacity={0.92}
+                />
+                <text
+                  x={SIZE / 2}
+                  y={labelY + 3.5}
+                  textAnchor="middle"
+                  fontSize={8.5}
+                  fontWeight={700}
+                  className="fill-zinc-500 dark:fill-zinc-400"
+                >
+                  {depthRingLabel(depth)}
+                </text>
+              </g>
+            );
+          })}
 
           <g className="animate-appear">
             {graph.edges.map((e, i) => {
@@ -121,13 +154,13 @@ export default function TrustGraph() {
                   x2={b.x}
                   y2={b.y}
                   stroke={hot ? BRAND : undefined}
-                  strokeWidth={hot ? 2.75 : 1.15}
+                  strokeWidth={hot ? 3 : 1.35}
                   strokeLinecap="round"
                   className={
                     hot
                       ? "transition-[stroke-width,opacity] duration-200"
-                      : `stroke-stone-300 dark:stroke-zinc-600 transition-opacity duration-200 ${
-                          selected ? "opacity-15" : "opacity-55"
+                      : `stroke-stone-400 dark:stroke-zinc-500 transition-opacity duration-200 ${
+                          selected ? "opacity-12" : "opacity-70"
                         }`
                   }
                 />
@@ -171,7 +204,7 @@ export default function TrustGraph() {
                 >
                   <g
                     className={`transition-opacity duration-200 ${
-                      dim(n.id) ? "opacity-25" : "opacity-100"
+                      dim(n.id) ? "opacity-22" : "opacity-100"
                     }`}
                   >
                     {(isMe || onPath || isSelected) && (
@@ -204,8 +237,20 @@ export default function TrustGraph() {
                           ? "rgba(255,255,255,0.35)"
                           : LEVEL_HEX[n.level ?? "C"]
                       }
-                      strokeWidth={isMe ? 2 : isSelected ? 3 : 2.4}
+                      strokeWidth={
+                        isMe ? 2 : isSelected ? 3.25 : n.level === "A" ? 2.8 : 2.2
+                      }
                     />
+                    {/* Double ring hint for نزدیکان */}
+                    {!isMe && n.level === "A" && (
+                      <circle
+                        r={r + 3.2}
+                        fill="none"
+                        stroke={LEVEL_HEX.A}
+                        strokeWidth={1.1}
+                        opacity={0.55}
+                      />
+                    )}
                     <text
                       y={r + 12}
                       textAnchor="middle"
@@ -223,23 +268,26 @@ export default function TrustGraph() {
         </svg>
       </div>
 
-      <div className="flex items-center justify-center gap-3.5 text-[11px] text-ink-muted dark:text-zinc-400 mt-3 px-1">
-        {(
-          [
-            ["A", "bg-levelA"],
-            ["B", "bg-levelB"],
-            ["C", "bg-levelC"],
-          ] as const
-        ).map(([lvl, cls]) => (
+      <div className="flex items-center justify-center gap-4 text-[11px] text-ink-muted dark:text-zinc-400 mt-3 px-1 flex-wrap">
+        {(["A", "B", "C"] as const).map((lvl) => (
           <span key={lvl} className="flex items-center gap-1.5">
-            <span className={`w-2 h-2 rounded-full ${cls}`} aria-hidden />
-            سطح {lvl}
+            <span
+              className={`w-2 h-2 rounded-full ${
+                lvl === "A"
+                  ? "bg-levelA"
+                  : lvl === "B"
+                    ? "bg-levelB"
+                    : "bg-levelC"
+              }`}
+              aria-hidden
+            />
+            {levelShort[lvl]}
           </span>
         ))}
       </div>
 
-      <div className="mt-3 min-h-[72px]">
-        {selectedNode && selectedPerson ? (
+      <div className="mt-3 min-h-[88px]">
+        {selectedNode && selectedPerson && pathCopy ? (
           <div className="rounded-xl border border-brand-200/70 dark:border-brand-500/25 bg-brand-50/50 dark:bg-brand-500/10 p-3.5 animate-fade-up">
             <div className="flex items-center gap-2.5 mb-2">
               <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 ring-2 ring-white dark:ring-zinc-900 bg-zinc-100 dark:bg-zinc-800">
@@ -271,21 +319,23 @@ export default function TrustGraph() {
                       {levelShort[selectedNode.level]}
                     </span>
                   )}
-                  <span className="chip !py-0.5 !px-2 bg-[color:var(--circle-surface)] text-ink-muted ring-1 ring-stone-200/70 dark:ring-zinc-700">
-                    {relationLabels[selectedPerson.relation]}
-                  </span>
                 </div>
-                <p className="text-[12px] text-ink dark:text-zinc-200 font-medium mt-1 leading-relaxed">
-                  {pathLabels.join(" ← ")}
+                <p className="text-[12px] text-ink-muted mt-0.5">
+                  {selectedNode.inCircle
+                    ? viewerRelationPhrase(selectedPerson)
+                    : relationLabels[selectedPerson.relation]}
+                  {" · "}
+                  {depthRingLabel(selectedNode.depth)}
                 </p>
               </div>
             </div>
-            {!selectedNode.inCircle && (
-              <p className="text-[11px] text-ink-muted mb-2 leading-relaxed">
-                خارج از حلقه‌ی مستقیم — از مسیر اعتماد به تو وصل است.
-              </p>
-            )}
-            <div className="flex gap-2">
+            <p className="text-[13px] font-semibold text-ink dark:text-zinc-100 leading-relaxed">
+              {pathCopy.sentence}
+            </p>
+            <p className="text-[11px] text-ink-muted mt-1 nums leading-relaxed">
+              مسیر: {pathCopy.trail}
+            </p>
+            <div className="flex gap-2 mt-3">
               <Link
                 href={`/person/${selected}`}
                 className="btn-primary flex-1 !py-2.5 text-sm text-center"
@@ -302,9 +352,14 @@ export default function TrustGraph() {
             </div>
           </div>
         ) : (
-          <p className="text-center text-[12px] text-ink-faint dark:text-zinc-500 py-3 leading-relaxed px-2">
-            روی هر نفر بزن تا مسیر اعتمادش تا تو روشن شود.
-          </p>
+          <div className="rounded-xl bg-stone-50/90 dark:bg-zinc-800/50 px-3 py-3 text-center">
+            <p className="text-[13px] font-semibold text-ink dark:text-zinc-200">
+              یک نفر را لمس کن
+            </p>
+            <p className="text-[12px] text-ink-faint dark:text-zinc-500 mt-0.5 leading-relaxed">
+              مسیر اتصالش تا تو روشن می‌شود — مستقیم یا از طریق دیگران.
+            </p>
+          </div>
         )}
       </div>
     </div>

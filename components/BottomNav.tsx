@@ -51,8 +51,8 @@ export default function BottomNav() {
                       aria-label="ثبت آگهی، درخواست یا رویداد"
                       className="flex flex-col items-center gap-0.5 -mt-6 active:scale-95 transition-transform duration-150"
                     >
-                      <span className="w-14 h-14 rounded-full bg-brand-600 text-white flex items-center justify-center shadow-lg shadow-brand-600/25 ring-[3px] ring-[color:var(--circle-surface)] dark:ring-zinc-900 active:bg-brand-700">
-                        <Icon className="w-7 h-7" />
+                      <span className="w-12 h-12 rounded-full bg-brand-600 text-white flex items-center justify-center shadow-md shadow-brand-600/20 ring-2 ring-[color:var(--circle-surface)] dark:ring-zinc-900 active:bg-brand-700">
+                        <Icon className="w-6 h-6" />
                       </span>
                       <span className="text-[11px] font-medium text-brand-600 dark:text-brand-400">
                         {label}

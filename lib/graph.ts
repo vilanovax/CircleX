@@ -173,6 +173,8 @@ export interface GraphInsights {
   levelA: number;
   /** Direct circle size (inMyCircle / depth-1). */
   direct: number;
+  /** Reachable only through someone else (depth ≥ 2). */
+  viaOthers: number;
   /** The connector most trust paths pass through, if any. */
   hub: { id: string; name: string; count: number } | null;
 }
@@ -198,10 +200,51 @@ export function graphInsights(graph: TrustGraph): GraphInsights {
     }
   });
 
+  const direct = graph.nodes.filter((n) => n.id !== "me" && n.depth === 1).length;
+  const viaOthers = graph.nodes.filter((n) => n.depth >= 2).length;
+
   return {
     reach: graph.nodes.length - 1,
     levelA: graph.nodes.filter((n) => n.level === "A").length,
-    direct: graph.nodes.filter((n) => n.inCircle).length,
+    direct,
+    viaOthers,
     hub,
+  };
+}
+
+/** Plain-language hop label for a depth ring (1 = direct). */
+export function depthRingLabel(depth: number): string {
+  if (depth <= 1) return "مستقیم";
+  if (depth === 2) return "یک واسطه";
+  if (depth === 3) return "دو واسطه";
+  return `${depth - 1} واسطه`;
+}
+
+/** Human path sentence from selected node toward me. */
+export function connectionPathSentence(
+  pathFromNodeToMe: string[],
+  nameOf: (id: string) => string,
+): { sentence: string; trail: string } {
+  const chain = pathFromNodeToMe.slice().reverse(); // [me, …, selected]
+  const trail = chain
+    .map((id) => (id === "me" ? "شما" : nameOf(id)))
+    .join(" ← ");
+  if (chain.length <= 2) {
+    const name = nameOf(chain[chain.length - 1] ?? "");
+    return {
+      sentence: `${name} را مستقیم می‌شناسید.`,
+      trail,
+    };
+  }
+  const vias = chain.slice(1, -1).map((id) => nameOf(id));
+  if (vias.length === 1) {
+    return {
+      sentence: `از طریق ${vias[0]} به شبکه شما متصل است.`,
+      trail,
+    };
+  }
+  return {
+    sentence: `از طریق ${vias.join(" و ")} به شبکه شما متصل است.`,
+    trail,
   };
 }

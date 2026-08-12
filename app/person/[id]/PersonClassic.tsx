@@ -171,7 +171,6 @@ export default function PersonClassic(_props: { params: { id: string } }) {
               level={person.level}
               size="profile"
               showLevel={false}
-              soft
             />
             <div className="flex-1 min-w-0">
               <h2 className="text-[16px] font-extrabold text-ink dark:text-zinc-100 leading-tight">
