@@ -37,6 +37,22 @@ export function personAvatarColor(name: string): string {
   return PALETTE[hashName(name) % PALETTE.length].className;
 }
 
+const SOFT_PALETTE = [
+  "bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300",
+  "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300",
+  "bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300",
+  "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300",
+  "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300",
+  "bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-300",
+  "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300",
+  "bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-300",
+] as const;
+
+/** Softer initials for profile heroes (less attention than the name). */
+export function personAvatarSoftColor(name: string): string {
+  return SOFT_PALETTE[hashName(name) % SOFT_PALETTE.length];
+}
+
 export function personAvatarHex(name: string): string {
   return PALETTE[hashName(name) % PALETTE.length].hex;
 }

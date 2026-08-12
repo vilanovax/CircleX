@@ -161,16 +161,17 @@ export default function PersonClassic(_props: { params: { id: string } }) {
     <main className="pb-24 min-h-[100dvh]">
       <Header title={`پروفایل ${person.name}`} back />
 
-      {/* 1. Compact intro */}
+      {/* 1. Compact intro — identity only; trust stats live below */}
       <div className="px-4 pt-3">
         <div className="card p-3.5">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <Avatar
               name={person.name}
               src={person.avatar}
               level={person.level}
-              size="md"
+              size="profile"
               showLevel={false}
+              soft
             />
             <div className="flex-1 min-w-0">
               <h2 className="text-[16px] font-extrabold text-ink dark:text-zinc-100 leading-tight">
@@ -183,11 +184,6 @@ export default function PersonClassic(_props: { params: { id: string } }) {
               {metaLine && (
                 <p className="text-[11px] text-ink-faint mt-1 leading-snug">
                   {metaLine}
-                </p>
-              )}
-              {evidenceLine && (
-                <p className="text-[12px] font-semibold text-ink dark:text-zinc-200 mt-1.5 nums leading-snug">
-                  {evidenceLine}
                 </p>
               )}
             </div>
@@ -285,40 +281,28 @@ export default function PersonClassic(_props: { params: { id: string } }) {
         </section>
       )}
 
-      {/* 3. Single trust + relation summary */}
+      {/* 3. Relation + trust summary (single home for stats) */}
       <section className="px-4 pt-3.5 pb-2">
         <div className="card p-3.5">
-          <button
-            type="button"
-            onClick={() => setShowTrustDetails(true)}
-            className="w-full text-right active:opacity-80"
-          >
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-100">
-                اعتماد و رابطه
-              </h2>
-              <span className="text-ink-faint text-sm leading-none mt-0.5" aria-hidden>
-                ‹
-              </span>
-            </div>
-            <p className="text-[12px] text-ink-muted dark:text-zinc-400 leading-snug">
-              {relationPhrase}
-              {person.inMyCircle
-                ? ` · حلقه ${relationLabels[person.relation]}`
-                : " · هنوز عضو مستقیم شبکه نیست"}
+          <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-100 mb-1.5">
+            رابطه و اعتماد
+          </h2>
+          <p className="text-[12px] text-ink-muted dark:text-zinc-400 leading-snug">
+            {relationPhrase}
+            {person.inMyCircle
+              ? ` · حلقه ${relationLabels[person.relation]}`
+              : " · هنوز عضو مستقیم شبکه نیست"}
+          </p>
+          {evidenceLine ? (
+            <p className="text-[12px] font-semibold text-ink dark:text-zinc-200 mt-1.5 nums leading-snug">
+              {evidenceLine}
             </p>
-            {uniqueEndorsers.length > 0 && (
-              <p className="text-[11px] text-ink-faint mt-1.5 nums leading-snug">
-                {toPersianDigits(endorsementsReceived.length)} تأیید از{" "}
-                {toPersianDigits(uniqueEndorsers.length)} عضو شبکه
-              </p>
-            )}
-          </button>
+          ) : null}
           <div className="flex gap-2 mt-3">
             <button
               type="button"
               onClick={() => setShowTrustDetails(true)}
-              className="flex-1 rounded-xl border border-stone-200 dark:border-zinc-700 py-2 text-[12px] font-bold text-ink dark:text-zinc-100 active:bg-stone-50 dark:active:bg-zinc-800"
+              className="flex-1 rounded-xl bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 py-2 text-[12px] font-bold active:opacity-80"
             >
               جزئیات اعتماد
             </button>
