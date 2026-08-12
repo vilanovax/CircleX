@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import Avatar from "@/components/Avatar";
@@ -15,9 +15,11 @@ import type { Message } from "@/lib/types";
 
 export default function ThreadClassic(_props: { params: { id: string } }) {
   const params = useParams();
+  const searchParams = useSearchParams();
   const peerId = String(params.id);
   const { getPerson, getThread, addMessage, markThreadRead } = useStore();
   const [text, setText] = useState("");
+  const draftApplied = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -27,6 +29,15 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   useEffect(() => {
     markThreadRead(peerId);
   }, [peerId, markThreadRead]);
+
+  useEffect(() => {
+    if (draftApplied.current) return;
+    const draft = searchParams.get("draft");
+    if (!draft) return;
+    draftApplied.current = true;
+    setText(draft);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, [searchParams]);
 
   useLayoutEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });

@@ -30,6 +30,12 @@ import { toPersianDigits } from "@/lib/persian";
 import LockedAccess from "@/components/LockedAccess";
 import { canView, privacyAudience, viewerRelationPhrase } from "@/lib/trust";
 import { useToast } from "@/components/Toast";
+import ListingAskPrompts from "@/components/ListingAskPrompts";
+import {
+  listingBuyerPrompts,
+  listingMissingSpecPrompts,
+  type BuyerPrompt,
+} from "@/lib/listing-prompts";
 import { listingGalleryImages } from "@/lib/listing-image";
 
 const ReferSheet = lazyUi(() => import("@/components/ReferSheet"));
@@ -98,9 +104,19 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   }
 
   const relationLine = seller ? viewerRelationPhrase(seller) : "";
+  const buyerPrompts = listingBuyerPrompts(listing);
+  const gapPrompts = listingMissingSpecPrompts(listing);
+  const emptySpecPrompts =
+    gapPrompts.length > 0 ? gapPrompts : buyerPrompts;
+  const sellerId = listing.sellerId;
+
+  function goAsk(prompt: BuyerPrompt) {
+    const q = encodeURIComponent(prompt.draft);
+    router.push(`/messages/${sellerId}?draft=${q}`);
+  }
 
   return (
-    <main className="pb-36 min-h-[100dvh]">
+    <main className="pb-44 min-h-[100dvh]">
       <Header
         title="جزئیات آگهی"
         back
@@ -172,9 +188,25 @@ export default function ListingClassic(_props: { params: { id: string } }) {
           {listing.description}
         </p>
 
-        {listing.specs && listing.specs.length > 0 && (
+        {listing.specs && listing.specs.length > 0 ? (
           <ListingSpecs specs={listing.specs} />
-        )}
+        ) : !isMine ? (
+          <section className="mt-4">
+            <p className="text-[13px] font-bold text-ink dark:text-zinc-100 mb-2">
+              مشخصات
+            </p>
+            <div className="card px-3.5 py-3">
+              <p className="text-[12px] text-ink-muted leading-relaxed mb-2.5">
+                فروشنده هنوز مشخصات ساختاریافته وارد نکرده — مستقیم بپرس.
+              </p>
+              <ListingAskPrompts
+                title="سؤال سریع"
+                prompts={emptySpecPrompts}
+                onPick={goAsk}
+              />
+            </div>
+          </section>
+        ) : null}
 
         <ul className="flex flex-wrap gap-2 mt-4">
           <li className="chip bg-[color:var(--circle-surface)] text-ink-muted ring-1 ring-stone-200/60 dark:ring-zinc-700/80">
@@ -385,7 +417,14 @@ export default function ListingClassic(_props: { params: { id: string } }) {
       {!isMine && (
         <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
           <div className="app-shell !min-h-0 !shadow-none bg-transparent">
-            <div className="pointer-events-auto bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-xl border-t border-stone-200/70 dark:border-zinc-800 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <div className="pointer-events-auto bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-xl border-t border-stone-200/70 dark:border-zinc-800 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] space-y-2.5">
+              <div className="pointer-events-auto">
+                <ListingAskPrompts
+                  title="سؤال آماده"
+                  prompts={buyerPrompts}
+                  onPick={goAsk}
+                />
+              </div>
               <button
                 type="button"
                 onClick={() => router.push(`/messages/${listing.sellerId}`)}
