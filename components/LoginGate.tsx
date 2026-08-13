@@ -111,7 +111,7 @@ export default function LoginGate() {
     e.preventDefault();
     const normalized = normalizePhone(phoneInput);
     if (!isValidIranMobile(normalized)) {
-      flashError("شماره را با ۰۹ شروع کن — ۱۱ رقم");
+      flashError("شماره را با ۰۹ شروع کنید — ۱۱ رقم");
       return;
     }
     setPhoneInput(normalized);
@@ -121,7 +121,7 @@ export default function LoginGate() {
   function verifyCode(code: string) {
     if (verifyLock.current) return;
     if (code.length !== OTP_LEN) {
-      flashError("کد ۵ رقمی را کامل وارد کن");
+      flashError("کد ۵ رقمی را کامل وارد کنید");
       return;
     }
     verifyLock.current = true;
@@ -130,7 +130,7 @@ export default function LoginGate() {
     window.setTimeout(() => {
       if (code !== SAMPLE_OTP) {
         flashError(
-          `کد نادرست است. برای دمو ${toPersianDigits(SAMPLE_OTP)} را بزن`,
+          `کد نادرست است. برای نمونه ${toPersianDigits(SAMPLE_OTP)} را بزنید`,
         );
         setVerifying(false);
         verifyLock.current = false;
@@ -221,10 +221,10 @@ export default function LoginGate() {
 
       <div className="relative z-10 flex flex-1 flex-col w-full max-w-[26rem] mx-auto px-5 sm:px-6 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         <header className="login-gate-brand text-center pb-1">
-          <p className="login-gate-kicker">شبکه‌ی اعتمادمحور</p>
+          <p className="login-gate-kicker">خرید و فروش بین آشنایان</p>
           <h1 className="login-gate-title">سیرکل</h1>
           <p className="login-gate-tagline">
-            فقط حلقه‌ی خودت — نه غریبه، نه دیوار عمومی.
+            فقط حلقهٔ خودتان — نه غریبه، نه بازار عمومی.
           </p>
         </header>
 
@@ -243,7 +243,7 @@ export default function LoginGate() {
               <div className="space-y-4">
                 <div className="text-center">
                   <h2 className="login-gate-heading">
-                    شماره موبایلت را وارد کن
+                    شماره موبایل خود را وارد کنید
                   </h2>
                   <p className="login-gate-sub">
                     کد یک‌بارمصرف می‌فرستیم — بدون رمز عبور.
@@ -341,12 +341,12 @@ export default function LoginGate() {
 
               <ul className="login-gate-trust" aria-label="ویژگی‌های سیرکل">
                 <li>فقط حلقه — نه غریبه</li>
-                <li>مسیر اعتماد — سه سطح</li>
-                <li>بدون دیوار عمومی</li>
+                <li>سه گروه — نزدیکان تا آشنایان</li>
+                <li>بدون بازار عمومی</li>
               </ul>
 
               <p className="login-gate-foot mt-auto">
-                ورود فقط با حلقه‌ای که خودت می‌سازی.
+                ورود فقط با حلقه‌ای که خودتان می‌سازید.
               </p>
             </form>
           ) : (
@@ -357,7 +357,7 @@ export default function LoginGate() {
             >
               <div className="space-y-4">
                 <div className="text-center">
-                  <h2 className="login-gate-heading">کد تأیید را وارد کن</h2>
+                  <h2 className="login-gate-heading">کد تأیید را وارد کنید</h2>
                   <p className="login-gate-sub">
                     برای{" "}
                     <span className="login-gate-phone-emph nums" dir="ltr">
@@ -368,7 +368,7 @@ export default function LoginGate() {
                 </div>
 
                 <p className="login-gate-demo">
-                  دمو — کد ثابت:{" "}
+                  نمونه — کد ثابت:{" "}
                   <span className="nums tracking-[0.22em] font-extrabold" dir="ltr">
                     {toPersianDigits(SAMPLE_OTP)}
                   </span>

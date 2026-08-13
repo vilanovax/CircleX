@@ -71,14 +71,14 @@ export default function GraphClassic() {
 
   return (
     <main className="pb-24 min-h-[100dvh]">
-      <Header title="شبکه من" subtitle={subtitle} back />
+      <Header title="نقشه ارتباط‌ها" subtitle={subtitle} back />
 
       <div className="px-4 pt-3 space-y-3 listing-detail-rise">
         {/* RTL: فهرست (default) first = right side */}
         <div
           className="flex gap-1 bg-stone-100/80 dark:bg-zinc-800 rounded-xl p-1"
           role="tablist"
-          aria-label="نحوه نمایش شبکه"
+          aria-label="نحوه نمایش ارتباط‌ها"
         >
           <ViewTab
             selected={view === "list"}
@@ -111,7 +111,7 @@ export default function GraphClassic() {
               </span>
             </span>
             <span className="text-[11px] font-bold text-brand-600 dark:text-brand-400 shrink-0">
-              نمایش در نقشه
+              نمایش روی نقشه
             </span>
           </button>
         )}
@@ -120,7 +120,7 @@ export default function GraphClassic() {
           <div className="card p-3 overflow-hidden">
             <div className="flex items-center justify-between gap-2 px-0.5 mb-1">
               <h2 className="text-[13px] font-bold text-ink dark:text-zinc-100">
-                نقشه ارتباطات
+                نقشه ارتباط‌ها
               </h2>
               <span className="text-[11px] text-ink-faint">
                 نزدیک‌تر به مرکز = مستقیم‌تر
@@ -152,7 +152,7 @@ export default function GraphClassic() {
             </PeopleGroup>
 
             <PeopleGroup
-              title="ارتباط‌های غیرمستقیم"
+              title="از طریق آشنایان"
               subtitle="افرادی که از طریق آشنایان به شما متصل‌اند"
               count={viaNodes.length}
               empty="هنوز کسی از مسیر دیگران به شما وصل نیست."

@@ -145,7 +145,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
       return;
     }
     removePerson(id);
-    show(`${personName} از شبکه شما حذف شد`);
+    show(`${personName} از حلقهٔ شما حذف شد`);
     router.push("/circle");
   }
 
@@ -177,7 +177,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
               </h2>
               <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-snug">
                 {relationPhrase}
-                {person.inMyCircle ? " · عضو مستقیم شبکه" : ""}
+                {person.inMyCircle ? " · ارتباط مستقیم" : ""}
               </p>
               {metaLine && (
                 <p className="text-[11px] text-ink-faint mt-1 leading-snug">
@@ -207,7 +207,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
               <TabButton
                 selected={activeTab === "requests"}
                 onClick={() => setContentTab("requests")}
-                label="نیازمندی‌ها"
+                label="درخواست‌ها"
                 count={theirRequests.length}
               />
             </div>
@@ -216,7 +216,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
               <h2 className="text-[13px] font-bold text-ink dark:text-zinc-200">
                 {hasListings
                   ? `آگهی‌های ${person.name}`
-                  : `نیازمندی‌های ${person.name}`}
+                  : `درخواست‌های ${person.name}`}
               </h2>
               <span className="inline-flex min-w-[1.25rem] h-5 px-1.5 items-center justify-center rounded-full bg-stone-100 dark:bg-zinc-800 text-[11px] font-bold text-ink-muted nums">
                 {toPersianDigits(
@@ -243,18 +243,18 @@ export default function PersonClassic(_props: { params: { id: string } }) {
         <section className="px-4 pt-3">
           <EmptyState
             icon="📭"
-            title={`${person.name} آگهی یا نیازمندی فعالی ندارد`}
+            title={`${person.name} آگهی یا درخواست فعالی ندارد`}
             description={
               canMessage
                 ? "می‌توانید مستقیم پیام بدهید و بپرسید آیا چیزی برای فروش یا نیاز دارد."
-                : "با افزودن به شبکه یا درخواست معرفی، ارتباط نزدیک‌تر برقرار کنید."
+                : "با افزودن به حلقه یا درخواست معرفی، ارتباط نزدیک‌تر برقرار کنید."
             }
             actionLabel={
               canMessage
                 ? `پیام به ${person.name}`
                 : person.inMyCircle
                   ? "درخواست معرفی"
-                  : "افزودن به شبکه"
+                  : "افزودن به حلقه"
             }
             onAction={() => {
               if (canMessage) {
@@ -268,7 +268,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
               setShowAddToCircle(true);
             }}
             secondaryActionLabel={
-              canMessage && !person.inMyCircle ? "افزودن به شبکه" : undefined
+              canMessage && !person.inMyCircle ? "افزودن به حلقه" : undefined
             }
             onSecondaryAction={
               canMessage && !person.inMyCircle
@@ -283,13 +283,13 @@ export default function PersonClassic(_props: { params: { id: string } }) {
       <section className="px-4 pt-3.5 pb-2">
         <div className="card p-3.5">
           <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-100 mb-1.5">
-            رابطه و اعتماد
+            رابطه و سابقه
           </h2>
           <p className="text-[12px] text-ink-muted dark:text-zinc-400 leading-snug">
             {relationPhrase}
             {person.inMyCircle
               ? ` · حلقه ${relationLabels[person.relation]}`
-              : " · هنوز عضو مستقیم شبکه نیست"}
+              : " · هنوز مستقیم به حلقهٔ شما اضافه نشده"}
           </p>
           {evidenceLine ? (
             <p className="text-[12px] font-semibold text-ink dark:text-zinc-200 mt-1.5 nums leading-snug">
@@ -302,7 +302,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
               onClick={() => setShowTrustDetails(true)}
               className="flex-1 rounded-xl bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 py-2 text-[12px] font-bold active:opacity-80"
             >
-              جزئیات اعتماد
+              سابقه و تأییدها
             </button>
             {person.inMyCircle ? (
               <button
@@ -310,7 +310,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
                 onClick={() => setShowEditRelation(true)}
                 className="flex-1 rounded-xl border border-stone-200 dark:border-zinc-700 py-2 text-[12px] font-bold text-ink dark:text-zinc-100 active:bg-stone-50 dark:active:bg-zinc-800"
               >
-                ویرایش رابطه
+                تغییر رابطه
               </button>
             ) : (
               <button
@@ -318,7 +318,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
                 onClick={() => setShowAddToCircle(true)}
                 className="flex-1 rounded-xl bg-brand-600 text-white py-2 text-[12px] font-bold active:opacity-90"
               >
-                افزودن به شبکه
+                افزودن به حلقه
               </button>
             )}
           </div>
@@ -344,7 +344,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
                   className="btn-primary flex-1 !py-2.5 text-[15px] flex items-center justify-center gap-2"
                 >
                   <UserPlusIcon className="w-[18px] h-[18px]" />
-                  افزودن به شبکه
+                  افزودن به حلقه
                 </button>
                 <button
                   type="button"
@@ -383,7 +383,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
           onClose={() => setShowEditRelation(false)}
           onSetLevel={(lvl) => {
             setLevel(id, lvl);
-            show(`جایگاه ${person.name}: ${levelShort[lvl]}`);
+            show(`گروه ${person.name}: ${levelShort[lvl]}`);
           }}
           onRemove={() => {
             setShowEditRelation(false);
@@ -407,7 +407,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
           onAdd={(input) => {
             addToCircle(id, input);
             setShowAddToCircle(false);
-            show(`${person.name} به شبکه شما اضافه شد ✓`);
+            show(`${person.name} به حلقهٔ شما اضافه شد ✓`);
           }}
         />
       )}
@@ -481,30 +481,30 @@ function TrustDetailsSheet({
         id={titleId}
         className="text-[16px] font-extrabold text-ink dark:text-zinc-100 mb-1"
       >
-        جزئیات اعتماد
+        سابقه و تأییدها
       </h2>
       <p className="text-[12px] text-ink-muted mb-4">
-        شواهد مربوط به {person.name} — نه احراز هویت رسمی سیرکل
+        سابقه و تأییدهای مربوط به {person.name} — نه احراز هویت رسمی سیرکل
       </p>
 
       <section className="mb-4">
         <h3 className="text-[12px] font-bold text-ink-faint mb-2">سابقه</h3>
         <div className="rounded-xl bg-stone-50 dark:bg-zinc-800/60 px-3 py-2.5 text-[13px] leading-relaxed">
           <p className="font-semibold text-ink dark:text-zinc-100 nums">
-            {evidenceLine || "هنوز سابقهٔ قابل‌نمایش نیست"}
+            {evidenceLine || "هنوز سابقه‌ای ثبت نشده"}
           </p>
           <p className="text-[12px] text-ink-muted mt-1">
             عضو سیرکل از {socialCredit.memberSince}
             {uniqueEndorserCount > 0 && (
               <>
                 {" "}
-                · {toPersianDigits(uniqueEndorserCount)} عضو مستقل تأیید
-                کرده‌اند
+            · {toPersianDigits(uniqueEndorserCount)} عضو حلقه تأیید
+                ثبت کرده‌اند
               </>
             )}
           </p>
           <p className="text-[12px] text-ink-faint mt-1">
-            نرخ پاسخ‌گویی {toPersianDigits(socialCredit.responseRate)}٪
+            پاسخ‌گویی به پیام‌ها {toPersianDigits(socialCredit.responseRate)}٪
           </p>
         </div>
       </section>
@@ -517,7 +517,7 @@ function TrustDetailsSheet({
           render={(item) => {
             const endorser = getPerson(item.endorsement.personId);
             return formatEndorsementReport(item.endorsement.type, {
-              endorserName: endorser?.name ?? "یکی از اعضای شبکه",
+              endorserName: endorser?.name ?? "یکی از اعضای حلقه",
               sellerName: person.name,
             });
           }}
@@ -533,7 +533,7 @@ function TrustDetailsSheet({
           render={(item) => {
             const endorser = getPerson(item.endorsement.personId);
             return formatEndorsementReport(item.endorsement.type, {
-              endorserName: endorser?.name ?? "یکی از اعضای شبکه",
+              endorserName: endorser?.name ?? "یکی از اعضای حلقه",
               sellerName: person.name,
               listingTitle: item.listing.title,
             });
@@ -547,7 +547,7 @@ function TrustDetailsSheet({
             مشارکت {person.name}
           </h3>
           <p className="text-[11px] text-ink-faint mb-2 leading-relaxed">
-            {toPersianDigits(given.length)} تأیید ثبت‌شده برای دیگران — در اعتبار{" "}
+            {toPersianDigits(given.length)} تأیید ثبت‌شده برای دیگران — در سابقهٔ{" "}
             {person.name} حساب نمی‌شود.
           </p>
           <div className="rounded-xl border border-stone-100 dark:border-zinc-800 divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
@@ -578,7 +578,7 @@ function TrustDetailsSheet({
         aboutListings.length === 0 &&
         given.length === 0 && (
           <p className="text-[13px] text-ink-faint py-4 text-center">
-            هنوز تأیید شبکه‌ای برای نمایش نیست.
+            هنوز تأییدی برای نمایش نیست.
           </p>
         )}
     </SheetShell>
@@ -654,13 +654,15 @@ function EditRelationSheet({
         id={titleId}
         className="text-[16px] font-extrabold text-ink dark:text-zinc-100 mb-1"
       >
-        ویرایش رابطه
+        تغییر رابطه
       </h2>
       <p className="text-[12px] text-ink-muted mb-4 leading-relaxed">
         {relationPhrase} · حلقه {relationLabels[person.relation]}
       </p>
 
-      <p className="text-[11px] text-ink-faint mb-2">جایگاه در حلقه شخصی شما</p>
+      <p className="text-[11px] text-ink-faint mb-2">
+        {person.name} در کدام گروه باشد؟
+      </p>
       <div className="flex gap-2 mb-4">
         {LEVELS.map((lvl) => (
           <button
@@ -691,7 +693,7 @@ function EditRelationSheet({
           onClick={onClose}
           className="inline-flex items-center gap-1 text-[12px] text-brand-600 font-medium mb-4"
         >
-          نقشه‌ی کامل شبکه را ببین ‹
+          نقشه‌ی ارتباط‌ها را ببینید ‹
         </Link>
       )}
 
@@ -700,7 +702,7 @@ function EditRelationSheet({
         onClick={onRemove}
         className="w-full text-[13px] text-red-500 dark:text-red-400 font-semibold py-3 border-t border-stone-100 dark:border-zinc-800"
       >
-        حذف از شبکه من
+        حذف از حلقهٔ من
       </button>
     </SheetShell>
   );

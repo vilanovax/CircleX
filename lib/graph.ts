@@ -215,9 +215,7 @@ export function graphInsights(graph: TrustGraph): GraphInsights {
 /** Plain-language hop label for a depth ring (1 = direct). */
 export function depthRingLabel(depth: number): string {
   if (depth <= 1) return "مستقیم";
-  if (depth === 2) return "یک واسطه";
-  if (depth === 3) return "دو واسطه";
-  return `${depth - 1} واسطه`;
+  return "از طریق آشنایان";
 }
 
 /** Human path sentence from selected node toward me. */
@@ -239,12 +237,12 @@ export function connectionPathSentence(
   const vias = chain.slice(1, -1).map((id) => nameOf(id));
   if (vias.length === 1) {
     return {
-      sentence: `از طریق ${vias[0]} به شبکه شما متصل است.`,
+      sentence: `از طریق ${vias[0]} به حلقهٔ شما وصل است.`,
       trail,
     };
   }
   return {
-    sentence: `از طریق ${vias.join(" و ")} به شبکه شما متصل است.`,
+    sentence: `از طریق ${vias.join(" و ")} به حلقهٔ شما وصل است.`,
     trail,
   };
 }

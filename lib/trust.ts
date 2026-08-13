@@ -86,7 +86,7 @@ export function chatPeerSubtitle(
 ): string {
   if (person.inMyCircle) return viewerRelationPhrase(person);
   if (viaName) return `از طریق ${viaName}`;
-  return "از طریق شبکه شما";
+  return "از طریق حلقهٔ شما";
 }
 
 const ownContentRelation: Record<TrustContentKind, string> = {
@@ -115,7 +115,7 @@ export function posterCardRelation(
 /**
  * Proximity line for feed cards — only when relation alone is not enough.
  * Direct circle with a clear relation → null (avoid «خواهر شما» + «نزدیک»).
- * Indirect / FoF → «ارتباط درجه ۲».
+ * Indirect / FoF → «از طریق آشنایان».
  */
 export function posterProximityLabel(
   poster: Person,
@@ -125,14 +125,13 @@ export function posterProximityLabel(
   if (poster.inMyCircle && trustPath.length === 0) {
     return null;
   }
-  const hops = Math.max(trustPath.length, 1);
-  return `ارتباط درجه ${toPersianDigits(hops + 1)}`;
+  return "از طریق آشنایان";
 }
 
 const ownContentHeadline: Record<TrustContentKind, string> = {
-  listing: "آگهی خودتان در حلقه",
-  request: "درخواست خودتان در حلقه",
-  event: "رویداد خودتان در حلقه",
+  listing: "آگهی شما در حلقه",
+  request: "درخواست شما در حلقه",
+  event: "رویداد شما در حلقه",
 };
 
 const endorsementObject: Record<TrustContentKind, string> = {
@@ -158,7 +157,7 @@ export function trustHighlightMessage(
 
   if (trustPath.length === 0 && poster.inMyCircle) {
     return {
-      headline: `${poster.name} در حلقه‌ی مستقیم شماست`,
+      headline: `${poster.name} را مستقیم می‌شناسید`,
       subline: viewerRelationPhrase(poster),
     };
   }
@@ -181,7 +180,7 @@ export function trustHighlightMessage(
       .filter(Boolean) as string[];
     const chain = ["شما", ...hops, poster.name].join(" ← ");
     return {
-      headline: "از مسیر اعتماد",
+      headline: "از مسیر ارتباط",
       subline: chain,
     };
   }
@@ -240,8 +239,8 @@ export function privacyAudience(privacy: Privacy, circle: Person[]): string {
     case "ABC":
       return `حدود ${fa(a + b + c)} نفر`;
     case "referral":
-      return "حلقه‌ات و آشناهای آن‌ها";
+      return "حلقهٔ شما و آشنایان آن‌ها";
     case "approved":
-      return "فقط با تأیید تو";
+      return "فقط با اجازهٔ شما";
   }
 }

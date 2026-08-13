@@ -88,8 +88,8 @@ export default function AddListingSheet({
           </h2>
           <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-relaxed">
             {reviewing
-              ? "عنوان و جزئیات را تأیید یا اصلاح کن."
-              : "فقط حلقه‌ات می‌بیند"}
+              ? "عنوان و جزئیات را تأیید یا اصلاح کنید."
+              : "فقط حلقهٔ شما می‌بیند"}
           </p>
         </div>
         <button

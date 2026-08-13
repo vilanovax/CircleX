@@ -11,7 +11,7 @@ const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 export const metadata: Metadata = {
   title: "سیرکل | Circle",
   description:
-    "شبکه‌ی اجتماعی اعتمادمحور برای خرید، فروش و معرفی خدمات بین خانواده، دوستان و آشنایان.",
+    "خرید و فروش بین خانواده، دوستان و آشنایان — فقط حلقهٔ شما.",
   // Do not set metadata.manifest — Next 14 ignores basePath and 404s at /.
   icons: {
     icon: `${BASE}/icon.svg`,

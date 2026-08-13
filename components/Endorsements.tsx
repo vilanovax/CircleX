@@ -84,7 +84,7 @@ export function EndorsementList({
                 {claimPhrase(e.type)}
               </p>
               <p className="text-[11px] text-ink-faint mt-0.5">
-                اظهارنظر عضو حلقه — نه تأیید رسمی سیرکل
+                اظهارنظر عضو حلقه — نه مهر تأیید سیرکل
               </p>
             </div>
           </li>
@@ -102,11 +102,11 @@ function claimPhrase(
     case "verify_item":
       return "این کالا را از نزدیک دیده است.";
     case "know_seller":
-      return `${sellerName} را شخصاً می‌شناسد.`;
+      return `${sellerName} را می‌شناسد.`;
     case "verify_quality":
-      return "وضعیت اعلام‌شده را شخصاً بررسی کرده است.";
+      return "وضعیت گفته‌شده را بررسی کرده است.";
     case "dealt_before":
-      return `قبلاً با ${sellerName} معامله داشته است.`;
+      return `قبلاً با ${sellerName} معامله کرده است.`;
     default:
       return badgeResultLabels[type];
   }

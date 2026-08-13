@@ -48,7 +48,7 @@ export default function LockedMessaging({ peer }: { peer: Person }) {
                   : null,
               ]
                 .filter(Boolean)
-                .join(" · ") || "پروفایل اعتماد"}
+                .join(" · ") || "پروفایل"}
             </p>
           </div>
           <span className="text-ink-faint text-sm shrink-0" aria-hidden>
@@ -64,14 +64,14 @@ export default function LockedMessaging({ peer }: { peer: Person }) {
             </div>
             <div className="min-w-0 text-right">
               <p className="text-[13px] font-bold text-ink dark:text-zinc-100">
-                پیام مستقیم قفل است
+                پیام خصوصی قفل است
               </p>
               <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
-                در سیرکل فقط با اعضای حلقه‌ات چت می‌کنی.{" "}
+                در سیرکل فقط با اعضای حلقهٔ خود چت می‌کنید.{" "}
                 <span className="font-semibold text-ink dark:text-zinc-200">
                   {peer.name}
                 </span>{" "}
-                هنوز در حلقه‌ات نیست.
+                هنوز در حلقهٔ شما نیست.
               </p>
             </div>
           </div>
@@ -79,7 +79,7 @@ export default function LockedMessaging({ peer }: { peer: Person }) {
             <div className="rounded-xl bg-levelA/8 dark:bg-levelA/10 px-3 py-2.5 flex items-start gap-2">
               <ShieldCheckIcon className="w-4 h-4 text-levelA shrink-0 mt-0.5" />
               <p className="text-[11px] text-levelA leading-relaxed text-right">
-                بدون پیام از غریبه‌ها — اول باید مسیر اعتماد باز شود.
+                بدون پیام از غریبه‌ها — اول باید مسیر ارتباط باز شود.
               </p>
             </div>
           </div>
@@ -88,19 +88,19 @@ export default function LockedMessaging({ peer }: { peer: Person }) {
         {/* Paths to unlock */}
         <div className="mt-3">
           <p className="text-[12px] font-bold text-ink dark:text-zinc-200 mb-2 px-0.5">
-            چطور بازش کنم؟
+            چطور پیام باز شود؟
           </p>
           <div className="space-y-2">
             <PathCard
               step="۱"
               title="درخواست معرفی"
-              body={`از کسی در حلقه بخواه تو را به ${peer.name} وصل کند.`}
+              body={`از کسی در حلقه بخواهید شما را به ${peer.name} وصل کند.`}
               icon={<ChatIcon className="w-4 h-4" />}
             />
             <PathCard
               step="۲"
               title="افزودن به حلقه"
-              body="اگر خودت می‌شناسی‌اش، مستقیم به حلقه‌ات اضافه کن تا چت باز شود."
+              body="اگر خودتان می‌شناسیدش، مستقیم به حلقه اضافه کنید تا چت باز شود."
               icon={<UserPlusIcon className="w-4 h-4" />}
             />
           </div>

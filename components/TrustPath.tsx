@@ -6,7 +6,6 @@ import { useStore } from "@/lib/store";
 import { relationLabels } from "@/lib/labels";
 import { resolveAvatarSrc } from "@/lib/avatar";
 import { viewerRelationPhrase } from "@/lib/trust";
-import { toPersianDigits } from "@/lib/persian";
 
 /**
  * Visualises how the viewer ("شما") is connected to a poster.
@@ -122,7 +121,7 @@ export default function TrustPath({
       )}
       {!direct && !isMine && (
         <p className="text-[12px] text-ink-muted font-medium mt-2.5 leading-relaxed">
-          ارتباط درجه {toPersianDigits(towardMe.length + 1)}
+          از طریق آشنایان
         </p>
       )}
       {showGraphLink && (
@@ -130,7 +129,7 @@ export default function TrustPath({
           href="/graph"
           className="inline-flex items-center gap-1 text-[12px] text-brand-600 dark:text-brand-400 font-semibold mt-3"
         >
-          نقشه‌ی کامل حلقه را ببین ‹
+          نقشه‌ی ارتباط‌ها را ببینید ‹
         </Link>
       )}
     </div>

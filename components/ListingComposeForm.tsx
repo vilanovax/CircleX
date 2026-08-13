@@ -145,11 +145,11 @@ const ListingComposeForm = forwardRef<
       ? polishing
         ? "متن را ساخت‌یافته می‌کنیم…"
         : attemptedCompose && !composeReady
-          ? "برای ادامه، یک جمله درباره کالا بنویس یا بگو."
+          ? "برای ادامه، یک جمله درباره کالا بنویسید."
           : undefined
       : canReview
         ? undefined
-        : "عنوان و توضیح کوتاه را چک کن";
+        : "عنوان و توضیح کوتاه را چک کنید";
 
   const livePriceHints =
     priceHints.length > 0
@@ -441,7 +441,7 @@ const ListingComposeForm = forwardRef<
                   در حال شنیدن…
                 </p>
                 <p className="text-[12px] text-ink dark:text-zinc-100 leading-relaxed min-h-[1.25rem]">
-                  {voiceInterim || "صحبت کن — متن موقت اینجا می‌آید"}
+                  {voiceInterim || "صحبت کنید — متن موقت اینجا می‌آید"}
                 </p>
               </div>
             )}

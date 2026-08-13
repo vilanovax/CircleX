@@ -18,23 +18,23 @@ const MENU_OPTIONS = [
   {
     id: "listing" as const,
     Icon: TagIcon,
-    title: "ثبت آگهی",
-    subtitle: "فروش، اهدا، تعویض یا امانت",
+    title: "آگهی جدید",
+    subtitle: "چیزی برای فروش یا واگذاری دارم",
     tint: "bg-brand-600 text-white",
     ring: "ring-brand-600/15",
   },
   {
     id: "request" as const,
     Icon: QuestionIcon,
-    title: "ثبت درخواست",
-    subtitle: "از حلقه چیزی بخواهید",
+    title: "درخواست جدید",
+    subtitle: "دنبال چیزی می‌گردم",
     tint: "bg-levelC text-white",
     ring: "ring-levelC/15",
   },
   {
     id: "event" as const,
     Icon: CalendarIcon,
-    title: "ساخت رویداد",
+    title: "رویداد جدید",
     subtitle: "دورهمی، کلاس یا جمع کوچک",
     tint: "bg-levelB text-white",
     ring: "ring-levelB/15",
@@ -126,7 +126,7 @@ export default function CreateSheet({ onClose }: { onClose: () => void }) {
               id="create-sheet-title"
               className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 leading-tight"
             >
-              ثبت در حلقه
+              چه چیزی می‌خواهید ثبت کنید؟
             </h2>
             <button
               type="button"

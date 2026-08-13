@@ -55,23 +55,23 @@ const STEPS: ReadonlyArray<{
     Icon: ShieldCheckIcon,
     iconTone: "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300",
     title: "اینجا کسی غریبه نیست",
-    body: "سیرکل خرید، فروش و خدمات را فقط بین خانواده، دوستان و آشنایان مورد اعتماد شما انجام می‌دهد — نه دیوار و نه غریبه.",
-    hint: "هر معامله از یک رابطه‌ی واقعی شروع می‌شود.",
+    body: "سیرکل خرید، فروش و خدمات را فقط بین خانواده، دوستان و آشنایان شما انجام می‌دهد — نه بازار عمومی و نه غریبه.",
+    hint: "هر معامله از یک رابطهٔ واقعی شروع می‌شود.",
     showChips: false,
   },
   {
     Icon: CircleUsersIcon,
     iconTone: "bg-levelB/12 text-levelB dark:bg-levelB/20",
-    title: "حلقه‌ی اعتمادت را بساز",
-    body: "هر نفر را در یکی از سه سطح بگذار. همین سطح‌ها تعیین می‌کنند چه کسی آگهی‌هایت را می‌بیند.",
-    hint: "از تب «حلقه‌ی من» خانواده و دوستان را اضافه کن.",
+    title: "حلقهٔ خود را بسازید",
+    body: "هر نفر را در یکی از سه گروه بگذارید. همین گروه‌ها تعیین می‌کنند چه کسی آگهی‌های شما را می‌بیند.",
+    hint: "از تب «حلقه‌ی من» خانواده و دوستان را اضافه کنید.",
     showChips: true,
   },
   {
     Icon: HomeIcon,
     iconTone: "bg-levelA/12 text-levelA dark:bg-levelA/20",
-    title: "خانه مال حلقه‌ات است",
-    body: "بعد از افزودن افراد، آگهی‌ها، درخواست‌ها و رویدادهای همان حلقه اینجا می‌آید — با مسیر اعتماد مشخص.",
+    title: "خانه مال حلقهٔ شماست",
+    body: "بعد از افزودن افراد، آگهی‌ها، درخواست‌ها و رویدادهای همان حلقه اینجا می‌آید — با مسیر ارتباط مشخص.",
     hint: "اول حلقه، بعد معامله.",
     showChips: false,
   },
@@ -172,7 +172,7 @@ function OnboardingDialog() {
             onClick={() => finish("/circle")}
             className="btn-primary w-full min-h-12 !py-3.5 text-base cursor-pointer active:scale-[0.99] transition-transform duration-150"
           >
-            حلقه‌ام را بساز
+            حلقه را بسازید
           </button>
           <div className="flex gap-2">
             <button
@@ -195,7 +195,7 @@ function OnboardingDialog() {
             onClick={() => finish("/graph")}
             className="min-h-11 text-sm font-semibold text-ink-muted dark:text-zinc-400 active:text-ink dark:active:text-zinc-200 cursor-pointer rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
           >
-            نقشه‌ی اعتماد (اختیاری)
+            نقشه‌ی ارتباط‌ها (اختیاری)
           </button>
         </div>
       ) : (
@@ -245,11 +245,11 @@ function OnboardingDialog() {
             tabIndex={-1}
             className="text-lg font-extrabold text-ink dark:text-zinc-50 outline-none"
           >
-            راهنما را رد می‌کنی؟
+            راهنما را رد می‌کنید؟
           </h2>
           <p className="text-sm text-ink-muted dark:text-zinc-300 leading-relaxed mt-2.5 px-1 max-w-[22rem]">
-            بعداً می‌توانی از پروفایل دوباره ببینی. پیشنهاد ما این است اول حلقه‌ات
-            را بسازی.
+            بعداً می‌توانید از پروفایل دوباره ببینید. پیشنهاد ما این است اول حلقه را
+            بسازید.
           </p>
           <div className="flex flex-col gap-2 w-full mt-6">
             <button
@@ -257,14 +257,14 @@ function OnboardingDialog() {
               onClick={() => finish("/circle")}
               className="btn-primary w-full min-h-12 !py-3.5 text-base cursor-pointer"
             >
-              حلقه‌ام را بساز
+              حلقه را بسازید
             </button>
             <button
               type="button"
               onClick={() => finish()}
               className="btn-ghost w-full min-h-11 !py-2.5 text-sm cursor-pointer"
             >
-              بله، رد کن و برو خانه
+              بله، رد کنید و بروید خانه
             </button>
             <button
               type="button"

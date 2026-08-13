@@ -1,3 +1,13 @@
+/**
+ * Voice glossary (UI only — keep code identifiers unchanged):
+ *   حلقه        people I added
+ *   گروه        A/B/C buckets: نزدیکان / افراد مورد اعتماد / آشنایان
+ *   مسیر ارتباط  how two people connect (not «اعتماد»)
+ *   تأیید       a member’s claim (not a guarantee)
+ *   سابقه       activity record
+ *   آگهی / درخواست / رویداد
+ *   Address the user as شما — rewrite the sentence, don’t paste «شما» onto «تو» copy.
+ */
 import type {
   BadgeType,
   EventKind,
@@ -33,7 +43,7 @@ export const levelLabels: Record<TrustLevel, string> = {
 /** Placement inside the viewer's personal circle (not a global trust score). */
 export const levelShort: Record<TrustLevel, string> = {
   A: "نزدیکان",
-  B: "مورد اعتماد",
+  B: "افراد مورد اعتماد",
   C: "آشنایان",
 };
 
@@ -57,18 +67,11 @@ export const levelDot: Record<TrustLevel, string> = {
   C: "bg-levelC",
 };
 
-/** Compact degree digit for avatar badges (A=۱ closest). */
-export const levelDegreeFa: Record<TrustLevel, string> = {
-  A: "۱",
-  B: "۲",
-  C: "۳",
-};
-
-/** Accessible explanation of A/B/C trust tiers. */
+/** Accessible explanation of A/B/C groups — never expose the letter in UI. */
 export const levelHint: Record<TrustLevel, string> = {
-  A: "جایگاه در حلقه شما: نزدیکان",
-  B: "جایگاه در حلقه شما: مورد اعتماد",
-  C: "جایگاه در حلقه شما: آشنایان",
+  A: "گروه در حلقهٔ شما: نزدیکان",
+  B: "گروه در حلقهٔ شما: افراد مورد اعتماد",
+  C: "گروه در حلقهٔ شما: آشنایان",
 };
 
 export const listingTypeLabels: Record<ListingType, string> = {
@@ -123,18 +126,18 @@ export const eventKindChip: Record<EventKind, string> = {
 };
 
 export const badgeLabels: Record<BadgeType, string> = {
-  verify_item: "این مورد را از نزدیک دیده‌ام",
-  know_seller: "فروشنده را شخصاً می‌شناسم",
-  verify_quality: "وضعیت اعلام‌شده را شخصاً بررسی کرده‌ام",
-  dealt_before: "قبلاً با این فروشنده معامله داشته‌ام",
+  verify_item: "این را از نزدیک دیده‌ام",
+  know_seller: "این فرد را می‌شناسم",
+  verify_quality: "وضعیت گفته‌شده را بررسی کرده‌ام",
+  dealt_before: "قبلاً با این فرد معامله کرده‌ام",
 };
 
 /** Past-tense / third-person lines for endorsement feed. */
 export const badgeResultLabels: Record<BadgeType, string> = {
-  verify_item: "این مورد را از نزدیک دیده است",
-  know_seller: "فروشنده را شخصاً می‌شناسد",
-  verify_quality: "وضعیت اعلام‌شده را شخصاً بررسی کرده است",
-  dealt_before: "قبلاً با این فروشنده معامله داشته است",
+  verify_item: "این را از نزدیک دیده است",
+  know_seller: "این فرد را می‌شناسد",
+  verify_quality: "وضعیت گفته‌شده را بررسی کرده است",
+  dealt_before: "قبلاً با این فرد معامله کرده است",
 };
 
 /** Badges that speak about the seller/person, not a specific listing item. */
@@ -146,7 +149,7 @@ export function isPersonAboutBadge(type: BadgeType): boolean {
 
 /**
  * Third-person report for feeds/profile (not first-person chip labels).
- * Example: «رضا، سارا را شخصاً می‌شناسد.»
+ * Example: «رضا، سارا را می‌شناسد.»
  */
 export function formatEndorsementReport(
   type: BadgeType,
@@ -161,17 +164,17 @@ export function formatEndorsementReport(
   const item = opts.listingTitle?.trim();
   switch (type) {
     case "know_seller":
-      return `${who}، ${seller} را شخصاً می‌شناسد.`;
+      return `${who}، ${seller} را می‌شناسد.`;
     case "dealt_before":
-      return `${who} قبلاً با ${seller} معامله داشته است.`;
+      return `${who} قبلاً با ${seller} معامله کرده است.`;
     case "verify_item":
       return item
         ? `${who} «${item}» را از نزدیک دیده است.`
-        : `${who} این مورد را از نزدیک دیده است.`;
+        : `${who} این را از نزدیک دیده است.`;
     case "verify_quality":
       return item
-        ? `${who} وضعیت اعلام‌شدهٔ «${item}» را شخصاً بررسی کرده است.`
-        : `${who} وضعیت اعلام‌شده را شخصاً بررسی کرده است.`;
+        ? `${who} وضعیت گفته‌شدهٔ «${item}» را بررسی کرده است.`
+        : `${who} وضعیت گفته‌شده را بررسی کرده است.`;
     default:
       return `${who} — ${badgeResultLabels[type]}`;
   }
@@ -186,20 +189,20 @@ export const badgeEmoji: Record<BadgeType, string> = {
 
 /** Plain-language audience labels (detail / picker). Keep short — feed hides these. */
 export const privacyLabels: Record<Privacy, string> = {
-  A: "فقط نزدیکان",
+  A: "فقط نزدیکان من",
   AB: "نزدیکان و افراد مورد اعتماد",
-  ABC: "همهٔ حلقه",
+  ABC: "همهٔ حلقهٔ من",
   referral: "فقط با معرفی",
   approved: "فقط با اجازه من",
 };
 
-/** Longer privacy copy for listing detail — matches A/AB/ABC model, not named rings. */
+/** Longer privacy copy for listing detail — matches A/AB/ABC groups. */
 export const privacyDetailLabels: Record<Privacy, string> = {
-  A: "قابل‌مشاهده فقط برای نزدیکان فروشنده",
-  AB: "قابل‌مشاهده برای نزدیکان و افراد مورد اعتماد فروشنده",
-  ABC: "قابل‌مشاهده برای همهٔ حلقه فروشنده — نه عموم",
-  referral: "فقط با معرفی یکی از آشنایان دیده می‌شود",
-  approved: "فقط با اجازه فروشنده دیده می‌شود",
+  A: "این آگهی را فقط نزدیکان فروشنده می‌بینند",
+  AB: "این آگهی را نزدیکان و افراد مورد اعتماد فروشنده می‌بینند",
+  ABC: "این آگهی را همهٔ حلقهٔ فروشنده می‌بینند — در اینترنت عمومی نه",
+  referral: "فقط کسانی که معرفی شده‌اند این آگهی را می‌بینند",
+  approved: "فقط کسانی که فروشنده اجازه بدهد این آگهی را می‌بینند",
 };
 
 export const privacyEmoji: Record<Privacy, string> = {

@@ -31,11 +31,10 @@ export default function NewUserHomePlaceholder() {
           <CircleUsersIcon className="w-7 h-7" />
         </div>
         <p className="font-extrabold text-[15px] text-ink dark:text-zinc-100">
-          اول حلقه‌ات را بساز
+          اول حلقه را بسازید
         </p>
         <p className="text-xs text-ink-muted dark:text-zinc-400 mt-1.5 leading-relaxed max-w-[18rem] mx-auto">
-          با افزودن خانواده و دوستان مورد اعتماد، آگهی‌ها و رویدادهای آن‌ها اینجا
-          ظاهر می‌شود.
+          با افزودن خانواده و دوستان، آگهی‌ها و رویدادهای آن‌ها اینجا ظاهر می‌شود.
         </p>
         <Link href="/circle" className="btn-primary inline-block mt-4 !px-6">
           افزودن به حلقه
@@ -44,7 +43,7 @@ export default function NewUserHomePlaceholder() {
 
       <div>
         <p className="text-[12px] font-bold text-ink-faint mb-2">
-          بعد از ساخت حلقه، چیزی شبیه این می‌بینی
+          بعد از ساخت حلقه، چیزی شبیه این می‌بینید
         </p>
         <div className="space-y-2 opacity-55 pointer-events-none select-none" aria-hidden>
           {SAMPLE_PREVIEWS.map((item) => (

@@ -119,7 +119,7 @@ export default function AddEventSheet({
           ساخت رویداد جدید
         </h2>
         <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
-          دورهمی، کلاس یا سفر — فقط برای حلقه‌ی اعتمادت.
+          دورهمی، کلاس یا سفر — فقط برای حلقهٔ شما.
         </p>
       </div>
 

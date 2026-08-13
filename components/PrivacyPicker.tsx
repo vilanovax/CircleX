@@ -41,7 +41,7 @@ export default function PrivacyPicker({
             href="/circle"
             className="text-[12px] text-brand-600 dark:text-brand-400 font-semibold shrink-0"
           >
-            حلقه‌ات ‹
+            حلقه‌ی من ‹
           </Link>
         )}
       </div>

@@ -19,7 +19,7 @@ const CreateSheet = lazyUi(() => import("./CreateSheet"));
 const items = [
   { id: "home", href: "/", label: "خانه", Icon: HomeIcon },
   { id: "circle", href: "/circle", label: "حلقه‌ی من", Icon: CircleUsersIcon },
-  { id: "create", label: "ثبت", Icon: PlusIcon, center: true },
+  { id: "create", label: "جدید", Icon: PlusIcon, center: true },
   { id: "messages", href: "/messages", label: "پیام‌ها", Icon: ChatIcon },
   { id: "profile", href: "/profile", label: "پروفایل", Icon: UserIcon },
 ] as const;
@@ -48,7 +48,7 @@ export default function BottomNav() {
                   <li key={id} className="flex-1 flex justify-center">
                     <button
                       onClick={() => setShowCreate(true)}
-                      aria-label="ثبت آگهی، درخواست یا رویداد"
+                      aria-label="آگهی، درخواست یا رویداد جدید"
                       className="flex flex-col items-center gap-0.5 -mt-6 active:scale-95 transition-transform duration-150"
                     >
                       <span className="w-12 h-12 rounded-full bg-brand-600 text-white flex items-center justify-center shadow-md shadow-brand-600/20 ring-2 ring-[color:var(--circle-surface)] dark:ring-zinc-900 active:bg-brand-700">

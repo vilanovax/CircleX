@@ -33,9 +33,9 @@ const CONCEPT_TIP_KEY = "circle-home-concept-tip-v1";
 type CircleScope = "all" | "near" | "trusted";
 
 const SCOPE_OPTIONS: { key: CircleScope; label: string; hint: string }[] = [
-  { key: "all", label: "همهٔ حلقه", hint: "نزدیک، مورد اعتماد و آشنا" },
-  { key: "trusted", label: "تا مورد اعتماد", hint: "درجات ۱ و ۲" },
-  { key: "near", label: "فقط نزدیک", hint: "درجه ۱ — نزدیک‌ترین‌ها" },
+  { key: "all", label: "همهٔ حلقه", hint: "نزدیکان، افراد مورد اعتماد و آشنایان" },
+  { key: "trusted", label: "تا افراد مورد اعتماد", hint: "نزدیکان و افراد مورد اعتماد" },
+  { key: "near", label: "فقط نزدیکان", hint: "نزدیک‌ترین‌های شما" },
 ];
 
 function scopeMinScore(scope: CircleScope): number {
@@ -198,7 +198,7 @@ export default function ClassicFeed() {
                   خرید، فروش و کمک گرفتن از آدم‌های مورد اعتماد
                 </p>
                 <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-snug pe-7">
-                  همه‌چیز از حلقه‌های تو می‌آید، نه از غریبه‌ها.
+                  همه‌چیز از حلقهٔ شما می‌آید، نه از غریبه‌ها.
                 </p>
                 <button
                   type="button"
@@ -240,10 +240,10 @@ export default function ClassicFeed() {
                   <CircleUsersIcon className="w-6 h-6" />
                 </div>
                 <p className="font-bold text-sm text-zinc-800 dark:text-zinc-100">
-                  اول حلقه‌ات را بساز
+                  اول حلقه را بسازید
                 </p>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
-                  با افزودن خانواده و دوستان مورد اعتماد، آگهی‌ها و رویدادهای آن‌ها
+                  با افزودن خانواده و دوستان، آگهی‌ها و رویدادهای آن‌ها
                   اینجا ظاهر می‌شود.
                 </p>
                 <Link href="/circle" className="btn-primary inline-block mt-3">
@@ -296,12 +296,12 @@ export default function ClassicFeed() {
               <button
                 type="button"
                 className="flex items-center justify-center gap-2 text-[12px] font-medium text-ink-muted dark:text-zinc-400 py-2 w-full"
-                title="این آگهی‌ها فقط برای حلقهٔ نزدیک‌تر صاحب آگهی قابل‌مشاهده‌اند"
+                title="این آگهی‌ها را فقط حلقهٔ نزدیک‌تر فروشنده می‌بیند"
               >
                 <LockIcon className="w-3.5 h-3.5 shrink-0 text-ink-muted" />
                 <span>
-                  {toPersianDigits(hidden)} آگهی به‌دلیل تنظیمات حریم خصوصی نمایش
-                  داده نمی‌شود
+                  {toPersianDigits(hidden)} آگهی را فقط حلقهٔ نزدیک‌تر فروشنده
+                  می‌بیند
                 </span>
               </button>
             )}
@@ -533,8 +533,8 @@ function FeedEmptyState({
       </p>
       <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 leading-relaxed">
         {hasFilter
-          ? "فیلتر یا جستجو را عوض کن، یا اولین آگهی را ثبت کن."
-          : "با ثبت آگهی یا گسترش حلقه، فیدت پر می‌شود."}
+          ? "فیلتر یا جستجو را عوض کنید، یا اولین آگهی را ثبت کنید."
+          : "با ثبت آگهی یا گسترش حلقه، اینجا پر می‌شود."}
       </p>
       <div className="flex flex-col gap-2 mt-4">
         {hasFilter && (

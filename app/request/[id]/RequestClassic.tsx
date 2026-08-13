@@ -103,7 +103,7 @@ export default function RequestClassic(_props: { params: { id: string } }) {
           <div className="flex items-center gap-2 mb-3">
             <ShieldCheckIcon className="w-[18px] h-[18px] text-levelA" />
             <h2 className="font-bold text-[13px] text-ink dark:text-zinc-100">
-              مسیر اعتماد
+              مسیر ارتباط
             </h2>
           </div>
           <TrustPath
@@ -153,7 +153,7 @@ export default function RequestClassic(_props: { params: { id: string } }) {
           </div>
           {offers.length === 0 ? (
             <p className="text-[13px] text-ink-faint">
-              هنوز کسی پیشنهاد نداده. اولین نفر باش!
+              هنوز کسی پیشنهاد نداده. اولین نفر باشید.
             </p>
           ) : (
             <ul className="divide-y divide-stone-100 dark:divide-zinc-800 -mx-3.5">
@@ -224,7 +224,7 @@ export default function RequestClassic(_props: { params: { id: string } }) {
                   onClick={() => setShowOffer(true)}
                   className="btn-primary w-full !py-3.5 text-base"
                 >
-                  این رو دارم — پیشنهاد می‌دهم
+                  این را دارم — پیشنهاد می‌دهم
                 </button>
               )}
             </div>
@@ -238,7 +238,7 @@ export default function RequestClassic(_props: { params: { id: string } }) {
           onSubmit={(message, price) => {
             addOffer({ requestId: id, message, price });
             setShowOffer(false);
-            show("پیشنهاد شما ارسال شد ✓");
+            show("پیشنهاد شما فرستاده شد ✓");
           }}
         />
       )}
@@ -267,7 +267,7 @@ function OfferSheet({
             پیشنهاد شما
           </h2>
           <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1">
-            توضیح بده چی داری؛ درخواست‌دهنده از حلقه‌ی شماست.
+            توضیح دهید چه دارید؛ درخواست‌دهنده از حلقهٔ شماست.
           </p>
         </div>
         <button
@@ -319,7 +319,7 @@ function OfferSheet({
           }
           className="btn-primary flex-1"
         >
-          ارسال پیشنهاد
+          فرستادن پیشنهاد
         </button>
       </div>
     </SheetShell>

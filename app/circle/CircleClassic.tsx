@@ -105,7 +105,7 @@ export default function CircleClassic() {
             className="inline-flex items-center gap-1 h-8 rounded-xl bg-brand-600 text-white px-2.5 text-[11px] font-bold active:scale-95 transition-transform duration-150"
           >
             <UserPlusIcon className="w-4 h-4" />
-            افزودن فرد
+            افزودن
           </button>
         }
       />
@@ -117,10 +117,10 @@ export default function CircleClassic() {
               <UserPlusIcon className="w-7 h-7" />
             </div>
             <p className="font-bold text-ink dark:text-zinc-100">
-              حلقه‌ات هنوز خالیه
+              حلقهٔ شما هنوز خالی است
             </p>
             <p className="text-sm text-ink-muted dark:text-zinc-400 mt-1.5 leading-relaxed">
-              خانواده و دوستان را اضافه کن تا آگهی‌ها و رویدادهایشان اینجا دیده
+              خانواده و دوستان را اضافه کنید تا آگهی‌ها و رویدادهایشان اینجا دیده
               شود.
             </p>
             <button
@@ -355,7 +355,7 @@ function AddPersonSheet({
             id="add-person-title"
             className="font-bold text-lg mb-4 text-ink dark:text-zinc-100"
           >
-            افزودن فرد
+            افزودن به حلقه
           </h2>
 
           <label className="block text-sm font-medium mb-1 text-ink dark:text-zinc-200">

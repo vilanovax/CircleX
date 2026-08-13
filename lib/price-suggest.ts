@@ -98,7 +98,7 @@ export function suggestListingPrices(input: {
       label: "میانگین حلقه",
       amount: mid,
       note: prices.length
-        ? `بر اساس ${toPersianDigits(prices.length)} آگهی مشابه در دمو`
+        ? `بر اساس ${toPersianDigits(prices.length)} آگهی مشابه در نمونه`
         : "برآورد اولیه از دسته و متن",
     },
     {

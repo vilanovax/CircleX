@@ -136,7 +136,7 @@ export default function AddRequestSheet({
           ثبت درخواست جدید
         </h2>
         <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
-          از حلقه بپرس — پیشنهادها از مسیر اعتماد می‌آیند.
+          از حلقه بپرسید — پاسخ‌ها از مسیر ارتباط می‌آیند.
         </p>
       </div>
 
@@ -156,7 +156,7 @@ export default function AddRequestSheet({
             <span className="text-[10px] text-ink-faint">پیش‌نمایش</span>
           </div>
           <p className="text-[13px] font-bold text-ink dark:text-zinc-100 mt-0.5 truncate">
-            {title.trim() || "چه چیزی می‌خواهی؟"}
+            {title.trim() || "چه چیزی می‌خواهید؟"}
           </p>
         </div>
       </div>
@@ -193,7 +193,7 @@ export default function AddRequestSheet({
           htmlFor="request-title"
           className="block text-[13px] font-bold mb-1 text-ink dark:text-zinc-200"
         >
-          چه چیزی می‌خواهی؟
+          چه چیزی می‌خواهید؟
         </label>
         <input
           id="request-title"

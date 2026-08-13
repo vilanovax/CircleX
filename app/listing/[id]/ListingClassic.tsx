@@ -289,7 +289,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
                 </p>
               </div>
               <span className="text-[11px] font-bold text-brand-600 dark:text-brand-400 shrink-0 text-center leading-tight max-w-[4.5rem]">
-                مشاهده پروفایل ‹
+                دیدن پروفایل ‹
               </span>
             </Link>
           </div>
@@ -306,10 +306,10 @@ export default function ListingClassic(_props: { params: { id: string } }) {
               </span>
               <div className="min-w-0">
                 <h2 className="font-bold text-[14px] text-ink dark:text-zinc-100 leading-tight">
-                  مسیر اعتماد تا فروشنده
+                  مسیر ارتباط تا فروشنده
                 </h2>
                 <p className="text-[11px] text-ink-muted mt-0.5">
-                  این آگهی از حلقه درجه ۲ شماست
+                  این آگهی از طریق آشنایان به شما می‌رسد
                 </p>
               </div>
             </div>
@@ -328,8 +328,8 @@ export default function ListingClassic(_props: { params: { id: string } }) {
             </button>
             {pathExpanded && (
               <p className="mt-2 text-[12px] text-ink-muted leading-relaxed">
-                هر حلقه در مسیر، فردی است که می‌شناسی یا از طریق آشنای مشترک به
-                او می‌رسی.
+                هر نفر در مسیر کسی است که می‌شناسید، یا از طریق آشنای مشترک به
+                او می‌رسید.
               </p>
             )}
           </div>
@@ -341,8 +341,8 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         <div className="card p-4">
           <h2 className="font-bold text-[14px] text-ink dark:text-zinc-100 mb-3">
             {endorsementCount > 0
-              ? `تأیید و توصیه‌ها · ${toPersianDigits(endorsementCount)}`
-              : "تأیید و توصیه‌ها"}
+              ? `تأیید اعضا · ${toPersianDigits(endorsementCount)}`
+              : "تأیید اعضا"}
           </h2>
 
           <EndorsementList endorsements={listing.endorsements} />
@@ -353,8 +353,8 @@ export default function ListingClassic(_props: { params: { id: string } }) {
                 افزودن تأیید شما
               </p>
               <p className="text-[11px] text-ink-faint mb-2.5 leading-relaxed">
-                فقط چیزی را بگو که شخصاً می‌دانی — اظهارنظر عضو حلقه است، نه
-                تأیید رسمی سیرکل.
+                فقط چیزی را بگویید که می‌دانید — حرف عضو حلقه است، نه مهر تأیید
+                سیرکل.
               </p>
               <div className="flex flex-wrap gap-2">
                 {ALL_BADGES.map((b) => {
@@ -375,7 +375,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
                         if (
                           needsConfirm &&
                           !window.confirm(
-                            "آیا این کالا را شخصاً از نزدیک دیده‌اید؟",
+                            "آیا این را از نزدیک دیده‌اید؟",
                           )
                         ) {
                           return;
@@ -410,10 +410,10 @@ export default function ListingClassic(_props: { params: { id: string } }) {
             </span>
             <span className="flex-1 min-w-0">
               <span className="block font-bold text-[13px] text-ink dark:text-zinc-100">
-                کسی در حلقه‌ات دنبال چنین چیزی است؟
+                کسی در حلقهٔ شما دنبال چنین چیزی است؟
               </span>
               <span className="block text-[11px] text-ink-muted mt-0.5">
-                آگهی را فقط داخل حلقه برایش بفرست
+                آگهی را فقط داخل حلقه برایش بفرستید
               </span>
             </span>
             <span className="shrink-0 text-[12px] font-bold text-brand-600 dark:text-brand-400">

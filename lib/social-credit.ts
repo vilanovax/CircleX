@@ -75,12 +75,12 @@ function trustHint(
     return { verified: false, verifiedLabel: "" };
   }
   if (person.inMyCircle) {
-    return { verified: true, verifiedLabel: "عضو مستقیم شبکه شما" };
+    return { verified: true, verifiedLabel: "او را مستقیم می‌شناسید" };
   }
   if (stats.endorsementsReceived >= 1) {
     return {
       verified: true,
-      verifiedLabel: `${toPersianDigits(stats.endorsementsReceived)} تأیید از اعضای شبکه`,
+      verifiedLabel: `${toPersianDigits(stats.endorsementsReceived)} تأیید از اعضای حلقه`,
     };
   }
   if (stats.successfulDeals >= 5) {
@@ -152,11 +152,11 @@ export function evidenceSummaryLine(
     const unique = opts?.uniqueEndorsers;
     if (unique != null && unique > 0) {
       parts.push(
-        `${toPersianDigits(stats.endorsementsReceived)} تأیید از ${toPersianDigits(unique)} عضو شبکه`,
+        `${toPersianDigits(stats.endorsementsReceived)} تأیید از ${toPersianDigits(unique)} عضو حلقه`,
       );
     } else {
       parts.push(
-        `${toPersianDigits(stats.endorsementsReceived)} تأیید از اعضای شبکه`,
+        `${toPersianDigits(stats.endorsementsReceived)} تأیید از اعضای حلقه`,
       );
     }
   }

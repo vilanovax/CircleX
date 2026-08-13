@@ -41,7 +41,7 @@ export default function AddToCircleSheet({
         افزودن به حلقه‌ی من
       </h2>
       <p className="text-xs text-ink-faint mb-4">
-        {person.name} از مسیر اعتماد به شما وصل است — گروهش را در حلقه‌ی خودت مشخص کن.
+        {person.name} از مسیر ارتباط به شما وصل است — در کدام گروه باشد؟
       </p>
 
       <div className="flex items-center gap-3 mb-4 p-3 rounded-xl bg-stone-50 dark:bg-zinc-800/50 border border-stone-200/70 dark:border-zinc-700">
@@ -55,7 +55,7 @@ export default function AddToCircleSheet({
       </div>
 
       <label className="block text-sm font-medium mb-2 text-ink dark:text-zinc-200">
-        نوع رابطه
+        {person.name} را چطور می‌شناسید؟
       </label>
       <div className="flex flex-wrap gap-2 mb-4">
         {RELATIONS.map((r) => (

@@ -224,7 +224,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
               گفتگو با {peer.name}
             </p>
             <p className="text-[13px] text-ink-muted mt-1.5 leading-relaxed max-w-xs">
-              اولین پیام را بفرست.
+              اولین پیام را بفرستید.
             </p>
           </div>
         ) : (
@@ -363,7 +363,7 @@ function Bubble({
       {msg.listingId ? (
         <>
           <p className="text-[11px] font-medium mb-1.5 opacity-80">
-            {msg.fromMe ? "آگهی‌ای که فرستادی:" : "آگهی معرفی‌شده:"}
+            {msg.fromMe ? "آگهی‌ای که فرستادید:" : "آگهی معرفی‌شده:"}
           </p>
           <ReferralCard listingId={msg.listingId} fromMe={msg.fromMe} />
           {msg.text.trim() && (

@@ -13,7 +13,7 @@ export default function SocialCreditCard({
   hideVerified = false,
   collapsible = false,
   defaultCollapsed = false,
-  title = "اعتماد و سابقه",
+  title = "سابقه و تأییدها",
 }: {
   stats: SocialCreditStats;
   subtitle?: string;
@@ -29,7 +29,7 @@ export default function SocialCreditCard({
   const [open, setOpen] = useState(!defaultCollapsed);
   const [showCalc, setShowCalc] = useState(false);
   const resolvedActivityLabel =
-    activityLabel ?? circleLabel ?? "فعالیت قابل‌مشاهده";
+    activityLabel ?? circleLabel ?? "فعالیت در حلقه";
 
   const activity =
     stats.activityCount ??
@@ -44,7 +44,7 @@ export default function SocialCreditCard({
   }
   if (stats.endorsementsReceived > 0) {
     evidenceBits.push(
-      `${toPersianDigits(stats.endorsementsReceived)} تأیید از اعضای شبکه`,
+      `${toPersianDigits(stats.endorsementsReceived)} تأیید از اعضای حلقه`,
     );
   }
   const collapsedSummary =
@@ -66,7 +66,7 @@ export default function SocialCreditCard({
               {title}
             </p>
             <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 nums truncate">
-              {open ? subtitle ?? "شواهد قابل‌فهم، نه امتیاز رسمی" : collapsedSummary}
+              {open ? subtitle ?? "سابقه و تأییدهای اعضا، نه امتیاز رسمی" : collapsedSummary}
             </p>
           </div>
           <span
@@ -111,19 +111,19 @@ export default function SocialCreditCard({
             />
             <Metric
               value={toPersianDigits(stats.endorsementsReceived)}
-              label="تأیید از اعضای شبکه"
+              label="تأیید از اعضای حلقه"
             />
             <Metric value={stats.memberSince} label="عضو از" />
             <Metric
               value={formatPercent(stats.responseRate)}
-              label="نرخ پاسخ‌گویی"
+              label="پاسخ‌گویی به پیام‌ها"
             />
           </div>
 
           {stats.endorsementsGiven > 0 && (
             <p className="text-[11px] text-ink-faint mt-3 leading-relaxed px-0.5">
-              مشارکت در شبکه: {toPersianDigits(stats.endorsementsGiven)} تأیید
-              ثبت‌شده توسط این عضو — در اعتبار او حساب نمی‌شود.
+              تأییدهای ثبت‌شده توسط این عضو: {toPersianDigits(stats.endorsementsGiven)} —
+              در سابقهٔ او حساب نمی‌شود.
             </p>
           )}
 
@@ -145,9 +145,9 @@ export default function SocialCreditCard({
           {showCalc && (
             <div className="mt-2 rounded-xl bg-stone-50/90 dark:bg-zinc-800/60 px-3 py-2.5 text-[11px] text-ink-muted dark:text-zinc-400 leading-relaxed">
               <p>
-                سیرکل امتیاز رسمی یا احراز هویت نیست. شاخص داخلی فعلی بر اساس
-                معامله‌های تکمیل‌شده، تأییدهای دریافتی از شبکه، و نرخ پاسخ ساخته
-                می‌شود ({toPersianDigits(stats.score)} از ۱۰۰ · {stats.label}).
+                سیرکل امتیاز رسمی یا احراز هویت نیست. این اعداد بر اساس
+                معامله‌های تکمیل‌شده، تأییدهای دریافتی از حلقه، و پاسخ‌گویی به پیام‌ها
+                ساخته می‌شود ({toPersianDigits(stats.score)} از ۱۰۰ · {stats.label}).
                 تأییدهایی که این عضو برای دیگران ثبت کرده فقط مشارکت است.
               </p>
             </div>

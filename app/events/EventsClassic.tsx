@@ -48,7 +48,7 @@ function EventsContent() {
         subtitle={
           hydrated && visible.length > 0
             ? `${toPersianDigits(visible.length)} رویداد`
-            : "با حلقه‌ات وقت بگذران"
+            : "با حلقه وقت بگذرانید"
         }
         back
         action={
@@ -70,7 +70,7 @@ function EventsContent() {
           </p>
           <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
             کلاس، دورهمی خانوادگی، بازارچه‌ی خیریه، بازی کودکان و سفر گروهی — همه
-            بین آدم‌هایی که می‌شناسی و بهشان اعتماد داری.
+            بین آدم‌هایی که می‌شناسید.
           </p>
         </div>
 
@@ -80,7 +80,7 @@ function EventsContent() {
           <EmptyState
             icon="🎉"
             title="رویدادی نیست"
-            description="کلاس، دورهمی، بازارچه یا سفر گروهی — بین آدم‌هایی که می‌شناسی."
+            description="کلاس، دورهمی، بازارچه یا سفر گروهی — بین آدم‌هایی که می‌شناسید."
             actionLabel="ساخت اولین رویداد"
             onAction={() => setShowAdd(true)}
           />

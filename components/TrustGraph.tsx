@@ -74,7 +74,7 @@ export default function TrustGraph() {
           className="w-full select-none"
           onClick={() => setSelected(null)}
           role="img"
-          aria-label="نقشه ارتباطات شبکه شما"
+          aria-label="نقشه ارتباط‌های حلقهٔ شما"
         >
           <defs>
             <radialGradient id="tg-center-glow" cx="50%" cy="50%" r="45%">
@@ -309,10 +309,10 @@ export default function TrustGraph() {
         ) : (
           <div className="rounded-xl bg-stone-50/90 dark:bg-zinc-800/50 px-3 py-3 text-center">
             <p className="text-[13px] font-semibold text-ink dark:text-zinc-200">
-              یک نفر را لمس کن
+              یک نفر را لمس کنید
             </p>
             <p className="text-[12px] text-ink-faint dark:text-zinc-500 mt-0.5 leading-relaxed">
-              مسیر اتصالش تا تو روشن می‌شود — مستقیم یا از طریق دیگران.
+              مسیر وصل شدنش روشن می‌شود — مستقیم یا از طریق دیگران.
             </p>
           </div>
         )}

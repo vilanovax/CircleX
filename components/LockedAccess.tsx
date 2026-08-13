@@ -34,14 +34,12 @@ export default function LockedAccess({
           🔒
         </div>
         <p className="text-sm text-ink dark:text-zinc-200 leading-relaxed">
-          این {kindLabel} فقط برای{" "}
-          <span className="font-medium">{privacyLabels[privacy]}</span> قابل نمایش است
-          {itemKind === "listing"
-            ? " و شما در این محدوده‌ی اعتماد قرار نمی‌گیرید."
-            : "."}
+          این {kindLabel} را فقط{" "}
+          <span className="font-medium">{privacyLabels[privacy]}</span> می‌بینند.
         </p>
         <p className="text-xs text-ink-faint mt-3 leading-relaxed max-w-xs">
-          از کسی در حلقه‌ات بخواه تو را معرفی کند تا بتوانی این {kindLabel} را ببینی.
+          از کسی در حلقهٔ خود بخواهید شما را معرفی کند تا بتوانید این {kindLabel}{" "}
+          را ببینید.
         </p>
         <button
           type="button"

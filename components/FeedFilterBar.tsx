@@ -9,7 +9,7 @@ const PRIMARY: { key: ListingType | "all"; label: string; emoji: string }[] = [
   { key: "all", label: "همه", emoji: "✨" },
   { key: "sale", label: "فروش", emoji: listingTypeEmoji.sale },
   { key: "service", label: "خدمات", emoji: listingTypeEmoji.service },
-  { key: "donation", label: "اهدا", emoji: listingTypeEmoji.donation },
+  { key: "donation", label: "رایگان", emoji: listingTypeEmoji.donation },
 ];
 
 const MORE: ListingType[] = ["exchange", "loan"];

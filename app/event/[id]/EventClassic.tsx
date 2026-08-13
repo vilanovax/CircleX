@@ -180,10 +180,10 @@ export default function EventClassic(_props: { params: { id: string } }) {
             </span>
             <div className="min-w-0">
               <h2 className="font-bold text-[14px] text-ink dark:text-zinc-100 leading-tight">
-                مسیر اعتماد
+                مسیر ارتباط
               </h2>
               <p className="text-[11px] text-ink-muted mt-0.5">
-                چطور به میزبان وصلی
+                چطور به میزبان وصل هستید
               </p>
             </div>
           </div>
@@ -222,7 +222,7 @@ export default function EventClassic(_props: { params: { id: string } }) {
         <div className="card p-4">
           <div className="flex items-baseline justify-between gap-2 mb-2.5">
             <h2 className="font-bold text-[14px] text-ink dark:text-zinc-100">
-              شرکت‌کننده‌ها
+              چه کسانی می‌آیند
             </h2>
             <span className="text-[12px] font-semibold text-ink-faint nums">
               {toPersianDigits(count)}
@@ -325,7 +325,7 @@ export default function EventClassic(_props: { params: { id: string } }) {
                   onClick={() => {
                     if (full) return;
                     toggleRsvp(id);
-                    show("حضور شما ثبت شد ✓ منتظرت هستیم!");
+                    show("حضور شما ثبت شد ✓ منتظر شما هستیم!");
                   }}
                   disabled={full}
                   className="btn-primary w-full !py-3.5 text-base shadow-lg shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150"

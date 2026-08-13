@@ -37,7 +37,7 @@ export default function Header({
         {back && (
           <button
             onClick={handleBack}
-            aria-label="بازگشت"
+            aria-label="برگشت"
             className="-mr-2 w-9 h-9 flex items-center justify-center text-ink-muted dark:text-zinc-300 active:text-ink dark:active:text-zinc-100"
           >
             <BackIcon className="w-6 h-6" />
