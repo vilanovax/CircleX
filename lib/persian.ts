@@ -17,6 +17,15 @@ export function toPersianDigits(input: string | number): string {
   return String(input).replace(/[0-9]/g, (d) => FA_DIGITS[Number(d)]);
 }
 
+/** Group a typed toman amount with Persian digits and thousands separators. */
+export function formatTomanInput(raw: string): string {
+  const digits = toEnglishDigits(raw).replace(/\D/g, "");
+  if (!digits) return "";
+  const trimmed = digits.replace(/^0+(?=\d)/, "");
+  const grouped = trimmed.replace(/\B(?=(\d{3})+(?!\d))/g, "٬");
+  return toPersianDigits(grouped);
+}
+
 /**
  * Normalise Persian text for search/compare:
  * unify Arabic ك/ي → Persian ک/ی, strip diacritics, convert digits,

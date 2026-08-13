@@ -161,7 +161,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const data = JSON.parse(raw);
-        if (data.me && typeof data.me === "object") setMeProfile(data.me);
+        if (data.me && typeof data.me === "object") {
+          const saved = data.me as Person;
+          setMeProfile({
+            ...saved,
+            name: saved.name === "من" ? ME.name : saved.name,
+            avatar: ME.avatar,
+          });
+        }
         if (Array.isArray(data.people)) {
           setPeople(
             data.people.map((p: Person) => {

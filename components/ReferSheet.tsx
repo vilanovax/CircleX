@@ -7,7 +7,7 @@ import { useToast } from "./Toast";
 import Avatar from "./Avatar";
 import ListingImage from "./ListingImage";
 import { SearchIcon } from "./Icons";
-import { formatPrice, levelChip, levelShort, relationLabels } from "@/lib/labels";
+import { formatPrice, relationLabels } from "@/lib/labels";
 import { toPersianDigits } from "@/lib/persian";
 import { viewerRelationPhrase } from "@/lib/trust";
 
@@ -186,11 +186,6 @@ export default function ReferSheet({
                     <p className="flex items-center gap-1.5 mt-0.5 min-w-0">
                       <span className="text-[11px] text-ink-muted truncate">
                         {viewerRelationPhrase(p)}
-                      </span>
-                      <span
-                        className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${levelChip[p.level]}`}
-                      >
-                        {levelShort[p.level]}
                       </span>
                     </p>
                   </div>

@@ -164,7 +164,7 @@ export default function VoiceDictateButton({
       onClick={toggle}
       disabled={disabled}
       aria-pressed={listening}
-      aria-label={listening ? "توقف دیکته" : "دیکته صوتی"}
+      aria-label={listening ? "توقف دیکته" : "با صدا"}
       className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[11px] font-bold border transition-colors ${
         listening
           ? "bg-rose-600 text-white border-rose-600 shadow-sm shadow-rose-600/30"
@@ -172,7 +172,7 @@ export default function VoiceDictateButton({
       }`}
     >
       <MicIcon className={`w-3.5 h-3.5 ${listening ? "animate-pulse" : ""}`} />
-      {listening ? "توقف" : "بگو"}
+      {listening ? "توقف" : "با صدا"}
     </button>
   );
 }

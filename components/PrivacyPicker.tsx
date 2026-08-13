@@ -41,7 +41,7 @@ export default function PrivacyPicker({
             href="/circle"
             className="text-[12px] text-brand-600 dark:text-brand-400 font-semibold shrink-0"
           >
-            حلقه‌ی من ‹
+            حلقه‌ات ‹
           </Link>
         )}
       </div>
@@ -121,7 +121,7 @@ export default function PrivacyPicker({
           onClick={() => setShowAdvanced(true)}
           className="mt-2 text-[12px] font-semibold text-brand-600 dark:text-brand-400"
         >
-          گزینه‌های بیشتر (معرفی / تأیید)
+          تنظیمات بیشتر
         </button>
       )}
     </div>

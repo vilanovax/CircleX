@@ -26,7 +26,7 @@ export const relationEmoji: Record<RelationType, string> = {
 
 export const levelLabels: Record<TrustLevel, string> = {
   A: "نزدیکان",
-  B: "مورد اعتماد",
+  B: "افراد مورد اعتماد",
   C: "آشنایان",
 };
 
@@ -73,9 +73,9 @@ export const levelHint: Record<TrustLevel, string> = {
 
 export const listingTypeLabels: Record<ListingType, string> = {
   sale: "فروش",
-  donation: "اهدا / خیریه",
-  exchange: "معاوضه",
-  loan: "قرض موقت",
+  donation: "رایگان / اهدا",
+  exchange: "تعویض",
+  loan: "امانت",
   service: "خدمات",
 };
 
@@ -186,20 +186,20 @@ export const badgeEmoji: Record<BadgeType, string> = {
 
 /** Plain-language audience labels (detail / picker). Keep short — feed hides these. */
 export const privacyLabels: Record<Privacy, string> = {
-  A: "نزدیک‌ترین‌ها",
-  AB: "نزدیک و مطمئن",
+  A: "فقط نزدیکان",
+  AB: "نزدیکان و افراد مورد اعتماد",
   ABC: "همهٔ حلقه",
-  referral: "با معرفی",
-  approved: "با تأیید من",
+  referral: "فقط با معرفی",
+  approved: "فقط با اجازه من",
 };
 
 /** Longer privacy copy for listing detail — matches A/AB/ABC model, not named rings. */
 export const privacyDetailLabels: Record<Privacy, string> = {
-  A: "قابل‌مشاهده فقط برای نزدیک‌ترین‌های فروشنده",
-  AB: "قابل‌مشاهده برای نزدیک و مطمئن فروشنده",
-  ABC: "قابل‌مشاهده تا سطح آشنایان فروشنده — نه عموم",
-  referral: "فقط با معرفی دیده می‌شود",
-  approved: "فقط با تأیید فروشنده دیده می‌شود",
+  A: "قابل‌مشاهده فقط برای نزدیکان فروشنده",
+  AB: "قابل‌مشاهده برای نزدیکان و افراد مورد اعتماد فروشنده",
+  ABC: "قابل‌مشاهده برای همهٔ حلقه فروشنده — نه عموم",
+  referral: "فقط با معرفی یکی از آشنایان دیده می‌شود",
+  approved: "فقط با اجازه فروشنده دیده می‌شود",
 };
 
 export const privacyEmoji: Record<Privacy, string> = {

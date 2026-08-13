@@ -3,7 +3,6 @@
 import { useState } from "react";
 import SheetShell from "@/components/SheetShell";
 import {
-  levelChip,
   levelLabels,
   relationLabels,
 } from "@/lib/labels";
@@ -42,11 +41,11 @@ export default function AddToCircleSheet({
         افزودن به حلقه‌ی من
       </h2>
       <p className="text-xs text-ink-faint mb-4">
-        {person.name} از مسیر اعتماد به شما وصل است — سطح اعتماد را مشخص کن.
+        {person.name} از مسیر اعتماد به شما وصل است — گروهش را در حلقه‌ی خودت مشخص کن.
       </p>
 
       <div className="flex items-center gap-3 mb-4 p-3 rounded-xl bg-stone-50 dark:bg-zinc-800/50 border border-stone-200/70 dark:border-zinc-700">
-        <Avatar name={person.name} src={person.avatar} level={person.level} size="md" />
+        <Avatar name={person.name} src={person.avatar} size="md" showLevel={false} />
         <div>
           <p className="font-semibold text-ink dark:text-zinc-100">{person.name}</p>
           {person.city && (
@@ -76,7 +75,7 @@ export default function AddToCircleSheet({
       </div>
 
       <label className="block text-sm font-medium mb-2 text-ink dark:text-zinc-200">
-        سطح اعتماد
+        در کدام گروه باشد؟
       </label>
       <div className="flex gap-2 mb-4">
         {LEVELS.map((lvl) => (
@@ -86,7 +85,7 @@ export default function AddToCircleSheet({
             onClick={() => setLevel(lvl)}
             className={`flex-1 rounded-xl py-2.5 text-xs font-medium border ${
               level === lvl
-                ? `${levelChip[lvl]} border-current`
+                ? "bg-brand-600 text-white border-brand-600"
                 : "bg-[color:var(--circle-surface)] dark:bg-zinc-900 text-ink-muted border-stone-200/70 dark:border-zinc-700"
             }`}
           >

@@ -10,7 +10,7 @@ import SheetShell from "@/components/SheetShell";
 import { CardListSkeleton } from "@/components/Skeleton";
 import Avatar from "@/components/Avatar";
 import { GraphIcon, UserPlusIcon } from "@/components/Icons";
-import { levelChip, levelShort, relationLabels } from "@/lib/labels";
+import { relationLabels } from "@/lib/labels";
 import { viewerRelationPhrase } from "@/lib/trust";
 import type { Person, RelationType, TrustLevel } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
@@ -248,10 +248,10 @@ function CircleMemberRow({
       <button
         type="button"
         onClick={onEditGroup}
-        className={`shrink-0 chip !py-0.5 !px-1.5 !text-[10px] font-bold ${levelChip[person.level]}`}
-        aria-label={`گروه ${person.name}: ${levelShort[person.level]}`}
+        aria-label={`تغییر گروه ${person.name}`}
+        className="shrink-0 text-[11px] font-semibold text-ink-muted dark:text-zinc-400 px-2 py-1.5 rounded-lg active:bg-stone-100 dark:active:bg-zinc-800"
       >
-        {levelShort[person.level]} ▾
+        گروه ▾
       </button>
     </li>
   );
@@ -288,14 +288,22 @@ function GroupSheet({
                 onClick={() => onPick(lvl)}
                 className={`w-full text-right rounded-xl border px-3.5 py-3 transition-colors ${
                   active
-                    ? `${levelChip[lvl]} border-current`
+                    ? "bg-brand-600 text-white border-brand-600"
                     : "border-stone-200/80 dark:border-zinc-700 bg-[color:var(--circle-surface)] dark:bg-zinc-900"
                 }`}
               >
-                <span className="block text-[14px] font-bold text-ink dark:text-zinc-100">
+                <span
+                  className={`block text-[14px] font-bold ${
+                    active ? "text-white" : "text-ink dark:text-zinc-100"
+                  }`}
+                >
                   {SECTION_LABEL[lvl]}
                 </span>
-                <span className="block text-[12px] text-ink-muted mt-0.5 leading-relaxed">
+                <span
+                  className={`block text-[12px] mt-0.5 leading-relaxed ${
+                    active ? "text-white/80" : "text-ink-muted"
+                  }`}
+                >
                   {LEVEL_HINT[lvl]}
                 </span>
               </button>
@@ -391,7 +399,7 @@ function AddPersonSheet({
                 onClick={() => setLevel(lvl)}
                 className={`rounded-xl py-2.5 px-3 text-sm font-medium border text-right ${
                   level === lvl
-                    ? `${levelChip[lvl]} border-current`
+                    ? "bg-brand-600 text-white border-brand-600"
                     : "bg-[color:var(--circle-surface)] text-ink-muted border-stone-200 dark:border-zinc-700"
                 }`}
               >

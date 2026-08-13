@@ -13,17 +13,20 @@ import {
   ChatIcon,
   PencilIcon,
   SearchIcon,
-  ShieldCheckIcon,
 } from "@/components/Icons";
-import { relationLabels } from "@/lib/labels";
 import { threadPreview } from "@/lib/message-preview";
 import { toPersianDigits } from "@/lib/persian";
+import { buildTrustGraph } from "@/lib/graph";
+import { chatPeerSubtitle, viewerRelationPhrase } from "@/lib/trust";
 import type { Message, Person } from "@/lib/types";
 
 type Filter = "all" | "unread";
 
 export default function MessagesClassic() {
   const {
+    people,
+    listings,
+    requests,
     getPerson,
     getThread,
     getListing,
@@ -45,6 +48,19 @@ export default function MessagesClassic() {
     }
     return `${toPersianDigits(peers.length)} گفتگو`;
   }, [hydrated, peers.length, unreadTotal]);
+
+  const viaById = useMemo(() => {
+    const graph = buildTrustGraph(people, listings, requests, getPerson);
+    const map: Record<string, string> = {};
+    for (const n of graph.nodes) {
+      if (n.id === "me" || n.inCircle) continue;
+      const parentId = graph.parent[n.id];
+      if (!parentId || parentId === "me") continue;
+      const name = graph.nodes.find((x) => x.id === parentId)?.name;
+      if (name) map[n.id] = name;
+    }
+    return map;
+  }, [people, listings, requests, getPerson]);
 
   const rows = useMemo(() => {
     const q = query.trim();
@@ -90,40 +106,6 @@ export default function MessagesClassic() {
 
       <div className="px-4 pt-3 space-y-3 listing-detail-rise">
         {hydrated && peers.length > 0 && (
-          <div className="card overflow-hidden">
-            <div className="px-3.5 pt-3.5 pb-3 flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[13px] font-bold text-ink dark:text-zinc-100">
-                  صندوق پیام
-                </p>
-                <p className="text-[11px] text-ink-muted mt-0.5 leading-relaxed">
-                  {unreadTotal > 0
-                    ? `${toPersianDigits(unreadTotal)} پیام منتظر جوابت`
-                    : "همهٔ گفتگوها خوانده شده"}
-                </p>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <StatPill
-                  label="گفتگو"
-                  value={toPersianDigits(peers.length)}
-                />
-                {unreadTotal > 0 && (
-                  <StatPill
-                    label="جدید"
-                    value={toPersianDigits(unreadTotal)}
-                    accent
-                  />
-                )}
-              </div>
-            </div>
-            <div className="px-3.5 pb-3 flex items-center gap-1.5 text-[11px] text-levelA leading-relaxed">
-              <ShieldCheckIcon className="w-3.5 h-3.5 shrink-0" />
-              فقط با افراد حلقه‌ات — بدون پیام از غریبه‌ها
-            </div>
-          </div>
-        )}
-
-        {hydrated && peers.length > 0 && (
           <div className="space-y-2">
             <div className="flex gap-1.5">
               <FilterChip
@@ -139,16 +121,18 @@ export default function MessagesClassic() {
                 count={unreadTotal}
               />
             </div>
-            <label className="relative block">
-              <SearchIcon className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="جستجو در نام…"
-                className="input !pr-9 !py-2.5 !text-[13px]"
-                autoComplete="off"
-              />
-            </label>
+            {peers.length >= 8 && (
+              <label className="relative block">
+                <SearchIcon className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="جستجو در نام…"
+                  className="input !pr-9 !py-2.5 !text-[13px]"
+                  autoComplete="off"
+                />
+              </label>
+            )}
           </div>
         )}
 
@@ -187,6 +171,7 @@ export default function MessagesClassic() {
                 last={last}
                 unread={unread}
                 preview={preview}
+                relationLine={chatPeerSubtitle(peer, viaById[peerId])}
               />
             ))}
           </div>
@@ -199,32 +184,72 @@ export default function MessagesClassic() {
   );
 }
 
-function StatPill({
-  label,
-  value,
-  accent,
+function ThreadRow({
+  peer,
+  peerId,
+  last,
+  unread,
+  preview,
+  relationLine,
 }: {
-  label: string;
-  value: string;
-  accent?: boolean;
+  peer: Person;
+  peerId: string;
+  last: Message | undefined;
+  unread: number;
+  preview: string;
+  relationLine: string;
 }) {
+  const hasUnread = unread > 0;
+
   return (
-    <div
-      className={`rounded-xl px-2.5 py-1.5 text-center min-w-[3.25rem] ${
-        accent
-          ? "bg-brand-600 text-white"
-          : "bg-stone-100 dark:bg-zinc-800 text-ink dark:text-zinc-100"
+    <Link
+      href={`/messages/${peerId}`}
+      className={`flex items-center gap-3 px-3.5 py-3 transition-colors active:bg-stone-50/90 dark:active:bg-zinc-800/60 ${
+        hasUnread ? "bg-brand-50/55 dark:bg-brand-500/10" : ""
       }`}
     >
-      <p className="text-[13px] font-extrabold nums leading-none">{value}</p>
-      <p
-        className={`text-[9px] mt-0.5 ${
-          accent ? "text-white/80" : "text-ink-muted"
-        }`}
-      >
-        {label}
-      </p>
-    </div>
+      <Avatar name={peer.name} src={peer.avatar} size="md" showLevel={false} />
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline justify-between gap-2">
+          <p
+            className={`text-[14px] truncate ${
+              hasUnread
+                ? "font-extrabold text-ink dark:text-zinc-50"
+                : "font-bold text-ink dark:text-zinc-100"
+            }`}
+          >
+            {peer.name}
+          </p>
+          <span
+            className={`text-[11px] shrink-0 nums ${
+              hasUnread
+                ? "text-brand-600 font-bold"
+                : "text-ink-muted dark:text-zinc-500"
+            }`}
+          >
+            {last?.postedAt ?? "—"}
+          </span>
+        </div>
+        <p className="text-[11px] text-ink-muted truncate mt-px">{relationLine}</p>
+        <div className="flex items-center gap-2 mt-0.5">
+          <p
+            className={`text-[12px] leading-snug truncate flex-1 ${
+              hasUnread
+                ? "text-ink dark:text-zinc-200 font-medium"
+                : "text-ink-muted dark:text-zinc-400"
+            }`}
+          >
+            {preview}
+          </p>
+          {hasUnread ? (
+            <span className="shrink-0 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-brand-600 text-white text-[10px] font-bold flex items-center justify-center nums shadow-sm shadow-brand-600/25">
+              {toPersianDigits(unread)}
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </Link>
   );
 }
 
@@ -258,80 +283,6 @@ function FilterChip({
         {toPersianDigits(count)}
       </span>
     </button>
-  );
-}
-
-function ThreadRow({
-  peer,
-  peerId,
-  last,
-  unread,
-  preview,
-}: {
-  peer: Person;
-  peerId: string;
-  last: Message | undefined;
-  unread: number;
-  preview: string;
-}) {
-  const hasUnread = unread > 0;
-
-  return (
-    <Link
-      href={`/messages/${peerId}`}
-      className={`flex items-center gap-3 px-3.5 py-3 transition-colors active:bg-stone-50/90 dark:active:bg-zinc-800/60 ${
-        hasUnread ? "bg-brand-50/55 dark:bg-brand-500/10" : ""
-      }`}
-    >
-      <Avatar name={peer.name} src={peer.avatar} level={peer.level} size="md" />
-
-      <div className="flex-1 min-w-0">
-        <div className="flex items-baseline justify-between gap-2">
-          <p
-            className={`text-[14px] truncate ${
-              hasUnread
-                ? "font-extrabold text-ink dark:text-zinc-50"
-                : "font-bold text-ink dark:text-zinc-100"
-            }`}
-          >
-            {peer.name}
-            <span className="ms-1.5 inline-block align-middle font-medium text-[10px] text-ink-muted dark:text-zinc-500 px-1.5 py-0.5 rounded-md bg-stone-100 dark:bg-zinc-800">
-              {relationLabels[peer.relation]}
-            </span>
-          </p>
-          <span
-            className={`text-[11px] shrink-0 nums ${
-              hasUnread
-                ? "text-brand-600 font-bold"
-                : "text-ink-muted dark:text-zinc-500"
-            }`}
-          >
-            {last?.postedAt ?? "—"}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2 mt-1">
-          <p
-            className={`text-[12px] leading-snug truncate flex-1 ${
-              hasUnread
-                ? "text-ink dark:text-zinc-200 font-medium"
-                : "text-ink-muted dark:text-zinc-400"
-            }`}
-          >
-            {preview}
-          </p>
-          {hasUnread ? (
-            <span className="shrink-0 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-brand-600 text-white text-[10px] font-bold flex items-center justify-center nums shadow-sm shadow-brand-600/25">
-              {toPersianDigits(unread)}
-            </span>
-          ) : (
-            <span className="shrink-0 text-ink-faint text-sm" aria-hidden>
-              ‹
-            </span>
-          )}
-        </div>
-      </div>
-    </Link>
   );
 }
 
@@ -427,13 +378,13 @@ function ComposeSheet({ onClose }: { onClose: () => void }) {
               }}
               className="w-full flex items-center gap-3 px-3.5 py-3 text-right active:bg-stone-50/90 dark:active:bg-zinc-800/70 transition-colors"
             >
-              <Avatar name={p.name} src={p.avatar} level={p.level} size="sm" />
+              <Avatar name={p.name} src={p.avatar} size="sm" showLevel={false} />
               <div className="flex-1 min-w-0 text-right">
                 <p className="text-[13px] font-bold text-ink dark:text-zinc-100">
                   {p.name}
                 </p>
                 <p className="text-[11px] text-ink-muted mt-0.5">
-                  {relationLabels[p.relation]} · سطح {p.level}
+                  {viewerRelationPhrase(p)}
                 </p>
               </div>
               <span className="text-brand-600" aria-hidden>

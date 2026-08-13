@@ -71,6 +71,9 @@ function trustHint(
     "score" | "endorsementsReceived" | "successfulDeals"
   >,
 ): { verified: boolean; verifiedLabel: string } {
+  if (person.id === "me") {
+    return { verified: false, verifiedLabel: "" };
+  }
   if (person.inMyCircle) {
     return { verified: true, verifiedLabel: "عضو مستقیم شبکه شما" };
   }

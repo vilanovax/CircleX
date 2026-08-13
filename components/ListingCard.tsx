@@ -70,7 +70,7 @@ export default function ListingCard({
           {/* Feed: privacy lives on the detail page — keep the footer to place + time. */}
           {!compactTrust && (
             <span
-              className="mr-auto shrink-0 text-[10px] text-ink-muted dark:text-zinc-500"
+              className="mr-auto max-w-[9.5rem] truncate text-[10px] text-ink-muted dark:text-zinc-500"
               title={privacyAudience(listing.privacy, circle)}
             >
               {privacyLabels[listing.privacy]}

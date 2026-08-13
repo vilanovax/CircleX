@@ -18,7 +18,6 @@ import { ChatIcon, UserPlusIcon } from "@/components/Icons";
 import {
   formatEndorsementReport,
   isPersonAboutBadge,
-  levelChip,
   levelShort,
   relationLabels,
 } from "@/lib/labels";
@@ -671,7 +670,7 @@ function EditRelationSheet({
             aria-pressed={person.level === lvl}
             className={`flex-1 rounded-xl py-2.5 text-[12px] font-bold border transition-colors ${
               person.level === lvl
-                ? `${levelChip[lvl]} border-current`
+                ? "bg-brand-600 text-white border-brand-600"
                 : "bg-[color:var(--circle-surface)] text-ink-faint border-stone-200 dark:border-zinc-700"
             }`}
           >

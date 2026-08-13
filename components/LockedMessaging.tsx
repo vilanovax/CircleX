@@ -12,8 +12,8 @@ import {
   UserPlusIcon,
 } from "./Icons";
 import type { Person } from "@/lib/types";
-import { levelChip, relationLabels } from "@/lib/labels";
 import { toPersianDigits } from "@/lib/persian";
+import { chatPeerSubtitle } from "@/lib/trust";
 
 const IntroRequestSheet = lazyUi(() => import("./IntroRequestSheet"));
 const AddToCircleSheet = lazyUi(() => import("./AddToCircleSheet"));
@@ -32,20 +32,13 @@ export default function LockedMessaging({ peer }: { peer: Person }) {
           href={`/person/${peer.id}`}
           className="card flex items-center gap-3 p-3.5 active:bg-stone-50/80 dark:active:bg-zinc-800/60 transition-colors"
         >
-          <Avatar name={peer.name} src={peer.avatar} level={peer.level} size="lg" />
+          <Avatar name={peer.name} src={peer.avatar} size="lg" showLevel={false} />
           <div className="flex-1 min-w-0 text-right">
             <p className="font-extrabold text-[16px] text-ink dark:text-zinc-50 truncate">
               {peer.name}
             </p>
-            <p className="flex items-center gap-1.5 mt-1 flex-wrap">
-              <span className="text-[12px] text-ink-muted">
-                {relationLabels[peer.relation]}
-              </span>
-              <span
-                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${levelChip[peer.level]}`}
-              >
-                سطح {peer.level}
-              </span>
+            <p className="text-[12px] text-ink-muted mt-1">
+              {chatPeerSubtitle(peer)}
             </p>
             <p className="text-[11px] text-ink-faint mt-1 nums">
               {[

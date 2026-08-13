@@ -1,5 +1,4 @@
 import type { Config } from "tailwindcss";
-import { heroui } from "@heroui/react";
 
 const config: Config = {
   darkMode: "class",
@@ -7,9 +6,6 @@ const config: Config = {
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./lib/**/*.{js,ts,jsx,tsx}",
-    // HeroUI components (nested under @heroui/react in this install).
-    "./node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}",
-    "./node_modules/@heroui/react/node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
@@ -79,25 +75,7 @@ const config: Config = {
       },
     },
   },
-  // HeroUI is a Tailwind-plugin library; this only adds HeroUI's own tokens and
-  // component classes (additive) — the classic design is unaffected. The cast
-  // bridges HeroUI's bundled tailwindcss types vs. the project's.
-  plugins: [
-    heroui({
-      themes: {
-        light: {
-          colors: {
-            primary: { DEFAULT: "#4a3a8f", foreground: "#ffffff" }, // brand-600
-          },
-        },
-        dark: {
-          colors: {
-            primary: { DEFAULT: "#5f4aa8", foreground: "#ffffff" }, // brand-500
-          },
-        },
-      },
-    }),
-  ] as unknown as Config["plugins"],
+  plugins: [],
 };
 
 export default config;

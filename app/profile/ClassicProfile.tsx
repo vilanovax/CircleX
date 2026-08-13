@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import { useRouter } from "next/navigation";
@@ -20,35 +20,18 @@ import {
   PlusIcon,
   ShieldCheckIcon,
 } from "@/components/Icons";
+import { badgeLabels, eventKindEmoji, formatPrice } from "@/lib/labels";
 import {
-  badgeLabels,
-  eventKindEmoji,
-  formatPrice,
-} from "@/lib/labels";
-import { buildSocialCredit } from "@/lib/social-credit";
+  buildSocialCredit,
+  evidenceSummaryLine,
+} from "@/lib/social-credit";
 import { formatEventDateDisplay, toPersianDigits } from "@/lib/persian";
 import { ThemeSegmented } from "@/components/ThemeToggle";
-import { UIModeSegmented } from "@/components/UIModeToggle";
 import { useToast } from "@/components/Toast";
 import { ProfileSkeleton } from "@/components/Skeleton";
 import type { CircleEvent } from "@/lib/types";
 
 type ActivityTab = "listings" | "events" | "saved" | "endorsements";
-
-const SCORE_TINT: Record<string, string> = {
-  عالی: "text-levelA",
-  خوب: "text-brand-600",
-  متوسط: "text-amber-600",
-  تازه‌وارد: "text-ink-muted",
-};
-
-function formatPhoneDisplay(phone: string): string {
-  const d = phone.replace(/\D/g, "");
-  if (d.length === 11) {
-    return toPersianDigits(`${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}`);
-  }
-  return toPersianDigits(phone);
-}
 
 export default function ClassicProfile() {
   const {
@@ -66,6 +49,7 @@ export default function ClassicProfile() {
   const { show } = useToast();
   const [showEdit, setShowEdit] = useState(false);
   const [tab, setTab] = useState<ActivityTab>("listings");
+  const [hashSaved, setHashSaved] = useState(false);
 
   const myCircle = people.filter((p) => p.inMyCircle);
   const myListings = listings.filter((l) => l.sellerId === "me");
@@ -82,15 +66,40 @@ export default function ClassicProfile() {
   );
 
   const socialCredit = buildSocialCredit(me, listings, myCircle.length);
+  const evidenceLine = evidenceSummaryLine(socialCredit);
 
   const myGivenBadges = listings.flatMap((l) =>
     l.endorsements.filter((e) => e.personId === "me").map((e) => ({ l, e })),
   );
 
+  const activityTabs = [
+    { id: "listings" as const, label: "آگهی‌ها", count: myListings.length },
+    { id: "events" as const, label: "رویدادها", count: allMyEvents.length },
+    { id: "saved" as const, label: "نشان‌ها", count: savedListings.length },
+    {
+      id: "endorsements" as const,
+      label: "تأییدهایی که داده‌ام",
+      count: myGivenBadges.length,
+    },
+  ];
+
+  const visibleTabs = activityTabs.filter(
+    (t) => t.count > 0 || (hashSaved && t.id === "saved"),
+  );
+  const showTabBar = visibleTabs.length >= 2;
+  const activeTab = visibleTabs.some((t) => t.id === tab)
+    ? tab
+    : (visibleTabs[0]?.id ?? "listings");
+
+  const metaLine = [me.city, socialCredit.lastActive ? `فعال ${socialCredit.lastActive}` : null]
+    .filter(Boolean)
+    .join(" · ");
+
   useEffect(() => {
     if (!hydrated) return;
 
     if (window.location.hash === "#saved") {
+      setHashSaved(true);
       setTab("saved");
       const el = document.getElementById("activity");
       if (!el) return;
@@ -100,7 +109,6 @@ export default function ClassicProfile() {
       return () => window.clearTimeout(t);
     }
 
-    // Prefer a tab that already has content (skip if user landed on #saved).
     if (myListings.length > 0) return;
     if (allMyEvents.length > 0) setTab("events");
     else if (savedListings.length > 0) setTab("saved");
@@ -118,133 +126,39 @@ export default function ClassicProfile() {
     );
   }
 
-  const activityTabs = [
-    { id: "listings" as const, label: "آگهی‌ها", count: myListings.length },
-    { id: "events" as const, label: "رویدادها", count: allMyEvents.length },
-    { id: "saved" as const, label: "نشان‌ها", count: savedListings.length },
-    {
-      id: "endorsements" as const,
-      label: "تأییدها",
-      count: myGivenBadges.length,
-    },
-  ];
-
   return (
     <main className="pb-24 min-h-[100dvh]">
       <Header title="پروفایل" />
 
       <div className="px-4 pt-3 space-y-3.5 listing-detail-rise">
-        {/* Identity — one composition */}
-        <section className="card overflow-hidden">
-          <div
-            className="relative px-4 pt-4 pb-3"
-            style={{
-              background:
-                "linear-gradient(145deg, rgba(74,58,143,0.09) 0%, rgba(31,107,66,0.06) 55%, transparent 100%)",
-            }}
-          >
-            <div
-              className="pointer-events-none absolute -top-10 -end-8 w-36 h-36 rounded-full border border-brand-300/25 dark:border-brand-400/15"
-              aria-hidden
-            />
-            <div
-              className="pointer-events-none absolute top-2 end-10 w-16 h-16 rounded-full border border-brand-300/20 dark:border-brand-400/10"
-              aria-hidden
-            />
-
-            <div className="relative flex items-start gap-3.5">
-              <div className="relative shrink-0">
-                <div className="rounded-full ring-[3px] ring-white dark:ring-zinc-900 shadow-md shadow-brand-600/15">
-                  <Avatar name={me.name} src={me.avatar} size="lg" />
-                </div>
-                {socialCredit.verified && (
-                  <span
-                    className="absolute -bottom-0.5 -start-0.5 w-6 h-6 rounded-full bg-levelA text-white flex items-center justify-center ring-2 ring-white dark:ring-zinc-900 shadow-sm"
-                    title={socialCredit.verifiedLabel}
-                  >
-                    <ShieldCheckIcon className="w-3.5 h-3.5" />
-                  </span>
-                )}
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <h2 className="text-[1.2rem] font-extrabold text-ink dark:text-zinc-50 tracking-tight truncate">
-                      {me.name}
-                    </h2>
-                    {socialCredit.verified && (
-                      <p className="text-[11px] font-semibold text-levelA mt-0.5">
-                        {socialCredit.verifiedLabel}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowEdit(true)}
-                    aria-label="ویرایش پروفایل"
-                    className="shrink-0 flex items-center gap-1.5 text-[12px] font-bold text-brand-700 dark:text-brand-300 bg-[color:var(--circle-surface)] dark:bg-zinc-900/80 ring-1 ring-brand-200/80 dark:ring-brand-500/30 rounded-xl px-3 py-2 shadow-sm active:scale-95 transition-transform"
-                  >
-                    <PencilIcon className="w-3.5 h-3.5" />
-                    ویرایش
-                  </button>
-                </div>
-
-                <ul className="flex flex-wrap gap-1.5 mt-2.5">
-                  <MetaChip
-                    icon={<MapPinIcon className="w-3 h-3" />}
-                    label={me.city || "شهر ثبت نشده"}
-                  />
-                  <MetaChip label={`عضو از ${socialCredit.memberSince}`} />
-                  <MetaChip label={`فعال ${socialCredit.lastActive}`} />
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <div className="px-4 pb-4 pt-1">
-            <div className="flex items-stretch gap-2">
-              <div className="flex-1 rounded-2xl bg-gradient-to-l from-brand-50 via-brand-50/60 to-levelA/10 dark:from-brand-500/20 dark:via-brand-500/10 dark:to-levelA/10 px-3.5 py-3 ring-1 ring-brand-100/80 dark:ring-brand-500/20">
-                <div className="flex items-end justify-between gap-2">
-                  <div>
-                    <p className="text-[10px] font-semibold text-ink-muted tracking-wide">
-                      سابقه در سیرکل
-                    </p>
-                    <p
-                      className={`text-[13px] font-extrabold mt-0.5 ${SCORE_TINT[socialCredit.label]}`}
-                    >
-                      {socialCredit.label}
-                    </p>
-                  </div>
-                  <p className="text-[1.6rem] font-extrabold text-ink dark:text-zinc-50 nums leading-none tracking-tight">
-                    {toPersianDigits(socialCredit.score)}
-                    <span className="text-[11px] text-ink-faint font-bold">
-                      {" "}
-                      /۱۰۰
-                    </span>
-                  </p>
-                </div>
-                <div
-                  className="mt-2.5 h-1.5 rounded-full bg-white/70 dark:bg-zinc-950/40 overflow-hidden"
-                  aria-hidden
+        <section className="card p-3.5">
+          <div className="flex items-start gap-3">
+            <Avatar name={me.name} src={me.avatar} size="lg" showLevel={false} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-2">
+                <h2 className="text-[1.15rem] font-extrabold text-ink dark:text-zinc-50 tracking-tight truncate leading-tight">
+                  {me.name}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setShowEdit(true)}
+                  aria-label="ویرایش پروفایل"
+                  className="shrink-0 flex items-center gap-1.5 text-[12px] font-bold text-brand-700 dark:text-brand-300 bg-[color:var(--circle-surface)] dark:bg-zinc-900/80 ring-1 ring-brand-200/80 dark:ring-brand-500/30 rounded-xl px-3 py-2 shadow-sm active:scale-95 transition-transform"
                 >
-                  <div
-                    className="h-full rounded-full bg-gradient-to-l from-levelA to-brand-600 transition-[width] duration-500 ease-out"
-                    style={{ width: `${socialCredit.score}%` }}
-                  />
-                </div>
+                  <PencilIcon className="w-3.5 h-3.5" />
+                  ویرایش
+                </button>
               </div>
-
+              {metaLine ? (
+                <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-snug">
+                  {metaLine}
+                </p>
+              ) : null}
               <Link
                 href="/circle"
-                className="rounded-2xl bg-stone-50 dark:bg-zinc-800/80 px-3.5 py-3 text-center min-w-[4.75rem] ring-1 ring-stone-200/70 dark:ring-zinc-700 active:scale-[0.98] transition-transform flex flex-col items-center justify-center"
+                className="inline-block text-[12px] font-bold text-brand-700 dark:text-brand-300 mt-1.5"
               >
-                <p className="text-[1.35rem] font-extrabold text-ink dark:text-zinc-100 nums leading-none">
-                  {toPersianDigits(myCircle.length)}
-                </p>
-                <p className="text-[10px] font-semibold text-ink-muted mt-1.5">
-                  حلقه
-                </p>
+                {toPersianDigits(myCircle.length)} نفر در حلقه ‹
               </Link>
             </div>
           </div>
@@ -252,70 +166,69 @@ export default function ClassicProfile() {
 
         <SocialCreditCard
           stats={socialCredit}
-          title="اعتماد و سابقه"
-          subtitle="شواهد قابل‌فهم از فعالیت شما"
+          title="این را حلقه‌ات می‌بیند"
+          subtitle={evidenceLine || "شواهد قابل‌فهم از فعالیت شما"}
           activityLabel="نفر در حلقه شما"
           hideVerified
           collapsible
           defaultCollapsed
         />
 
-        {/* Activity */}
         <section id="activity" className="scroll-mt-24">
-          <div className="flex items-center justify-between gap-2 mb-2.5 px-0.5">
-            <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-200">
-              فعالیت من
-            </h2>
-            {tab === "listings" && (
-              <Link
-                href="/new"
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-brand-600 dark:text-brand-400"
-              >
-                <PlusIcon className="w-3.5 h-3.5" />
-                ثبت آگهی
-              </Link>
-            )}
-          </div>
-
-          <div
-            className="flex gap-1 p-1 rounded-2xl bg-stone-100/90 dark:bg-zinc-800/80 overflow-x-auto no-scrollbar"
-            role="tablist"
-            aria-label="نوع فعالیت"
-          >
-            {activityTabs.map((t) => {
-              const active = tab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setTab(t.id)}
-                  className={`shrink-0 flex-1 min-w-[4.5rem] rounded-xl px-2.5 py-2 text-[12px] font-bold transition-all duration-200 ${
-                    active
-                      ? "bg-brand-600 text-white shadow-md shadow-brand-600/25"
-                      : "text-ink-muted dark:text-zinc-400 active:bg-white/60 dark:active:bg-zinc-700/50"
-                  }`}
-                >
-                  {t.label}
-                  <span
-                    className={`ms-1 nums text-[11px] font-semibold ${
-                      active ? "text-white/85" : "text-ink-faint"
+          {showTabBar ? (
+            <div
+              className="flex gap-1 p-1 rounded-2xl bg-stone-100/90 dark:bg-zinc-800/80 overflow-x-auto no-scrollbar mb-2.5"
+              role="tablist"
+              aria-label="نوع فعالیت"
+            >
+              {visibleTabs.map((t) => {
+                const active = activeTab === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setTab(t.id)}
+                    className={`shrink-0 flex-1 min-w-[4.5rem] rounded-xl px-2.5 py-2 text-[12px] font-bold transition-all duration-200 ${
+                      active
+                        ? "bg-brand-600 text-white shadow-md shadow-brand-600/25"
+                        : "text-ink-muted dark:text-zinc-400 active:bg-white/60 dark:active:bg-zinc-700/50"
                     }`}
                   >
-                    {toPersianDigits(t.count)}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                    {t.label}
+                    <span
+                      className={`ms-1 nums text-[11px] font-semibold ${
+                        active ? "text-white/85" : "text-ink-faint"
+                      }`}
+                    >
+                      {toPersianDigits(t.count)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : visibleTabs.length === 1 ? (
+            <div className="flex items-center gap-2 mb-2.5 px-0.5">
+              <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-200">
+                {visibleTabs[0].label}
+              </h2>
+              <span className="inline-flex min-w-[1.25rem] h-5 px-1.5 items-center justify-center rounded-full bg-stone-100 dark:bg-zinc-800 text-[11px] font-bold text-ink-muted nums">
+                {toPersianDigits(visibleTabs[0].count)}
+              </span>
+            </div>
+          ) : (
+            <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-200 mb-2.5 px-0.5">
+              فعالیت من
+            </h2>
+          )}
 
           <div
-            className="mt-2.5"
-            id={tab === "saved" ? "saved" : undefined}
+            className="mt-0"
+            id={activeTab === "saved" ? "saved" : undefined}
             role="tabpanel"
           >
-            {tab === "listings" &&
+            {activeTab === "listings" &&
               (myListings.length === 0 ? (
                 <EmptyCard
                   title="هنوز آگهی‌ای نداری"
@@ -360,12 +273,12 @@ export default function ClassicProfile() {
                 </div>
               ))}
 
-            {tab === "events" &&
+            {activeTab === "events" &&
               (allMyEvents.length === 0 ? (
                 <EmptyCard
                   title="رویدادی در تقویمت نیست"
                   text="به یک رویداد بپیوند یا خودت یکی بساز."
-                  href="/"
+                  href="/events"
                   cta="دیدن رویدادها"
                   icon="calendar"
                 />
@@ -375,15 +288,12 @@ export default function ClassicProfile() {
                     <EventGroup label="میزبانی من" events={hostedEvents} />
                   )}
                   {attendingEvents.length > 0 && (
-                    <EventGroup
-                      label="شرکت می‌کنم"
-                      events={attendingEvents}
-                    />
+                    <EventGroup label="شرکت می‌کنم" events={attendingEvents} />
                   )}
                 </div>
               ))}
 
-            {tab === "saved" &&
+            {activeTab === "saved" &&
               (savedListings.length === 0 ? (
                 <EmptyCard
                   title="هنوز چیزی نشان نکرده‌ای"
@@ -400,7 +310,7 @@ export default function ClassicProfile() {
                 </div>
               ))}
 
-            {tab === "endorsements" &&
+            {activeTab === "endorsements" &&
               (myGivenBadges.length === 0 ? (
                 <EmptyCard
                   title="هنوز تأییدی نداده‌ای"
@@ -433,58 +343,45 @@ export default function ClassicProfile() {
           </div>
         </section>
 
-        {/* Settings */}
         <section>
           <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-200 mb-2.5 px-0.5">
-            ظاهر برنامه
+            حساب
           </h2>
-          <div className="card p-3.5 space-y-4">
+          <div className="card p-3.5 space-y-3">
             <div>
-              <p className="text-[11px] font-semibold text-ink-muted dark:text-zinc-400 mb-2">
-                مدل نمایش
-              </p>
-              <UIModeSegmented />
-            </div>
-            <div className="border-t border-stone-100 dark:border-zinc-800 pt-3.5">
               <p className="text-[11px] font-semibold text-ink-muted dark:text-zinc-400 mb-2">
                 حالت روشن / تیره
               </p>
               <ThemeSegmented />
             </div>
+            {sessionPhone && (
+              <>
+                <div className="flex items-center justify-between gap-3 rounded-xl bg-stone-50/80 dark:bg-zinc-800/50 px-3 py-2.5">
+                  <span className="text-[12px] font-medium text-ink-muted">
+                    موبایل
+                  </span>
+                  <span
+                    className="text-[13px] font-extrabold nums text-ink dark:text-zinc-100 tracking-wide"
+                    dir="ltr"
+                  >
+                    {formatPhoneDisplay(sessionPhone)}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    signOut();
+                    show("خارج شدی — دوباره وارد شو");
+                    router.replace("/");
+                  }}
+                  className="w-full text-[13px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 rounded-xl py-3.5 active:scale-[0.99] transition-transform"
+                >
+                  خروج از حساب
+                </button>
+              </>
+            )}
           </div>
         </section>
-
-        {sessionPhone && (
-          <section>
-            <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-200 mb-2.5 px-0.5">
-              حساب
-            </h2>
-            <div className="card p-3.5 space-y-3">
-              <div className="flex items-center justify-between gap-3 rounded-xl bg-stone-50/80 dark:bg-zinc-800/50 px-3 py-2.5">
-                <span className="text-[12px] font-medium text-ink-muted">
-                  موبایل
-                </span>
-                <span
-                  className="text-[13px] font-extrabold nums text-ink dark:text-zinc-100 tracking-wide"
-                  dir="ltr"
-                >
-                  {formatPhoneDisplay(sessionPhone)}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  signOut();
-                  show("خارج شدی — دوباره وارد شو");
-                  router.replace("/");
-                }}
-                className="w-full text-[13px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 rounded-xl py-3.5 active:scale-[0.99] transition-transform"
-              >
-                خروج از حساب
-              </button>
-            </div>
-          </section>
-        )}
       </div>
 
       {showEdit && (
@@ -506,23 +403,12 @@ export default function ClassicProfile() {
   );
 }
 
-function MetaChip({
-  label,
-  icon,
-}: {
-  label: string;
-  icon?: ReactNode;
-}) {
-  return (
-    <li className="inline-flex items-center gap-1 rounded-lg bg-[color:var(--circle-surface)]/90 dark:bg-zinc-900/70 ring-1 ring-stone-200/70 dark:ring-zinc-700 px-2 py-1 text-[11px] font-medium text-ink-muted dark:text-zinc-300">
-      {icon ? (
-        <span className="text-ink-faint shrink-0" aria-hidden>
-          {icon}
-        </span>
-      ) : null}
-      {label}
-    </li>
-  );
+function formatPhoneDisplay(phone: string): string {
+  const d = phone.replace(/\D/g, "");
+  if (d.length === 11) {
+    return toPersianDigits(`${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}`);
+  }
+  return toPersianDigits(phone);
 }
 
 function EventGroup({
@@ -602,9 +488,6 @@ function EditProfileSheet({
         <div className="rounded-full ring-[3px] ring-brand-100 dark:ring-brand-500/30 shadow-md shadow-brand-600/10">
           <Avatar name={name.trim() || initialName} src={avatar} size="lg" />
         </div>
-        <p className="text-[11px] text-ink-faint mt-2.5 text-center">
-          آواتار اختصاصی پروفایل شما
-        </p>
       </div>
 
       <label className="block text-[12px] font-semibold mb-1.5 text-ink-muted">

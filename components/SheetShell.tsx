@@ -55,11 +55,11 @@ export default function SheetShell({
           className="absolute bottom-0 inset-x-0 bg-[color:var(--circle-surface)] dark:bg-zinc-900 rounded-t-[1.35rem] pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] animate-slide-up overflow-hidden outline-none shadow-[0_-8px_40px_rgba(26,24,22,0.12)] flex flex-col"
         >
           <div className="w-9 h-1 bg-stone-300/80 dark:bg-zinc-600 rounded-full mx-auto mb-3 shrink-0" />
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
             {children}
           </div>
           {footer && (
-            <div className="shrink-0 px-4 pt-3 border-t border-stone-200/70 dark:border-zinc-800 bg-[color:var(--circle-surface)] dark:bg-zinc-900">
+            <div className="shrink-0 px-4 pt-2.5 border-t border-stone-200/70 dark:border-zinc-800 bg-[color:var(--circle-surface)] dark:bg-zinc-900">
               {footer}
             </div>
           )}

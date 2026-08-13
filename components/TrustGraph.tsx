@@ -10,17 +10,12 @@ import {
   depthRingLabel,
   pathToMe,
 } from "@/lib/graph";
-import { relationLabels, levelShort } from "@/lib/labels";
+import { relationLabels } from "@/lib/labels";
 import { viewerRelationPhrase } from "@/lib/trust";
-import type { TrustLevel } from "@/lib/types";
 
 const SIZE = 340;
-const LEVEL_HEX: Record<TrustLevel, string> = {
-  A: "#16a34a",
-  B: "#2563eb",
-  C: "#d97706",
-};
 const BRAND = "#7c3aed";
+const RING = "rgba(120,113,108,0.42)";
 
 const ekey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
 
@@ -210,8 +205,8 @@ export default function TrustGraph() {
                     {(isMe || onPath || isSelected) && (
                       <circle
                         r={r + (isSelected ? 7 : 5)}
-                        fill={isMe ? BRAND : LEVEL_HEX[n.level ?? "C"]}
-                        opacity={isSelected ? 0.28 : 0.16}
+                        fill={BRAND}
+                        opacity={isSelected ? 0.28 : isMe ? 0.16 : 0.12}
                         filter={isMe ? "url(#tg-soft)" : undefined}
                       />
                     )}
@@ -233,24 +228,12 @@ export default function TrustGraph() {
                       r={r}
                       fill="none"
                       stroke={
-                        isMe
-                          ? "rgba(255,255,255,0.35)"
-                          : LEVEL_HEX[n.level ?? "C"]
+                        isMe || isSelected || onPath ? BRAND : RING
                       }
                       strokeWidth={
-                        isMe ? 2 : isSelected ? 3.25 : n.level === "A" ? 2.8 : 2.2
+                        isMe ? 2 : isSelected ? 3.25 : onPath ? 2.6 : 2.2
                       }
                     />
-                    {/* Double ring hint for نزدیکان */}
-                    {!isMe && n.level === "A" && (
-                      <circle
-                        r={r + 3.2}
-                        fill="none"
-                        stroke={LEVEL_HEX.A}
-                        strokeWidth={1.1}
-                        opacity={0.55}
-                      />
-                    )}
                     <text
                       y={r + 12}
                       textAnchor="middle"
@@ -266,24 +249,6 @@ export default function TrustGraph() {
             );
           })}
         </svg>
-      </div>
-
-      <div className="flex items-center justify-center gap-4 text-[11px] text-ink-muted dark:text-zinc-400 mt-3 px-1 flex-wrap">
-        {(["A", "B", "C"] as const).map((lvl) => (
-          <span key={lvl} className="flex items-center gap-1.5">
-            <span
-              className={`w-2 h-2 rounded-full ${
-                lvl === "A"
-                  ? "bg-levelA"
-                  : lvl === "B"
-                    ? "bg-levelB"
-                    : "bg-levelC"
-              }`}
-              aria-hidden
-            />
-            {levelShort[lvl]}
-          </span>
-        ))}
       </div>
 
       <div className="mt-3 min-h-[88px]">
@@ -309,16 +274,6 @@ export default function TrustGraph() {
                   <p className="font-bold text-[14px] text-ink dark:text-zinc-100 truncate">
                     {selectedPerson.name}
                   </p>
-                  {selectedNode.level && (
-                    <span
-                      className="chip !py-0.5 !px-2 text-white"
-                      style={{
-                        backgroundColor: LEVEL_HEX[selectedNode.level],
-                      }}
-                    >
-                      {levelShort[selectedNode.level]}
-                    </span>
-                  )}
                 </div>
                 <p className="text-[12px] text-ink-muted mt-0.5">
                   {selectedNode.inCircle

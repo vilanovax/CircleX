@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { useSheetA11y } from "@/lib/use-sheet-a11y";
 import { lazyUi } from "@/lib/lazy-ui";
+import { CalendarIcon, QuestionIcon, TagIcon } from "./Icons";
 import { useToast } from "./Toast";
 
 const AddListingSheet = lazyUi(() => import("./AddListingSheet"));
@@ -16,23 +17,23 @@ type Step = "menu" | "listing" | "request" | "event";
 const MENU_OPTIONS = [
   {
     id: "listing" as const,
-    mark: "آ",
+    Icon: TagIcon,
     title: "ثبت آگهی",
-    subtitle: "فروش، اهدا، معاوضه یا قرض",
+    subtitle: "فروش، اهدا، تعویض یا امانت",
     tint: "bg-brand-600 text-white",
     ring: "ring-brand-600/15",
   },
   {
     id: "request" as const,
-    mark: "د",
+    Icon: QuestionIcon,
     title: "ثبت درخواست",
-    subtitle: "از حلقه بپرس چه می‌خواهی",
+    subtitle: "از حلقه چیزی بخواهید",
     tint: "bg-levelC text-white",
     ring: "ring-levelC/15",
   },
   {
     id: "event" as const,
-    mark: "ر",
+    Icon: CalendarIcon,
     title: "ساخت رویداد",
     subtitle: "دورهمی، کلاس یا جمع کوچک",
     tint: "bg-levelB text-white",
@@ -121,17 +122,12 @@ export default function CreateSheet({ onClose }: { onClose: () => void }) {
           <div className="w-9 h-1 bg-stone-300/80 dark:bg-zinc-600 rounded-full mx-auto mb-4" />
 
           <div className="flex items-start justify-between gap-3 mb-4 px-0.5">
-            <div className="min-w-0">
-              <h2
-                id="create-sheet-title"
-                className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 leading-tight"
-              >
-                ثبت در حلقه
-              </h2>
-              <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
-                آگهی، درخواست یا رویداد — از همین‌جا
-              </p>
-            </div>
+            <h2
+              id="create-sheet-title"
+              className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 leading-tight"
+            >
+              ثبت در حلقه
+            </h2>
             <button
               type="button"
               onClick={onClose}
@@ -150,9 +146,9 @@ export default function CreateSheet({ onClose }: { onClose: () => void }) {
                 className="w-full flex items-center gap-3 px-3.5 py-3.5 text-right active:bg-stone-50/90 dark:active:bg-zinc-800/70 transition-colors"
               >
                 <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-[15px] font-extrabold shrink-0 ring-4 ${o.tint} ${o.ring}`}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ring-4 ${o.tint} ${o.ring}`}
                 >
-                  {o.mark}
+                  <o.Icon className="w-5 h-5" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="font-bold text-[14px] text-ink dark:text-zinc-100">

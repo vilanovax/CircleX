@@ -7,8 +7,9 @@ import { useStore } from "@/lib/store";
 import { useToast } from "./Toast";
 import Avatar from "./Avatar";
 import { SearchIcon, SendIcon, ShieldCheckIcon } from "./Icons";
-import { levelChip, relationLabels } from "@/lib/labels";
+import { relationLabels } from "@/lib/labels";
 import { toPersianDigits } from "@/lib/persian";
+import { viewerRelationPhrase } from "@/lib/trust";
 
 type ItemKind = "listing" | "request" | "event" | "person";
 
@@ -124,20 +125,13 @@ export default function IntroRequestSheet({
               onClick={() => request(p.id, p.name)}
               className="w-full flex items-center gap-2.5 px-3 py-2.5 text-right active:bg-stone-50/90 dark:active:bg-zinc-800/70 transition-colors"
             >
-              <Avatar name={p.name} src={p.avatar} level={p.level} size="sm" />
+              <Avatar name={p.name} src={p.avatar} size="sm" showLevel={false} />
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-bold text-ink dark:text-zinc-100 truncate">
                   {p.name}
                 </p>
-                <p className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-[11px] text-ink-muted truncate">
-                    {relationLabels[p.relation]}
-                  </span>
-                  <span
-                    className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${levelChip[p.level]}`}
-                  >
-                    سطح {p.level}
-                  </span>
+                <p className="text-[11px] text-ink-muted mt-0.5 truncate">
+                  {viewerRelationPhrase(p)}
                 </p>
               </div>
               <span className="shrink-0 inline-flex items-center gap-1 rounded-xl bg-brand-600 text-white text-[11px] font-bold px-2.5 py-1.5 shadow-sm shadow-brand-600/20">

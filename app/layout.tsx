@@ -3,8 +3,6 @@ import "./globals.css";
 import { StoreProvider } from "@/lib/store";
 import { ToastProvider } from "@/components/Toast";
 import { ThemeProvider, themeScript } from "@/lib/theme";
-import { UIModeProvider, uiModeScript } from "@/lib/ui-mode";
-import ActiveUIProviders from "@/components/ActiveUIProviders";
 import RequireAuth from "@/components/RequireAuth";
 import { vazirmatn } from "@/lib/fonts";
 
@@ -41,22 +39,17 @@ export default function RootLayout({
     <html lang="fa" dir="rtl" suppressHydrationWarning className={vazirmatn.variable}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <script dangerouslySetInnerHTML={{ __html: uiModeScript }} />
         <link rel="manifest" href={`${BASE}/manifest.webmanifest`} />
       </head>
       <body className={`${vazirmatn.className} font-sans`}>
         <ThemeProvider>
-          <UIModeProvider>
-            <ActiveUIProviders>
-              <StoreProvider>
-                <ToastProvider>
-                  <div className="app-shell">
-                    <RequireAuth>{children}</RequireAuth>
-                  </div>
-                </ToastProvider>
-              </StoreProvider>
-            </ActiveUIProviders>
-          </UIModeProvider>
+          <StoreProvider>
+            <ToastProvider>
+              <div className="app-shell">
+                <RequireAuth>{children}</RequireAuth>
+              </div>
+            </ToastProvider>
+          </StoreProvider>
         </ThemeProvider>
       </body>
     </html>

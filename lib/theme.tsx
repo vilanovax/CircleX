@@ -23,7 +23,7 @@ interface ThemeValue {
 const ThemeContext = createContext<ThemeValue | null>(null);
 
 /** Inline script (runs before paint) that applies the saved theme to <html>. */
-export const themeScript = `(function(){try{var t=localStorage.getItem('${STORAGE_KEY}')||'system';var d=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);}catch(e){}})();`;
+export const themeScript = `(function(){try{var t=localStorage.getItem('${STORAGE_KEY}')||'light';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);}catch(e){}})();`;
 
 function systemPrefersDark(): boolean {
   if (typeof window === "undefined") return false;
@@ -36,7 +36,7 @@ function resolve(theme: Theme): "light" | "dark" {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("system");
+  const [theme, setThemeState] = useState<Theme>("light");
   const [resolved, setResolved] = useState<"light" | "dark">("light");
 
   const apply = useCallback((t: Theme) => {
@@ -47,7 +47,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   // Load saved preference on mount.
   useEffect(() => {
-    const saved = (localStorage.getItem(STORAGE_KEY) as Theme | null) ?? "system";
+    const saved = (localStorage.getItem(STORAGE_KEY) as Theme | null) ?? "light";
     setThemeState(saved);
     apply(saved);
   }, [apply]);

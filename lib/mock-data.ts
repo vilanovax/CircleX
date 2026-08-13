@@ -10,7 +10,7 @@ import type {
 /** The current (logged-in) user. */
 export const ME: Person = {
   id: "me",
-  name: "من",
+  name: "آرش",
   avatar: "/avatars/01.webp",
   relation: "friend",
   level: "A",

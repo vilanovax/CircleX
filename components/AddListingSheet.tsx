@@ -6,13 +6,13 @@ import ListingComposeForm, {
   type ListingInput,
 } from "@/components/ListingComposeForm";
 import SheetShell from "@/components/SheetShell";
+import { BackIcon, CloseIcon } from "@/components/Icons";
 
 export type { ListingInput };
 
 export default function AddListingSheet({
   onClose,
   onAdd,
-  onBack,
 }: {
   onClose: () => void;
   onAdd: (input: ListingInput) => void;
@@ -25,9 +25,8 @@ export default function AddListingSheet({
     hint?: string;
     step: "compose" | "review";
   }>({
-    canSubmit: false,
+    canSubmit: true,
     primaryLabel: "ادامه و پیش‌نمایش",
-    hint: "چند جمله درباره کالا بنویس (حداقل ۱۲ حرف)",
     step: "compose",
   });
 
@@ -43,70 +42,67 @@ export default function AddListingSheet({
     [],
   );
 
-  const handleSheetBack = () => {
-    if (footer.step === "review") {
-      formRef.current?.goBack?.();
-      return;
-    }
-    onBack?.();
-  };
+  const reviewing = footer.step === "review";
 
   return (
     <SheetShell
       onClose={onClose}
       labelledBy="add-listing-title"
       zClass="z-50"
+      maxHeight="100dvh"
       footer={
         <div>
           {footer.hint && (
-            <p className="text-[11px] text-ink-faint text-center mb-2">
+            <p className="text-[11px] text-ink-muted text-center mb-2 leading-relaxed">
               {footer.hint}
             </p>
           )}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn-ghost flex-1 !py-3.5 active:scale-[0.98] transition-transform duration-150"
-            >
-              انصراف
-            </button>
-            <button
-              type="button"
-              disabled={!footer.canSubmit}
-              onClick={() => formRef.current?.submit()}
-              className="btn-primary flex-1 !py-3.5 shadow-lg shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150"
-            >
-              {footer.primaryLabel}
-            </button>
-          </div>
+          <button
+            type="button"
+            disabled={!footer.canSubmit}
+            onClick={() => formRef.current?.submit()}
+            className="btn-primary w-full !py-3 text-[15px] shadow-lg shadow-brand-600/20 active:scale-[0.99] transition-transform duration-150 disabled:opacity-60"
+          >
+            {footer.primaryLabel}
+          </button>
         </div>
       }
     >
-      <div className="mb-1">
-        {(onBack || footer.step === "review") && (
+      <div className="flex items-center gap-2 mb-1">
+        {reviewing && (
           <button
             type="button"
-            onClick={handleSheetBack}
-            className="text-[12px] text-brand-600 dark:text-brand-400 font-semibold mb-1.5 active:opacity-80"
+            onClick={() => formRef.current?.goBack?.()}
+            aria-label="بازگشت"
+            className="shrink-0 w-9 h-9 -ms-1 rounded-full flex items-center justify-center text-brand-600 dark:text-brand-400 active:bg-brand-50 dark:active:bg-brand-500/10"
           >
-            ‹ {footer.step === "review" ? "بازگشت به متن" : "بازگشت"}
+            <BackIcon className="w-5 h-5" />
           </button>
         )}
-        <h2
-          id="add-listing-title"
-          className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 leading-tight"
+        <div className="min-w-0 flex-1">
+          <h2
+            id="add-listing-title"
+            className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 leading-tight"
+          >
+            {reviewing ? "آگهی را بررسی کنید" : "ثبت آگهی"}
+          </h2>
+          <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-relaxed">
+            {reviewing
+              ? "عنوان و جزئیات را تأیید یا اصلاح کن."
+              : "فقط حلقه‌ات می‌بیند"}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="بستن"
+          className="shrink-0 w-9 h-9 -me-1 rounded-full flex items-center justify-center text-ink-muted dark:text-zinc-400 active:bg-stone-100 dark:active:bg-zinc-800"
         >
-          {footer.step === "review" ? "پیش‌نمایش آگهی" : "ثبت آگهی جدید"}
-        </h2>
-        <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
-          {footer.step === "review"
-            ? "پیشنهادها را تأیید یا اصلاح کن، بعد منتشر کن."
-            : "فقط برای حلقه‌ی اعتمادت دیده می‌شود — نه غریبه‌ها."}
-        </p>
+          <CloseIcon className="w-5 h-5" />
+        </button>
       </div>
 
-      <div className="mt-3.5 pb-1">
+      <div className="mt-3.5 pb-2">
         <ListingComposeForm
           ref={formRef}
           hideActions

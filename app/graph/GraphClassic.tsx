@@ -10,13 +10,11 @@ import { lazyUi } from "@/lib/lazy-ui";
 import { GraphIcon } from "@/components/Icons";
 import { toPersianDigits } from "@/lib/persian";
 import { viewerRelationPhrase } from "@/lib/trust";
-import { levelChip, levelShort } from "@/lib/labels";
 import {
   buildTrustGraph,
   graphInsights,
   pathToMe,
 } from "@/lib/graph";
-import type { TrustLevel } from "@/lib/types";
 
 const TrustGraph = lazyUi(() => import("@/components/TrustGraph"), {
   loading: () => (
@@ -148,7 +146,6 @@ export default function GraphClassic() {
                     relation={
                       person ? viewerRelationPhrase(person) : "مستقیم"
                     }
-                    levelBadge={person?.level ?? n.level}
                   />
                 );
               })}
@@ -249,13 +246,11 @@ function PersonRow({
   name,
   avatar,
   relation,
-  levelBadge,
 }: {
   id: string;
   name: string;
   avatar?: string;
   relation: string;
-  levelBadge?: TrustLevel;
 }) {
   return (
     <li>
@@ -268,17 +263,8 @@ function PersonRow({
           <span className="block text-[13px] font-bold text-ink dark:text-zinc-100 truncate">
             {name}
           </span>
-          <span className="mt-0.5 flex items-center gap-1.5 min-w-0">
-            <span className="text-[11px] text-ink-muted truncate">
-              {relation}
-            </span>
-            {levelBadge && (
-              <span
-                className={`shrink-0 chip !py-0 !px-1.5 !text-[10px] font-bold ${levelChip[levelBadge]} dark:bg-zinc-800`}
-              >
-                {levelShort[levelBadge]}
-              </span>
-            )}
+          <span className="mt-0.5 block text-[11px] text-ink-muted truncate">
+            {relation}
           </span>
         </span>
         <span className="text-ink-faint text-sm" aria-hidden>

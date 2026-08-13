@@ -121,7 +121,7 @@ export default function FeedFilterBar({
                 دسته‌های بیشتر
               </h2>
               <p className="text-xs text-zinc-400 mb-4">
-                معاوضه و قرض موقت — کمتر استفاده می‌شوند، اینجا جدا نگه داشته‌ایم.
+                تعویض و امانت — کمتر استفاده می‌شوند، اینجا جدا نگه داشته‌ایم.
               </p>
               <div className="grid grid-cols-2 gap-2 mb-4">
                 {MORE.map((type) => (

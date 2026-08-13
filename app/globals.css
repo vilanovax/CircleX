@@ -1,8 +1,3 @@
-/* Mantine ships its styles in this layer; declaring it first keeps all of
-   Tailwind's (unlayered) rules at higher priority, so the classic UI is never
-   affected by Mantine being loaded. */
-@layer mantine;
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
