@@ -79,6 +79,16 @@ export function viewerRelationPhrase(person: Person): string {
   return relationLabels[person.relation];
 }
 
+/** One-line chat header: direct relation, or path — never a circle placement chip. */
+export function chatPeerSubtitle(
+  person: Person,
+  viaName?: string | null,
+): string {
+  if (person.inMyCircle) return viewerRelationPhrase(person);
+  if (viaName) return `از طریق ${viaName}`;
+  return "از طریق شبکه شما";
+}
+
 const ownContentRelation: Record<TrustContentKind, string> = {
   listing: "آگهی شما",
   request: "درخواست شما",

@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import Avatar from "@/components/Avatar";
 import ListingImage from "@/components/ListingImage";
 import Header from "@/components/Header";
 import LockedMessaging from "@/components/LockedMessaging";
-import { SendIcon, ShieldCheckIcon } from "@/components/Icons";
-import { levelChip, levelShort, relationLabels, formatPrice } from "@/lib/labels";
+import { SendIcon } from "@/components/Icons";
+import { formatPrice } from "@/lib/labels";
 import { canDirectMessage } from "@/lib/messaging";
+import { buildTrustGraph } from "@/lib/graph";
+import { chatPeerSubtitle } from "@/lib/trust";
 import type { Message } from "@/lib/types";
 
 export default function ThreadClassic(_props: { params: { id: string } }) {
@@ -18,6 +20,9 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   const searchParams = useSearchParams();
   const peerId = String(params.id);
   const {
+    people,
+    listings,
+    requests,
     getPerson,
     getThread,
     getListing,
@@ -36,6 +41,16 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   const contextListing = listingId ? getListing(listingId) : undefined;
   const isSellerOfContext = contextListing?.sellerId === "me";
   const dealStatus = contextListing?.dealStatus ?? "available";
+
+  const viaName = useMemo(() => {
+    if (!peer || peer.inMyCircle) return null;
+    const graph = buildTrustGraph(people, listings, requests, getPerson);
+    const parentId = graph.parent[peer.id];
+    if (!parentId || parentId === "me") return null;
+    return graph.nodes.find((n) => n.id === parentId)?.name ?? null;
+  }, [peer, people, listings, requests, getPerson]);
+
+  const subtitle = peer ? chatPeerSubtitle(peer, viaName) : "";
 
   useEffect(() => {
     markThreadRead(peerId);
@@ -98,34 +113,17 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
           href={`/person/${peerId}`}
           className="flex items-center gap-2.5 min-w-0 active:opacity-70"
         >
-          <Avatar name={peer.name} src={peer.avatar} level={peer.level} size="sm" />
+          <Avatar name={peer.name} src={peer.avatar} size="sm" showLevel={false} />
           <div className="min-w-0">
             <p className="font-extrabold text-[14px] text-ink dark:text-zinc-100 leading-tight truncate">
               {peer.name}
             </p>
-            <p className="flex items-center gap-1.5 mt-0.5 min-w-0">
-              <span className="text-[11px] text-ink-muted dark:text-zinc-400 truncate">
-                {relationLabels[peer.relation]}
-              </span>
-              {/* Skip level chip when it repeats the relation word (e.g. آشنا / آشنا). */}
-              {levelShort[peer.level] !== relationLabels[peer.relation] && (
-                <span
-                  className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${levelChip[peer.level]}`}
-                >
-                  {levelShort[peer.level]}
-                </span>
-              )}
+            <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 truncate">
+              {subtitle}
             </p>
           </div>
         </Link>
       </Header>
-
-      <div className="shrink-0 px-3 py-1.5 bg-levelA/8 dark:bg-levelA/10 border-b border-levelA/15">
-        <p className="flex items-center justify-center gap-1.5 text-[11px] text-levelA font-medium">
-          <ShieldCheckIcon className="w-3.5 h-3.5 shrink-0" />
-          گفتگوی امن داخل حلقه
-        </p>
-      </div>
 
       {contextListing && (
         <div className="shrink-0 border-b border-stone-200/70 dark:border-zinc-800 bg-[color:var(--circle-surface)] dark:bg-zinc-900 px-3 py-2.5">
@@ -163,64 +161,50 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
               ‹
             </span>
           </Link>
-          <div className="mt-2.5">
-            <p className="text-[10px] font-semibold text-ink-faint mb-1.5">
-              {isSellerOfContext
-                ? "وضعیت آگهی را برای طرف مقابل مشخص کن"
-                : "وضعیت این آگهی"}
-            </p>
-            <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
-              {(
-                [
-                  ["available", "موجود"],
-                  ["reserved", "رزرو"],
-                  ["agreed", "توافق"],
-                ] as const
-              ).map(([id, label]) => {
-                const active = dealStatus === id;
-                if (!isSellerOfContext) {
+          {isSellerOfContext && (
+            <div className="mt-2.5">
+              <p className="text-[10px] font-semibold text-ink-faint mb-1.5">
+                وضعیت آگهی را برای طرف مقابل مشخص کن
+              </p>
+              <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+                {(
+                  [
+                    ["available", "موجود"],
+                    ["reserved", "رزرو"],
+                    ["agreed", "توافق"],
+                  ] as const
+                ).map(([id, label]) => {
+                  const active = dealStatus === id;
                   return (
-                    <span
+                    <button
                       key={id}
+                      type="button"
+                      onClick={() => {
+                        setListingDealStatus(contextListing.id, id);
+                        if (id === "reserved") {
+                          addMessage(
+                            peerId,
+                            "این آگهی را موقتاً رزرو کردم تا هماهنگ کنیم.",
+                          );
+                        } else if (id === "agreed") {
+                          addMessage(peerId, "روی این آگهی به توافق رسیدیم ✓");
+                        } else {
+                          addMessage(peerId, "آگهی دوباره موجود است.");
+                        }
+                      }}
                       className={`shrink-0 chip !px-2.5 !py-1 !text-[11px] border ${
                         active
                           ? "bg-brand-600 text-white border-brand-600"
-                          : "bg-stone-50 text-ink-faint border-stone-200/60 dark:bg-zinc-800/60 dark:border-zinc-700 opacity-60"
+                          : "bg-stone-50 text-ink-muted border-stone-200/80 dark:bg-zinc-800 dark:border-zinc-700"
                       }`}
                     >
                       {label}
-                    </span>
+                    </button>
                   );
-                }
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => {
-                      setListingDealStatus(contextListing.id, id);
-                      if (id === "reserved") {
-                        addMessage(
-                          peerId,
-                          "این آگهی را موقتاً رزرو کردم تا هماهنگ کنیم.",
-                        );
-                      } else if (id === "agreed") {
-                        addMessage(peerId, "روی این آگهی به توافق رسیدیم ✓");
-                      } else {
-                        addMessage(peerId, "آگهی دوباره موجود است.");
-                      }
-                    }}
-                    className={`shrink-0 chip !px-2.5 !py-1 !text-[11px] border ${
-                      active
-                        ? "bg-brand-600 text-white border-brand-600"
-                        : "bg-stone-50 text-ink-muted border-stone-200/80 dark:bg-zinc-800 dark:border-zinc-700"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -235,12 +219,12 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
       >
         {thread.length === 0 ? (
           <div className="flex flex-col items-center text-center pt-16 px-6">
-            <Avatar name={peer.name} src={peer.avatar} level={peer.level} size="lg" />
+            <Avatar name={peer.name} src={peer.avatar} size="lg" showLevel={false} />
             <p className="font-bold text-ink dark:text-zinc-100 mt-4">
               گفتگو با {peer.name}
             </p>
             <p className="text-[13px] text-ink-muted mt-1.5 leading-relaxed max-w-xs">
-              اولین پیام را بفرست — فقط افراد حلقه‌ات اینجا هستند.
+              اولین پیام را بفرست.
             </p>
           </div>
         ) : (
@@ -270,7 +254,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
                     {!msg.fromMe && (
                       <div className="w-8 shrink-0">
                         {showAvatar ? (
-                          <Avatar name={peer.name} src={peer.avatar} level={peer.level} size="sm" />
+                          <Avatar name={peer.name} src={peer.avatar} size="sm" showLevel={false} />
                         ) : null}
                       </div>
                     )}

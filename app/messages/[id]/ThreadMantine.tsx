@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ActionIcon,
   Badge,
@@ -18,19 +18,31 @@ import MHeader from "@/components/mantine/MHeader";
 import MAvatar from "@/components/mantine/MAvatar";
 import MListingImage from "@/components/mantine/MListingImage";
 import LockedMessaging from "@/components/LockedMessaging";
-import { SendIcon, ShieldCheckIcon } from "@/components/Icons";
-import { relationLabels, levelShort, formatPrice } from "@/lib/labels";
+import { SendIcon } from "@/components/Icons";
+import { formatPrice } from "@/lib/labels";
 import { canDirectMessage } from "@/lib/messaging";
+import { buildTrustGraph } from "@/lib/graph";
+import { chatPeerSubtitle } from "@/lib/trust";
 import type { Message } from "@/lib/types";
 
 export default function ThreadMantine({ params }: { params: { id: string } }) {
   const peerId = String(params.id);
-  const { getPerson, getThread, addMessage, markThreadRead } = useStore();
+  const { people, listings, requests, getPerson, getThread, addMessage, markThreadRead } = useStore();
   const [text, setText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const peer = getPerson(peerId);
   const thread = getThread(peerId);
+
+  const viaName = useMemo(() => {
+    if (!peer || peer.inMyCircle) return null;
+    const graph = buildTrustGraph(people, listings, requests, getPerson);
+    const parentId = graph.parent[peer.id];
+    if (!parentId || parentId === "me") return null;
+    return graph.nodes.find((n) => n.id === parentId)?.name ?? null;
+  }, [peer, people, listings, requests, getPerson]);
+
+  const subtitle = peer ? chatPeerSubtitle(peer, viaName) : "";
 
   useEffect(() => {
     markThreadRead(peerId);
@@ -87,43 +99,18 @@ export default function ThreadMantine({ params }: { params: { id: string } }) {
           style={{ display: "block", minWidth: 0 }}
         >
           <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
-            <MAvatar name={peer.name} src={peer.avatar} level={peer.level} size="sm" />
+            <MAvatar name={peer.name} src={peer.avatar} size="sm" />
             <Box style={{ minWidth: 0 }}>
               <Text fw={800} fz="sm" lh={1.2} truncate>
                 {peer.name}
               </Text>
-              <Group gap={6} wrap="nowrap" mt={2}>
-                <Text fz={11} c="dimmed" truncate>
-                  {relationLabels[peer.relation]}
-                </Text>
-                {levelShort[peer.level] !== relationLabels[peer.relation] && (
-                  <Badge size="xs" variant="light" color="brand">
-                    {levelShort[peer.level]}
-                  </Badge>
-                )}
-              </Group>
+              <Text fz={11} c="dimmed" mt={2} truncate>
+                {subtitle}
+              </Text>
             </Box>
           </Group>
         </UnstyledButton>
       </MHeader>
-
-      <Box
-        py={6}
-        px="sm"
-        style={{
-          background: "var(--mantine-color-teal-0)",
-          borderBottom: "1px solid var(--mantine-color-teal-2)",
-        }}
-      >
-        <Group gap={6} justify="center" wrap="nowrap">
-          <Box c="teal.7" style={{ display: "flex" }}>
-            <ShieldCheckIcon className="w-3.5 h-3.5" />
-          </Box>
-          <Text fz={11} fw={500} c="teal.7">
-            گفتگوی امن داخل حلقه
-          </Text>
-        </Group>
-      </Box>
 
       <Box
         style={{
@@ -138,12 +125,12 @@ export default function ThreadMantine({ params }: { params: { id: string } }) {
       >
         {thread.length === 0 ? (
           <Stack align="center" gap={6} pt={64} px="lg" ta="center">
-            <MAvatar name={peer.name} src={peer.avatar} level={peer.level} size="lg" />
+            <MAvatar name={peer.name} src={peer.avatar} size="lg" />
             <Text fw={700} mt="sm">
               گفتگو با {peer.name}
             </Text>
             <Text fz="sm" c="dimmed" style={{ lineHeight: 1.7, maxWidth: 280 }}>
-              اولین پیام را بفرست — فقط افراد حلقه‌ات اینجا هستند.
+              اولین پیام را بفرست.
             </Text>
           </Stack>
         ) : (
@@ -171,7 +158,7 @@ export default function ThreadMantine({ params }: { params: { id: string } }) {
                     {!msg.fromMe && (
                       <Box w={32} style={{ flexShrink: 0 }}>
                         {showAvatar ? (
-                          <MAvatar name={peer.name} src={peer.avatar} level={peer.level} size="sm" />
+                          <MAvatar name={peer.name} src={peer.avatar} size="sm" />
                         ) : null}
                       </Box>
                     )}
