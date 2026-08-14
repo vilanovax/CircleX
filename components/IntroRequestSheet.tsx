@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import SheetShell from "@/components/SheetShell";
+import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import { useToast } from "./Toast";
 import Avatar from "./Avatar";
@@ -33,7 +34,7 @@ export default function IntroRequestSheet({
   const { people, addMessage } = useStore();
   const { show } = useToast();
   const [query, setQuery] = useState("");
-  const circle = people.filter((p) => p.inMyCircle);
+  const circle = activeCircle(people);
   const message = TEMPLATES[itemKind](itemTitle);
 
   const filtered = useMemo(() => {

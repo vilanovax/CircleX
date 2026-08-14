@@ -4,10 +4,15 @@ import { useState } from "react";
 import JalaliDateField from "@/components/JalaliDateField";
 import PrivacyPicker from "@/components/PrivacyPicker";
 import SheetShell from "@/components/SheetShell";
-import { ClockIcon, MapPinIcon } from "@/components/Icons";
+import { BackIcon, ClockIcon, CloseIcon, MapPinIcon } from "@/components/Icons";
 import { eventKindEmoji, eventKindLabels } from "@/lib/labels";
+import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
-import { formatEventDateDisplay, toEnglishDigits } from "@/lib/persian";
+import {
+  formatEventDateDisplay,
+  toEnglishDigits,
+  toPersianDigits,
+} from "@/lib/persian";
 import type { EventKind, Privacy } from "@/lib/types";
 
 const KINDS: EventKind[] = [
@@ -31,6 +36,12 @@ export type EventInput = {
   privacy: Privacy;
 };
 
+function formatCountInput(raw: string): string {
+  const digits = toEnglishDigits(raw).replace(/\D/g, "").slice(0, 3);
+  if (!digits) return "";
+  return toPersianDigits(digits);
+}
+
 export default function AddEventSheet({
   onClose,
   onAdd,
@@ -41,7 +52,7 @@ export default function AddEventSheet({
   onBack?: () => void;
 }) {
   const { people } = useStore();
-  const circle = people.filter((p) => p.inMyCircle);
+  const circle = activeCircle(people);
   const [kind, setKind] = useState<EventKind>("social");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -78,88 +89,62 @@ export default function AddEventSheet({
       footer={
         <div>
           {!canSubmit && (
-            <p className="text-[11px] text-ink-faint text-center mb-2">
+            <p className="text-[11px] text-ink-muted text-center mb-2 leading-relaxed">
               عنوان، تاریخ و مکان را کامل کن
             </p>
           )}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn-ghost flex-1 !py-3.5 active:scale-[0.98] transition-transform duration-150"
-            >
-              انصراف
-            </button>
-            <button
-              type="button"
-              disabled={!canSubmit}
-              onClick={submit}
-              className="btn-primary flex-1 !py-3.5 shadow-lg shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150"
-            >
-              انتشار رویداد
-            </button>
-          </div>
+          <button
+            type="button"
+            disabled={!canSubmit}
+            onClick={submit}
+            className="btn-primary w-full !py-3 text-[15px] shadow-lg shadow-brand-600/20 active:scale-[0.99] transition-transform duration-150 disabled:opacity-60"
+          >
+            انتشار رویداد
+          </button>
         </div>
       }
     >
-      <div className="mb-1">
+      <div className="flex items-center gap-2 mb-1">
         {onBack && (
           <button
             type="button"
             onClick={onBack}
-            className="text-[12px] text-brand-600 dark:text-brand-400 font-semibold mb-1.5 active:opacity-80"
+            aria-label="بازگشت"
+            className="shrink-0 w-9 h-9 -ms-1 rounded-full flex items-center justify-center text-brand-600 dark:text-brand-400 active:bg-brand-50 dark:active:bg-brand-500/10"
           >
-            ‹ بازگشت
+            <BackIcon className="w-5 h-5" />
           </button>
         )}
-        <h2
-          id="add-event-title"
-          className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 leading-tight"
-        >
-          ساخت رویداد جدید
-        </h2>
-        <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
-          دورهمی، کلاس یا سفر — فقط برای حلقهٔ شما.
-        </p>
-      </div>
-
-      {/* Preview */}
-      <div className="mt-3.5 mb-3.5 rounded-xl bg-brand-50/70 dark:bg-brand-500/10 px-3 py-2 flex items-center gap-2.5">
-        <span
-          className="w-10 h-10 rounded-lg bg-[color:var(--circle-surface)] dark:bg-zinc-900 ring-1 ring-brand-200/60 dark:ring-brand-500/20 flex items-center justify-center text-xl shrink-0"
-          aria-hidden
-        >
-          {eventKindEmoji[kind]}
-        </span>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="chip !py-0.5 !px-1.5 !text-[10px] bg-brand-100 text-brand-800 dark:bg-brand-500/20 dark:text-brand-200">
-              {eventKindLabels[kind]}
-            </span>
-            <span className="text-[10px] text-ink-faint">پیش‌نمایش</span>
-          </div>
-          <p className="text-[13px] font-bold text-ink dark:text-zinc-100 mt-0.5 truncate">
-            {title.trim() || "عنوان رویداد…"}
+          <h2
+            id="add-event-title"
+            className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 leading-tight"
+          >
+            رویداد جدید
+          </h2>
+          <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-relaxed">
+            زمان و مکان را بگو. فقط حلقه‌ات می‌بیند.
           </p>
-          {(date || location) && (
-            <p className="text-[11px] text-ink-muted mt-0.5 truncate nums">
-              {[
-                date ? formatEventDateDisplay(date) : null,
-                time.trim() || null,
-                location.trim() || null,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
-          )}
         </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="بستن"
+          className="shrink-0 w-9 h-9 -me-1 rounded-full flex items-center justify-center text-ink-muted dark:text-zinc-400 active:bg-stone-100 dark:active:bg-zinc-800"
+        >
+          <CloseIcon className="w-5 h-5" />
+        </button>
       </div>
 
-      <section className="mb-4">
-        <label className="block text-[13px] font-bold mb-1.5 text-ink dark:text-zinc-200">
+      <section className="mt-3.5 mb-4">
+        <p className="block text-[13px] font-bold mb-1.5 text-ink dark:text-zinc-200">
           نوع رویداد
-        </label>
-        <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 -mx-0.5 px-0.5">
+        </p>
+        <div
+          className="flex flex-wrap gap-1.5"
+          role="group"
+          aria-label="نوع رویداد"
+        >
           {KINDS.map((k) => {
             const active = kind === k;
             return (
@@ -168,7 +153,7 @@ export default function AddEventSheet({
                 type="button"
                 onClick={() => setKind(k)}
                 aria-pressed={active}
-                className={`shrink-0 rounded-xl px-3 py-2 text-[11px] font-bold border flex items-center gap-1 transition-[transform,colors] duration-150 active:scale-[0.97] ${
+                className={`rounded-xl px-3 py-2 text-[12px] font-bold border flex items-center gap-1.5 transition-[transform,colors] duration-150 active:scale-[0.97] ${
                   active
                     ? "bg-brand-600 text-white border-brand-600"
                     : "bg-[color:var(--circle-surface)] dark:bg-zinc-900 text-ink-muted border-stone-200/80 dark:border-zinc-700"
@@ -202,25 +187,8 @@ export default function AddEventSheet({
       </section>
 
       <section className="mb-3">
-        <label
-          htmlFor="event-desc"
-          className="block text-[13px] font-bold mb-1 text-ink dark:text-zinc-200"
-        >
-          توضیحات
-        </label>
-        <textarea
-          id="event-desc"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="جزئیات برنامه، چه چیزی بیاورند، و…"
-          rows={3}
-          className="field resize-none min-h-[5rem] leading-relaxed"
-        />
-      </section>
-
-      <section className="mb-3">
         <label className="block text-[13px] font-bold mb-1 text-ink dark:text-zinc-200">
-          تاریخ شمسی
+          تاریخ
         </label>
         <JalaliDateField value={date} onChange={setDate} />
       </section>
@@ -228,19 +196,18 @@ export default function AddEventSheet({
       <section className="mb-3">
         <label
           htmlFor="event-time"
-          className="block text-[13px] font-bold mb-1 text-ink dark:text-zinc-200"
+          className="block text-[12px] font-medium mb-1 text-ink-muted"
         >
-          ساعت{" "}
-          <span className="font-medium text-ink-faint">(اختیاری)</span>
+          ساعت — اختیاری
         </label>
         <div className="relative">
-          <ClockIcon className="w-4 h-4 text-brand-600 absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+          <ClockIcon className="w-4 h-4 text-ink-muted absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
           <input
             id="event-time"
             value={time}
             onChange={(e) => setTime(e.target.value)}
             placeholder="مثلاً ۱۸:۰۰"
-            className="field !ps-10"
+            className="field !py-2 !text-[13px] !ps-10"
             inputMode="numeric"
           />
         </div>
@@ -265,22 +232,44 @@ export default function AddEventSheet({
         </div>
       </section>
 
+      <section className="mb-3">
+        <label
+          htmlFor="event-desc"
+          className="block text-[13px] font-bold mb-1 text-ink dark:text-zinc-200"
+        >
+          توضیحات{" "}
+          <span className="font-medium text-ink-faint">(اختیاری)</span>
+        </label>
+        <textarea
+          id="event-desc"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="جزئیات برنامه، چه چیزی بیاورند…"
+          rows={2}
+          className="field resize-none min-h-[4.25rem] leading-relaxed"
+        />
+      </section>
+
       <section className="mb-4">
         <label
           htmlFor="event-capacity"
-          className="block text-[13px] font-bold mb-1 text-ink dark:text-zinc-200"
+          className="block text-[12px] font-medium mb-1 text-ink-muted"
         >
-          ظرفیت{" "}
-          <span className="font-medium text-ink-faint">(اختیاری)</span>
+          ظرفیت — اختیاری
         </label>
-        <input
-          id="event-capacity"
-          value={capacity}
-          onChange={(e) => setCapacity(e.target.value)}
-          inputMode="numeric"
-          placeholder="مثلاً ۱۲ نفر"
-          className="field nums"
-        />
+        <div className="relative">
+          <input
+            id="event-capacity"
+            value={capacity}
+            onChange={(e) => setCapacity(formatCountInput(e.target.value))}
+            inputMode="numeric"
+            placeholder="مثلاً ۱۲"
+            className="field nums !py-2 !text-[13px] !pl-12"
+          />
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] text-ink-muted pointer-events-none">
+            نفر
+          </span>
+        </div>
       </section>
 
       <div className="mb-2">

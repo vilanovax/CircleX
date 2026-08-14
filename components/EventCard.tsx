@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { CircleEvent } from "@/lib/types";
+import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import {
   eventKindChip,
@@ -20,7 +21,7 @@ export default function EventCard({
   compactTrust?: boolean;
 }) {
   const { isAttending, people } = useStore();
-  const circle = people.filter((p) => p.inMyCircle);
+  const circle = activeCircle(people);
   const going = isAttending(event.id);
   const count = event.attendees.length;
 

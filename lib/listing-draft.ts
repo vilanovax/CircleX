@@ -90,6 +90,18 @@ function buildTitle(text: string, type: ListingType, category: string): string {
   return t;
 }
 
+/** True when a draft field is mostly present in the user's own note. */
+export function looksExtractedFromText(value: string, raw: string): boolean {
+  const v = normalizeFa(value).trim();
+  const t = normalizeFa(raw);
+  if (!v || v.length < 3 || !t) return false;
+  if (t.includes(v.slice(0, Math.min(12, v.length)))) return true;
+  const words = v.split(/\s+/).filter((w) => w.length >= 3);
+  if (words.length === 0) return false;
+  const hits = words.filter((w) => t.includes(w)).length;
+  return hits >= Math.ceil(words.length * 0.6);
+}
+
 function narrativeOnly(text: string): string {
   // Keep reason-to-sell / soft; strip lines that are pure fact dumps when we have specs.
   const cleaned = text.trim();
@@ -140,7 +152,7 @@ export function draftListingFromText(input: {
   } else if (/مبل|میز|صندلی|یخچال/.test(text)) {
     questions.push({
       id: "dimensions",
-      label: "ابعاد را می‌دانی؟",
+      label: "ابعاد را می‌دانید؟",
       options: ["بعداً اضافه می‌کنم", "نمی‌دانم"],
     });
   }

@@ -26,7 +26,7 @@ export default function AddListingSheet({
     step: "compose" | "review";
   }>({
     canSubmit: true,
-    primaryLabel: "ادامه و پیش‌نمایش",
+    primaryLabel: "ساخت پیش‌نمایش",
     step: "compose",
   });
 
@@ -84,12 +84,12 @@ export default function AddListingSheet({
             id="add-listing-title"
             className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 leading-tight"
           >
-            {reviewing ? "آگهی را بررسی کنید" : "ثبت آگهی"}
+            {reviewing ? "آگهی شما آماده است" : "آگهی جدید"}
           </h2>
           <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-relaxed">
             {reviewing
               ? "عنوان و جزئیات را تأیید یا اصلاح کنید."
-              : "فقط حلقهٔ شما می‌بیند"}
+              : "عکس و یک توضیح کافی است؛ بقیه را آماده می‌کنیم."}
           </p>
         </div>
         <button

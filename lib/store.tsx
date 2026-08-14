@@ -9,6 +9,11 @@ import {
 } from "react";
 import { createContext, useContextSelector } from "use-context-selector";
 import { AVATAR_IMAGES } from "./avatar";
+import {
+  INVITE_TTL_MS,
+  newInviteCode,
+  newUuid,
+} from "./invite";
 import { isListingPhoto } from "./listing-image";
 import {
   EVENTS,
@@ -19,10 +24,12 @@ import {
   PEOPLE,
   REQUESTS,
 } from "./mock-data";
+import { maskPhone, normalizePhone } from "./phone";
 import type {
   BadgeType,
   CircleEvent,
   EventKind,
+  Invite,
   Listing,
   ListingType,
   Message,
@@ -90,10 +97,12 @@ export interface StoreValue {
   messages: Message[];
   events: CircleEvent[];
   saved: string[];
+  invites: Invite[];
   /** Null until mock phone/OTP login succeeds. */
   sessionPhone: string | null;
   onboarded: boolean;
   hydrated: boolean;
+  profileCompletedAt: string | null;
   getPerson: (id: string) => Person | undefined;
   getListing: (id: string) => Listing | undefined;
   getRequest: (id: string) => Request | undefined;
@@ -111,6 +120,19 @@ export interface StoreValue {
   referListing: (peerId: string, listingId: string, note?: string) => void;
   markThreadRead: (peerId: string) => void;
   addPerson: (input: NewPersonInput) => void;
+  createInvite: (input: {
+    relationType: RelationType;
+    trustGroup: TrustLevel;
+    invitedPhone?: string;
+  }) => Invite;
+  getInvite: (code: string) => Invite | undefined;
+  acceptInvite: (code: string) => Invite | null;
+  revokeInvite: (id: string) => void;
+  placePersonInMyCircle: (
+    id: string,
+    input: { level: TrustLevel; relation: RelationType },
+  ) => void;
+  completeProfile: (input: { name: string; avatar?: string }) => void;
   /** Mark an existing network person as part of my circle. */
   addToCircle: (
     id: string,
@@ -139,6 +161,7 @@ export interface StoreValue {
 const StoreContext = createContext<StoreValue | null>(null);
 
 const STORAGE_KEY = "circle-store-v2";
+const SCHEMA_VERSION = 3;
 
 const AVATAR_POOL = AVATAR_IMAGES;
 
@@ -151,9 +174,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [messages, setMessages] = useState<Message[]>(MESSAGES);
   const [events, setEvents] = useState<CircleEvent[]>(EVENTS);
   const [saved, setSaved] = useState<string[]>([]);
+  const [invites, setInvites] = useState<Invite[]>([]);
   const [sessionPhone, setSessionPhone] = useState<string | null>(null);
   const [onboarded, setOnboarded] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [profileCompletedAt, setProfileCompletedAt] = useState<string | null>(
+    null,
+  );
 
   // Load any persisted state on mount.
   useEffect(() => {
@@ -162,23 +189,38 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (raw) {
         const data = JSON.parse(raw);
         if (data.me && typeof data.me === "object") {
-          const saved = data.me as Person;
+          const savedMe = data.me as Person;
+          const completed =
+            typeof savedMe.profileCompletedAt === "string"
+              ? savedMe.profileCompletedAt
+              : typeof data.profileCompletedAt === "string"
+                ? data.profileCompletedAt
+                : null;
           setMeProfile({
-            ...saved,
-            name: saved.name === "من" ? ME.name : saved.name,
-            avatar: ME.avatar,
+            ...savedMe,
+            name:
+              savedMe.name === "من" && !completed ? ME.name : savedMe.name,
+            avatar: savedMe.avatar || ME.avatar,
+            profileCompletedAt: completed,
           });
+          if (completed) setProfileCompletedAt(completed);
         }
         if (Array.isArray(data.people)) {
           setPeople(
             data.people.map((p: Person) => {
               const seed = PEOPLE.find((s) => s.id === p.id);
-              if (!seed) return p;
+              if (!seed) {
+                return {
+                  ...p,
+                  inviteStatus: p.inviteStatus ?? "joined",
+                };
+              }
               return {
                 ...p,
                 avatar: seed.avatar,
                 name: seed.name,
                 note: seed.note ?? p.note,
+                inviteStatus: p.inviteStatus ?? "joined",
               };
             }),
           );
@@ -218,7 +260,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           );
         }
         if (Array.isArray(data.saved)) setSaved(data.saved);
+        if (Array.isArray(data.invites)) {
+          const now = Date.now();
+          setInvites(
+            (data.invites as Invite[]).map((inv) => {
+              if (
+                inv.status === "pending" &&
+                new Date(inv.expiresAt).getTime() <= now
+              ) {
+                return { ...inv, status: "expired" as const };
+              }
+              return inv;
+            }),
+          );
+        }
         if (typeof data.onboarded === "boolean") setOnboarded(data.onboarded);
+        if (typeof data.profileCompletedAt === "string") {
+          setProfileCompletedAt(data.profileCompletedAt);
+        } else if (data.onboarded && !data.profileCompletedAt) {
+          const stamp = new Date().toISOString();
+          setProfileCompletedAt(stamp);
+        }
         // New field; migrate prior demos that already finished onboarding.
         if (typeof data.sessionPhone === "string" && data.sessionPhone.length > 0) {
           setSessionPhone(data.sessionPhone);
@@ -239,6 +301,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
+          schemaVersion: SCHEMA_VERSION,
           me: meProfile,
           people,
           listings,
@@ -247,8 +310,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           messages,
           events,
           saved,
+          invites,
           sessionPhone,
           onboarded,
+          profileCompletedAt,
         }),
       );
     } catch {
@@ -265,6 +330,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     saved,
     sessionPhone,
     onboarded,
+    profileCompletedAt,
+    invites,
     hydrated,
   ]);
 
@@ -372,7 +439,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const addPerson = useCallback((input: NewPersonInput) => {
     setPeople((prev) => {
-      const id = `p_${prev.length + 1}_${input.name}`;
+      const id = newUuid();
       const avatar = AVATAR_POOL[prev.length % AVATAR_POOL.length];
       const person: Person = {
         id,
@@ -384,10 +451,161 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         deals: 0,
         city: ME.city,
         inMyCircle: true,
+        inviteStatus: "joined",
       };
       return [person, ...prev];
     });
   }, []);
+
+  const createInvite = useCallback(
+    (input: {
+      relationType: RelationType;
+      trustGroup: TrustLevel;
+      invitedPhone?: string;
+    }) => {
+      const id = newUuid();
+      const code = newInviteCode();
+      const personId = newUuid();
+      const now = Date.now();
+      const phone = input.invitedPhone
+        ? normalizePhone(input.invitedPhone)
+        : undefined;
+      const invite: Invite = {
+        id,
+        code,
+        inviterUserId: "me",
+        invitedPhone: phone,
+        relationType: input.relationType,
+        trustGroup: input.trustGroup,
+        status: "pending",
+        expiresAt: new Date(now + INVITE_TTL_MS).toISOString(),
+        createdAt: new Date(now).toISOString(),
+        personId,
+      };
+      setPeople((prev) => {
+        const person: Person = {
+          id: personId,
+          name: phone ? `دعوت برای ${maskPhone(phone)}` : "لینک دعوت",
+          avatar: AVATAR_POOL[prev.length % AVATAR_POOL.length],
+          relation: input.relationType,
+          level: input.trustGroup,
+          deals: 0,
+          city: ME.city,
+          inMyCircle: true,
+          inviteStatus: "pending",
+          phone,
+          phoneNormalized: phone,
+        };
+        return [person, ...prev];
+      });
+      setInvites((prev) => [invite, ...prev]);
+      return invite;
+    },
+    [],
+  );
+
+  const getInvite = useCallback(
+    (code: string) =>
+      invites.find((i) => i.code.toLowerCase() === code.toLowerCase()),
+    [invites],
+  );
+
+  const acceptInvite = useCallback(
+    (code: string) => {
+      const invite = invites.find(
+        (i) => i.code.toLowerCase() === code.toLowerCase(),
+      );
+      if (!invite || invite.status !== "pending") return null;
+      if (new Date(invite.expiresAt).getTime() <= Date.now()) {
+        setInvites((prev) =>
+          prev.map((i) =>
+            i.id === invite.id ? { ...i, status: "expired" as const } : i,
+          ),
+        );
+        return null;
+      }
+      const acceptedAt = new Date().toISOString();
+      setInvites((prev) =>
+        prev.map((i) =>
+          i.id === invite.id
+            ? {
+                ...i,
+                status: "accepted" as const,
+                acceptedAt,
+                acceptedByUserId: "me",
+              }
+            : i,
+        ),
+      );
+      // Same-browser mock: invitee is `me`. Drop the placeholder so you
+      // don't appear in your own circle.
+      setPeople((prev) => prev.filter((p) => p.id !== invite.personId));
+      return {
+        ...invite,
+        status: "accepted" as const,
+        acceptedAt,
+        acceptedByUserId: "me",
+      };
+    },
+    [invites],
+  );
+
+  const revokeInvite = useCallback((id: string) => {
+    setInvites((prev) => {
+      const inv = prev.find((i) => i.id === id);
+      if (inv) {
+        setPeople((peoplePrev) =>
+          peoplePrev.filter((p) => p.id !== inv.personId),
+        );
+      }
+      return prev.map((i) =>
+        i.id === id ? { ...i, status: "revoked" as const } : i,
+      );
+    });
+  }, []);
+
+  const placePersonInMyCircle = useCallback(
+    (
+      id: string,
+      input: { level: TrustLevel; relation: RelationType },
+    ) => {
+      setPeople((prev) => {
+        const existing = prev.find((p) => p.id === id);
+        if (existing) {
+          return prev.map((p) =>
+            p.id === id
+              ? {
+                  ...p,
+                  inMyCircle: true,
+                  inviteStatus: "joined" as const,
+                  level: input.level,
+                  relation: input.relation,
+                }
+              : p,
+          );
+        }
+        return prev;
+      });
+    },
+    [],
+  );
+
+  const completeProfile = useCallback(
+    (input: { name: string; avatar?: string }) => {
+      const stamp = new Date().toISOString();
+      setProfileCompletedAt(stamp);
+      setMeProfile((prev) => ({
+        ...prev,
+        name: input.name.trim(),
+        avatar: input.avatar || prev.avatar,
+        profileCompletedAt: stamp,
+        phoneNormalized: sessionPhone
+          ? normalizePhone(sessionPhone)
+          : prev.phoneNormalized,
+      }));
+    },
+    [sessionPhone],
+  );
 
   const addToCircle = useCallback(
     (
@@ -400,6 +618,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             ? {
                 ...p,
                 inMyCircle: true,
+                inviteStatus: "joined" as const,
                 level: input.level,
                 relation: input.relation ?? p.relation,
                 note: input.note ?? p.note,
@@ -586,7 +805,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const completeOnboarding = useCallback(() => setOnboarded(true), []);
 
   const completeLogin = useCallback((phone: string) => {
-    setSessionPhone(phone);
+    const normalized = normalizePhone(phone);
+    setSessionPhone(normalized);
+    setMeProfile((prev) => ({
+      ...prev,
+      phone: normalized,
+      phoneNormalized: normalized,
+    }));
   }, []);
 
   const signOut = useCallback(() => {
@@ -604,9 +829,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       messages,
       events,
       saved,
+      invites,
       sessionPhone,
       onboarded,
       hydrated,
+      profileCompletedAt,
       getPerson,
       getListing,
       getRequest,
@@ -624,6 +851,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       referListing,
       markThreadRead,
       addPerson,
+      createInvite,
+      getInvite,
+      acceptInvite,
+      revokeInvite,
+      placePersonInMyCircle,
+      completeProfile,
       addToCircle,
       removePerson,
       setLevel,
@@ -641,6 +874,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateProfile,
     }),
     [
+      meProfile,
       people,
       listings,
       requests,
@@ -648,9 +882,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       messages,
       events,
       saved,
+      invites,
       sessionPhone,
       onboarded,
       hydrated,
+      profileCompletedAt,
       getPerson,
       getListing,
       getRequest,
@@ -668,6 +904,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       referListing,
       markThreadRead,
       addPerson,
+      createInvite,
+      getInvite,
+      acceptInvite,
+      revokeInvite,
+      placePersonInMyCircle,
+      completeProfile,
       addToCircle,
       removePerson,
       setLevel,
@@ -683,7 +925,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       completeLogin,
       signOut,
       updateProfile,
-      meProfile,
     ],
   );
 

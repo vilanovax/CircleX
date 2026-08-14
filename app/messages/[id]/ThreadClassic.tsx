@@ -10,6 +10,7 @@ import Header from "@/components/Header";
 import LockedMessaging from "@/components/LockedMessaging";
 import { SendIcon } from "@/components/Icons";
 import { formatPrice } from "@/lib/labels";
+import { isActiveCircleMember } from "@/lib/circle-member";
 import { canDirectMessage } from "@/lib/messaging";
 import { buildTrustGraph } from "@/lib/graph";
 import { chatPeerSubtitle } from "@/lib/trust";
@@ -43,7 +44,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   const dealStatus = contextListing?.dealStatus ?? "available";
 
   const viaName = useMemo(() => {
-    if (!peer || peer.inMyCircle) return null;
+    if (!peer || isActiveCircleMember(peer)) return null;
     const graph = buildTrustGraph(people, listings, requests, getPerson);
     const parentId = graph.parent[peer.id];
     if (!parentId || parentId === "me") return null;

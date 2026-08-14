@@ -69,14 +69,23 @@ export const levelDot: Record<TrustLevel, string> = {
 
 /** Accessible explanation of A/B/C groups — never expose the letter in UI. */
 export const levelHint: Record<TrustLevel, string> = {
-  A: "گروه در حلقهٔ شما: نزدیکان",
-  B: "گروه در حلقهٔ شما: افراد مورد اعتماد",
-  C: "گروه در حلقهٔ شما: آشنایان",
+  A: "افرادی که ارتباط خیلی نزدیکی با آن‌ها دارید.",
+  B: "افرادی که می‌شناسید و به آن‌ها اطمینان دارید.",
+  C: "افرادی که ارتباط محدودتری با آن‌ها دارید.",
 };
 
 export const listingTypeLabels: Record<ListingType, string> = {
   sale: "فروش",
   donation: "رایگان / اهدا",
+  exchange: "تعویض",
+  loan: "امانت",
+  service: "خدمات",
+};
+
+/** Short intent chips on compose — donation stays «رایگان» so the five buttons fit. */
+export const listingTypeIntentLabels: Record<ListingType, string> = {
+  sale: "فروش",
+  donation: "رایگان",
   exchange: "تعویض",
   loan: "امانت",
   service: "خدمات",

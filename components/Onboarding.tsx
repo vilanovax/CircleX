@@ -17,6 +17,7 @@ import {
   HomeIcon,
   ShieldCheckIcon,
 } from "@/components/Icons";
+import { peekPendingInviteCode } from "@/lib/invite";
 import { useStore } from "@/lib/store";
 import { toPersianDigits } from "@/lib/persian";
 
@@ -78,8 +79,10 @@ const STEPS: ReadonlyArray<{
 ];
 
 export default function Onboarding() {
-  const { hydrated, sessionPhone, onboarded } = useStore();
+  const { hydrated, sessionPhone, onboarded, profileCompletedAt } = useStore();
   if (!hydrated || !sessionPhone || onboarded) return null;
+  if (!profileCompletedAt) return null;
+  if (peekPendingInviteCode()) return null;
   return <OnboardingDialog />;
 }
 
@@ -169,7 +172,7 @@ function OnboardingDialog() {
         <div className="flex flex-col gap-2">
           <button
             type="button"
-            onClick={() => finish("/circle")}
+            onClick={() => finish("/circle?invite=1")}
             className="btn-primary w-full min-h-12 !py-3.5 text-base cursor-pointer active:scale-[0.99] transition-transform duration-150"
           >
             حلقه را بسازید
@@ -254,7 +257,7 @@ function OnboardingDialog() {
           <div className="flex flex-col gap-2 w-full mt-6">
             <button
               type="button"
-              onClick={() => finish("/circle")}
+              onClick={() => finish("/circle?invite=1")}
               className="btn-primary w-full min-h-12 !py-3.5 text-base cursor-pointer"
             >
               حلقه را بسازید

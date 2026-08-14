@@ -9,6 +9,12 @@ import {
   useState,
 } from "react";
 import { useStore } from "@/lib/store";
+import {
+  formatPhoneDisplay,
+  isValidIranMobile,
+  normalizePhone,
+} from "@/lib/phone";
+import { PHONE_PRIVACY_LINE } from "@/lib/invite";
 import { toEnglishDigits, toPersianDigits } from "@/lib/persian";
 
 /** Demo OTP — always accepted in this mock gate. */
@@ -16,30 +22,6 @@ export const SAMPLE_OTP = "12345";
 
 const RESEND_SECONDS = 45;
 const OTP_LEN = 5;
-
-function normalizePhone(raw: string): string {
-  let digits = toEnglishDigits(raw).replace(/\D/g, "");
-  if (digits.startsWith("98") && digits.length === 12) {
-    digits = `0${digits.slice(2)}`;
-  }
-  if (digits.startsWith("9") && digits.length === 10) {
-    digits = `0${digits}`;
-  }
-  return digits.slice(0, 11);
-}
-
-function isValidIranMobile(phone: string): boolean {
-  return /^09\d{9}$/.test(phone);
-}
-
-function formatPhoneDisplay(phone: string): string {
-  const d = phone.replace(/\D/g, "").slice(0, 11);
-  if (d.length <= 4) return toPersianDigits(d);
-  if (d.length <= 7) {
-    return toPersianDigits(`${d.slice(0, 4)} ${d.slice(4)}`);
-  }
-  return toPersianDigits(`${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}`);
-}
 
 function Spinner({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -54,7 +36,11 @@ function Spinner({ className = "w-4 h-4" }: { className?: string }) {
  * Phone → OTP gate. Sample code is always ۱۲۳۴۵.
  * Visual world: courtyard plaster + moss trust, concentric arcs as product metaphor.
  */
-export default function LoginGate() {
+export default function LoginGate({
+  inviteFrom,
+}: {
+  inviteFrom?: { name: string } | null;
+}) {
   const { completeLogin } = useStore();
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [phoneInput, setPhoneInput] = useState("");
@@ -242,6 +228,11 @@ export default function LoginGate() {
             >
               <div className="space-y-4">
                 <div className="text-center">
+                  {inviteFrom && (
+                    <p className="rounded-xl bg-brand-50 dark:bg-brand-500/15 text-brand-800 dark:text-brand-200 text-sm font-bold px-3 py-2.5 mb-3 leading-relaxed">
+                      {inviteFrom.name} دعوتت کرده به حلقه‌اش بپیوندی.
+                    </p>
+                  )}
                   <h2 className="login-gate-heading">
                     شماره موبایل خود را وارد کنید
                   </h2>
@@ -346,7 +337,7 @@ export default function LoginGate() {
               </ul>
 
               <p className="login-gate-foot mt-auto">
-                ورود فقط با حلقه‌ای که خودتان می‌سازید.
+                {PHONE_PRIVACY_LINE}
               </p>
             </form>
           ) : (
@@ -357,6 +348,11 @@ export default function LoginGate() {
             >
               <div className="space-y-4">
                 <div className="text-center">
+                  {inviteFrom && (
+                    <p className="rounded-xl bg-brand-50 dark:bg-brand-500/15 text-brand-800 dark:text-brand-200 text-sm font-bold px-3 py-2.5 mb-3 leading-relaxed">
+                      {inviteFrom.name} دعوتت کرده به حلقه‌اش بپیوندی.
+                    </p>
+                  )}
                   <h2 className="login-gate-heading">کد تأیید را وارد کنید</h2>
                   <p className="login-gate-sub">
                     برای{" "}
@@ -467,6 +463,7 @@ export default function LoginGate() {
                     : "ارسال دوباره کد"}
                 </button>
               </div>
+              <p className="login-gate-foot">{PHONE_PRIVACY_LINE}</p>
             </form>
           )}
         </div>

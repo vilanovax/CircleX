@@ -1,3 +1,4 @@
+import { isActiveCircleMember } from "./circle-member";
 import type { Endorsement, Listing, Person, Privacy, TrustHop } from "./types";
 import { relationLabels } from "./labels";
 import { toPersianDigits } from "./persian";
@@ -20,12 +21,13 @@ export function trustScore(
 
   if (trustPath.length === 0) {
     const poster = getPerson(posterId);
-    return poster ? levelValue[poster.level] : 0;
+    if (!poster || !isActiveCircleMember(poster)) return 0;
+    return levelValue[poster.level];
   }
 
   // trustPath[0] is the person in my circle (closest to me).
   const connector = getPerson(trustPath[0].personId);
-  if (!connector) return 0;
+  if (!connector || !isActiveCircleMember(connector)) return 0;
   const base = levelValue[connector.level];
   const hopPenalty = trustPath.length - 1;
   return Math.max(0, base - hopPenalty);
@@ -84,7 +86,7 @@ export function chatPeerSubtitle(
   person: Person,
   viaName?: string | null,
 ): string {
-  if (person.inMyCircle) return viewerRelationPhrase(person);
+  if (isActiveCircleMember(person)) return viewerRelationPhrase(person);
   if (viaName) return `از طریق ${viaName}`;
   return "از طریق حلقهٔ شما";
 }
@@ -106,7 +108,7 @@ export function posterCardRelation(
   if (opts?.isOwn) {
     return ownContentRelation[opts.contentKind ?? "listing"];
   }
-  if (poster.inMyCircle) return viewerRelationPhrase(poster);
+  if (isActiveCircleMember(poster)) return viewerRelationPhrase(poster);
   const note = poster.note?.trim();
   if (note) return note;
   return relationLabels[poster.relation];
@@ -122,7 +124,7 @@ export function posterProximityLabel(
   trustPath: TrustHop[],
 ): string | null {
   if (poster.id === "me") return null;
-  if (poster.inMyCircle && trustPath.length === 0) {
+  if (isActiveCircleMember(poster) && trustPath.length === 0) {
     return null;
   }
   return "از طریق آشنایان";
@@ -155,7 +157,7 @@ export function trustHighlightMessage(
     return { headline: ownContentHeadline[contentKind] };
   }
 
-  if (trustPath.length === 0 && poster.inMyCircle) {
+  if (trustPath.length === 0 && isActiveCircleMember(poster)) {
     return {
       headline: `${poster.name} را مستقیم می‌شناسید`,
       subline: viewerRelationPhrase(poster),
@@ -223,8 +225,8 @@ export function filterByAccess(
 }
 
 /**
- * Human description of who can see a post at a given privacy level,
- * including an approximate audience size based on the current circle.
+ * Who can see a post at a given privacy level, with the exact circle count.
+ * Do not prefix «حدود» — A/AB/ABC counts are the people already in the circle.
  */
 export function privacyAudience(privacy: Privacy, circle: Person[]): string {
   const a = circle.filter((p) => p.level === "A").length;
@@ -233,11 +235,17 @@ export function privacyAudience(privacy: Privacy, circle: Person[]): string {
   const fa = (n: number) => toPersianDigits(n);
   switch (privacy) {
     case "A":
-      return `حدود ${fa(a)} نفر`;
+      return a === 0
+        ? "هنوز نزدیکانی در حلقه نیست"
+        : `${fa(a)} نفر از نزدیکان شما`;
     case "AB":
-      return `حدود ${fa(a + b)} نفر`;
+      return a + b === 0
+        ? "هنوز کسی در این گروه‌ها نیست"
+        : `${fa(a + b)} نفر از نزدیکان و افراد مورد اعتماد شما`;
     case "ABC":
-      return `حدود ${fa(a + b + c)} نفر`;
+      return a + b + c === 0
+        ? "حلقهٔ شما هنوز خالی است"
+        : `${fa(a + b + c)} نفر از حلقهٔ شما`;
     case "referral":
       return "حلقهٔ شما و آشنایان آن‌ها";
     case "approved":

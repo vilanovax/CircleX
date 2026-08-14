@@ -216,7 +216,7 @@ export default function ListingImagePicker({
           {showEmojis ? (
             <div>
               <p className="text-[11px] text-ink-muted mb-1.5">
-                یک تصویر نمادین انتخاب کن
+                یک تصویر نمادین انتخاب کنید.
               </p>
               <div className="grid grid-cols-4 gap-2">
                 {EMOJIS.map((e) => {

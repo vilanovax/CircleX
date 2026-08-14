@@ -1,17 +1,25 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { useStore } from "@/lib/store";
 import LoginGate from "@/components/LoginGate";
+import WhoAreYouSheet from "@/components/WhoAreYouSheet";
+import { peekPendingInviteCode } from "@/lib/invite";
 
 /**
- * App-wide auth shell. Every route stays behind mock phone/OTP until
- * `sessionPhone` is set. Shows a short settle state while store hydrates
- * so seeded feed never flashes for logged-out users.
+ * App-wide auth shell. Invite landing stays public. After OTP, identity
+ * sheet blocks the rest of the app until the profile has a name.
  */
 export default function RequireAuth({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const hydrated = useStore((s) => s.hydrated);
   const sessionPhone = useStore((s) => s.sessionPhone);
+  const profileCompletedAt = useStore((s) => s.profileCompletedAt);
+  const me = useStore((s) => s.me);
+  const getInvite = useStore((s) => s.getInvite);
+
+  const isInviteLanding = pathname.startsWith("/invite/");
 
   if (!hydrated) {
     return (
@@ -31,7 +39,21 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
   }
 
   if (!sessionPhone) {
-    return <LoginGate />;
+    if (isInviteLanding) return <>{children}</>;
+    const code = peekPendingInviteCode();
+    const invite = code ? getInvite(code) : undefined;
+    return (
+      <LoginGate inviteFrom={invite ? { name: me.name } : null} />
+    );
+  }
+
+  if (!profileCompletedAt) {
+    return (
+      <>
+        {isInviteLanding ? children : null}
+        <WhoAreYouSheet />
+      </>
+    );
   }
 
   return <>{children}</>;

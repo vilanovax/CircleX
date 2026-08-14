@@ -1,3 +1,4 @@
+import { isActiveCircleMember } from "./circle-member";
 import type { Listing, Person } from "./types";
 import { toPersianDigits } from "./persian";
 
@@ -74,7 +75,7 @@ function trustHint(
   if (person.id === "me") {
     return { verified: false, verifiedLabel: "" };
   }
-  if (person.inMyCircle) {
+  if (isActiveCircleMember(person)) {
     return { verified: true, verifiedLabel: "او را مستقیم می‌شناسید" };
   }
   if (stats.endorsementsReceived >= 1) {

@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
+import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import ListingCard from "@/components/ListingCard";
 import BottomNav from "@/components/BottomNav";
@@ -101,7 +102,7 @@ export default function ClassicFeed() {
     setShowConceptTip(true);
   }
 
-  const circleCount = people.filter((p) => p.inMyCircle).length;
+  const circleCount = activeCircle(people).length;
 
   const { allowed, hidden } = useMemo(() => {
     const { visible, hidden } = filterByAccess(listings, getPerson);
@@ -246,7 +247,7 @@ export default function ClassicFeed() {
                   با افزودن خانواده و دوستان، آگهی‌ها و رویدادهای آن‌ها
                   اینجا ظاهر می‌شود.
                 </p>
-                <Link href="/circle" className="btn-primary inline-block mt-3">
+                <Link href="/circle?invite=1" className="btn-primary inline-block mt-3">
                   افزودن به حلقه
                 </Link>
               </div>

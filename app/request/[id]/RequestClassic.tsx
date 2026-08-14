@@ -85,9 +85,11 @@ export default function RequestClassic(_props: { params: { id: string } }) {
           </div>
         </div>
 
-        <p className="text-[13px] text-ink-muted dark:text-zinc-300 leading-relaxed mt-3 whitespace-pre-line">
-          {request.description}
-        </p>
+        {request.description.trim() ? (
+          <p className="text-[13px] text-ink-muted dark:text-zinc-300 leading-relaxed mt-3 whitespace-pre-line">
+            {request.description}
+          </p>
+        ) : null}
 
         <div className="flex items-center gap-2 text-[11px] text-ink-muted dark:text-zinc-400 mt-3">
           <span>{request.city}</span>

@@ -49,6 +49,13 @@ export interface Person {
   city?: string;
   /** Whether this person is in *my* circle (vs. a friend-of-friend). */
   inMyCircle: boolean;
+  /** Pending invitees are in the list but not active members. */
+  inviteStatus?: "pending" | "joined";
+  /** Optional phone the invite was addressed to (normalized 09…). */
+  phone?: string;
+  phoneNormalized?: string;
+  /** ISO timestamp when the current user finished the identity sheet. */
+  profileCompletedAt?: string | null;
   /** Jalali year or label, e.g. "۱۴۰۳". */
   memberSince?: string;
   /** Share of messages answered within 24h (0–100). */
@@ -188,4 +195,23 @@ export interface Listing {
   city?: string;
   /** Soft deal state after buyer interest (mock marketplace flow). */
   dealStatus?: "available" | "reserved" | "agreed";
+}
+
+export type InviteStatus = "pending" | "accepted" | "expired" | "revoked";
+
+/** Directed invite from the current user to someone not yet (or just) joined. */
+export interface Invite {
+  id: string;
+  code: string;
+  inviterUserId: string;
+  invitedPhone?: string;
+  relationType: RelationType;
+  trustGroup: TrustLevel;
+  status: InviteStatus;
+  acceptedByUserId?: string;
+  expiresAt: string;
+  acceptedAt?: string;
+  createdAt: string;
+  /** Placeholder person row in the inviter's circle. */
+  personId: string;
 }

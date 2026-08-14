@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ThreadListSkeleton } from "@/components/Skeleton";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
@@ -309,7 +310,7 @@ function EmptyState({ onStart }: { onStart: () => void }) {
 function ComposeSheet({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const { people } = useStore();
-  const circle = people.filter((p) => p.inMyCircle);
+  const circle = activeCircle(people);
   const [q, setQ] = useState("");
 
   const filtered = useMemo(() => {

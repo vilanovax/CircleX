@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import Avatar from "@/components/Avatar";
@@ -51,7 +52,7 @@ export default function EventClassic(_props: { params: { id: string } }) {
 
   const host = getPerson(event.hostId);
   const isMine = event.hostId === "me";
-  const circle = people.filter((p) => p.inMyCircle);
+  const circle = activeCircle(people);
 
   if (!isMine && !canView(event, getPerson)) {
     return (

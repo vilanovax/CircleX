@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { useSheetA11y } from "@/lib/use-sheet-a11y";
+import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import Link from "next/link";
 import Header from "@/components/Header";
@@ -9,27 +8,22 @@ import BottomNav from "@/components/BottomNav";
 import SheetShell from "@/components/SheetShell";
 import { CardListSkeleton } from "@/components/Skeleton";
 import Avatar from "@/components/Avatar";
+import InviteSheet, { InviteSharePanel } from "@/components/InviteSheet";
 import { GraphIcon, UserPlusIcon } from "@/components/Icons";
-import { relationLabels } from "@/lib/labels";
+import { levelHint } from "@/lib/labels";
 import { viewerRelationPhrase } from "@/lib/trust";
-import type { Person, RelationType, TrustLevel } from "@/lib/types";
+import { activeCircle } from "@/lib/circle-member";
+import {
+  copyText,
+  effectiveInviteStatus,
+  inviteUrl,
+} from "@/lib/invite";
+import { maskPhone } from "@/lib/phone";
+import type { Invite, Person, TrustLevel } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
 import { useToast } from "@/components/Toast";
 
 const LEVELS: TrustLevel[] = ["A", "B", "C"];
-const RELATIONS: RelationType[] = [
-  "family",
-  "friend",
-  "colleague",
-  "neighbor",
-  "acquaintance",
-];
-
-const LEVEL_HINT: Record<TrustLevel, string> = {
-  A: "افرادی که ارتباط خیلی نزدیکی با آن‌ها دارید.",
-  B: "افرادی که می‌شناسید و به آن‌ها اطمینان دارید.",
-  C: "افرادی که ارتباط محدودتری با آن‌ها دارید.",
-};
 
 /** Section title — slightly longer than the row chip for group B. */
 const SECTION_LABEL: Record<TrustLevel, string> = {
@@ -76,11 +70,21 @@ function circleRelationLine(person: Person): string {
 }
 
 export default function CircleClassic() {
-  const { people, addPerson, setLevel, hydrated } = useStore();
+  const { people, invites, me, setLevel, revokeInvite, hydrated } = useStore();
   const { show } = useToast();
-  const mine = people.filter((p) => p.inMyCircle);
+  const mine = activeCircle(people);
+  const pendingInvites = invites.filter(
+    (inv) => effectiveInviteStatus(inv) === "pending",
+  );
   const [showAdd, setShowAdd] = useState(false);
+  const [reshare, setReshare] = useState<Invite | null>(null);
   const [editing, setEditing] = useState<Person | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("invite") === "1") setShowAdd(true);
+  }, []);
 
   const grouped = useMemo(() => {
     return LEVELS.map((lvl) => ({
@@ -89,13 +93,17 @@ export default function CircleClassic() {
     })).filter((g) => g.members.length > 0);
   }, [mine]);
 
+  const emptyCircle = mine.length === 0 && pendingInvites.length === 0;
+
   return (
     <main className="pb-28 min-h-[100dvh]">
       <Header
         title="حلقه‌ی من"
         subtitle={
           mine.length === 0
-            ? "هنوز کسی اضافه نشده"
+            ? pendingInvites.length > 0
+              ? `${toPersianDigits(pendingInvites.length)} دعوت در انتظار`
+              : "هنوز کسی اضافه نشده"
             : `${toPersianDigits(mine.length)} نفر که مستقیماً می‌شناسید`
         }
         action={
@@ -110,7 +118,7 @@ export default function CircleClassic() {
         }
       />
 
-      {mine.length === 0 ? (
+      {emptyCircle ? (
         <div className="px-4 pt-10 listing-detail-rise">
           <div className="card p-6 text-center">
             <div className="w-14 h-14 rounded-2xl bg-brand-50 dark:bg-brand-500/15 text-brand-600 flex items-center justify-center mx-auto mb-3">
@@ -120,7 +128,7 @@ export default function CircleClassic() {
               حلقهٔ شما هنوز خالی است
             </p>
             <p className="text-sm text-ink-muted dark:text-zinc-400 mt-1.5 leading-relaxed">
-              خانواده و دوستان را اضافه کنید تا آگهی‌ها و رویدادهایشان اینجا دیده
+              خانواده و دوستان را دعوت کن تا آگهی‌ها و رویدادهایشان اینجا دیده
               شود.
             </p>
             <button
@@ -128,7 +136,7 @@ export default function CircleClassic() {
               onClick={() => setShowAdd(true)}
               className="btn-primary inline-block mt-4"
             >
-              افزودن اولین نفر
+              دعوت به حلقه
             </button>
           </div>
         </div>
@@ -137,31 +145,71 @@ export default function CircleClassic() {
           {!hydrated ? (
             <CardListSkeleton count={5} />
           ) : (
-            <div className="card overflow-hidden">
-              {grouped.map(({ level, members }, i) => (
-                <section
-                  key={level}
-                  className={i > 0 ? "border-t border-stone-100 dark:border-zinc-800" : ""}
-                >
-                  <h2 className="px-3.5 pt-2.5 pb-1 text-[13px] font-bold text-ink dark:text-zinc-100 nums">
-                    {SECTION_LABEL[level]}
+            <>
+              <div className="card overflow-hidden">
+                <h2 className="px-3.5 pt-3 pb-1 text-[13px] font-bold text-ink dark:text-zinc-100 nums">
+                  اعضای حلقه
+                  <span className="text-ink-muted font-semibold">
+                    {" · "}
+                    {toPersianDigits(mine.length)}
+                  </span>
+                </h2>
+                {mine.length === 0 ? (
+                  <p className="px-3.5 pb-3 text-[12px] text-ink-muted leading-relaxed">
+                    هنوز کسی نپیوسته. دعوت‌های در انتظار پایین همین صفحه است.
+                  </p>
+                ) : (
+                  grouped.map(({ level, members }, i) => (
+                    <section
+                      key={level}
+                      className={i > 0 ? "border-t border-stone-100 dark:border-zinc-800" : ""}
+                    >
+                      <h3 className="px-3.5 pt-2.5 pb-1 text-[13px] font-bold text-ink dark:text-zinc-100 nums">
+                        {SECTION_LABEL[level]}
+                        <span className="text-ink-muted font-semibold">
+                          {" · "}
+                          {toPersianDigits(members.length)}
+                        </span>
+                      </h3>
+                      <ul className="divide-y divide-stone-100 dark:divide-zinc-800">
+                        {members.map((p) => (
+                          <CircleMemberRow
+                            key={p.id}
+                            person={p}
+                            onEditGroup={() => setEditing(p)}
+                          />
+                        ))}
+                      </ul>
+                    </section>
+                  ))
+                )}
+              </div>
+
+              {pendingInvites.length > 0 && (
+                <div className="card overflow-hidden">
+                  <h2 className="px-3.5 pt-3 pb-1 text-[13px] font-bold text-ink dark:text-zinc-100 nums">
+                    دعوت‌های در انتظار
                     <span className="text-ink-muted font-semibold">
                       {" · "}
-                      {toPersianDigits(members.length)}
+                      {toPersianDigits(pendingInvites.length)}
                     </span>
                   </h2>
                   <ul className="divide-y divide-stone-100 dark:divide-zinc-800">
-                    {members.map((p) => (
-                      <CircleMemberRow
-                        key={p.id}
-                        person={p}
-                        onEditGroup={() => setEditing(p)}
+                    {pendingInvites.map((inv) => (
+                      <PendingInviteRow
+                        key={inv.id}
+                        invite={inv}
+                        onReshare={() => setReshare(inv)}
+                        onRevoke={() => {
+                          revokeInvite(inv.id);
+                          show("دعوت لغو شد");
+                        }}
                       />
                     ))}
                   </ul>
-                </section>
-              ))}
-            </div>
+                </div>
+              )}
+            </>
           )}
 
           <Link
@@ -186,14 +234,13 @@ export default function CircleClassic() {
         </div>
       )}
 
-      {showAdd && (
-        <AddPersonSheet
-          onClose={() => setShowAdd(false)}
-          onAdd={(input) => {
-            addPerson(input);
-            setShowAdd(false);
-            show(`${input.name} به حلقه‌ی شما اضافه شد ✓`);
-          }}
+      {showAdd && <InviteSheet onClose={() => setShowAdd(false)} />}
+
+      {reshare && (
+        <InviteSharePanel
+          invite={reshare}
+          inviterName={me.name}
+          onClose={() => setReshare(null)}
         />
       )}
 
@@ -304,7 +351,7 @@ function GroupSheet({
                     active ? "text-white/80" : "text-ink-muted"
                   }`}
                 >
-                  {LEVEL_HINT[lvl]}
+                  {levelHint[lvl]}
                 </span>
               </button>
             );
@@ -315,131 +362,51 @@ function GroupSheet({
   );
 }
 
-function AddPersonSheet({
-  onClose,
-  onAdd,
+function PendingInviteRow({
+  invite,
+  onReshare,
+  onRevoke,
 }: {
-  onClose: () => void;
-  onAdd: (input: {
-    name: string;
-    relation: RelationType;
-    level: TrustLevel;
-    note?: string;
-  }) => void;
+  invite: Invite;
+  onReshare: () => void;
+  onRevoke: () => void;
 }) {
-  const [name, setName] = useState("");
-  const [relation, setRelation] = useState<RelationType>("friend");
-  const [level, setLevel] = useState<TrustLevel>("A");
-  const [note, setNote] = useState("");
-  const panelRef = useRef<HTMLDivElement>(null);
-  useSheetA11y(panelRef, onClose);
+  const { show } = useToast();
+  const label = invite.invitedPhone
+    ? `دعوت برای ${maskPhone(invite.invitedPhone)}`
+    : "لینک دعوت";
 
   return (
-    <div className="fixed inset-0 z-40 flex justify-center">
-      <div className="relative w-full max-w-[480px]">
-        <div
-          className="absolute inset-0 bg-black/30"
-          onClick={onClose}
-          aria-hidden
-        />
-        <div
-          ref={panelRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="add-person-title"
-          tabIndex={-1}
-          className="absolute bottom-0 inset-x-0 bg-[color:var(--circle-surface)] dark:bg-zinc-900 rounded-t-2xl p-5 animate-slide-up outline-none"
+    <li className="px-3.5 py-2.5">
+      <p className="font-bold text-[13px] text-ink dark:text-zinc-100">{label}</p>
+      <p className="text-[11px] text-ink-muted mt-0.5">هنوز نپیوسته</p>
+      <div className="flex flex-wrap gap-1.5 mt-2">
+        <button
+          type="button"
+          onClick={onReshare}
+          className="text-[11px] font-semibold text-brand-700 dark:text-brand-400 px-2 py-1 rounded-lg bg-brand-50 dark:bg-brand-500/15"
         >
-          <div className="w-10 h-1 bg-stone-200 dark:bg-zinc-700 rounded-full mx-auto mb-4" />
-          <h2
-            id="add-person-title"
-            className="font-bold text-lg mb-4 text-ink dark:text-zinc-100"
-          >
-            افزودن به حلقه
-          </h2>
-
-          <label className="block text-sm font-medium mb-1 text-ink dark:text-zinc-200">
-            نام
-          </label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="مثلاً: مریم"
-            className="field mb-4"
-          />
-
-          <label className="block text-sm font-medium mb-1 text-ink dark:text-zinc-200">
-            این فرد را چطور می‌شناسید؟
-          </label>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {RELATIONS.map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => setRelation(r)}
-                className={`chip !px-3 !py-1.5 border ${
-                  relation === r
-                    ? "bg-brand-600 text-white border-brand-600"
-                    : "bg-[color:var(--circle-surface)] text-ink-muted border-stone-200 dark:border-zinc-700"
-                }`}
-              >
-                {relationLabels[r]}
-              </button>
-            ))}
-          </div>
-
-          <label className="block text-sm font-medium mb-1 text-ink dark:text-zinc-200">
-            در کدام گروه باشد؟
-          </label>
-          <div className="flex flex-col gap-2 mb-4">
-            {LEVELS.map((lvl) => (
-              <button
-                key={lvl}
-                type="button"
-                onClick={() => setLevel(lvl)}
-                className={`rounded-xl py-2.5 px-3 text-sm font-medium border text-right ${
-                  level === lvl
-                    ? "bg-brand-600 text-white border-brand-600"
-                    : "bg-[color:var(--circle-surface)] text-ink-muted border-stone-200 dark:border-zinc-700"
-                }`}
-              >
-                {SECTION_LABEL[lvl]}
-              </button>
-            ))}
-          </div>
-
-          <label className="block text-sm font-medium mb-1 text-ink dark:text-zinc-200">
-            یادداشت (اختیاری)
-          </label>
-          <input
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="مثلاً: دوست دوران دانشگاه"
-            className="field mb-5"
-          />
-
-          <div className="flex gap-2">
-            <button type="button" onClick={onClose} className="btn-ghost flex-1">
-              انصراف
-            </button>
-            <button
-              type="button"
-              disabled={!name.trim()}
-              onClick={() =>
-                onAdd({
-                  name: name.trim(),
-                  relation,
-                  level,
-                  note: note.trim() || undefined,
-                })
-              }
-              className="btn-primary flex-1"
-            >
-              افزودن
-            </button>
-          </div>
-        </div>
+          اشتراک دوباره
+        </button>
+        <button
+          type="button"
+          onClick={async () => {
+            const ok = await copyText(inviteUrl(invite.code));
+            show(ok ? "لینک کپی شد" : "کپی ممکن نشد");
+          }}
+          className="text-[11px] font-semibold text-ink-muted px-2 py-1 rounded-lg bg-stone-100 dark:bg-zinc-800"
+        >
+          کپی لینک
+        </button>
+        <button
+          type="button"
+          onClick={onRevoke}
+          className="text-[11px] font-semibold text-red-600 px-2 py-1 rounded-lg"
+        >
+          لغو دعوت
+        </button>
       </div>
-    </div>
+    </li>
   );
 }
+

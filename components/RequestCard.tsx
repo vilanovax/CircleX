@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { Request } from "@/lib/types";
+import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import { formatPrice, privacyLabels } from "@/lib/labels";
 import { privacyAudience } from "@/lib/trust";
@@ -19,7 +20,7 @@ export default function RequestCard({
   hideTrust?: boolean;
 }) {
   const { getOffers, hasOffered, people } = useStore();
-  const circle = people.filter((p) => p.inMyCircle);
+  const circle = activeCircle(people);
   const offers = getOffers(request.id);
   const offered = hasOffered(request.id);
   /** On profile / compact feed: keep meta short (privacy lives on detail). */
@@ -58,13 +59,15 @@ export default function RequestCard({
           </div>
         </div>
 
-        <p
-          className={`text-[13px] text-ink-muted dark:text-zinc-300 leading-relaxed mt-1.5 ${
-            slimMeta ? "line-clamp-1" : "line-clamp-2"
-          }`}
-        >
-          {request.description}
-        </p>
+        {request.description.trim() ? (
+          <p
+            className={`text-[13px] text-ink-muted dark:text-zinc-300 leading-relaxed mt-1.5 ${
+              slimMeta ? "line-clamp-1" : "line-clamp-2"
+            }`}
+          >
+            {request.description}
+          </p>
+        ) : null}
 
         <div className="mt-2.5 pt-2 border-t border-stone-100 dark:border-zinc-800 flex items-center gap-1.5 text-[11px] text-ink-muted dark:text-zinc-400 flex-wrap">
           <span>{request.city}</span>

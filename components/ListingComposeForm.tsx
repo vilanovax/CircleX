@@ -15,6 +15,7 @@ import { withBasePath } from "@/lib/avatar";
 import {
   applyDraftAnswers,
   draftListingFromText,
+  looksExtractedFromText,
   type DraftSpec,
   type ListingDraft,
 } from "@/lib/listing-draft";
@@ -26,12 +27,18 @@ import {
   SwapIcon,
   WrenchIcon,
 } from "@/components/Icons";
-import { listingTypeLabels, privacyLabels } from "@/lib/labels";
+import {
+  formatPrice,
+  listingTypeIntentLabels,
+  listingTypeLabels,
+  privacyLabels,
+} from "@/lib/labels";
 import {
   formatPriceAmount,
   suggestListingPrices,
   type PriceHint,
 } from "@/lib/price-suggest";
+import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import { formatTomanInput, toEnglishDigits } from "@/lib/persian";
 import type { ListingSpec, ListingType, Privacy } from "@/lib/types";
@@ -45,6 +52,26 @@ const TYPE_ICONS: Record<ListingType, ComponentType<{ className?: string }>> = {
 };
 
 const TYPES: ListingType[] = ["sale", "donation", "exchange", "loan", "service"];
+
+const OWNED_SPEC_LABELS = new Set([
+  "تعویض با",
+  "مدت امانت",
+  "ودیعه",
+  "قابل مذاکره",
+  "هزینه",
+]);
+
+const GENERIC_CATEGORIES = new Set([
+  "فروش",
+  "رایگان / اهدا",
+  "رایگان",
+  "تعویض",
+  "امانت",
+  "خدمات",
+  "اهدا",
+]);
+
+type FieldSource = "text" | "suggested" | "user";
 
 export type ListingInput = {
   title: string;
@@ -67,6 +94,46 @@ export type ListingComposeHandle = {
   step: "compose" | "review";
   goBack?: () => void;
 };
+
+function SourceBadge({ source }: { source?: FieldSource | DraftSpec["confidence"] }) {
+  const kind =
+    source === "confirmed" || source === "text"
+      ? "text"
+      : source === "suggested"
+        ? "suggested"
+        : null;
+  if (!kind) return null;
+  return (
+    <span
+      className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+        kind === "text"
+          ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+          : "bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200"
+      }`}
+    >
+      {kind === "text" ? "از حرف شما" : "پیشنهادی"}
+    </span>
+  );
+}
+
+function extraChipClass(active: boolean) {
+  return `shrink-0 chip !px-2.5 !py-1.5 !text-[11px] border ${
+    active
+      ? "bg-brand-600 text-white border-brand-600"
+      : "bg-stone-50 text-ink-muted border-stone-200/80 dark:bg-zinc-800 dark:border-zinc-700"
+  }`;
+}
+
+function sourceFromDraft(
+  value: string | undefined,
+  rawText: string,
+  aiRewritten: boolean,
+): FieldSource {
+  if (!value?.trim()) return "suggested";
+  if (looksExtractedFromText(value, rawText)) return "text";
+  if (aiRewritten) return "suggested";
+  return "suggested";
+}
 
 const ListingComposeForm = forwardRef<
   ListingComposeHandle,
@@ -99,7 +166,7 @@ const ListingComposeForm = forwardRef<
 ) {
   const { people } = useStore();
   const { show } = useToast();
-  const circle = people.filter((p) => p.inMyCircle);
+  const circle = activeCircle(people);
 
   const [step, setStep] = useState<"compose" | "review">("compose");
   const [type, setType] = useState<ListingType>("sale");
@@ -108,6 +175,13 @@ const ListingComposeForm = forwardRef<
   const [photos, setPhotos] = useState<string[]>([]);
   const [emoji, setEmoji] = useState("📦");
   const [privacy, setPrivacy] = useState<Privacy>("AB");
+
+  const [exchangeFor, setExchangeFor] = useState("");
+  const [loanDuration, setLoanDuration] = useState("");
+  const [loanDeposit, setLoanDeposit] = useState("");
+  const [loanNoDeposit, setLoanNoDeposit] = useState(false);
+  const [negotiable, setNegotiable] = useState(false);
+  const [priceAgreed, setPriceAgreed] = useState(false);
 
   const [draft, setDraft] = useState<ListingDraft | null>(null);
   const [title, setTitle] = useState("");
@@ -124,29 +198,48 @@ const ListingComposeForm = forwardRef<
   const [voiceListening, setVoiceListening] = useState(false);
   const [attemptedCompose, setAttemptedCompose] = useState(false);
 
+  const [titleSource, setTitleSource] = useState<FieldSource>("suggested");
+  const [descriptionSource, setDescriptionSource] =
+    useState<FieldSource>("suggested");
+  const [categorySource, setCategorySource] = useState<FieldSource>("suggested");
+  const [conditionSource, setConditionSource] = useState<FieldSource>("suggested");
+  const [priceSource, setPriceSource] = useState<FieldSource>("user");
+
   const coverImage = photos[0] ?? emoji;
-  const needsPrice = type === "sale" || type === "service";
+  const needsPrice = (type === "sale" || type === "service") && !priceAgreed;
   const parsedPrice =
     needsPrice && price
       ? Number(toEnglishDigits(price).replace(/\D/g, "")) || undefined
       : undefined;
 
-  const composeReady = rawText.trim().length >= 12 && !polishing;
+  const extrasReady =
+    type === "exchange"
+      ? exchangeFor.trim().length >= 2
+      : type === "loan"
+        ? loanDuration.trim().length >= 1
+        : true;
+
+  const composeReady =
+    rawText.trim().length >= 12 && extrasReady && !polishing;
   const canReview = Boolean(title.trim() && description.trim()) && !polishing;
   const canSubmit = step === "compose" ? !polishing : canReview;
   const primaryLabel =
     step === "compose"
       ? polishing
         ? "در حال آماده‌سازی…"
-        : "ادامه و پیش‌نمایش"
+        : "ساخت پیش‌نمایش"
       : submitLabel;
   const hint =
     step === "compose"
       ? polishing
         ? "متن را ساخت‌یافته می‌کنیم…"
-        : attemptedCompose && !composeReady
-          ? "برای ادامه، یک جمله درباره کالا بنویسید."
-          : undefined
+        : attemptedCompose && rawText.trim().length < 12
+          ? "برای ادامه، یک جمله درباره آگهی بنویسید."
+          : attemptedCompose && type === "exchange" && !exchangeFor.trim()
+            ? "بنویسید با چه چیزی تعویض می‌کنید."
+            : attemptedCompose && type === "loan" && !loanDuration.trim()
+              ? "مدت امانت را بنویسید."
+              : undefined
       : canReview
         ? undefined
         : "عنوان و توضیح کوتاه را چک کنید";
@@ -177,6 +270,11 @@ const ListingComposeForm = forwardRef<
     onFooterMetaChange,
   ]);
 
+  useEffect(() => {
+    if (type !== "service") setPriceAgreed(false);
+    if (type !== "sale" && type !== "service") setNegotiable(false);
+  }, [type]);
+
   function mergeSpecs(
     computed: DraftSpec[],
     prev: DraftSpec[],
@@ -193,26 +291,100 @@ const ListingComposeForm = forwardRef<
     return Array.from(byLabel.values());
   }
 
-  function applyDraftToForm(next: ListingDraft, hints: PriceHint[]) {
-    setDraft(next);
+  function ownedSpecs(): ListingSpec[] {
+    const out: ListingSpec[] = [];
+    if (type === "exchange" && exchangeFor.trim()) {
+      out.push({ label: "تعویض با", value: exchangeFor.trim() });
+    }
+    if (type === "loan") {
+      if (loanDuration.trim()) {
+        out.push({ label: "مدت امانت", value: loanDuration.trim() });
+      }
+      if (loanNoDeposit) {
+        out.push({ label: "ودیعه", value: "بدون ودیعه" });
+      } else if (loanDeposit.trim()) {
+        const n = Number(toEnglishDigits(loanDeposit).replace(/\D/g, ""));
+        if (n > 0) out.push({ label: "ودیعه", value: formatPrice(n) });
+      }
+    }
+    if (type === "service" && priceAgreed) {
+      out.push({ label: "هزینه", value: "توافقی" });
+    } else if ((type === "sale" || type === "service") && negotiable) {
+      out.push({ label: "قابل مذاکره", value: "بله" });
+    }
+    return out;
+  }
+
+  function applyDraftToForm(
+    next: ListingDraft,
+    hints: PriceHint[],
+    aiRewritten: boolean,
+  ) {
+    const swap = next.specs.find((s) => s.label === "تعویض با");
+    if (type === "exchange" && !exchangeFor.trim() && swap) {
+      setExchangeFor(swap.value);
+    }
+    const duration = next.specs.find((s) => s.label === "مدت امانت");
+    if (type === "loan" && !loanDuration.trim() && duration) {
+      setLoanDuration(duration.value);
+    }
+    const deposit = next.specs.find((s) => s.label === "ودیعه");
+    if (type === "loan" && deposit && !loanDeposit.trim() && !loanNoDeposit) {
+      if (deposit.value.includes("بدون")) setLoanNoDeposit(true);
+    }
+    const nego = next.specs.find((s) => s.label === "قابل مذاکره");
+    if (
+      (type === "sale" || type === "service") &&
+      nego &&
+      nego.value !== "خیر"
+    ) {
+      setNegotiable(true);
+    }
+
+    setDraft({
+      ...next,
+      questions: next.questions.filter((q) => {
+        if (q.id === "negotiable" && (negotiable || priceAgreed || nego)) {
+          return false;
+        }
+        return true;
+      }),
+    });
     setTitle(next.title);
     setDescription(next.description);
     setCategory(next.category);
     setCondition(next.condition ?? "");
     setAnswers({});
     setRemovedLabels(new Set());
-    setEditableSpecs(next.specs);
+    setEditableSpecs(
+      next.specs.filter((s) => !OWNED_SPEC_LABELS.has(s.label)),
+    );
     setEditingLabel(null);
     setPriceHints(hints);
-    if (!price && hints[1]) {
+    setTitleSource(sourceFromDraft(next.title, rawText, aiRewritten));
+    setDescriptionSource(
+      sourceFromDraft(next.description, rawText, aiRewritten),
+    );
+    setCategorySource(
+      GENERIC_CATEGORIES.has(next.category) ? "suggested" : "text",
+    );
+    setConditionSource(
+      next.condition
+        ? sourceFromDraft(next.condition, rawText, false)
+        : "suggested",
+    );
+    if (!price && needsPrice && hints[1]) {
       setPrice(formatTomanInput(String(hints[1].amount)));
+      setPriceSource("suggested");
+    } else if (price) {
+      setPriceSource("text");
     }
     setStep("review");
   }
 
   async function goToReview() {
     if (polishing) return;
-    if (rawText.trim().length < 12) {
+    if (rawText.trim().length < 12 || !extrasReady) {
       setAttemptedCompose(true);
       return;
     }
@@ -232,6 +404,7 @@ const ListingComposeForm = forwardRef<
         applyDraftToForm(
           data.draft as ListingDraft,
           (data.priceHints as PriceHint[]) ?? [],
+          data.source === "openai",
         );
         return;
       }
@@ -252,15 +425,25 @@ const ListingComposeForm = forwardRef<
       text: rawText,
       condition: next.condition,
     });
-    applyDraftToForm(next, hints);
+    applyDraftToForm(next, hints, false);
   }
 
   function publish() {
     if (!canReview) return;
-    const specs: ListingSpec[] = editableSpecs.map(({ label, value }) => ({
-      label,
-      value,
-    }));
+    if (type === "exchange" && !exchangeFor.trim()) {
+      show("بنویسید با چه چیزی تعویض می‌کنید.");
+      return;
+    }
+    if (type === "loan" && !loanDuration.trim()) {
+      show("مدت امانت را بنویسید.");
+      return;
+    }
+    const specs: ListingSpec[] = [
+      ...ownedSpecs(),
+      ...editableSpecs
+        .filter((s) => !OWNED_SPEC_LABELS.has(s.label))
+        .map(({ label, value }) => ({ label, value })),
+    ];
     const images = photos.length > 0 ? photos : undefined;
 
     onSubmit({
@@ -315,6 +498,12 @@ const ListingComposeForm = forwardRef<
       answers,
       draft,
       editableSpecs,
+      exchangeFor,
+      loanDuration,
+      loanDeposit,
+      loanNoDeposit,
+      negotiable,
+      priceAgreed,
     ],
   );
 
@@ -336,7 +525,11 @@ const ListingComposeForm = forwardRef<
           nextAnswers,
         ).specs;
         setEditableSpecs((prevSpecs) =>
-          mergeSpecs(computed, prevSpecs, removedLabels),
+          mergeSpecs(
+            computed.filter((s) => !OWNED_SPEC_LABELS.has(s.label)),
+            prevSpecs,
+            removedLabels,
+          ),
         );
       }
       return nextAnswers;
@@ -359,13 +552,197 @@ const ListingComposeForm = forwardRef<
     );
   }
 
+  const priceHintsRow =
+    needsPrice && livePriceHints.length > 0 ? (
+      <div className="mt-2">
+        <p className="text-[11px] text-ink-faint mb-1.5">
+          پیشنهاد قیمت از آگهی‌های مشابه حلقه
+        </p>
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+          {livePriceHints.map((h) => (
+            <button
+              key={h.id}
+              type="button"
+              title={h.note}
+              onClick={() => {
+                setPrice(formatTomanInput(String(h.amount)));
+                setPriceSource("suggested");
+              }}
+              className={extraChipClass(
+                Number(toEnglishDigits(price).replace(/\D/g, "")) === h.amount,
+              )}
+            >
+              <span className="font-bold">{h.label}</span>
+              <span className="nums ms-1">{formatPriceAmount(h.amount)}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    ) : null;
+
+  const typeFields = (
+    <>
+      {type === "exchange" && (
+        <section className="mb-3">
+          <label
+            htmlFor="listing-exchange"
+            className="block text-[13px] font-bold mb-1 text-ink dark:text-zinc-200"
+          >
+            با چه چیزی تعویض می‌کنید؟
+          </label>
+          <input
+            id="listing-exchange"
+            value={exchangeFor}
+            onChange={(e) => setExchangeFor(e.target.value)}
+            placeholder="مثلاً دوچرخه شهری، یا مبلغ معادل"
+            className="field"
+          />
+        </section>
+      )}
+
+      {type === "loan" && (
+        <section className="mb-3 space-y-2.5">
+          <div>
+            <label
+              htmlFor="listing-loan-duration"
+              className="block text-[13px] font-bold mb-1 text-ink dark:text-zinc-200"
+            >
+              تا کی؟
+            </label>
+            <input
+              id="listing-loan-duration"
+              value={loanDuration}
+              onChange={(e) => setLoanDuration(e.target.value)}
+              placeholder="مثلاً یک هفته، تا جمعه"
+              className="field"
+            />
+          </div>
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <label
+                htmlFor="listing-loan-deposit"
+                className="block text-[13px] font-bold text-ink dark:text-zinc-200"
+              >
+                ودیعه
+              </label>
+              <button
+                type="button"
+                aria-pressed={loanNoDeposit}
+                onClick={() => {
+                  setLoanNoDeposit((v) => {
+                    const next = !v;
+                    if (next) setLoanDeposit("");
+                    return next;
+                  });
+                }}
+                className={extraChipClass(loanNoDeposit)}
+              >
+                بدون ودیعه
+              </button>
+            </div>
+            {!loanNoDeposit && (
+              <div className="relative">
+                <input
+                  id="listing-loan-deposit"
+                  value={loanDeposit}
+                  onChange={(e) => {
+                    setLoanNoDeposit(false);
+                    setLoanDeposit(formatTomanInput(e.target.value));
+                  }}
+                  inputMode="numeric"
+                  placeholder="اختیاری"
+                  className="field nums !pl-14"
+                />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] text-ink-muted pointer-events-none">
+                  تومان
+                </span>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {(type === "sale" || type === "service") && (
+        <section className="mb-3">
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <label
+              htmlFor="listing-price"
+              className="flex items-center gap-1.5 text-[13px] font-bold text-ink dark:text-zinc-200"
+            >
+              {type === "service" ? "هزینه" : "قیمت"}
+              {step === "review" && needsPrice && (
+                <SourceBadge source={priceSource} />
+              )}
+            </label>
+            <div className="flex gap-1.5">
+              {type === "service" && (
+                <button
+                  type="button"
+                  aria-pressed={priceAgreed}
+                  onClick={() => {
+                    setPriceAgreed((v) => {
+                      const next = !v;
+                      if (next) setNegotiable(false);
+                      return next;
+                    });
+                  }}
+                  className={extraChipClass(priceAgreed)}
+                >
+                  توافقی
+                </button>
+              )}
+              {!priceAgreed && (
+                <button
+                  type="button"
+                  aria-pressed={negotiable}
+                  onClick={() => setNegotiable((v) => !v)}
+                  className={extraChipClass(negotiable)}
+                >
+                  قابل مذاکره
+                </button>
+              )}
+            </div>
+          </div>
+          {needsPrice && (
+            <>
+              <div className="relative">
+                <input
+                  id="listing-price"
+                  value={price}
+                  onChange={(e) => {
+                    setPrice(formatTomanInput(e.target.value));
+                    setPriceSource("user");
+                  }}
+                  inputMode="numeric"
+                  placeholder={
+                    type === "service" ? "مثلاً ۴۰۰٬۰۰۰" : "مثلاً ۸٬۵۰۰٬۰۰۰"
+                  }
+                  className="field nums !pl-14"
+                />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] text-ink-muted pointer-events-none">
+                  تومان
+                </span>
+              </div>
+              {priceHintsRow}
+            </>
+          )}
+          {priceAgreed && (
+            <p className="text-[11px] text-ink-faint mt-1.5 leading-relaxed">
+              هزینه بعد از هماهنگی مشخص می‌شود.
+            </p>
+          )}
+        </section>
+      )}
+    </>
+  );
+
   return (
     <div className="flex flex-col">
       {step === "compose" ? (
         <>
           <section className="mb-4">
             <label className="block text-[13px] font-bold mb-1.5 text-ink dark:text-zinc-200">
-              نوع آگهی
+              می‌خواهید چه کاری انجام دهید؟
             </label>
             <div className="grid grid-cols-6 gap-2">
               {TYPES.map((t, i) => {
@@ -388,7 +765,7 @@ const ListingComposeForm = forwardRef<
                         active ? "text-white" : "text-ink-muted"
                       }`}
                     />
-                    {listingTypeLabels[t]}
+                    {listingTypeIntentLabels[t]}
                   </button>
                 );
               })}
@@ -446,62 +823,12 @@ const ListingComposeForm = forwardRef<
               </div>
             )}
             <p className="text-[11px] text-ink-faint mt-1.5 leading-relaxed">
-              وضعیت، مدت استفاده و دلیل فروش را بنویس؛ جزئیات را در مرحله بعد
-              تکمیل می‌کنیم.
+              وضعیت، مدت استفاده یا دلیل واگذاری را بنویسید. جزئیات را در
+              پیش‌نمایش کامل می‌کنیم.
             </p>
           </section>
 
-          {needsPrice && (
-            <section className="mb-3">
-              <label
-                htmlFor="listing-price"
-                className="block text-[13px] font-bold mb-1 text-ink dark:text-zinc-200"
-              >
-                قیمت
-              </label>
-              <div className="relative">
-                <input
-                  id="listing-price"
-                  value={price}
-                  onChange={(e) => setPrice(formatTomanInput(e.target.value))}
-                  inputMode="numeric"
-                  placeholder="مثلاً ۸٬۵۰۰٬۰۰۰"
-                  className="field nums !pl-14"
-                />
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] text-ink-muted pointer-events-none">
-                  تومان
-                </span>
-              </div>
-              {livePriceHints.length > 0 && (
-                <div className="mt-2">
-                  <p className="text-[11px] text-ink-faint mb-1.5">
-                    پیشنهاد قیمت از آگهی‌های مشابه حلقه
-                  </p>
-                  <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
-                    {livePriceHints.map((h) => (
-                      <button
-                        key={h.id}
-                        type="button"
-                        title={h.note}
-                        onClick={() => setPrice(formatTomanInput(String(h.amount)))}
-                        className={`shrink-0 chip !px-2.5 !py-1.5 !text-[11px] border ${
-                          Number(toEnglishDigits(price).replace(/\D/g, "")) ===
-                          h.amount
-                            ? "bg-brand-600 text-white border-brand-600"
-                            : "bg-stone-50 text-ink-muted border-stone-200/80 dark:bg-zinc-800 dark:border-zinc-700"
-                        }`}
-                      >
-                        <span className="font-bold">{h.label}</span>
-                        <span className="nums ms-1">
-                          {formatPriceAmount(h.amount)}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </section>
-          )}
+          {typeFields}
 
           <div className={hideActions ? "mb-2" : "mb-5"}>
             <PrivacyPicker
@@ -528,21 +855,30 @@ const ListingComposeForm = forwardRef<
             </div>
           )}
 
-          <p className="inline-flex mb-3 text-[12px] text-ink-muted dark:text-zinc-400 leading-relaxed rounded-lg bg-stone-50 dark:bg-zinc-800/60 px-2.5 py-1">
-            مخاطب: {privacyLabels[privacy]}
-          </p>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            <p className="inline-flex text-[12px] text-ink-muted dark:text-zinc-400 leading-relaxed rounded-lg bg-stone-50 dark:bg-zinc-800/60 px-2.5 py-1">
+              {listingTypeIntentLabels[type]}
+            </p>
+            <p className="inline-flex text-[12px] text-ink-muted dark:text-zinc-400 leading-relaxed rounded-lg bg-stone-50 dark:bg-zinc-800/60 px-2.5 py-1">
+              مخاطب: {privacyLabels[privacy]}
+            </p>
+          </div>
 
           <section className="mb-3">
             <label
               htmlFor="listing-title"
-              className="block text-[13px] font-bold mb-1 text-ink dark:text-zinc-200"
+              className="flex items-center gap-1.5 text-[13px] font-bold mb-1 text-ink dark:text-zinc-200"
             >
               عنوان
+              <SourceBadge source={titleSource} />
             </label>
             <input
               id="listing-title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                setTitleSource("user");
+              }}
               className="field"
               maxLength={80}
             />
@@ -551,14 +887,18 @@ const ListingComposeForm = forwardRef<
           <section className="mb-3">
             <label
               htmlFor="listing-desc"
-              className="block text-[13px] font-bold mb-1 text-ink dark:text-zinc-200"
+              className="flex items-center gap-1.5 text-[13px] font-bold mb-1 text-ink dark:text-zinc-200"
             >
               توضیح کوتاه
+              <SourceBadge source={descriptionSource} />
             </label>
             <textarea
               id="listing-desc"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                setDescription(e.target.value);
+                setDescriptionSource("user");
+              }}
               rows={3}
               className="field resize-none min-h-[5rem] leading-relaxed"
             />
@@ -568,74 +908,43 @@ const ListingComposeForm = forwardRef<
             <section>
               <label
                 htmlFor="listing-category"
-                className="block text-[12px] font-bold mb-1 text-ink dark:text-zinc-200"
+                className="flex items-center gap-1.5 text-[12px] font-bold mb-1 text-ink dark:text-zinc-200"
               >
                 دسته
+                <SourceBadge source={categorySource} />
               </label>
               <input
                 id="listing-category"
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                onChange={(e) => {
+                  setCategory(e.target.value);
+                  setCategorySource("user");
+                }}
                 className="field !text-[13px]"
               />
             </section>
             <section>
               <label
                 htmlFor="listing-condition"
-                className="block text-[12px] font-bold mb-1 text-ink dark:text-zinc-200"
+                className="flex items-center gap-1.5 text-[12px] font-bold mb-1 text-ink dark:text-zinc-200"
               >
                 وضعیت
+                <SourceBadge source={condition ? conditionSource : undefined} />
               </label>
               <input
                 id="listing-condition"
                 value={condition}
-                onChange={(e) => setCondition(e.target.value)}
+                onChange={(e) => {
+                  setCondition(e.target.value);
+                  setConditionSource("user");
+                }}
                 placeholder="مثلاً سالم"
                 className="field !text-[13px]"
               />
             </section>
           </div>
 
-          {needsPrice && livePriceHints.length > 0 && (
-            <section className="mb-3">
-              <p className="text-[12px] font-bold text-ink dark:text-zinc-200 mb-1.5">
-                پیشنهاد قیمت
-              </p>
-              <div className="flex gap-1.5 overflow-x-auto no-scrollbar mb-1.5">
-                {livePriceHints.map((h) => (
-                  <button
-                    key={h.id}
-                    type="button"
-                    title={h.note}
-                    onClick={() => setPrice(formatTomanInput(String(h.amount)))}
-                    className={`shrink-0 chip !px-2.5 !py-1.5 !text-[11px] border ${
-                      Number(toEnglishDigits(price).replace(/\D/g, "")) ===
-                      h.amount
-                        ? "bg-brand-600 text-white border-brand-600"
-                        : "bg-stone-50 text-ink-muted border-stone-200/80 dark:bg-zinc-800 dark:border-zinc-700"
-                    }`}
-                  >
-                    {h.label}
-                    <span className="nums ms-1">
-                      {formatPriceAmount(h.amount)}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <div className="relative">
-                <input
-                  value={price}
-                  onChange={(e) => setPrice(formatTomanInput(e.target.value))}
-                  inputMode="numeric"
-                  className="field nums !text-[13px] !pl-14"
-                  placeholder="قیمت نهایی"
-                />
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] text-ink-muted pointer-events-none">
-                  تومان
-                </span>
-              </div>
-            </section>
-          )}
+          {typeFields}
 
           {draft && draft.questions.length > 0 && (
             <section className="mb-4 space-y-3">
@@ -654,11 +963,7 @@ const ListingComposeForm = forwardRef<
                           type="button"
                           onClick={() => pickAnswer(q.id, opt)}
                           aria-pressed={active}
-                          className={`chip !px-2.5 !py-1 !text-[11px] border transition-colors ${
-                            active
-                              ? "bg-brand-600 text-white border-brand-600"
-                              : "bg-stone-50 text-ink-muted border-stone-200/80 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400"
-                          }`}
+                          className={extraChipClass(active)}
                         >
                           {opt}
                         </button>
@@ -676,7 +981,7 @@ const ListingComposeForm = forwardRef<
             </p>
             {editableSpecs.length === 0 ? (
               <p className="text-[12px] text-ink-faint leading-relaxed px-0.5">
-                هنوز مشخصاتی استخراج نشد — بعد از انتشار خریدار می‌تواند ازت
+                هنوز مشخصاتی استخراج نشد. اگر چیزی جا افتاده، بگذارید طرف مقابل
                 بپرسد.
               </p>
             ) : (
@@ -690,17 +995,7 @@ const ListingComposeForm = forwardRef<
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 mb-1">
                           <p className="text-[11px] text-ink-faint">{s.label}</p>
-                          <span
-                            className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-                              s.confidence === "confirmed"
-                                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
-                                : "bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200"
-                            }`}
-                          >
-                            {s.confidence === "confirmed"
-                              ? "از متن"
-                              : "پیشنهاد"}
-                          </span>
+                          <SourceBadge source={s.confidence} />
                         </div>
                         {editingLabel === s.label ? (
                           <input
@@ -744,7 +1039,7 @@ const ListingComposeForm = forwardRef<
               </ul>
             )}
             <p className="text-[11px] text-ink-faint mt-2 leading-relaxed">
-              ابعاد یا ادعاهای حساس را فقط اگر مطمئنی نگه دار.
+              ابعاد یا ادعاهای حساس را فقط اگر درست‌اند نگه دارید.
             </p>
           </section>
 

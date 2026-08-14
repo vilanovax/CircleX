@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { Listing } from "@/lib/types";
+import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import { formatPrice, privacyLabels } from "@/lib/labels";
 import { privacyAudience } from "@/lib/trust";
@@ -20,7 +21,7 @@ export default function ListingCard({
   hideTrust?: boolean;
 }) {
   const { people } = useStore();
-  const circle = people.filter((p) => p.inMyCircle);
+  const circle = activeCircle(people);
   const isService = listing.type === "service";
 
   return (

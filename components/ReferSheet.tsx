@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import SheetShell from "@/components/SheetShell";
+import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import { useToast } from "./Toast";
 import Avatar from "./Avatar";
@@ -32,7 +33,7 @@ export default function ReferSheet({
   const [sentId, setSentId] = useState<string | null>(null);
 
   const listing = getListing(listingId);
-  const circle = people.filter((p) => p.inMyCircle);
+  const circle = activeCircle(people);
 
   const filtered = useMemo(() => {
     const q = query.trim();

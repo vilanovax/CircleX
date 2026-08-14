@@ -1,3 +1,4 @@
+import { isActiveCircleMember } from "./circle-member";
 import type { Listing, Person, Request, TrustLevel } from "./types";
 import { resolveAvatarSrc } from "./avatar";
 
@@ -62,7 +63,7 @@ export function buildTrustGraph(
   };
 
   // Direct circle membership.
-  people.filter((p) => p.inMyCircle).forEach((p) => link("me", p.id));
+  people.filter(isActiveCircleMember).forEach((p) => link("me", p.id));
 
   // Trust-path chains from every post: me → hop0 → … → poster.
   const chains: string[][] = [
@@ -140,7 +141,7 @@ export function buildTrustGraph(
       level: id === "me" ? undefined : p?.level,
       depth: d,
       parentId: parent.get(id),
-      inCircle: id === "me" ? true : Boolean(p?.inMyCircle),
+      inCircle: id === "me" ? true : Boolean(p && isActiveCircleMember(p)),
       x: C + r * Math.cos(a),
       y: C + r * Math.sin(a),
     };

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { useStore } from "@/lib/store";
 import { lazyUi } from "@/lib/lazy-ui";
+import { isActiveCircleMember } from "@/lib/circle-member";
 import { canDirectMessage } from "@/lib/messaging";
 import Header from "@/components/Header";
 import Avatar from "@/components/Avatar";
@@ -128,7 +129,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
   const aboutListingEndorsements = endorsementsReceived.filter(
     (x) => !isPersonAboutBadge(x.endorsement.type),
   );
-  const showTrustPath = !person.inMyCircle || trustPath.length > 0;
+  const showTrustPath = !isActiveCircleMember(person) || trustPath.length > 0;
   const personName = person.name;
   const hasListings = theirListings.length > 0;
   const hasRequests = theirRequests.length > 0;
@@ -177,7 +178,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
               </h2>
               <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-snug">
                 {relationPhrase}
-                {person.inMyCircle ? " · ارتباط مستقیم" : ""}
+                {isActiveCircleMember(person) ? " · ارتباط مستقیم" : ""}
               </p>
               {metaLine && (
                 <p className="text-[11px] text-ink-faint mt-1 leading-snug">
@@ -252,7 +253,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
             actionLabel={
               canMessage
                 ? `پیام به ${person.name}`
-                : person.inMyCircle
+                : isActiveCircleMember(person)
                   ? "درخواست معرفی"
                   : "افزودن به حلقه"
             }
@@ -261,17 +262,17 @@ export default function PersonClassic(_props: { params: { id: string } }) {
                 router.push(`/messages/${id}`);
                 return;
               }
-              if (person.inMyCircle) {
+              if (isActiveCircleMember(person)) {
                 setShowIntro(true);
                 return;
               }
               setShowAddToCircle(true);
             }}
             secondaryActionLabel={
-              canMessage && !person.inMyCircle ? "افزودن به حلقه" : undefined
+              canMessage && !isActiveCircleMember(person) ? "افزودن به حلقه" : undefined
             }
             onSecondaryAction={
-              canMessage && !person.inMyCircle
+              canMessage && !isActiveCircleMember(person)
                 ? () => setShowAddToCircle(true)
                 : undefined
             }
@@ -287,7 +288,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
           </h2>
           <p className="text-[12px] text-ink-muted dark:text-zinc-400 leading-snug">
             {relationPhrase}
-            {person.inMyCircle
+            {isActiveCircleMember(person)
               ? ` · حلقه ${relationLabels[person.relation]}`
               : " · هنوز مستقیم به حلقهٔ شما اضافه نشده"}
           </p>
@@ -304,7 +305,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
             >
               سابقه و تأییدها
             </button>
-            {person.inMyCircle ? (
+            {isActiveCircleMember(person) ? (
               <button
                 type="button"
                 onClick={() => setShowEditRelation(true)}
@@ -373,7 +374,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
         />
       )}
 
-      {showEditRelation && person.inMyCircle && (
+      {showEditRelation && isActiveCircleMember(person) && (
         <EditRelationSheet
           person={person}
           personId={id}

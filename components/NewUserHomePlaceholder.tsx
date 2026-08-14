@@ -36,7 +36,7 @@ export default function NewUserHomePlaceholder() {
         <p className="text-xs text-ink-muted dark:text-zinc-400 mt-1.5 leading-relaxed max-w-[18rem] mx-auto">
           با افزودن خانواده و دوستان، آگهی‌ها و رویدادهای آن‌ها اینجا ظاهر می‌شود.
         </p>
-        <Link href="/circle" className="btn-primary inline-block mt-4 !px-6">
+        <Link href="/circle?invite=1" className="btn-primary inline-block mt-4 !px-6">
           افزودن به حلقه
         </Link>
       </div>

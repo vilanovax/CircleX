@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import ListingGallery from "@/components/ListingGallery";
@@ -99,7 +100,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const seller = getPerson(listing.sellerId);
   const isMine = listing.sellerId === "me";
   const isDirect = isDirectTrust;
-  const circle = people.filter((p) => p.inMyCircle);
+  const circle = activeCircle(people);
   const gallery = listingGalleryImages(listing);
 
   const ctaLabel = (() => {

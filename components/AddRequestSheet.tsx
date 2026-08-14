@@ -3,9 +3,13 @@
 import { useState } from "react";
 import PrivacyPicker from "@/components/PrivacyPicker";
 import SheetShell from "@/components/SheetShell";
+import VoiceDictateButton from "@/components/VoiceDictateButton";
+import { BackIcon, CloseIcon } from "@/components/Icons";
+import { useToast } from "@/components/Toast";
+import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import type { Privacy } from "@/lib/types";
-import { toEnglishDigits } from "@/lib/persian";
+import { formatTomanInput, toEnglishDigits } from "@/lib/persian";
 
 const EMOJIS = [
   "🔎",
@@ -52,16 +56,20 @@ export default function AddRequestSheet({
   onBack?: () => void;
 }) {
   const { people } = useStore();
-  const circle = people.filter((p) => p.inMyCircle);
+  const { show } = useToast();
+  const circle = activeCircle(people);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [customCategory, setCustomCategory] = useState(false);
   const [image, setImage] = useState("🔎");
+  const [showEmojis, setShowEmojis] = useState(false);
   const [budget, setBudget] = useState("");
   const [privacy, setPrivacy] = useState<Privacy>("ABC");
+  const [voiceInterim, setVoiceInterim] = useState("");
+  const [voiceListening, setVoiceListening] = useState(false);
 
-  const canSubmit = Boolean(title.trim() && description.trim());
+  const canSubmit = Boolean(title.trim());
 
   function pickCategory(c: string) {
     if (c === "سایر") {
@@ -95,106 +103,76 @@ export default function AddRequestSheet({
       footer={
         <div>
           {!canSubmit && (
-            <p className="text-[11px] text-ink-faint text-center mb-2">
-              عنوان و توضیحات را کامل کن
+            <p className="text-[11px] text-ink-muted text-center mb-2 leading-relaxed">
+              عنوان را بنویس
             </p>
           )}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn-ghost flex-1 !py-3.5 active:scale-[0.98] transition-transform duration-150"
-            >
-              انصراف
-            </button>
-            <button
-              type="button"
-              disabled={!canSubmit}
-              onClick={submit}
-              className="btn-primary flex-1 !py-3.5 shadow-lg shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150"
-            >
-              ثبت درخواست
-            </button>
-          </div>
+          <button
+            type="button"
+            disabled={!canSubmit}
+            onClick={submit}
+            className="btn-primary w-full !py-3 text-[15px] shadow-lg shadow-brand-600/20 active:scale-[0.99] transition-transform duration-150 disabled:opacity-60"
+          >
+            ثبت درخواست
+          </button>
         </div>
       }
     >
-      <div className="mb-1">
+      <div className="flex items-center gap-2 mb-1">
         {onBack && (
           <button
             type="button"
             onClick={onBack}
-            className="text-[12px] text-brand-600 dark:text-brand-400 font-semibold mb-1.5 active:opacity-80"
+            aria-label="بازگشت"
+            className="shrink-0 w-9 h-9 -ms-1 rounded-full flex items-center justify-center text-brand-600 dark:text-brand-400 active:bg-brand-50 dark:active:bg-brand-500/10"
           >
-            ‹ بازگشت
+            <BackIcon className="w-5 h-5" />
           </button>
         )}
-        <h2
-          id="add-request-title"
-          className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 leading-tight"
-        >
-          ثبت درخواست جدید
-        </h2>
-        <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
-          از حلقه بپرسید — پاسخ‌ها از مسیر ارتباط می‌آیند.
-        </p>
-      </div>
-
-      {/* Compact preview */}
-      <div className="mt-3.5 mb-3.5 rounded-xl bg-amber-50/70 dark:bg-amber-500/10 px-3 py-2 flex items-center gap-2.5">
-        <span
-          className="w-10 h-10 rounded-lg bg-[color:var(--circle-surface)] dark:bg-zinc-900 ring-1 ring-amber-200/60 dark:ring-amber-500/20 flex items-center justify-center text-xl shrink-0"
-          aria-hidden
-        >
-          {image}
-        </span>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="chip !py-0.5 !px-1.5 !text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200">
-              درخواست
-            </span>
-            <span className="text-[10px] text-ink-faint">پیش‌نمایش</span>
-          </div>
-          <p className="text-[13px] font-bold text-ink dark:text-zinc-100 mt-0.5 truncate">
-            {title.trim() || "چه چیزی می‌خواهید؟"}
+          <h2
+            id="add-request-title"
+            className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 leading-tight"
+          >
+            درخواست جدید
+          </h2>
+          <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-relaxed">
+            بگو دنبال چی می‌گردی. جواب از حلقه‌ات می‌آید.
           </p>
         </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="بستن"
+          className="shrink-0 w-9 h-9 -me-1 rounded-full flex items-center justify-center text-ink-muted dark:text-zinc-400 active:bg-stone-100 dark:active:bg-zinc-800"
+        >
+          <CloseIcon className="w-5 h-5" />
+        </button>
       </div>
 
-      <section className="mb-4">
-        <label className="block text-[13px] font-bold mb-1.5 text-ink dark:text-zinc-200">
-          شکلک
-        </label>
-        <div className="grid grid-cols-4 gap-2">
-          {EMOJIS.map((e) => {
-            const active = image === e;
-            return (
-              <button
-                key={e}
-                type="button"
-                onClick={() => setImage(e)}
-                aria-label={`انتخاب شکلک ${e}`}
-                aria-pressed={active}
-                className={`h-12 rounded-xl text-2xl flex items-center justify-center border transition-[transform,colors] duration-150 active:scale-95 ${
-                  active
-                    ? "border-brand-500 bg-brand-50 dark:bg-brand-500/20 shadow-sm"
-                    : "border-stone-200/80 dark:border-zinc-700 bg-stone-50/60 dark:bg-zinc-900"
-                }`}
-              >
-                {e}
-              </button>
-            );
-          })}
+      <section className="mt-3.5 mb-3">
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <label
+            htmlFor="request-title"
+            className="block text-[13px] font-bold text-ink dark:text-zinc-200"
+          >
+            دنبال چی می‌گردی؟
+          </label>
+          <VoiceDictateButton
+            onError={(msg) => show(msg)}
+            onListeningChange={setVoiceListening}
+            onInterim={setVoiceInterim}
+            onFinal={(phrase) => {
+              const piece = phrase.trim();
+              if (!piece) return;
+              setTitle((prev) => {
+                const next = prev.trim() ? `${prev.trim()} ${piece}` : piece;
+                return next.slice(0, 80);
+              });
+              setVoiceInterim("");
+            }}
+          />
         </div>
-      </section>
-
-      <section className="mb-3">
-        <label
-          htmlFor="request-title"
-          className="block text-[13px] font-bold mb-1 text-ink dark:text-zinc-200"
-        >
-          چه چیزی می‌خواهید؟
-        </label>
         <input
           id="request-title"
           value={title}
@@ -203,6 +181,16 @@ export default function AddRequestSheet({
           className="field"
           maxLength={80}
         />
+        {voiceListening && (
+          <div className="mt-2 rounded-xl border border-rose-200/80 dark:border-rose-500/30 bg-rose-50/80 dark:bg-rose-500/10 px-3 py-2">
+            <p className="text-[10px] font-bold text-rose-700 dark:text-rose-300 mb-0.5">
+              در حال شنیدن…
+            </p>
+            <p className="text-[12px] text-ink dark:text-zinc-100 leading-relaxed min-h-[1.25rem]">
+              {voiceInterim || "صحبت کن — متن موقت اینجا می‌آید"}
+            </p>
+          </div>
+        )}
       </section>
 
       <section className="mb-3">
@@ -210,34 +198,39 @@ export default function AddRequestSheet({
           htmlFor="request-desc"
           className="block text-[13px] font-bold mb-1 text-ink dark:text-zinc-200"
         >
-          توضیحات
+          توضیحات{" "}
+          <span className="font-medium text-ink-faint">(اختیاری)</span>
         </label>
         <textarea
           id="request-desc"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="جزئیات بیشتر، شرایط و کیفیت موردنظر…"
-          rows={3}
-          className="field resize-none min-h-[5rem] leading-relaxed"
+          placeholder="شرایط، اندازه، یا کیفیت موردنظر…"
+          rows={2}
+          className="field resize-none min-h-[4.25rem] leading-relaxed"
         />
       </section>
 
       <section className="mb-3">
         <label
           htmlFor="request-budget"
-          className="block text-[13px] font-bold mb-1 text-ink dark:text-zinc-200"
+          className="block text-[12px] font-medium mb-1 text-ink-muted"
         >
-          بودجه{" "}
-          <span className="font-medium text-ink-faint">(اختیاری)</span>
+          بودجه — اختیاری
         </label>
-        <input
-          id="request-budget"
-          value={budget}
-          onChange={(e) => setBudget(e.target.value)}
-          inputMode="numeric"
-          placeholder="مثلاً ۳۰۰۰۰۰۰ تومان"
-          className="field nums"
-        />
+        <div className="relative">
+          <input
+            id="request-budget"
+            value={budget}
+            onChange={(e) => setBudget(formatTomanInput(e.target.value))}
+            inputMode="numeric"
+            placeholder="مثلاً ۳٬۰۰۰٬۰۰۰"
+            className="field nums !py-2 !text-[13px] !pl-14"
+          />
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] text-ink-muted pointer-events-none">
+            تومان
+          </span>
+        </div>
       </section>
 
       <section className="mb-4">
@@ -273,6 +266,63 @@ export default function AddRequestSheet({
             className="field mt-2"
             autoFocus
           />
+        )}
+      </section>
+
+      <section className="mb-4">
+        <p className="block text-[12px] font-medium mb-1.5 text-ink-muted">
+          شکلک
+        </p>
+        {!showEmojis ? (
+          <button
+            type="button"
+            onClick={() => setShowEmojis(true)}
+            className="w-full flex items-center gap-3 rounded-xl border border-stone-200/80 dark:border-zinc-700 bg-stone-50/70 dark:bg-zinc-800/40 px-3 py-2 text-right"
+          >
+            <span className="text-[1.65rem] leading-none shrink-0" aria-hidden>
+              {image}
+            </span>
+            <span className="min-w-0 flex-1 text-[13px] font-semibold text-ink dark:text-zinc-200">
+              تصویر نمادین
+            </span>
+            <span className="text-[12px] font-semibold text-brand-600 dark:text-brand-400">
+              تغییر
+            </span>
+          </button>
+        ) : (
+          <div>
+            <div className="grid grid-cols-6 gap-1.5">
+              {EMOJIS.map((e) => {
+                const active = image === e;
+                return (
+                  <button
+                    key={e}
+                    type="button"
+                    onClick={() => {
+                      setImage(e);
+                      setShowEmojis(false);
+                    }}
+                    aria-label={`انتخاب شکلک ${e}`}
+                    aria-pressed={active}
+                    className={`h-11 rounded-xl text-xl flex items-center justify-center border transition-[transform,colors] duration-150 active:scale-95 ${
+                      active
+                        ? "border-brand-500 bg-brand-50 dark:bg-brand-500/20"
+                        : "border-stone-200/80 dark:border-zinc-700 bg-stone-50/60 dark:bg-zinc-900"
+                    }`}
+                  >
+                    {e}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowEmojis(false)}
+              className="mt-1.5 text-[12px] font-semibold text-ink-muted"
+            >
+              بستن
+            </button>
+          </div>
         )}
       </section>
 

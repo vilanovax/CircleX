@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import { useRouter } from "next/navigation";
@@ -51,7 +52,7 @@ export default function ClassicProfile() {
   const [tab, setTab] = useState<ActivityTab>("listings");
   const [hashSaved, setHashSaved] = useState(false);
 
-  const myCircle = people.filter((p) => p.inMyCircle);
+  const myCircle = activeCircle(people);
   const myListings = listings.filter((l) => l.sellerId === "me");
   const savedListings = saved
     .map((id) => listings.find((l) => l.id === id))
