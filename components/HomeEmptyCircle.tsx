@@ -58,13 +58,13 @@ export default function HomeEmptyCircle() {
         <h2 className="font-extrabold text-[15px] text-ink dark:text-zinc-50 leading-snug">
           {title}
         </h2>
-        <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1.5 leading-relaxed">
+        <p className="text-[13px] text-ink-muted dark:text-zinc-400 mt-1.5 leading-relaxed">
           {body}
         </p>
         <button
           type="button"
           onClick={() => setShowInvite(true)}
-          className="btn-primary w-full mt-3.5 min-h-11"
+          className="btn-primary w-full mt-3.5 min-h-11 shadow-md shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150"
         >
           {cta}
         </button>

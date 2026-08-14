@@ -99,9 +99,9 @@ export default function ListingCard({
           )}
         </div>
         {audienceHint && (
-          <p className="mt-2 text-[11px] font-semibold text-ink-muted dark:text-zinc-400 leading-snug">
+          <span className="chip mt-2 bg-stone-100 text-ink-muted dark:bg-zinc-800 dark:text-zinc-400">
             {audienceHint}
-          </p>
+          </span>
         )}
       </Link>
     </article>
