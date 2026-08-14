@@ -51,6 +51,10 @@ export interface Person {
   inMyCircle: boolean;
   /** Pending invitees are in the list but not active members. */
   inviteStatus?: "pending" | "joined";
+  /** False until the inviter changes the default trust group. */
+  trustTouched?: boolean;
+  /** When this person joined the viewer's circle (ISO). */
+  joinedAt?: string;
   /** Optional phone the invite was addressed to (normalized 09…). */
   phone?: string;
   phoneNormalized?: string;
@@ -199,6 +203,8 @@ export interface Listing {
 
 export type InviteStatus = "pending" | "accepted" | "expired" | "revoked";
 
+export type InviteKind = "personal" | "wave";
+
 /** Server session payload. Client `me.id` stays `"me"`. */
 export type SessionUser = {
   id: string;
@@ -213,10 +219,12 @@ export type SessionUser = {
 export type PublicInvite = {
   code: string;
   status: InviteStatus;
+  kind: InviteKind;
   expiresAt: string;
   inviter: { name: string; avatar: string };
   isOwn: boolean;
   alreadyMember: boolean;
+  full: boolean;
 };
 
 /** Directed invite from the current user to someone not yet (or just) joined. */
@@ -225,8 +233,12 @@ export interface Invite {
   code: string;
   inviterUserId: string;
   invitedPhone?: string;
+  invitedName?: string;
   relationType: RelationType;
   trustGroup: TrustLevel;
+  kind: InviteKind;
+  maxUses: number;
+  useCount: number;
   status: InviteStatus;
   acceptedByUserId?: string;
   expiresAt: string;

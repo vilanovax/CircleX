@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/db";
 import { jsonError, readJson } from "@/lib/http";
-import { INVITE_TTL_MS, newInviteCode } from "@/lib/invite";
 import { toClientInvite } from "@/lib/mappers";
 import { isValidIranMobile, normalizePhone } from "@/lib/phone";
+import { createInviteRecord } from "@/lib/server-invite";
 import { getSessionUser } from "@/lib/server-auth";
-import type { RelationType, TrustGroup } from "@prisma/client";
+import type { InviteKind, RelationType, TrustGroup } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -53,49 +53,46 @@ export async function POST(req: Request) {
     relationType?: string;
     trustGroup?: string;
     invitedPhone?: string;
+    invitedName?: string;
+    kind?: string;
   }>(req);
 
   const relationType = body?.relationType as RelationType | undefined;
-  const trustGroup = body?.trustGroup as TrustGroup | undefined;
   if (!relationType || !RELATIONS.includes(relationType)) {
     return jsonError("نسبت را انتخاب کن", 400);
   }
-  if (!trustGroup || !GROUPS.includes(trustGroup)) {
-    return jsonError("گروه اعتماد را انتخاب کن", 400);
+
+  const kind: InviteKind = body?.kind === "wave" ? "wave" : "personal";
+  let trustGroup = body?.trustGroup as TrustGroup | undefined;
+  if (kind === "personal") {
+    if (!trustGroup || !GROUPS.includes(trustGroup)) {
+      return jsonError("گروه اعتماد را انتخاب کن", 400);
+    }
+  } else {
+    trustGroup = "B";
   }
 
   let invitedPhone: string | undefined;
-  if (body?.invitedPhone) {
+  let invitedName: string | undefined;
+  if (kind === "personal" && body?.invitedPhone) {
     const phone = normalizePhone(body.invitedPhone);
     if (!isValidIranMobile(phone)) {
       return jsonError("شماره را با ۰۹ شروع کنید — ۱۱ رقم", 400);
     }
     invitedPhone = phone;
   }
-
-  let invite = null;
-  for (let i = 0; i < 8; i++) {
-    const code = newInviteCode();
-    try {
-      invite = await prisma.invite.create({
-        data: {
-          code,
-          inviterUserId: session.id,
-          invitedPhone,
-          relationType,
-          trustGroup,
-          expiresAt: new Date(Date.now() + INVITE_TTL_MS),
-        },
-      });
-      break;
-    } catch (err) {
-      const codeName =
-        err && typeof err === "object" && "code" in err
-          ? String((err as { code: string }).code)
-          : "";
-      if (codeName !== "P2002") throw err;
-    }
+  if (kind === "personal" && body?.invitedName?.trim()) {
+    invitedName = body.invitedName.trim().slice(0, 40);
   }
+
+  const invite = await createInviteRecord({
+    inviterUserId: session.id,
+    relationType,
+    trustGroup: trustGroup!,
+    kind,
+    invitedPhone,
+    invitedName,
+  });
   if (!invite) return jsonError("ساخت لینک ممکن نشد", 500);
 
   return Response.json({ invite: toClientInvite(invite) }, { status: 201 });

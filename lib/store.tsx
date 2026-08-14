@@ -119,9 +119,15 @@ export interface StoreValue {
   addPerson: (input: NewPersonInput) => void;
   createInvite: (input: {
     relationType: RelationType;
-    trustGroup: TrustLevel;
+    trustGroup?: TrustLevel;
     invitedPhone?: string;
+    invitedName?: string;
+    kind?: "personal" | "wave";
   }) => Promise<Invite>;
+  createInvitesBatch: (input: {
+    relationType: RelationType;
+    people: { name?: string; phone: string }[];
+  }) => Promise<Invite[]>;
   getInvite: (code: string) => Invite | undefined;
   acceptInvite: (
     code: string,
@@ -494,8 +500,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const createInvite = useCallback(
     async (input: {
       relationType: RelationType;
-      trustGroup: TrustLevel;
+      trustGroup?: TrustLevel;
       invitedPhone?: string;
+      invitedName?: string;
+      kind?: "personal" | "wave";
     }) => {
       const { invite } = await api<{ invite: Invite }>("/api/invites", {
         method: "POST",
@@ -503,6 +511,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       });
       await loadCircle();
       return invite;
+    },
+    [loadCircle],
+  );
+
+  const createInvitesBatch = useCallback(
+    async (input: {
+      relationType: RelationType;
+      people: { name?: string; phone: string }[];
+    }) => {
+      const { invites } = await api<{ invites: Invite[] }>("/api/invites/batch", {
+        method: "POST",
+        body: JSON.stringify(input),
+      });
+      await loadCircle();
+      return invites;
     },
     [loadCircle],
   );
@@ -603,7 +626,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const setLevel = useCallback(
     (id: string, level: TrustLevel) => {
       setPeople((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, level } : p)),
+        prev.map((p) =>
+          p.id === id ? { ...p, level, trustTouched: true } : p,
+        ),
       );
       const person = people.find((p) => p.id === id);
       if (!person || SEED_IDS.has(id) || person.inviteStatus === "pending") {
@@ -616,9 +641,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           trustGroup: level,
           relationType: person.relation,
         }),
-      }).catch(() => {});
+      })
+        .then(() => loadCircle())
+        .catch(() => {});
     },
-    [people],
+    [people, loadCircle],
   );
 
   const addListing = useCallback((input: NewListingInput) => {
@@ -846,6 +873,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       markThreadRead,
       addPerson,
       createInvite,
+      createInvitesBatch,
       getInvite,
       acceptInvite,
       revokeInvite,
@@ -901,6 +929,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       markThreadRead,
       addPerson,
       createInvite,
+      createInvitesBatch,
       getInvite,
       acceptInvite,
       revokeInvite,

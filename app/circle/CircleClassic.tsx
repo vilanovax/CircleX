@@ -18,10 +18,11 @@ import {
   effectiveInviteStatus,
   inviteUrl,
 } from "@/lib/invite";
-import { maskPhone } from "@/lib/phone";
+import { formatPhoneDisplay } from "@/lib/phone";
 import type { Invite, Person, TrustLevel } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
 import { useToast } from "@/components/Toast";
+import { relationLabels } from "@/lib/labels";
 
 const LEVELS: TrustLevel[] = ["A", "B", "C"];
 
@@ -73,12 +74,21 @@ export default function CircleClassic() {
   const { people, invites, me, setLevel, revokeInvite, hydrated } = useStore();
   const { show } = useToast();
   const mine = activeCircle(people);
-  const pendingInvites = invites.filter(
-    (inv) => effectiveInviteStatus(inv) === "pending",
-  );
+  const pendingInvites = useMemo(() => {
+    const live = invites.filter(
+      (inv) => effectiveInviteStatus(inv) === "pending",
+    );
+    return [...live].sort((a, b) => {
+      if (a.kind === "wave" && b.kind !== "wave") return -1;
+      if (a.kind !== "wave" && b.kind === "wave") return 1;
+      return 0;
+    });
+  }, [invites]);
   const [showAdd, setShowAdd] = useState(false);
   const [reshare, setReshare] = useState<Invite | null>(null);
   const [editing, setEditing] = useState<Person | null>(null);
+  const [placing, setPlacing] = useState(false);
+  const [moreInvite, setMoreInvite] = useState<Invite | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -92,6 +102,17 @@ export default function CircleClassic() {
       members: mine.filter((p) => p.level === lvl),
     })).filter((g) => g.members.length > 0);
   }, [mine]);
+
+  const unplaced = useMemo(
+    () =>
+      mine.filter((p) => {
+        if (p.trustTouched) return false;
+        if (!p.joinedAt) return false;
+        const age = Date.now() - new Date(p.joinedAt).getTime();
+        return age >= 0 && age < 14 * 24 * 60 * 60 * 1000;
+      }),
+    [mine],
+  );
 
   const emptyCircle = mine.length === 0 && pendingInvites.length === 0;
 
@@ -146,6 +167,25 @@ export default function CircleClassic() {
             <CardListSkeleton count={5} />
           ) : (
             <>
+              {unplaced.length > 0 && (
+                <div className="card px-3.5 py-3">
+                  <p className="text-[13px] font-bold text-ink dark:text-zinc-100 nums">
+                    {toPersianDigits(unplaced.length)} نفر تازه پیوسته‌اند
+                  </p>
+                  <p className="text-[12px] text-ink-muted mt-1 leading-relaxed">
+                    الان آگهی‌ات را می‌بینند. اگر خواستی جایگاهشان را عوض کن —
+                    اجباری نیست.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setPlacing(true)}
+                    className="mt-2.5 text-[13px] font-semibold text-brand-700 dark:text-brand-400"
+                  >
+                    تعیین جایگاه‌ها
+                  </button>
+                </div>
+              )}
+              {mine.length > 0 && (
               <div className="card overflow-hidden">
                 <h2 className="px-3.5 pt-3 pb-1 text-[13px] font-bold text-ink dark:text-zinc-100 nums">
                   اعضای حلقه
@@ -154,12 +194,7 @@ export default function CircleClassic() {
                     {toPersianDigits(mine.length)}
                   </span>
                 </h2>
-                {mine.length === 0 ? (
-                  <p className="px-3.5 pb-3 text-[12px] text-ink-muted leading-relaxed">
-                    هنوز کسی نپیوسته. دعوت‌های در انتظار پایین همین صفحه است.
-                  </p>
-                ) : (
-                  grouped.map(({ level, members }, i) => (
+                {grouped.map(({ level, members }, i) => (
                     <section
                       key={level}
                       className={i > 0 ? "border-t border-stone-100 dark:border-zinc-800" : ""}
@@ -181,31 +216,27 @@ export default function CircleClassic() {
                         ))}
                       </ul>
                     </section>
-                  ))
-                )}
+                  ))}
               </div>
+              )}
 
               {pendingInvites.length > 0 && (
                 <div className="card overflow-hidden">
-                  <h2 className="px-3.5 pt-3 pb-1 text-[13px] font-bold text-ink dark:text-zinc-100 nums">
-                    دعوت‌های در انتظار
-                    <span className="text-ink-muted font-semibold">
-                      {" · "}
+                  <div className="flex items-center gap-2 px-3.5 pt-3 pb-1">
+                    <h2 className="text-[13px] font-bold text-ink dark:text-zinc-100">
+                      دعوت‌های در انتظار
+                    </h2>
+                    <span className="inline-flex min-w-[1.25rem] h-5 px-1.5 items-center justify-center rounded-full bg-stone-100 dark:bg-zinc-800 text-[11px] font-bold text-ink-muted nums">
                       {toPersianDigits(pendingInvites.length)}
                     </span>
-                  </h2>
+                  </div>
                   <ul className="divide-y divide-stone-100 dark:divide-zinc-800">
                     {pendingInvites.map((inv) => (
                       <PendingInviteRow
                         key={inv.id}
                         invite={inv}
                         onReshare={() => setReshare(inv)}
-                        onRevoke={() => {
-                          void revokeInvite(inv.id).then(
-                            () => show("دعوت لغو شد"),
-                            () => show("لغو دعوت ممکن نشد"),
-                          );
-                        }}
+                        onMore={() => setMoreInvite(inv)}
                       />
                     ))}
                   </ul>
@@ -214,6 +245,7 @@ export default function CircleClassic() {
             </>
           )}
 
+          {mine.length > 0 && (
           <Link
             href="/graph"
             className="flex items-center gap-3 rounded-xl bg-brand-50/70 dark:bg-brand-500/10 px-3 py-2.5 active:opacity-80 transition-opacity"
@@ -233,6 +265,7 @@ export default function CircleClassic() {
               ‹
             </span>
           </Link>
+          )}
         </div>
       )}
 
@@ -262,6 +295,38 @@ export default function CircleClassic() {
                 onClick: () => setLevel(editing.id, prev),
               },
             });
+          }}
+        />
+      )}
+
+      {placing && unplaced.length > 0 && (
+        <PlaceTrustSheet
+          people={unplaced}
+          onClose={() => setPlacing(false)}
+          onPick={(person, lvl) => {
+            setLevel(person.id, lvl);
+            show(`${person.name} به «${SECTION_LABEL[lvl]}» منتقل شد.`);
+            if (unplaced.length <= 1) setPlacing(false);
+          }}
+        />
+      )}
+
+      {moreInvite && (
+        <InviteMoreSheet
+          invite={moreInvite}
+          onClose={() => setMoreInvite(null)}
+          onReshare={() => {
+            const inv = moreInvite;
+            setMoreInvite(null);
+            setReshare(inv);
+          }}
+          onRevoke={() => {
+            const id = moreInvite.id;
+            setMoreInvite(null);
+            void revokeInvite(id).then(
+              () => show("دعوت لغو شد"),
+              () => show("لغو دعوت ممکن نشد"),
+            );
           }}
         />
       )}
@@ -364,51 +429,187 @@ function GroupSheet({
   );
 }
 
+function PlaceTrustSheet({
+  people,
+  onClose,
+  onPick,
+}: {
+  people: Person[];
+  onClose: () => void;
+  onPick: (person: Person, level: TrustLevel) => void;
+}) {
+  return (
+    <SheetShell onClose={onClose} labelledBy="place-trust-title" zClass="z-50">
+      <h2
+        id="place-trust-title"
+        className="font-extrabold text-[1.1rem] text-ink dark:text-zinc-50"
+      >
+        جایگاه تازه‌واردها
+      </h2>
+      <p className="text-[12px] text-ink-muted mt-1 mb-3 leading-relaxed">
+        پیش‌فرض «افراد مورد اعتماد» است. این انتخاب فقط برای خودت است.
+      </p>
+      <ul className="space-y-3">
+        {people.map((person) => (
+          <li key={person.id}>
+            <p className="font-bold text-[13px] text-ink dark:text-zinc-100 mb-1.5">
+              {person.name}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {LEVELS.map((lvl) => {
+                const active = person.level === lvl;
+                return (
+                  <button
+                    key={lvl}
+                    type="button"
+                    onClick={() => onPick(person, lvl)}
+                    className={`chip !px-3 !py-1.5 min-h-10 border ${
+                      active
+                        ? "bg-brand-600 text-white border-brand-600"
+                        : "bg-[color:var(--circle-surface)] text-ink-muted border-stone-200 dark:border-zinc-700"
+                    }`}
+                  >
+                    {SECTION_LABEL[lvl]}
+                  </button>
+                );
+              })}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </SheetShell>
+  );
+}
+
+function inviteRowCopy(invite: Invite): { title: string; sub: string; isWave: boolean } {
+  const isWave = invite.kind === "wave";
+  const rawName = invite.invitedName?.trim() ?? "";
+  const name = rawName
+    .replace(/[0-9۰-۹+]/g, "")
+    .replace(/[،,]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (isWave) {
+    return {
+      title: `لینک ${relationLabels[invite.relationType]}`,
+      sub: `${toPersianDigits(invite.useCount)} از ${toPersianDigits(invite.maxUses)} پیوسته‌اند`,
+      isWave: true,
+    };
+  }
+  return {
+    title: name || (invite.invitedPhone ? formatPhoneDisplay(invite.invitedPhone) : "لینک دعوت"),
+    sub: name && invite.invitedPhone
+      ? formatPhoneDisplay(invite.invitedPhone)
+      : "هنوز نپیوسته",
+    isWave: false,
+  };
+}
+
 function PendingInviteRow({
   invite,
+  onReshare,
+  onMore,
+}: {
+  invite: Invite;
+  onReshare: () => void;
+  onMore: () => void;
+}) {
+  const { title, sub, isWave } = inviteRowCopy(invite);
+
+  return (
+    <li className="flex items-center gap-2 px-3.5 py-2.5">
+      <button
+        type="button"
+        onClick={onReshare}
+        className="min-w-0 flex-1 text-right active:opacity-80"
+      >
+        <span className="flex items-center gap-1.5 min-w-0">
+          <span className="font-bold text-[13px] text-ink dark:text-zinc-100 truncate">
+            {title}
+          </span>
+          {isWave && (
+            <span className="shrink-0 text-[10px] font-bold text-brand-700 dark:text-brand-400 bg-brand-50 dark:bg-brand-500/15 px-1.5 py-0.5 rounded-md">
+              گروهی
+            </span>
+          )}
+        </span>
+        <span className="block text-[11px] text-ink-muted mt-0.5 nums truncate">
+          {sub}
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={onReshare}
+        className="shrink-0 min-h-10 px-2.5 rounded-lg text-[12px] font-semibold text-brand-700 dark:text-brand-400 bg-brand-50 dark:bg-brand-500/15 active:scale-[0.98]"
+      >
+        فرستادن
+      </button>
+      <button
+        type="button"
+        onClick={onMore}
+        aria-label={`گزینه‌های بیشتر برای ${title}`}
+        className="shrink-0 w-10 h-10 rounded-lg text-ink-muted dark:text-zinc-400 active:bg-stone-100 dark:active:bg-zinc-800 flex items-center justify-center"
+      >
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+          <circle cx="12" cy="6" r="1.6" />
+          <circle cx="12" cy="12" r="1.6" />
+          <circle cx="12" cy="18" r="1.6" />
+        </svg>
+      </button>
+    </li>
+  );
+}
+
+function InviteMoreSheet({
+  invite,
+  onClose,
   onReshare,
   onRevoke,
 }: {
   invite: Invite;
+  onClose: () => void;
   onReshare: () => void;
   onRevoke: () => void;
 }) {
   const { show } = useToast();
-  const label = invite.invitedPhone
-    ? `دعوت برای ${maskPhone(invite.invitedPhone)}`
-    : "لینک دعوت";
+  const { title } = inviteRowCopy(invite);
 
   return (
-    <li className="px-3.5 py-2.5">
-      <p className="font-bold text-[13px] text-ink dark:text-zinc-100">{label}</p>
-      <p className="text-[11px] text-ink-muted mt-0.5">هنوز نپیوسته</p>
-      <div className="flex flex-wrap gap-1.5 mt-2">
+    <SheetShell onClose={onClose} labelledBy="invite-more-title" zClass="z-50">
+      <h2
+        id="invite-more-title"
+        className="font-extrabold text-[1.1rem] text-ink dark:text-zinc-50 truncate"
+      >
+        {title}
+      </h2>
+      <div className="mt-4 flex flex-col gap-2">
         <button
           type="button"
           onClick={onReshare}
-          className="text-[11px] font-semibold text-brand-700 dark:text-brand-400 px-2 py-1 rounded-lg bg-brand-50 dark:bg-brand-500/15"
+          className="btn-primary w-full min-h-12"
         >
-          اشتراک دوباره
+          فرستادن دوباره
         </button>
         <button
           type="button"
           onClick={async () => {
             const ok = await copyText(inviteUrl(invite.code));
             show(ok ? "لینک کپی شد" : "کپی ممکن نشد");
+            if (ok) onClose();
           }}
-          className="text-[11px] font-semibold text-ink-muted px-2 py-1 rounded-lg bg-stone-100 dark:bg-zinc-800"
+          className="w-full min-h-12 rounded-xl font-bold text-[15px] bg-stone-100 dark:bg-zinc-800 text-ink dark:text-zinc-100"
         >
           کپی لینک
         </button>
         <button
           type="button"
           onClick={onRevoke}
-          className="text-[11px] font-semibold text-red-600 px-2 py-1 rounded-lg"
+          className="w-full min-h-11 text-[13px] font-semibold text-ink-muted"
         >
           لغو دعوت
         </button>
       </div>
-    </li>
+    </SheetShell>
   );
 }
 

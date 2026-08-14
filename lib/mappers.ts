@@ -4,6 +4,7 @@ import type {
   InviteStatus as DbInviteStatus,
   User,
 } from "@prisma/client";
+import { relationLabels } from "./labels";
 import { maskPhone } from "./phone";
 import type { Invite, Person } from "./types";
 
@@ -13,8 +14,12 @@ export function toClientInvite(row: DbInvite): Invite {
     code: row.code,
     inviterUserId: row.inviterUserId,
     invitedPhone: row.invitedPhone ?? undefined,
+    invitedName: row.invitedName ?? undefined,
     relationType: row.relationType,
     trustGroup: row.trustGroup,
+    kind: row.kind,
+    maxUses: row.maxUses,
+    useCount: row.useCount,
     status: row.status,
     acceptedByUserId: row.acceptedByUserId ?? undefined,
     expiresAt: row.expiresAt.toISOString(),
@@ -25,7 +30,7 @@ export function toClientInvite(row: DbInvite): Invite {
 }
 
 export function effectiveDbInviteStatus(
-  row: Pick<DbInvite, "status" | "expiresAt">,
+  row: Pick<DbInvite, "status" | "expiresAt" | "kind" | "useCount" | "maxUses">,
   now = Date.now(),
 ): DbInviteStatus {
   if (row.status === "pending" && row.expiresAt.getTime() <= now) {
@@ -34,9 +39,18 @@ export function effectiveDbInviteStatus(
   return row.status;
 }
 
+export function inviteIsFull(
+  row: Pick<DbInvite, "kind" | "useCount" | "maxUses" | "status">,
+): boolean {
+  if (row.status === "accepted" && row.kind === "wave") return true;
+  return row.useCount >= row.maxUses;
+}
+
 export function memberFromEdge(
   edge: CircleEdge & { to: User },
 ): Person {
+  const touched =
+    Math.abs(edge.updatedAt.getTime() - edge.createdAt.getTime()) > 1500;
   return {
     id: edge.to.id,
     name: edge.to.name || "عضو حلقه",
@@ -47,15 +61,24 @@ export function memberFromEdge(
     city: edge.to.city ?? undefined,
     inMyCircle: true,
     inviteStatus: "joined",
+    trustTouched: touched,
+    joinedAt: edge.createdAt.toISOString(),
     phoneNormalized: undefined,
   };
 }
 
 export function pendingPersonFromInvite(invite: Invite): Person {
   const phone = invite.invitedPhone;
+  const name = invite.invitedName?.trim()
+    ? invite.invitedName.trim()
+    : invite.kind === "wave"
+      ? `لینک ${relationLabels[invite.relationType]}`
+      : phone
+        ? `دعوت برای ${maskPhone(phone)}`
+        : "لینک دعوت";
   return {
     id: invite.personId,
-    name: phone ? `دعوت برای ${maskPhone(phone)}` : "لینک دعوت",
+    name,
     avatar: "/avatars/01.webp",
     relation: invite.relationType,
     level: invite.trustGroup,

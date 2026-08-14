@@ -10,6 +10,8 @@ export const GROUP_PRIVATE_LINE =
 export const PENDING_INVITE_KEY = "circle-pending-invite";
 export const PENDING_INVITER_NAME_KEY = "circle-pending-invite-name";
 export const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const WAVE_MAX_USES = 10;
+export const WAVE_DEFAULT_TRUST = "B" as const;
 
 const CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
 
@@ -75,7 +77,8 @@ export type InviteViewKind =
   | "accepted"
   | "already"
   | "own"
-  | "pending";
+  | "pending"
+  | "full";
 
 export function whatsappShareHref(text: string, phone?: string): string {
   const n = phone ? normalizePhone(phone) : "";
@@ -155,8 +158,11 @@ export function resolvePublicInviteView(
   if (!invite) return "invalid";
   if (invite.status === "expired") return "expired";
   if (invite.status === "revoked") return "revoked";
-  if (invite.status === "accepted") return "accepted";
   if (invite.alreadyMember) return "already";
+  if (invite.full || (invite.kind === "wave" && invite.status === "accepted")) {
+    return "full";
+  }
+  if (invite.status === "accepted") return "accepted";
   if (opts.loggedIn && invite.isOwn && !opts.resumeAccept) return "own";
   return "pending";
 }

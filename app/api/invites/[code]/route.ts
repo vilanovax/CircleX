@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { jsonError } from "@/lib/http";
-import { effectiveDbInviteStatus } from "@/lib/mappers";
+import { effectiveDbInviteStatus, inviteIsFull } from "@/lib/mappers";
 import type { PublicInvitePayload } from "@/lib/mappers";
 import { getSessionUser } from "@/lib/server-auth";
 
@@ -42,9 +42,12 @@ export async function GET(
     alreadyMember = Boolean(edge);
   }
 
+  const full = inviteIsFull({ ...row, status });
+
   const payload: PublicInvitePayload = {
     code: row.code,
     status,
+    kind: row.kind,
     expiresAt: row.expiresAt.toISOString(),
     inviter: {
       name: row.inviter.name || "یک آشنا",
@@ -52,6 +55,7 @@ export async function GET(
     },
     isOwn,
     alreadyMember,
+    full,
   };
   return Response.json(payload);
 }

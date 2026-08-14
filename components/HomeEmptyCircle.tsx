@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import InviteSheet, { InviteSharePanel } from "@/components/InviteSheet";
+import InviteSheet from "@/components/InviteSheet";
 import ListingCard from "@/components/ListingCard";
 import { CircleUsersIcon } from "@/components/Icons";
 import { effectiveInviteStatus } from "@/lib/invite";
-import { maskPhone } from "@/lib/phone";
 import { toPersianDigits } from "@/lib/persian";
 import { useStore } from "@/lib/store";
-import type { Invite, Listing } from "@/lib/types";
+import type { Listing } from "@/lib/types";
+import { relationLabels } from "@/lib/labels";
 
 const PREVIEW_LIMIT = 2;
 
@@ -18,13 +18,13 @@ const PREVIEW_LIMIT = 2;
  * One job: invite the first person. Own listings sit apart from the feed.
  */
 export default function HomeEmptyCircle() {
-  const { listings, invites, me } = useStore();
+  const { listings, invites } = useStore();
   const [showInvite, setShowInvite] = useState(false);
-  const [reshare, setReshare] = useState<Invite | null>(null);
 
   const pending = invites.filter(
     (inv) => effectiveInviteStatus(inv) === "pending",
   );
+  const wave = pending.find((inv) => inv.kind === "wave");
   const mine = listings.filter((l) => l.sellerId === "me");
   const preview = mine.slice(0, PREVIEW_LIMIT);
   const rest = mine.length - preview.length;
@@ -74,18 +74,32 @@ export default function HomeEmptyCircle() {
       </div>
 
       {hasPending && (
-        <section>
-          <SectionHeading label="دعوت‌های در انتظار" count={pending.length} />
-          <ul className="card divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
-            {pending.map((inv) => (
-              <PendingInviteRow
-                key={inv.id}
-                invite={inv}
-                onReshare={() => setReshare(inv)}
-              />
-            ))}
-          </ul>
-        </section>
+        <Link
+          href="/circle"
+          className="card block px-3.5 py-3 active:scale-[0.99] transition-transform duration-150"
+        >
+          <div className="flex items-center gap-2">
+            <p className="text-[13px] font-bold text-ink dark:text-zinc-100">
+              دعوت‌های در انتظار
+            </p>
+            <span className="inline-flex min-w-[1.25rem] h-5 px-1.5 items-center justify-center rounded-full bg-stone-100 dark:bg-zinc-800 text-[11px] font-bold text-ink-muted nums">
+              {toPersianDigits(pending.length)}
+            </span>
+          </div>
+          <p className="text-[12px] text-ink-muted mt-1 leading-relaxed">
+            هنوز کسی نپیوسته.
+          </p>
+          {wave && (
+            <p className="text-[12px] text-ink-muted mt-1 nums">
+              لینک {relationLabels[wave.relationType]} ·{" "}
+              {toPersianDigits(wave.useCount)} از{" "}
+              {toPersianDigits(wave.maxUses)} پیوسته‌اند
+            </p>
+          )}
+          <p className="mt-2 text-[13px] font-semibold text-brand-700 dark:text-brand-400">
+            دیدن دعوت‌ها
+          </p>
+        </Link>
       )}
 
       {hasMine && (
@@ -108,13 +122,6 @@ export default function HomeEmptyCircle() {
       )}
 
       {showInvite && <InviteSheet onClose={() => setShowInvite(false)} />}
-      {reshare && (
-        <InviteSharePanel
-          invite={reshare}
-          inviterName={me.name}
-          onClose={() => setReshare(null)}
-        />
-      )}
     </div>
   );
 }
@@ -141,35 +148,5 @@ function OwnListingPreview({ listing }: { listing: Listing }) {
       showOpenHint
       audienceHint="فعلاً فقط خودت می‌بینی"
     />
-  );
-}
-
-function PendingInviteRow({
-  invite,
-  onReshare,
-}: {
-  invite: Invite;
-  onReshare: () => void;
-}) {
-  const label = invite.invitedPhone
-    ? `دعوت برای ${maskPhone(invite.invitedPhone)}`
-    : "لینک دعوت";
-
-  return (
-    <li className="flex items-center gap-3 px-3.5 py-2.5">
-      <div className="min-w-0 flex-1">
-        <p className="font-bold text-[13px] text-ink dark:text-zinc-100 truncate">
-          {label}
-        </p>
-        <p className="text-[11px] text-ink-muted mt-0.5">هنوز نپیوسته</p>
-      </div>
-      <button
-        type="button"
-        onClick={onReshare}
-        className="shrink-0 text-[12px] font-semibold text-brand-700 dark:text-brand-400 px-2.5 py-1.5 rounded-lg bg-brand-50 dark:bg-brand-500/15"
-      >
-        اشتراک دوباره
-      </button>
-    </li>
   );
 }

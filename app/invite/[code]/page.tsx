@@ -43,6 +43,10 @@ const ERROR_COPY: Record<
     title: "تو از قبل در این حلقه هستی",
     body: "نیازی به پذیرش دوباره نیست.",
   },
+  full: {
+    title: "سقف این لینک پر شده",
+    body: "از دعوت‌کننده بخواه لینک تازه‌ای بسازد.",
+  },
 };
 
 export default function InviteLandingPage() {
@@ -135,6 +139,7 @@ export default function InviteLandingPage() {
         else if (codeName === "revoked") setAcceptKind("revoked");
         else if (codeName === "accepted") setAcceptKind("accepted");
         else if (codeName === "already") setAcceptKind("already");
+        else if (codeName === "full") setAcceptKind("full");
         else setAcceptKind("invalid");
       }
     })();

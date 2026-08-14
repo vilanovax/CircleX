@@ -29,6 +29,11 @@ enum InviteStatus {
   revoked
 }
 
+enum InviteKind {
+  personal
+  wave
+}
+
 model User {
   id                 String    @id @default(cuid())
   phoneNormalized    String    @unique
@@ -41,10 +46,11 @@ model User {
 
   sessions        Session[]
   otpChallenges   OtpChallenge[]
-  invitesSent     Invite[]       @relation("Inviter")
-  invitesAccepted Invite[]       @relation("AcceptedBy")
-  edgesFrom       CircleEdge[]   @relation("EdgeFrom")
-  edgesTo         CircleEdge[]   @relation("EdgeTo")
+  invitesSent        Invite[]           @relation("Inviter")
+  invitesAccepted    Invite[]           @relation("AcceptedBy")
+  inviteAcceptances  InviteAcceptance[]
+  edgesFrom          CircleEdge[]       @relation("EdgeFrom")
+  edgesTo            CircleEdge[]       @relation("EdgeTo")
 
   @@index([phoneNormalized])
 }
@@ -79,8 +85,12 @@ model Invite {
   inviterUserId    String
   inviter          User         @relation("Inviter", fields: [inviterUserId], references: [id], onDelete: Cascade)
   invitedPhone     String?
+  invitedName      String?
   relationType     RelationType
   trustGroup       TrustGroup
+  kind             InviteKind   @default(personal)
+  maxUses          Int          @default(1)
+  useCount         Int          @default(0)
   status           InviteStatus @default(pending)
   acceptedByUserId String?
   acceptedBy       User?        @relation("AcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
@@ -88,9 +98,23 @@ model Invite {
   acceptedAt       DateTime?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
+  acceptances      InviteAcceptance[]
 
   @@index([inviterUserId, status])
   @@index([invitedPhone])
+}
+
+model InviteAcceptance {
+  id        String   @id @default(cuid())
+  inviteId  String
+  userId    String
+  createdAt DateTime @default(now())
+  invite    Invite   @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([inviteId, userId])
+  @@index([inviteId])
+  @@index([userId])
 }
 
 model CircleEdge {
