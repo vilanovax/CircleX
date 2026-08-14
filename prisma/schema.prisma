@@ -1,0 +1,110 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TrustGroup {
+  A
+  B
+  C
+}
+
+enum RelationType {
+  family
+  friend
+  colleague
+  neighbor
+  acquaintance
+}
+
+enum InviteStatus {
+  pending
+  accepted
+  expired
+  revoked
+}
+
+model User {
+  id                 String    @id @default(cuid())
+  phoneNormalized    String    @unique
+  name               String    @default("")
+  avatar             String    @default("")
+  city               String?
+  profileCompletedAt DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  sessions        Session[]
+  otpChallenges   OtpChallenge[]
+  invitesSent     Invite[]       @relation("Inviter")
+  invitesAccepted Invite[]       @relation("AcceptedBy")
+  edgesFrom       CircleEdge[]   @relation("EdgeFrom")
+  edgesTo         CircleEdge[]   @relation("EdgeTo")
+
+  @@index([phoneNormalized])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model OtpChallenge {
+  id              String   @id @default(cuid())
+  phoneNormalized String
+  codeHash        String
+  expiresAt       DateTime
+  attempts        Int      @default(0)
+  createdAt       DateTime @default(now())
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([phoneNormalized])
+}
+
+model Invite {
+  id               String       @id @default(cuid())
+  code             String       @unique
+  inviterUserId    String
+  inviter          User         @relation("Inviter", fields: [inviterUserId], references: [id], onDelete: Cascade)
+  invitedPhone     String?
+  relationType     RelationType
+  trustGroup       TrustGroup
+  status           InviteStatus @default(pending)
+  acceptedByUserId String?
+  acceptedBy       User?        @relation("AcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
+  expiresAt        DateTime
+  acceptedAt       DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([inviterUserId, status])
+  @@index([invitedPhone])
+}
+
+model CircleEdge {
+  id           String       @id @default(cuid())
+  fromUserId   String
+  toUserId     String
+  trustGroup   TrustGroup
+  relationType RelationType
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  from         User         @relation("EdgeFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  to           User         @relation("EdgeTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([fromUserId, toUserId])
+  @@index([fromUserId])
+  @@index([toUserId])
+}

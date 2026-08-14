@@ -1,23 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Avatar from "@/components/Avatar";
 import LoginGate from "@/components/LoginGate";
 import PlaceInviterSheet from "@/components/PlaceInviterSheet";
-import { isActiveCircleMember } from "@/lib/circle-member";
+import { api, ApiError } from "@/lib/api";
 import {
   PHONE_PRIVACY_LINE,
   clearPendingInviteCode,
   copyText,
   inviteUrl,
   peekPendingInviteCode,
-  resolveInviteView,
+  resolvePublicInviteView,
   stashPendingInviteCode,
   type InviteViewKind,
 } from "@/lib/invite";
 import { useStore } from "@/lib/store";
-import type { Person } from "@/lib/types";
+import type { Person, PublicInvite } from "@/lib/types";
 
 const ERROR_COPY: Record<
   Exclude<InviteViewKind, "pending" | "own">,
@@ -50,78 +50,107 @@ export default function InviteLandingPage() {
   const code = String(params.code ?? "");
   const router = useRouter();
   const {
-    me,
-    people,
     sessionPhone,
     profileCompletedAt,
     hydrated,
-    getInvite,
     acceptInvite,
     completeOnboarding,
     placePersonInMyCircle,
-    getPerson,
   } = useStore();
 
+  const [publicInvite, setPublicInvite] = useState<PublicInvite | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [placeTarget, setPlaceTarget] = useState<Person | null>(null);
+  const [acceptKind, setAcceptKind] = useState<InviteViewKind | null>(null);
   const acceptedOnce = useRef(false);
 
-  const invite = getInvite(code);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      if (!code) {
+        setLoaded(true);
+        return;
+      }
+      try {
+        const pub = await api<PublicInvite>(
+          `/api/invites/${encodeURIComponent(code)}`,
+        );
+        if (cancelled) return;
+        setPublicInvite(pub);
+      } catch {
+        if (cancelled) return;
+        setPublicInvite(null);
+      } finally {
+        if (!cancelled) setLoaded(true);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [code]);
+
   const resumeAccept =
     peekPendingInviteCode()?.toLowerCase() === code.toLowerCase();
 
-  const alreadyInCircle = useMemo(() => {
-    if (!invite?.invitedPhone) return false;
-    return people.some(
-      (p) =>
-        isActiveCircleMember(p) &&
-        p.phoneNormalized === invite.invitedPhone &&
-        p.id !== invite.personId,
-    );
-  }, [invite, people]);
-
-  const kind = resolveInviteView(invite, {
-    loggedIn: Boolean(sessionPhone),
-    isInviter: invite?.inviterUserId === "me",
-    resumeAccept,
-    alreadyInCircle,
-  });
+  const kind =
+    acceptKind ??
+    resolvePublicInviteView(publicInvite, {
+      loggedIn: Boolean(sessionPhone),
+      resumeAccept,
+    });
 
   useEffect(() => {
-    if (kind === "pending" && !sessionPhone) {
-      stashPendingInviteCode(code);
+    if (
+      publicInvite &&
+      publicInvite.status === "pending" &&
+      !publicInvite.isOwn &&
+      !sessionPhone
+    ) {
+      stashPendingInviteCode(code, publicInvite.inviter.name);
     }
-  }, [kind, sessionPhone, code]);
+  }, [publicInvite, sessionPhone, code]);
 
   useEffect(() => {
-    if (!hydrated || !sessionPhone || !profileCompletedAt) return;
-    if (kind !== "pending" || !invite) return;
+    if (!hydrated || !loaded || !sessionPhone || !profileCompletedAt) return;
+    if (kind !== "pending" || !publicInvite) return;
     if (acceptedOnce.current) return;
     acceptedOnce.current = true;
-    const result = acceptInvite(code);
-    clearPendingInviteCode();
-    completeOnboarding();
-    if (!result || result.inviterUserId === "me") {
-      router.replace("/circle");
-      return;
-    }
-    const inviter = getPerson(result.inviterUserId);
-    if (inviter) setPlaceTarget(inviter);
-    else router.replace("/circle");
+    void (async () => {
+      try {
+        const result = await acceptInvite(code);
+        clearPendingInviteCode();
+        completeOnboarding();
+        if (!result) {
+          setAcceptKind("own");
+          return;
+        }
+        setPlaceTarget(result.inviter);
+      } catch (err) {
+        clearPendingInviteCode();
+        const codeName = err instanceof ApiError ? err.code : undefined;
+        if (codeName === "own") setAcceptKind("own");
+        else if (codeName === "expired") setAcceptKind("expired");
+        else if (codeName === "revoked") setAcceptKind("revoked");
+        else if (codeName === "accepted") setAcceptKind("accepted");
+        else if (codeName === "already") setAcceptKind("already");
+        else setAcceptKind("invalid");
+      }
+    })();
   }, [
     hydrated,
+    loaded,
     sessionPhone,
     profileCompletedAt,
     kind,
-    invite,
+    publicInvite,
     code,
     acceptInvite,
     completeOnboarding,
-    getPerson,
-    router,
   ]);
 
-  if (!hydrated) {
+  if (!hydrated || !loaded) {
     return (
       <main className="min-h-[100dvh] flex items-center justify-center">
         <p className="text-[12px] text-ink-faint">در حال آماده‌سازی…</p>
@@ -130,13 +159,24 @@ export default function InviteLandingPage() {
   }
 
   if (!sessionPhone && showLogin) {
-    return <LoginGate inviteFrom={{ name: me.name }} />;
+    return (
+      <LoginGate
+        inviteFrom={
+          publicInvite ? { name: publicInvite.inviter.name } : null
+        }
+      />
+    );
   }
 
-  if (kind === "own" && invite) {
+  if (kind === "own" && publicInvite) {
     return (
       <InviteFrame>
-        <Avatar name={me.name} src={me.avatar} size="lg" showLevel={false} />
+        <Avatar
+          name={publicInvite.inviter.name}
+          src={publicInvite.inviter.avatar}
+          size="lg"
+          showLevel={false}
+        />
         <h1 className="mt-4 text-lg font-extrabold text-ink dark:text-zinc-50">
           این لینک دعوت خودت است
         </h1>
@@ -144,13 +184,13 @@ export default function InviteLandingPage() {
           dir="ltr"
           className="mt-3 w-full rounded-xl bg-stone-50 dark:bg-zinc-800 px-3 py-2.5 text-[12px] break-all text-left"
         >
-          {inviteUrl(invite.code)}
+          {inviteUrl(publicInvite.code)}
         </p>
         <button
           type="button"
           className="btn-primary w-full mt-4"
           onClick={async () => {
-            const ok = await copyText(inviteUrl(invite.code));
+            const ok = await copyText(inviteUrl(publicInvite.code));
             if (!ok) return;
           }}
         >
@@ -191,12 +231,20 @@ export default function InviteLandingPage() {
     );
   }
 
+  const inviterName = publicInvite?.inviter.name ?? "یک آشنا";
+  const inviterAvatar = publicInvite?.inviter.avatar;
+
   return (
     <>
       <InviteFrame>
-        <Avatar name={me.name} src={me.avatar} size="lg" showLevel={false} />
+        <Avatar
+          name={inviterName}
+          src={inviterAvatar}
+          size="lg"
+          showLevel={false}
+        />
         <h1 className="mt-4 text-lg font-extrabold text-ink dark:text-zinc-50 leading-snug">
-          {me.name} دعوتت کرده به حلقه‌اش بپیوندی.
+          {inviterName} دعوتت کرده به حلقه‌اش بپیوندی.
         </h1>
         <p className="text-sm text-ink-muted mt-2.5 leading-relaxed">
           اینجا فقط کسانی را می‌بینی که از مسیر آدم‌های مورد اعتمادت به تو
@@ -207,7 +255,9 @@ export default function InviteLandingPage() {
             type="button"
             className="btn-primary w-full mt-5"
             onClick={() => {
-              stashPendingInviteCode(code);
+              if (publicInvite) {
+                stashPendingInviteCode(code, publicInvite.inviter.name);
+              }
               setShowLogin(true);
             }}
           >
@@ -230,9 +280,10 @@ export default function InviteLandingPage() {
             router.replace("/circle");
           }}
           onPlace={(input) => {
-            placePersonInMyCircle(placeTarget.id, input);
-            setPlaceTarget(null);
-            router.replace("/circle");
+            void placePersonInMyCircle(placeTarget.id, input).then(() => {
+              setPlaceTarget(null);
+              router.replace("/circle");
+            });
           }}
         />
       )}

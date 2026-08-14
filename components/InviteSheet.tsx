@@ -50,22 +50,31 @@ function CheckMark({ className }: { className?: string }) {
 
 export default function InviteSheet({ onClose }: { onClose: () => void }) {
   const { me, createInvite } = useStore();
+  const { show } = useToast();
   const [relation, setRelation] = useState<RelationType>("friend");
   const [level, setLevel] = useState<TrustLevel>("B");
   const [phoneInput, setPhoneInput] = useState("");
   const [created, setCreated] = useState<Invite | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const phone = phoneInput ? normalizePhone(phoneInput) : "";
   const phoneOk = !phone || isValidIranMobile(phone);
 
-  function onCreate() {
-    if (!phoneOk) return;
-    const invite = createInvite({
-      relationType: relation,
-      trustGroup: level,
-      invitedPhone: phone || undefined,
-    });
-    setCreated(invite);
+  async function onCreate() {
+    if (!phoneOk || creating) return;
+    setCreating(true);
+    try {
+      const invite = await createInvite({
+        relationType: relation,
+        trustGroup: level,
+        invitedPhone: phone || undefined,
+      });
+      setCreated(invite);
+    } catch {
+      show("ساخت لینک ممکن نشد");
+    } finally {
+      setCreating(false);
+    }
   }
 
   if (created) {
@@ -87,11 +96,11 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
         <div className="flex flex-col gap-1 pb-1">
           <button
             type="button"
-            disabled={!phoneOk}
-            onClick={onCreate}
+            disabled={!phoneOk || creating}
+            onClick={() => void onCreate()}
             className="btn-primary w-full min-h-12"
           >
-            ساخت لینک دعوت
+            {creating ? "در حال ساخت…" : "ساخت لینک دعوت"}
           </button>
           <button
             type="button"

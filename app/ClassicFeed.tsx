@@ -14,6 +14,7 @@ import { useStore } from "@/lib/store";
 import ListingCard from "@/components/ListingCard";
 import BottomNav from "@/components/BottomNav";
 import NewUserHomePlaceholder from "@/components/NewUserHomePlaceholder";
+import HomeEmptyCircle from "@/components/HomeEmptyCircle";
 import { lazyUi } from "@/lib/lazy-ui";
 import FeedFilterBar from "@/components/FeedFilterBar";
 import { FeedSkeleton } from "@/components/Skeleton";
@@ -103,6 +104,9 @@ export default function ClassicFeed() {
   }
 
   const circleCount = activeCircle(people).length;
+  const isNewUser = hydrated && !onboarded;
+  const emptyCircle = hydrated && onboarded && circleCount === 0;
+  const quietChrome = isNewUser || emptyCircle;
 
   const { allowed, hidden } = useMemo(() => {
     const { visible, hidden } = filterByAccess(listings, getPerson);
@@ -141,8 +145,7 @@ export default function ClassicFeed() {
     filter === "all" &&
     query.trim().length === 0 &&
     circleScope === "all";
-  const showSecondary = browsingAll && hydrated && onboarded;
-  const isNewUser = hydrated && !onboarded;
+  const showSecondary = browsingAll && hydrated && onboarded && !emptyCircle;
   const scopeLabel =
     SCOPE_OPTIONS.find((o) => o.key === circleScope)?.label ?? "همهٔ حلقه";
 
@@ -165,21 +168,22 @@ export default function ClassicFeed() {
                 سیرکل
               </h1>
             </div>
-            <div className="relative flex-1 min-w-0">
-              <SearchIcon className="w-[16px] h-[16px] text-ink-faint absolute top-1/2 -translate-y-1/2 right-2.5" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="جستجو…"
-                aria-label="جستجو در حلقه‌ی شما"
-                disabled={isNewUser}
-                className="field !pr-9 !py-2 !px-3 text-sm !border-stone-200/80 dark:!border-zinc-700 disabled:opacity-60"
-              />
-            </div>
+            {!quietChrome && (
+              <div className="relative flex-1 min-w-0">
+                <SearchIcon className="w-[16px] h-[16px] text-ink-faint absolute top-1/2 -translate-y-1/2 right-2.5" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="جستجو…"
+                  aria-label="جستجو در حلقه‌ی شما"
+                  className="field !pr-9 !py-2 !px-3 text-sm !border-stone-200/80 dark:!border-zinc-700"
+                />
+              </div>
+            )}
           </div>
         </div>
 
-        {!isNewUser && (
+        {!quietChrome && (
           <FeedFilterBar
             filter={filter}
             onFilter={(next) => startTransition(() => setFilter(next))}
@@ -190,6 +194,8 @@ export default function ClassicFeed() {
 
       {isNewUser ? (
         <NewUserHomePlaceholder />
+      ) : emptyCircle ? (
+        <HomeEmptyCircle />
       ) : (
         <>
           {showConceptTip && (
@@ -199,7 +205,7 @@ export default function ClassicFeed() {
                   خرید، فروش و کمک گرفتن از آدم‌های مورد اعتماد
                 </p>
                 <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-snug pe-7">
-                  همه‌چیز از حلقهٔ شما می‌آید، نه از غریبه‌ها.
+                  همه‌چیز از حلقهٔ تو می‌آید، نه از غریبه‌ها.
                 </p>
                 <button
                   type="button"
@@ -222,35 +228,6 @@ export default function ClassicFeed() {
               >
                 سیرکل چطور کار می‌کند؟
               </button>
-            </div>
-          )}
-
-          {/* Quick access — only while circle is still small */}
-          {circleCount <= 2 && (
-            <div className="grid grid-cols-2 gap-2.5 px-4 pt-3">
-              <Shortcut href="/requests" emoji="🔎" label="درخواست‌ها" tint="bg-amber-50 dark:bg-amber-500/15 text-amber-600" />
-              <Shortcut href="/events" emoji="🎉" label="رویدادها" tint="bg-brand-50 dark:bg-brand-500/15 text-brand-600" />
-            </div>
-          )}
-
-          {/* Empty circle CTA — after onboarding, before anyone is added */}
-          {hydrated && circleCount === 0 && (
-            <div className="px-4 pt-4">
-              <div className="card p-4 text-center">
-                <div className="w-12 h-12 rounded-full bg-brand-50 dark:bg-brand-500/15 text-brand-600 flex items-center justify-center mx-auto mb-2">
-                  <CircleUsersIcon className="w-6 h-6" />
-                </div>
-                <p className="font-bold text-sm text-zinc-800 dark:text-zinc-100">
-                  اول حلقه را بسازید
-                </p>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
-                  با افزودن خانواده و دوستان، آگهی‌ها و رویدادهای آن‌ها
-                  اینجا ظاهر می‌شود.
-                </p>
-                <Link href="/circle?invite=1" className="btn-primary inline-block mt-3">
-                  افزودن به حلقه
-                </Link>
-              </div>
             </div>
           )}
 
@@ -293,7 +270,7 @@ export default function ClassicFeed() {
               ))
             )}
 
-            {hidden > 0 && (
+            {hidden > 0 && circleCount > 0 && (
               <button
                 type="button"
                 className="flex items-center justify-center gap-2 text-[12px] font-medium text-ink-muted dark:text-zinc-400 py-2 w-full"
@@ -464,32 +441,6 @@ function CircleScopeControl({
         </>
       )}
     </div>
-  );
-}
-
-function Shortcut({
-  href,
-  emoji,
-  icon,
-  label,
-  tint,
-}: {
-  href: string;
-  emoji?: string;
-  icon?: React.ReactNode;
-  label: string;
-  tint: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="card p-3 flex flex-col items-center gap-1.5 active:scale-[0.97] transition-transform"
-    >
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${tint}`}>
-        {icon ?? emoji}
-      </div>
-      <p className="text-xs font-bold text-zinc-800 dark:text-zinc-100">{label}</p>
-    </Link>
   );
 }
 

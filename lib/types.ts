@@ -199,6 +199,26 @@ export interface Listing {
 
 export type InviteStatus = "pending" | "accepted" | "expired" | "revoked";
 
+/** Server session payload. Client `me.id` stays `"me"`. */
+export type SessionUser = {
+  id: string;
+  phoneNormalized: string;
+  name: string;
+  avatar: string;
+  city: string | null;
+  profileCompletedAt: string | null;
+};
+
+/** Public invite landing — never includes trust group or relation. */
+export type PublicInvite = {
+  code: string;
+  status: InviteStatus;
+  expiresAt: string;
+  inviter: { name: string; avatar: string };
+  isOwn: boolean;
+  alreadyMember: boolean;
+};
+
 /** Directed invite from the current user to someone not yet (or just) joined. */
 export interface Invite {
   id: string;

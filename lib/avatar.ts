@@ -19,6 +19,26 @@ export const AVATAR_IMAGES = Array.from(
   (_, i) => `/avatars/${String(i + 1).padStart(2, "0")}.webp`,
 );
 
+/** Ten distinct pool faces for the identity sheet picker. */
+export const PICKER_AVATARS = [
+  "/avatars/01.webp",
+  "/avatars/02.webp",
+  "/avatars/04.webp",
+  "/avatars/05.webp",
+  "/avatars/07.webp",
+  "/avatars/08.webp",
+  "/avatars/11.webp",
+  "/avatars/14.webp",
+  "/avatars/18.webp",
+  "/avatars/22.webp",
+] as const;
+
+export function pickPickerAvatar(seed: string): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash += seed.charCodeAt(i);
+  return PICKER_AVATARS[hash % PICKER_AVATARS.length];
+}
+
 /** Prefix a public `/…` path with Next `basePath` (e.g. `/circle`). */
 export function withBasePath(path: string): string {
   if (!path.startsWith("/")) return path;

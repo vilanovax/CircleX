@@ -9,6 +9,8 @@ import {
   useState,
 } from "react";
 import { useStore } from "@/lib/store";
+import { api, ApiError } from "@/lib/api";
+import type { SessionUser } from "@/lib/types";
 import {
   formatPhoneDisplay,
   isValidIranMobile,
@@ -83,14 +85,25 @@ export default function LoginGate({
   function requestCode(nextPhone: string) {
     setSending(true);
     setError(null);
-    window.setTimeout(() => {
-      setPhone(nextPhone);
-      setStep("otp");
-      setOtpDigits(Array.from({ length: OTP_LEN }, () => ""));
-      setResendIn(RESEND_SECONDS);
-      setSending(false);
-      verifyLock.current = false;
-    }, 450);
+    void (async () => {
+      try {
+        await api("/api/auth/request-otp", {
+          method: "POST",
+          body: JSON.stringify({ phone: nextPhone }),
+        });
+        setPhone(nextPhone);
+        setStep("otp");
+        setOtpDigits(Array.from({ length: OTP_LEN }, () => ""));
+        setResendIn(RESEND_SECONDS);
+        verifyLock.current = false;
+      } catch (err) {
+        flashError(
+          err instanceof ApiError ? err.message : "ارسال کد ممکن نشد",
+        );
+      } finally {
+        setSending(false);
+      }
+    })();
   }
 
   function onSubmitPhone(e: FormEvent) {
@@ -113,20 +126,31 @@ export default function LoginGate({
     verifyLock.current = true;
     setVerifying(true);
     setError(null);
-    window.setTimeout(() => {
-      if (code !== SAMPLE_OTP) {
-        flashError(
-          `کد نادرست است. برای نمونه ${toPersianDigits(SAMPLE_OTP)} را بزنید`,
+    void (async () => {
+      try {
+        const { user } = await api<{ user: SessionUser }>(
+          "/api/auth/verify-otp",
+          {
+            method: "POST",
+            body: JSON.stringify({ phone, code }),
+          },
         );
-        setVerifying(false);
+        await completeLogin(user);
+      } catch (err) {
+        flashError(
+          err instanceof ApiError && err.code === "invalid_code"
+            ? `کد نادرست است. برای نمونه ${toPersianDigits(SAMPLE_OTP)} را بزنید`
+            : err instanceof ApiError
+              ? err.message
+              : "ورود ممکن نشد",
+        );
         verifyLock.current = false;
         setOtpDigits(Array.from({ length: OTP_LEN }, () => ""));
         requestAnimationFrame(() => otpRefs.current[0]?.focus());
-        return;
+      } finally {
+        setVerifying(false);
       }
-      completeLogin(phone);
-      setVerifying(false);
-    }, 400);
+    })();
   }
 
   function onSubmitOtp(e: FormEvent) {

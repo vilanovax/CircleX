@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useStore } from "@/lib/store";
 import LoginGate from "@/components/LoginGate";
 import WhoAreYouSheet from "@/components/WhoAreYouSheet";
-import { peekPendingInviteCode } from "@/lib/invite";
+import { peekPendingInviteName } from "@/lib/invite";
 
 /**
  * App-wide auth shell. Invite landing stays public. After OTP, identity
@@ -16,8 +16,6 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
   const hydrated = useStore((s) => s.hydrated);
   const sessionPhone = useStore((s) => s.sessionPhone);
   const profileCompletedAt = useStore((s) => s.profileCompletedAt);
-  const me = useStore((s) => s.me);
-  const getInvite = useStore((s) => s.getInvite);
 
   const isInviteLanding = pathname.startsWith("/invite/");
 
@@ -40,11 +38,8 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
 
   if (!sessionPhone) {
     if (isInviteLanding) return <>{children}</>;
-    const code = peekPendingInviteCode();
-    const invite = code ? getInvite(code) : undefined;
-    return (
-      <LoginGate inviteFrom={invite ? { name: me.name } : null} />
-    );
+    const name = peekPendingInviteName();
+    return <LoginGate inviteFrom={name ? { name } : null} />;
   }
 
   if (!profileCompletedAt) {

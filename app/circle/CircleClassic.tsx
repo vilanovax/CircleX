@@ -201,8 +201,10 @@ export default function CircleClassic() {
                         invite={inv}
                         onReshare={() => setReshare(inv)}
                         onRevoke={() => {
-                          revokeInvite(inv.id);
-                          show("دعوت لغو شد");
+                          void revokeInvite(inv.id).then(
+                            () => show("دعوت لغو شد"),
+                            () => show("لغو دعوت ممکن نشد"),
+                          );
                         }}
                       />
                     ))}

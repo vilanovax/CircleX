@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 
 const FOCUSABLE_SELECTOR =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -29,6 +29,11 @@ export function useSheetA11y(
   const enabled = options?.enabled ?? true;
   const autoFocus = options?.autoFocus ?? true;
 
+  const onCloseRef = useRef(onClose);
+  const onEscapeRef = useRef(onEscape);
+  onCloseRef.current = onClose;
+  onEscapeRef.current = onEscape;
+
   useEffect(() => {
     if (!enabled) return;
     const current = panelRef.current;
@@ -47,8 +52,8 @@ export function useSheetA11y(
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.preventDefault();
-        if (onEscape?.()) return;
-        onClose();
+        if (onEscapeRef.current?.()) return;
+        onCloseRef.current();
         return;
       }
       if (e.key !== "Tab") return;
@@ -81,5 +86,5 @@ export function useSheetA11y(
       document.removeEventListener("keydown", onKeyDown);
       previouslyFocused?.focus?.();
     };
-  }, [autoFocus, enabled, onClose, onEscape, panelRef]);
+  }, [autoFocus, enabled, panelRef]);
 }

@@ -1,23 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useId, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import SheetShell from "@/components/SheetShell";
-import Avatar from "@/components/Avatar";
-import { CameraIcon } from "@/components/Icons";
-import { AVATAR_IMAGES } from "@/lib/avatar";
+import {
+  PICKER_AVATARS,
+  pickPickerAvatar,
+  withBasePath,
+} from "@/lib/avatar";
 import { peekPendingInviteCode } from "@/lib/invite";
-import { processListingPhoto } from "@/lib/listing-image";
 import { useStore } from "@/lib/store";
-
-function poolAvatar(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = (hash + name.charCodeAt(i)) % AVATAR_IMAGES.length;
-  }
-  return AVATAR_IMAGES[hash] ?? AVATAR_IMAGES[0];
-}
 
 /**
  * First identity sheet after OTP. Cannot be dismissed. If a pending invite
@@ -25,50 +18,61 @@ function poolAvatar(name: string): string {
  */
 export default function WhoAreYouSheet() {
   const router = useRouter();
-  const { me, completeProfile } = useStore();
-  const [name, setName] = useState(me.name === "من" ? "" : me.name);
-  const [avatar, setAvatar] = useState<string | null>(null);
+  const me = useStore((s) => s.me);
+  const completeProfile = useStore((s) => s.completeProfile);
+  const nameId = useId();
+  const avatarGroupId = useId();
+
+  const [name, setName] = useState(() => me.name.trim());
+  const [avatar, setAvatar] = useState(
+    () => pickPickerAvatar(me.phoneNormalized || me.phone || "circle"),
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [nameEl, setNameEl] = useState<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const ready = name.trim().length >= 2;
+  useEffect(() => {
+    if (!mounted || !nameEl) return;
+    const frame = requestAnimationFrame(() => nameEl.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [mounted, nameEl]);
 
-  function finish(nextAvatar?: string) {
+  const ready = name.trim().length >= 2;
+  const pendingInvite = Boolean(peekPendingInviteCode());
+
+  async function finish() {
     const trimmed = name.trim();
     if (trimmed.length < 2) {
       setError("نام را حداقل با دو حرف بنویس");
+      nameEl?.focus();
       return;
     }
-    completeProfile({
-      name: trimmed,
-      avatar: nextAvatar ?? avatar ?? poolAvatar(trimmed),
-    });
-    const code = peekPendingInviteCode();
-    if (code) router.replace(`/invite/${code}`);
-  }
-
-  async function onPickFile(file: File | undefined) {
-    if (!file) return;
     setBusy(true);
     setError(null);
     try {
-      const dataUrl = await processListingPhoto(file);
-      setAvatar(dataUrl);
+      await completeProfile({
+        name: trimmed,
+        avatar,
+      });
+      const code = peekPendingInviteCode();
+      if (code) router.replace(`/invite/${code}`);
     } catch {
-      setError("خواندن عکس ممکن نشد.");
+      setError("ذخیره نام ممکن نشد. دوباره امتحان کن.");
+      nameEl?.focus();
     } finally {
       setBusy(false);
     }
   }
 
-  const previewName = name.trim() || "تو";
-  const previewSrc = avatar ?? undefined;
+  function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    void finish();
+  }
 
   if (!mounted) return null;
 
@@ -80,82 +84,110 @@ export default function WhoAreYouSheet() {
       zClass="z-[60]"
       backdropClassName="bg-ink/55 backdrop-blur-[6px]"
       onEscape={() => true}
+      autoFocus={false}
+      showHandle={false}
       footer={
-        <div className="flex flex-col gap-2 pb-1">
-          <button
-            type="button"
-            disabled={!ready || busy}
-            onClick={() => finish()}
-            className="btn-primary w-full min-h-12 !py-3.5 text-base"
-          >
-            ادامه
-          </button>
-          <button
-            type="button"
-            disabled={!ready || busy}
-            onClick={() => finish(poolAvatar(name.trim()))}
-            className="min-h-11 text-sm font-semibold text-ink-muted dark:text-zinc-400"
-          >
-            فعلاً بدون عکس ادامه می‌دهم
-          </button>
-        </div>
+        <button
+          type="submit"
+          form="who-are-you-form"
+          disabled={!ready || busy}
+          className="btn-primary w-full min-h-12 !py-3.5 text-base active:scale-[0.98]"
+        >
+          {busy ? "در حال ذخیره…" : pendingInvite ? "ادامه و پیوستن" : "ادامه"}
+        </button>
       }
     >
-      <div className="pt-1 pb-2 text-center">
+      <form id="who-are-you-form" onSubmit={onSubmit} className="pt-2 pb-1">
         <h2
           id="who-are-you-title"
-          className="text-[1.25rem] font-extrabold text-ink dark:text-zinc-50"
+          className="text-[1.35rem] font-extrabold text-ink dark:text-zinc-50 leading-snug"
         >
           خودت را معرفی کن
         </h2>
-        <p className="text-sm text-ink-muted dark:text-zinc-300 leading-relaxed mt-2 px-1">
-          این نام را افرادی که با تو ارتباط دارند می‌بینند.
+        <p className="text-[13px] text-ink-muted dark:text-zinc-400 leading-relaxed mt-1.5">
+          این نام را حلقه‌ات می‌بیند — نه غریبه‌ها.
         </p>
 
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          disabled={busy}
-          className="relative mx-auto mt-5 block"
-          aria-label="انتخاب عکس"
+        <label
+          htmlFor={nameId}
+          className="block text-start text-[13px] font-semibold mt-6 mb-1.5 text-ink dark:text-zinc-200"
         >
-          <Avatar name={previewName} src={previewSrc} size="lg" showLevel={false} />
-          <span className="absolute bottom-0 left-0 w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center ring-2 ring-[color:var(--circle-surface)]">
-            <CameraIcon className="w-4 h-4" />
-          </span>
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="sr-only"
-          onChange={(e) => {
-            void onPickFile(e.target.files?.[0]);
-            e.target.value = "";
-          }}
-        />
-        <p className="text-[12px] text-ink-faint mt-2">عکس اختیاری است</p>
-
-        <label className="block text-start text-sm font-medium mt-5 mb-1 text-ink dark:text-zinc-200">
           نام
         </label>
         <input
+          id={nameId}
+          ref={setNameEl}
           value={name}
           onChange={(e) => {
             setError(null);
             setName(e.target.value);
           }}
-          placeholder="مثلاً آرش"
+          placeholder="مثلاً سارا"
           autoComplete="name"
-          className="field text-start"
+          autoCapitalize="words"
+          spellCheck={false}
+          enterKeyHint="done"
+          name="given-name"
+          disabled={busy}
+          className="field text-start text-[1.05rem] min-h-12 font-semibold"
           aria-invalid={!!error}
+          aria-describedby={error ? "who-are-you-error" : undefined}
         />
         {error && (
-          <p role="alert" className="text-[12px] text-red-600 mt-2 text-start">
+          <p
+            id="who-are-you-error"
+            role="alert"
+            className="text-[12px] text-red-600 mt-2 text-start"
+          >
             {error}
           </p>
         )}
-      </div>
+
+        <p
+          id={avatarGroupId}
+          className="text-start text-[13px] font-semibold mt-6 mb-1 text-ink dark:text-zinc-200"
+        >
+          تصویر
+        </p>
+        <p className="text-start text-[11px] text-ink-muted mb-3 leading-snug">
+          یکی را بزن — یکی از قبل برایت انتخاب شده
+        </p>
+        <div
+          role="radiogroup"
+          aria-labelledby={avatarGroupId}
+          className="grid grid-cols-5 gap-2.5"
+        >
+          {PICKER_AVATARS.map((src, i) => {
+            const selected = avatar === src;
+            return (
+              <button
+                key={src}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                aria-label={`تصویر ${i + 1}`}
+                disabled={busy}
+                onClick={() => setAvatar(src)}
+                className={`relative aspect-square rounded-full overflow-hidden bg-zinc-100 dark:bg-zinc-800 transition-transform active:scale-95 ${
+                  selected
+                    ? "ring-[2.5px] ring-brand-600 ring-offset-2 ring-offset-[color:var(--circle-surface)] dark:ring-offset-zinc-900"
+                    : "ring-1 ring-black/10 dark:ring-white/10"
+                }`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={withBasePath(src)}
+                  alt=""
+                  width={64}
+                  height={64}
+                  className="w-full h-full object-cover"
+                  draggable={false}
+                />
+              </button>
+            );
+          })}
+        </div>
+      </form>
     </SheetShell>,
     document.body,
   );

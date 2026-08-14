@@ -9,11 +9,8 @@ import {
 } from "react";
 import { createContext, useContextSelector } from "use-context-selector";
 import { AVATAR_IMAGES } from "./avatar";
-import {
-  INVITE_TTL_MS,
-  newInviteCode,
-  newUuid,
-} from "./invite";
+import { api, ApiError } from "./api";
+import { newUuid } from "./invite";
 import { isListingPhoto } from "./listing-image";
 import {
   EVENTS,
@@ -24,7 +21,6 @@ import {
   PEOPLE,
   REQUESTS,
 } from "./mock-data";
-import { maskPhone, normalizePhone } from "./phone";
 import type {
   BadgeType,
   CircleEvent,
@@ -38,6 +34,7 @@ import type {
   Privacy,
   RelationType,
   Request,
+  SessionUser,
   TrustLevel,
 } from "./types";
 
@@ -124,15 +121,17 @@ export interface StoreValue {
     relationType: RelationType;
     trustGroup: TrustLevel;
     invitedPhone?: string;
-  }) => Invite;
+  }) => Promise<Invite>;
   getInvite: (code: string) => Invite | undefined;
-  acceptInvite: (code: string) => Invite | null;
-  revokeInvite: (id: string) => void;
+  acceptInvite: (
+    code: string,
+  ) => Promise<{ invite: Invite; inviter: Person } | null>;
+  revokeInvite: (id: string) => Promise<void>;
   placePersonInMyCircle: (
     id: string,
     input: { level: TrustLevel; relation: RelationType },
-  ) => void;
-  completeProfile: (input: { name: string; avatar?: string }) => void;
+  ) => Promise<void>;
+  completeProfile: (input: { name: string; avatar?: string }) => Promise<void>;
   /** Mark an existing network person as part of my circle. */
   addToCircle: (
     id: string,
@@ -152,22 +151,37 @@ export interface StoreValue {
   toggleSaved: (listingId: string) => void;
   isSaved: (listingId: string) => boolean;
   completeOnboarding: () => void;
-  /** Mark session authenticated after mock OTP (sample code 12345). */
-  completeLogin: (phone: string) => void;
-  signOut: () => void;
+  /** Apply the server user after OTP verify. */
+  completeLogin: (user: SessionUser) => Promise<void>;
+  signOut: () => Promise<void>;
+  meServerId: string | null;
+  refreshCircle: () => Promise<void>;
   updateProfile: (input: Partial<Pick<Person, "name" | "avatar" | "city">>) => void;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
 
 const STORAGE_KEY = "circle-store-v2";
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 const AVATAR_POOL = AVATAR_IMAGES;
+const SEED_IDS = new Set(PEOPLE.map((p) => p.id));
+
+function networkSeed(): Person[] {
+  return PEOPLE.map((p) => ({
+    ...p,
+    inMyCircle: false,
+    inviteStatus: undefined,
+  }));
+}
+
+function blankMe(): Person {
+  return { ...ME, name: "", profileCompletedAt: null };
+}
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [meProfile, setMeProfile] = useState<Person>(ME);
-  const [people, setPeople] = useState<Person[]>(PEOPLE);
+  const [meProfile, setMeProfile] = useState<Person>(blankMe);
+  const [people, setPeople] = useState<Person[]>(networkSeed);
   const [listings, setListings] = useState<Listing[]>(LISTINGS);
   const [requests, setRequests] = useState<Request[]>(REQUESTS);
   const [offers, setOffers] = useState<Offer[]>(OFFERS);
@@ -176,125 +190,140 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [saved, setSaved] = useState<string[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [sessionPhone, setSessionPhone] = useState<string | null>(null);
+  const [meServerId, setMeServerId] = useState<string | null>(null);
   const [onboarded, setOnboarded] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [profileCompletedAt, setProfileCompletedAt] = useState<string | null>(
     null,
   );
 
-  // Load any persisted state on mount.
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const data = JSON.parse(raw);
-        if (data.me && typeof data.me === "object") {
-          const savedMe = data.me as Person;
-          const completed =
-            typeof savedMe.profileCompletedAt === "string"
-              ? savedMe.profileCompletedAt
-              : typeof data.profileCompletedAt === "string"
-                ? data.profileCompletedAt
-                : null;
-          setMeProfile({
-            ...savedMe,
-            name:
-              savedMe.name === "من" && !completed ? ME.name : savedMe.name,
-            avatar: savedMe.avatar || ME.avatar,
-            profileCompletedAt: completed,
-          });
-          if (completed) setProfileCompletedAt(completed);
-        }
-        if (Array.isArray(data.people)) {
-          setPeople(
-            data.people.map((p: Person) => {
-              const seed = PEOPLE.find((s) => s.id === p.id);
-              if (!seed) {
-                return {
-                  ...p,
-                  inviteStatus: p.inviteStatus ?? "joined",
-                };
-              }
-              return {
-                ...p,
-                avatar: seed.avatar,
-                name: seed.name,
-                note: seed.note ?? p.note,
-                inviteStatus: p.inviteStatus ?? "joined",
-              };
-            }),
-          );
-        }
-        if (Array.isArray(data.listings)) {
-          setListings(
-            data.listings.map((l: Listing) => {
-              const seed = LISTINGS.find((s) => s.id === l.id);
-              if (!seed) return l;
-              return {
-                ...l,
-                image: isListingPhoto(l.image) ? l.image : seed.image,
-                images: l.images?.length ? l.images : seed.images,
-                specs: seed.specs ?? l.specs,
-                description: seed.description,
-                condition: seed.condition ?? l.condition,
-              };
-            }),
-          );
-        }
-        if (Array.isArray(data.requests)) {
-          setRequests(
-            data.requests.map((r: Request) => ({
-              ...r,
-              endorsements: r.endorsements ?? [],
-            })),
-          );
-        }
-        if (Array.isArray(data.offers)) setOffers(data.offers);
-        if (Array.isArray(data.messages)) setMessages(data.messages);
-        if (Array.isArray(data.events)) {
-          setEvents(
-            data.events.map((e: CircleEvent) => ({
-              ...e,
-              endorsements: e.endorsements ?? [],
-            })),
-          );
-        }
-        if (Array.isArray(data.saved)) setSaved(data.saved);
-        if (Array.isArray(data.invites)) {
-          const now = Date.now();
-          setInvites(
-            (data.invites as Invite[]).map((inv) => {
-              if (
-                inv.status === "pending" &&
-                new Date(inv.expiresAt).getTime() <= now
-              ) {
-                return { ...inv, status: "expired" as const };
-              }
-              return inv;
-            }),
-          );
-        }
-        if (typeof data.onboarded === "boolean") setOnboarded(data.onboarded);
-        if (typeof data.profileCompletedAt === "string") {
-          setProfileCompletedAt(data.profileCompletedAt);
-        } else if (data.onboarded && !data.profileCompletedAt) {
-          const stamp = new Date().toISOString();
-          setProfileCompletedAt(stamp);
-        }
-        // New field; migrate prior demos that already finished onboarding.
-        if (typeof data.sessionPhone === "string" && data.sessionPhone.length > 0) {
-          setSessionPhone(data.sessionPhone);
-        } else if (data.onboarded) {
-          setSessionPhone("09121234567");
-        }
-      }
-    } catch {
-      // ignore corrupt storage
-    }
-    setHydrated(true);
+  const applyUserLocal = useCallback((user: SessionUser) => {
+    setMeServerId(user.id);
+    setSessionPhone(user.phoneNormalized);
+    setProfileCompletedAt(user.profileCompletedAt);
+    setMeProfile((prev) => ({
+      ...prev,
+      id: "me",
+      name: user.name,
+      avatar: user.avatar || prev.avatar || ME.avatar,
+      city: user.city ?? prev.city,
+      phone: user.phoneNormalized,
+      phoneNormalized: user.phoneNormalized,
+      profileCompletedAt: user.profileCompletedAt,
+    }));
   }, []);
 
-  // Persist on change (after first hydration so we don't overwrite with defaults).
+  const loadCircle = useCallback(async () => {
+    const data = await api<{
+      members: Person[];
+      pending: Invite[];
+      pendingPeople: Person[];
+    }>("/api/circle");
+    setInvites(data.pending);
+    setPeople(() => {
+      const overlayIds = new Set([
+        ...data.members.map((m) => m.id),
+        ...data.pendingPeople.map((p) => p.id),
+      ]);
+      const seed = networkSeed().filter((p) => !overlayIds.has(p.id));
+      return [...data.members, ...data.pendingPeople, ...seed];
+    });
+  }, []);
+
+  // Load persisted marketplace state, then overlay the cookie session.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function boot() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const data = JSON.parse(raw);
+          if (Array.isArray(data.people)) {
+            const restored = (data.people as Person[])
+              .map((p) => {
+                const seed = PEOPLE.find((s) => s.id === p.id);
+                if (seed) {
+                  return {
+                    ...p,
+                    avatar: seed.avatar,
+                    name: seed.name,
+                    note: seed.note ?? p.note,
+                    inMyCircle: false,
+                    inviteStatus: undefined,
+                  };
+                }
+                if (p.inviteStatus === "pending") return null;
+                return p;
+              })
+              .filter((p): p is Person => Boolean(p));
+            if (!cancelled) setPeople(restored.length ? restored : networkSeed());
+          }
+          if (Array.isArray(data.listings)) {
+            setListings(
+              data.listings.map((l: Listing) => {
+                const seed = LISTINGS.find((s) => s.id === l.id);
+                if (!seed) return l;
+                return {
+                  ...l,
+                  image: isListingPhoto(l.image) ? l.image : seed.image,
+                  images: l.images?.length ? l.images : seed.images,
+                  specs: seed.specs ?? l.specs,
+                  description: seed.description,
+                  condition: seed.condition ?? l.condition,
+                };
+              }),
+            );
+          }
+          if (Array.isArray(data.requests)) {
+            setRequests(
+              data.requests.map((r: Request) => ({
+                ...r,
+                endorsements: r.endorsements ?? [],
+              })),
+            );
+          }
+          if (Array.isArray(data.offers)) setOffers(data.offers);
+          if (Array.isArray(data.messages)) setMessages(data.messages);
+          if (Array.isArray(data.events)) {
+            setEvents(
+              data.events.map((e: CircleEvent) => ({
+                ...e,
+                endorsements: e.endorsements ?? [],
+              })),
+            );
+          }
+          if (Array.isArray(data.saved)) setSaved(data.saved);
+          if (typeof data.onboarded === "boolean") setOnboarded(data.onboarded);
+        }
+      } catch {
+        // ignore corrupt storage
+      }
+
+      try {
+        const { user } = await api<{ user: SessionUser }>("/api/me");
+        if (cancelled) return;
+        applyUserLocal(user);
+        await loadCircle();
+      } catch {
+        if (cancelled) return;
+        setSessionPhone(null);
+        setMeServerId(null);
+        setProfileCompletedAt(null);
+        setMeProfile(blankMe());
+        setInvites([]);
+        setPeople(networkSeed());
+      }
+      if (!cancelled) setHydrated(true);
+    }
+
+    void boot();
+    return () => {
+      cancelled = true;
+    };
+  }, [applyUserLocal, loadCircle]);
+
+  // Persist marketplace slices only — identity lives on the server cookie.
   useEffect(() => {
     if (!hydrated) return;
     try {
@@ -302,7 +331,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         STORAGE_KEY,
         JSON.stringify({
           schemaVersion: SCHEMA_VERSION,
-          me: meProfile,
           people,
           listings,
           requests,
@@ -310,17 +338,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           messages,
           events,
           saved,
-          invites,
-          sessionPhone,
           onboarded,
-          profileCompletedAt,
         }),
       );
     } catch {
       // ignore quota errors
     }
   }, [
-    meProfile,
     people,
     listings,
     requests,
@@ -328,12 +352,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     messages,
     events,
     saved,
-    sessionPhone,
     onboarded,
-    profileCompletedAt,
-    invites,
     hydrated,
   ]);
+
+  useEffect(() => {
+    if (!hydrated || !sessionPhone) return;
+    const onVis = () => {
+      if (document.visibilityState === "visible") void loadCircle();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onVis);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onVis);
+    };
+  }, [hydrated, sessionPhone, loadCircle]);
 
   const getPerson = useCallback(
     (id: string) => (id === "me" ? meProfile : people.find((p) => p.id === id)),
@@ -458,50 +492,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const createInvite = useCallback(
-    (input: {
+    async (input: {
       relationType: RelationType;
       trustGroup: TrustLevel;
       invitedPhone?: string;
     }) => {
-      const id = newUuid();
-      const code = newInviteCode();
-      const personId = newUuid();
-      const now = Date.now();
-      const phone = input.invitedPhone
-        ? normalizePhone(input.invitedPhone)
-        : undefined;
-      const invite: Invite = {
-        id,
-        code,
-        inviterUserId: "me",
-        invitedPhone: phone,
-        relationType: input.relationType,
-        trustGroup: input.trustGroup,
-        status: "pending",
-        expiresAt: new Date(now + INVITE_TTL_MS).toISOString(),
-        createdAt: new Date(now).toISOString(),
-        personId,
-      };
-      setPeople((prev) => {
-        const person: Person = {
-          id: personId,
-          name: phone ? `دعوت برای ${maskPhone(phone)}` : "لینک دعوت",
-          avatar: AVATAR_POOL[prev.length % AVATAR_POOL.length],
-          relation: input.relationType,
-          level: input.trustGroup,
-          deals: 0,
-          city: ME.city,
-          inMyCircle: true,
-          inviteStatus: "pending",
-          phone,
-          phoneNormalized: phone,
-        };
-        return [person, ...prev];
+      const { invite } = await api<{ invite: Invite }>("/api/invites", {
+        method: "POST",
+        body: JSON.stringify(input),
       });
-      setInvites((prev) => [invite, ...prev]);
+      await loadCircle();
       return invite;
     },
-    [],
+    [loadCircle],
   );
 
   const getInvite = useCallback(
@@ -511,100 +514,63 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const acceptInvite = useCallback(
-    (code: string) => {
-      const invite = invites.find(
-        (i) => i.code.toLowerCase() === code.toLowerCase(),
-      );
-      if (!invite || invite.status !== "pending") return null;
-      if (new Date(invite.expiresAt).getTime() <= Date.now()) {
-        setInvites((prev) =>
-          prev.map((i) =>
-            i.id === invite.id ? { ...i, status: "expired" as const } : i,
-          ),
+    async (code: string) => {
+      try {
+        const data = await api<{ invite: Invite; inviter: Person }>(
+          `/api/invites/${encodeURIComponent(code)}/accept`,
+          { method: "POST" },
         );
-        return null;
+        await loadCircle();
+        setPeople((prev) => {
+          if (prev.some((p) => p.id === data.inviter.id)) return prev;
+          return [{ ...data.inviter, inMyCircle: false }, ...prev];
+        });
+        return data;
+      } catch (err) {
+        if (err instanceof ApiError && err.code === "own") return null;
+        throw err;
       }
-      const acceptedAt = new Date().toISOString();
-      setInvites((prev) =>
-        prev.map((i) =>
-          i.id === invite.id
-            ? {
-                ...i,
-                status: "accepted" as const,
-                acceptedAt,
-                acceptedByUserId: "me",
-              }
-            : i,
-        ),
-      );
-      // Same-browser mock: invitee is `me`. Drop the placeholder so you
-      // don't appear in your own circle.
-      setPeople((prev) => prev.filter((p) => p.id !== invite.personId));
-      return {
-        ...invite,
-        status: "accepted" as const,
-        acceptedAt,
-        acceptedByUserId: "me",
-      };
     },
-    [invites],
+    [loadCircle],
   );
 
-  const revokeInvite = useCallback((id: string) => {
-    setInvites((prev) => {
-      const inv = prev.find((i) => i.id === id);
-      if (inv) {
-        setPeople((peoplePrev) =>
-          peoplePrev.filter((p) => p.id !== inv.personId),
-        );
-      }
-      return prev.map((i) =>
-        i.id === id ? { ...i, status: "revoked" as const } : i,
-      );
-    });
-  }, []);
+  const revokeInvite = useCallback(
+    async (id: string) => {
+      await api(`/api/invites/${encodeURIComponent(id)}/revoke`, {
+        method: "POST",
+      });
+      await loadCircle();
+    },
+    [loadCircle],
+  );
 
   const placePersonInMyCircle = useCallback(
-    (
+    async (
       id: string,
       input: { level: TrustLevel; relation: RelationType },
     ) => {
-      setPeople((prev) => {
-        const existing = prev.find((p) => p.id === id);
-        if (existing) {
-          return prev.map((p) =>
-            p.id === id
-              ? {
-                  ...p,
-                  inMyCircle: true,
-                  inviteStatus: "joined" as const,
-                  level: input.level,
-                  relation: input.relation,
-                }
-              : p,
-          );
-        }
-        return prev;
+      await api("/api/circle/edges", {
+        method: "POST",
+        body: JSON.stringify({
+          toUserId: id,
+          trustGroup: input.level,
+          relationType: input.relation,
+        }),
       });
+      await loadCircle();
     },
-    [],
+    [loadCircle],
   );
 
   const completeProfile = useCallback(
-    (input: { name: string; avatar?: string }) => {
-      const stamp = new Date().toISOString();
-      setProfileCompletedAt(stamp);
-      setMeProfile((prev) => ({
-        ...prev,
-        name: input.name.trim(),
-        avatar: input.avatar || prev.avatar,
-        profileCompletedAt: stamp,
-        phoneNormalized: sessionPhone
-          ? normalizePhone(sessionPhone)
-          : prev.phoneNormalized,
-      }));
+    async (input: { name: string; avatar?: string }) => {
+      const { user } = await api<{ user: SessionUser }>("/api/me", {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      });
+      applyUserLocal(user);
     },
-    [sessionPhone],
+    [applyUserLocal],
   );
 
   const addToCircle = useCallback(
@@ -634,11 +600,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setPeople((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
-  const setLevel = useCallback((id: string, level: TrustLevel) => {
-    setPeople((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, level } : p)),
-    );
-  }, []);
+  const setLevel = useCallback(
+    (id: string, level: TrustLevel) => {
+      setPeople((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, level } : p)),
+      );
+      const person = people.find((p) => p.id === id);
+      if (!person || SEED_IDS.has(id) || person.inviteStatus === "pending") {
+        return;
+      }
+      void api("/api/circle/edges", {
+        method: "POST",
+        body: JSON.stringify({
+          toUserId: id,
+          trustGroup: level,
+          relationType: person.relation,
+        }),
+      }).catch(() => {});
+    },
+    [people],
+  );
 
   const addListing = useCallback((input: NewListingInput) => {
     const id = `new_${Date.now()}`;
@@ -804,19 +785,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const completeOnboarding = useCallback(() => setOnboarded(true), []);
 
-  const completeLogin = useCallback((phone: string) => {
-    const normalized = normalizePhone(phone);
-    setSessionPhone(normalized);
-    setMeProfile((prev) => ({
-      ...prev,
-      phone: normalized,
-      phoneNormalized: normalized,
-    }));
-  }, []);
+  const completeLogin = useCallback(
+    async (user: SessionUser) => {
+      applyUserLocal(user);
+      try {
+        await loadCircle();
+      } catch {
+        setPeople(networkSeed());
+        setInvites([]);
+      }
+    },
+    [applyUserLocal, loadCircle],
+  );
 
-  const signOut = useCallback(() => {
+  const signOut = useCallback(async () => {
+    try {
+      await api("/api/auth/logout", { method: "POST" });
+    } catch {
+      // cookie clear still happens locally
+    }
     setSessionPhone(null);
+    setMeServerId(null);
+    setProfileCompletedAt(null);
     setOnboarded(false);
+    setMeProfile(blankMe());
+    setInvites([]);
+    setPeople(networkSeed());
   }, []);
 
   const value = useMemo<StoreValue>(
@@ -871,6 +865,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       completeOnboarding,
       completeLogin,
       signOut,
+      meServerId,
+      refreshCircle: loadCircle,
       updateProfile,
     }),
     [
@@ -924,6 +920,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       completeOnboarding,
       completeLogin,
       signOut,
+      meServerId,
+      loadCircle,
       updateProfile,
     ],
   );

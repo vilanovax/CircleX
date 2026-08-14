@@ -18,6 +18,7 @@ export default function SheetShell({
   closeOnBackdrop = true,
   backdropClassName,
   autoFocus = true,
+  showHandle = true,
 }: {
   onClose: () => void;
   labelledBy: string;
@@ -29,8 +30,10 @@ export default function SheetShell({
   /** When false, backdrop clicks do nothing (Escape still uses onEscape/onClose). */
   closeOnBackdrop?: boolean;
   backdropClassName?: string;
-  /** When false, caller manages initial focus (e.g. step titles). */
+  /** When false, caller manages initial focus (step titles). */
   autoFocus?: boolean;
+  /** Drag handle. Hide on sheets that cannot be dismissed. */
+  showHandle?: boolean;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   useSheetA11y(panelRef, onClose, { onEscape, autoFocus });
@@ -54,7 +57,11 @@ export default function SheetShell({
           style={{ maxHeight }}
           className="absolute bottom-0 inset-x-0 bg-[color:var(--circle-surface)] dark:bg-zinc-900 rounded-t-[1.35rem] pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] animate-slide-up overflow-hidden outline-none shadow-[0_-8px_40px_rgba(26,24,22,0.12)] flex flex-col"
         >
-          <div className="w-9 h-1 bg-stone-300/80 dark:bg-zinc-600 rounded-full mx-auto mb-3 shrink-0" />
+          {showHandle ? (
+            <div className="w-9 h-1 bg-stone-300/80 dark:bg-zinc-600 rounded-full mx-auto mb-3 shrink-0" />
+          ) : (
+            <div className="h-1 shrink-0" />
+          )}
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
             {children}
           </div>

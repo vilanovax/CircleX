@@ -1,6 +1,6 @@
 import { withBasePath } from "./avatar";
 import { normalizePhone } from "./phone";
-import type { Invite } from "./types";
+import type { Invite, PublicInvite } from "./types";
 
 export const PHONE_PRIVACY_LINE =
   "شماره‌ات به افراد دیگر نمایش داده نمی‌شود.";
@@ -8,6 +8,7 @@ export const GROUP_PRIVATE_LINE =
   "گروهی که انتخاب می‌کنی فقط برای خودت قابل مشاهده است.";
 
 export const PENDING_INVITE_KEY = "circle-pending-invite";
+export const PENDING_INVITER_NAME_KEY = "circle-pending-invite-name";
 export const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
@@ -47,14 +48,24 @@ export function peekPendingInviteCode(): string | null {
   return v || null;
 }
 
-export function stashPendingInviteCode(code: string) {
+export function stashPendingInviteCode(code: string, inviterName?: string) {
   if (typeof window === "undefined") return;
   sessionStorage.setItem(PENDING_INVITE_KEY, code);
+  if (inviterName?.trim()) {
+    sessionStorage.setItem(PENDING_INVITER_NAME_KEY, inviterName.trim());
+  }
+}
+
+export function peekPendingInviteName(): string | null {
+  if (typeof window === "undefined") return null;
+  const v = sessionStorage.getItem(PENDING_INVITER_NAME_KEY)?.trim();
+  return v || null;
 }
 
 export function clearPendingInviteCode() {
   if (typeof window === "undefined") return;
   sessionStorage.removeItem(PENDING_INVITE_KEY);
+  sessionStorage.removeItem(PENDING_INVITER_NAME_KEY);
 }
 
 export type InviteViewKind =
@@ -131,5 +142,21 @@ export function resolveInviteView(
   if (status === "accepted") return "accepted";
   if (opts.alreadyInCircle) return "already";
   if (opts.loggedIn && opts.isInviter && !opts.resumeAccept) return "own";
+  return "pending";
+}
+
+export function resolvePublicInviteView(
+  invite: PublicInvite | null,
+  opts: {
+    loggedIn: boolean;
+    resumeAccept?: boolean;
+  },
+): InviteViewKind {
+  if (!invite) return "invalid";
+  if (invite.status === "expired") return "expired";
+  if (invite.status === "revoked") return "revoked";
+  if (invite.status === "accepted") return "accepted";
+  if (invite.alreadyMember) return "already";
+  if (opts.loggedIn && invite.isOwn && !opts.resumeAccept) return "own";
   return "pending";
 }

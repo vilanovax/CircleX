@@ -371,9 +371,10 @@ export default function ClassicProfile() {
                 <button
                   type="button"
                   onClick={() => {
-                    signOut();
-                    show("خارج شدید — دوباره وارد شوید");
-                    router.replace("/");
+                    void signOut().then(() => {
+                      show("خارج شدید — دوباره وارد شوید");
+                      router.replace("/");
+                    });
                   }}
                   className="w-full text-[13px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 rounded-xl py-3.5 active:scale-[0.99] transition-transform"
                 >

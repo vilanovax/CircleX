@@ -13,12 +13,18 @@ export default function ListingCard({
   listing,
   compactTrust = false,
   hideTrust = false,
+  audienceHint,
+  showOpenHint = false,
 }: {
   listing: Listing;
   /** One-line trust row for feed (default). Full box on detail-adjacent views. */
   compactTrust?: boolean;
   /** Hide trust banner — e.g. on the poster's own profile page. */
   hideTrust?: boolean;
+  /** Visibility status inside the card (empty-circle own listings). */
+  audienceHint?: string;
+  /** Small chevron so the card reads as tappable. */
+  showOpenHint?: boolean;
 }) {
   const { people } = useStore();
   const circle = activeCircle(people);
@@ -60,6 +66,20 @@ export default function ListingCard({
               )}
             </div>
           </div>
+          {showOpenHint && (
+            <svg
+              className="w-4 h-4 shrink-0 text-ink-faint dark:text-zinc-500"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M15 6l-6 6 6 6" />
+            </svg>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5 text-[11px] text-ink-muted dark:text-zinc-400 mt-2.5 pt-2 border-t border-stone-200/50 dark:border-zinc-800">
@@ -69,7 +89,7 @@ export default function ListingCard({
           </span>
           <span className="shrink-0">{listing.postedAt}</span>
           {/* Feed: privacy lives on the detail page — keep the footer to place + time. */}
-          {!compactTrust && (
+          {!compactTrust && !audienceHint && (
             <span
               className="mr-auto max-w-[9.5rem] truncate text-[10px] text-ink-muted dark:text-zinc-500"
               title={privacyAudience(listing.privacy, circle)}
@@ -78,6 +98,11 @@ export default function ListingCard({
             </span>
           )}
         </div>
+        {audienceHint && (
+          <p className="mt-2 text-[11px] font-semibold text-ink-muted dark:text-zinc-400 leading-snug">
+            {audienceHint}
+          </p>
+        )}
       </Link>
     </article>
   );
