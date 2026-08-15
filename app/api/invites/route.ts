@@ -5,6 +5,7 @@ import { inviteExpectedInclude, toClientInvite } from "@/lib/mappers";
 import { isValidIranMobile, normalizePhone } from "@/lib/phone";
 import { createInviteRecord } from "@/lib/server-invite";
 import { getSessionUser } from "@/lib/server-auth";
+import { seedFamilyCircle } from "@/lib/server-family-seed";
 import type { InviteKind, RelationType, TrustGroup } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -119,6 +120,10 @@ export async function POST(req: Request) {
     people,
   });
   if (!invite) return jsonError("ساخت لینک ممکن نشد", 500);
+
+  if (relationType === "family") {
+    await seedFamilyCircle(session.id, session.phoneNormalized);
+  }
 
   return Response.json({ invite: toClientInvite(invite) }, { status: 201 });
 }

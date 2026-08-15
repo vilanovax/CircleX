@@ -82,6 +82,13 @@ export interface TrustHop {
   relationLabel: string;
 }
 
+/** Undirected peer link for the trust map (DB edges among the network). */
+export interface NetworkLink {
+  fromId: string;
+  toId: string;
+  relationType: RelationType;
+}
+
 /** A "wanted" post — someone in the circle is looking for something. */
 export interface Request {
   id: string;
@@ -199,6 +206,8 @@ export interface Listing {
   city?: string;
   /** Soft deal state after buyer interest (mock marketplace flow). */
   dealStatus?: "available" | "reserved" | "agreed";
+  /** True when this row came from the home feed (no gallery/specs). */
+  feedPreview?: boolean;
 }
 
 export type InviteStatus = "pending" | "accepted" | "expired" | "revoked";

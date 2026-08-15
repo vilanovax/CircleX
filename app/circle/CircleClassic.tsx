@@ -103,7 +103,15 @@ export default function CircleClassic() {
     acceptJoinRequest,
     rejectJoinRequest,
     hydrated,
+    circleReady,
+    circleFull,
+    refreshCircle,
   } = useStore();
+
+  useEffect(() => {
+    if (!circleReady || circleFull) return;
+    void refreshCircle();
+  }, [circleReady, circleFull, refreshCircle]);
   const { show } = useToast();
   const mine = activeCircle(people);
   const pendingInvites = useMemo(() => {

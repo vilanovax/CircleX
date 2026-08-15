@@ -42,7 +42,7 @@ export default function TrustHighlight({
   /** Live listing count for this seller — compact feed chip. */
   moreCount?: number;
 }) {
-  const { getPerson } = useStore();
+  const getPerson = useStore((s) => s.getPerson);
   const trust = trustHighlightMessage(
     posterId,
     trustPath,

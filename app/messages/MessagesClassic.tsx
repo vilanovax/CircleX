@@ -29,6 +29,7 @@ export default function MessagesClassic() {
     listings,
     requests,
     getPerson,
+    networkLinks,
     getThread,
     getListing,
     threadPeers,
@@ -51,7 +52,14 @@ export default function MessagesClassic() {
   }, [hydrated, peers.length, unreadTotal]);
 
   const viaById = useMemo(() => {
-    const graph = buildTrustGraph(people, listings, requests, getPerson);
+    const graph = buildTrustGraph(
+      people,
+      listings,
+      requests,
+      getPerson,
+      undefined,
+      networkLinks,
+    );
     const map: Record<string, string> = {};
     for (const n of graph.nodes) {
       if (n.id === "me" || n.inCircle) continue;
@@ -61,7 +69,7 @@ export default function MessagesClassic() {
       if (name) map[n.id] = name;
     }
     return map;
-  }, [people, listings, requests, getPerson]);
+  }, [people, listings, requests, getPerson, networkLinks]);
 
   const rows = useMemo(() => {
     const q = query.trim();

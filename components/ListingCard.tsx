@@ -16,6 +16,7 @@ export default function ListingCard({
   audienceHint,
   showOpenHint = false,
   moreCount,
+  imagePriority = false,
 }: {
   listing: Listing;
   /** One-line trust row for feed (default). Full box on detail-adjacent views. */
@@ -28,9 +29,11 @@ export default function ListingCard({
   showOpenHint?: boolean;
   /** Total live posts from this seller — shown as a chip next to the name. */
   moreCount?: number;
+  /** LCP: first visible feed photo. */
+  imagePriority?: boolean;
 }) {
-  const { people } = useStore();
-  const circle = activeCircle(people);
+  const people = useStore((s) => (compactTrust ? null : s.people));
+  const circle = people ? activeCircle(people) : [];
   const isService = listing.type === "service";
 
   return (
@@ -59,6 +62,7 @@ export default function ListingCard({
             size="md"
             category={listing.category}
             type={listing.type}
+            priority={imagePriority}
           />
           <div className="min-w-0 flex-1">
             <h3

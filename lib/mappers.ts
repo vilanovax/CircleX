@@ -19,6 +19,7 @@ import type {
   ListingType,
   Person,
   Privacy,
+  TrustHop,
 } from "./types";
 
 export const inviteExpectedInclude = {
@@ -136,9 +137,48 @@ export function relativePostedAt(date: Date, now = Date.now()): string {
   return `${toPersianDigits(Math.floor(days / 30))} ماه پیش`;
 }
 
+export function toHomeListing(
+  row: Pick<
+    MarketListing,
+    | "id"
+    | "title"
+    | "description"
+    | "type"
+    | "price"
+    | "category"
+    | "image"
+    | "sellerId"
+    | "createdAt"
+    | "privacy"
+    | "city"
+  >,
+  viewerId?: string,
+  trustPath: TrustHop[] = [],
+): Listing {
+  const description = row.description.trim();
+  return {
+    id: row.id,
+    title: row.title,
+    description:
+      description.length > 180 ? `${description.slice(0, 180).trim()}…` : description,
+    type: row.type as ListingType,
+    price: row.price ?? undefined,
+    category: row.category,
+    image: row.image,
+    sellerId: viewerId && row.sellerId === viewerId ? "me" : row.sellerId,
+    postedAt: relativePostedAt(row.createdAt),
+    privacy: (row.privacy as Privacy) || "ABC",
+    endorsements: [],
+    trustPath,
+    city: row.city ?? undefined,
+    feedPreview: true,
+  };
+}
+
 export function toClientListing(
   row: MarketListing,
   viewerId?: string,
+  trustPath: TrustHop[] = [],
 ): Listing {
   const images = row.images.length > 0 ? row.images : [row.image];
   return {
@@ -155,7 +195,7 @@ export function toClientListing(
     condition: row.condition ?? undefined,
     privacy: (row.privacy as Privacy) || "ABC",
     endorsements: [],
-    trustPath: [],
+    trustPath,
     city: row.city ?? undefined,
     specs: parseSpecs(row.specs),
     dealStatus: parseDealStatus(row.dealStatus),

@@ -31,5 +31,7 @@ export const vazirmatn = localFont({
   ],
   variable: "--font-vazir",
   display: "swap",
-  preload: true,
+  // Don't preload all five files on the critical path — the browser
+  // fetches Regular from CSS, then Bold/ExtraBold as headings appear.
+  preload: false,
 });

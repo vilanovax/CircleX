@@ -1,3 +1,4 @@
+import { canViewListing, listingTrustPath } from "@/lib/circle-network";
 import { prisma } from "@/lib/db";
 import { jsonError, readJson } from "@/lib/http";
 import { toClientListing } from "@/lib/mappers";
@@ -18,19 +19,14 @@ export async function GET(
   });
   if (!row) return jsonError("آگهی پیدا نشد", 404);
 
-  if (row.sellerId !== session.id) {
-    const edge = await prisma.circleEdge.findUnique({
-      where: {
-        fromUserId_toUserId: {
-          fromUserId: session.id,
-          toUserId: row.sellerId,
-        },
-      },
-    });
-    if (!edge) return jsonError("این آگهی در حلقه تو نیست", 403);
+  if (!(await canViewListing(session.id, row.sellerId))) {
+    return jsonError("این آگهی در حلقه تو نیست", 403);
   }
 
-  return Response.json({ listing: toClientListing(row, session.id) });
+  const trustPath = await listingTrustPath(session.id, row.sellerId);
+  return Response.json({
+    listing: toClientListing(row, session.id, trustPath),
+  });
 }
 
 export async function PATCH(

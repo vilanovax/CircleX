@@ -14,19 +14,25 @@ import { useStore } from "@/lib/store";
 import ListingCard from "@/components/ListingCard";
 import BottomNav from "@/components/BottomNav";
 import NewUserHomePlaceholder from "@/components/NewUserHomePlaceholder";
-import HomeEmptyCircle from "@/components/HomeEmptyCircle";
 import { lazyUi } from "@/lib/lazy-ui";
 import FeedFilterBar from "@/components/FeedFilterBar";
 import { FeedSkeleton } from "@/components/Skeleton";
 import Avatar from "@/components/Avatar";
 import { CircleUsersIcon, LockIcon, SearchIcon, ShieldCheckIcon } from "@/components/Icons";
 import { formatPrice } from "@/lib/labels";
-import type { CircleEvent, Listing, ListingType, Request } from "@/lib/types";
+import type { CircleEvent, Listing, ListingType, Person, Request } from "@/lib/types";
 import { formatEventDateDisplay, normalizeFa, toPersianDigits } from "@/lib/persian";
 import { CONCEPT_TIP_KEY } from "@/lib/home-tip";
 import { canView, filterByAccess, trustScore } from "@/lib/trust";
 
 const Onboarding = lazyUi(() => import("@/components/Onboarding"));
+const HomeEmptyCircle = lazyUi(() => import("@/components/HomeEmptyCircle"), {
+  loading: () => (
+    <div className="px-4 pt-4">
+      <div className="card h-28 animate-pulse bg-stone-100 dark:bg-zinc-800" />
+    </div>
+  ),
+});
 
 const SCROLL_COLLAPSE_THRESHOLD = 48;
 const PREVIEW_LIMIT = 8;
@@ -61,37 +67,78 @@ function bundleBySeller(listings: Listing[]): SellerBundle[] {
   });
 }
 
-/** Who in the circle the feed draws from (maps to trustScore floors). */
-type CircleScope = "all" | "near" | "trusted";
+/**
+ * Feed boundary + depth:
+ * - network: my circle and people reached through them (FoF)
+ * - mine: only people I added directly
+ * - trusted / near: direct only, narrowed by trust group
+ */
+type CircleScope = "network" | "mine" | "trusted" | "near";
 
 const SCOPE_OPTIONS: { key: CircleScope; label: string; hint: string }[] = [
-  { key: "all", label: "همهٔ حلقه", hint: "نزدیکان، افراد مورد اعتماد و آشنایان" },
-  { key: "trusted", label: "نزدیکان و مورد اعتماد", hint: "نزدیکان و افراد مورد اعتماد" },
-  { key: "near", label: "فقط نزدیکان", hint: "نزدیک‌ترین‌های تو" },
+  {
+    key: "network",
+    label: "حلقه + وابسته‌ها",
+    hint: "حلقهٔ تو و کسانی که از طریق آن‌ها می‌آیند",
+  },
+  {
+    key: "mine",
+    label: "فقط حلقهٔ من",
+    hint: "فامیل، دوست، همکار، همسایه و آشنای مستقیم",
+  },
+  {
+    key: "trusted",
+    label: "نزدیکان و مورد اعتماد",
+    hint: "فقط اعضای مستقیم این دو گروه",
+  },
+  {
+    key: "near",
+    label: "فقط نزدیکان",
+    hint: "فقط نزدیک‌ترین‌های مستقیم حلقه‌ات",
+  },
 ];
 
-function scopeMinScore(scope: CircleScope): number {
-  if (scope === "near") return 3;
-  if (scope === "trusted") return 2;
-  return 0;
+function listingMatchesScope(
+  listing: Listing,
+  scope: CircleScope,
+  getPerson: (id: string) => Person | undefined,
+): boolean {
+  if (listing.sellerId === "me") return true;
+
+  const direct = listing.trustPath.length === 0;
+  const score = trustScore(listing.sellerId, listing.trustPath, getPerson);
+
+  if (scope === "network") return score > 0;
+  if (!direct) return false;
+  if (scope === "mine") return score > 0;
+  if (scope === "trusted") return score >= 2;
+  return score >= 3;
+}
+
+function readShowConceptTip() {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(CONCEPT_TIP_KEY) !== "1";
+  } catch {
+    return true;
+  }
 }
 
 export default function ClassicFeed() {
-  const {
-    listings,
-    requests,
-    events,
-    people,
-    getPerson,
-    hydrated,
-    onboarded,
-  } = useStore();
+  const listings = useStore((s) => s.listings);
+  const requests = useStore((s) => s.requests);
+  const events = useStore((s) => s.events);
+  const people = useStore((s) => s.people);
+  const getPerson = useStore((s) => s.getPerson);
+  const hydrated = useStore((s) => s.hydrated);
+  const circleReady = useStore((s) => s.circleReady);
+  const onboarded = useStore((s) => s.onboarded);
   const [filter, setFilter] = useState<ListingType | "all">("all");
-  const [circleScope, setCircleScope] = useState<CircleScope>("all");
+  const [circleScope, setCircleScope] = useState<CircleScope>("network");
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const [headerCompact, setHeaderCompact] = useState(false);
-  const [showConceptTip, setShowConceptTip] = useState(false);
+  const [showConceptTip, setShowConceptTip] = useState(readShowConceptTip);
   const [feedPage, setFeedPage] = useState(1);
 
   useEffect(() => {
@@ -100,18 +147,6 @@ export default function ClassicFeed() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-
-  useEffect(() => {
-    if (!hydrated || !onboarded) {
-      setShowConceptTip(false);
-      return;
-    }
-    try {
-      setShowConceptTip(localStorage.getItem(CONCEPT_TIP_KEY) !== "1");
-    } catch {
-      setShowConceptTip(true);
-    }
-  }, [hydrated, onboarded]);
 
   function dismissConceptTip() {
     try {
@@ -124,7 +159,7 @@ export default function ClassicFeed() {
 
   const circleCount = activeCircle(people).length;
   const isNewUser = hydrated && !onboarded;
-  const emptyCircle = hydrated && onboarded && circleCount === 0;
+  const emptyCircle = circleReady && onboarded && circleCount === 0;
   const quietChrome = isNewUser || emptyCircle;
 
   const { allowed, hidden } = useMemo(() => {
@@ -144,7 +179,6 @@ export default function ClassicFeed() {
 
   const visible = useMemo(() => {
     const q = normalizeFa(deferredQuery);
-    const minScore = scopeMinScore(circleScope);
     return allowed.filter((l) => {
       if (filter !== "all" && l.type !== filter) return false;
       if (
@@ -152,10 +186,7 @@ export default function ClassicFeed() {
         !normalizeFa(`${l.title} ${l.description} ${l.category}`).includes(q)
       )
         return false;
-      if (minScore > 0) {
-        const score = trustScore(l.sellerId, l.trustPath, getPerson);
-        if (score < minScore) return false;
-      }
+      if (!listingMatchesScope(l, circleScope, getPerson)) return false;
       return true;
     });
   }, [allowed, filter, deferredQuery, circleScope, getPerson]);
@@ -174,10 +205,11 @@ export default function ClassicFeed() {
   const browsingAll =
     filter === "all" &&
     query.trim().length === 0 &&
-    circleScope === "all";
-  const showSecondary = browsingAll && hydrated && onboarded && !emptyCircle;
+    circleScope === "network";
+  const showSecondary = browsingAll && circleReady && onboarded && !emptyCircle;
   const scopeLabel =
-    SCOPE_OPTIONS.find((o) => o.key === circleScope)?.label ?? "همهٔ حلقه";
+    SCOPE_OPTIONS.find((o) => o.key === circleScope)?.label ??
+    "حلقه + وابسته‌ها";
 
   return (
     <main className="pb-24 min-h-[100dvh]">
@@ -265,14 +297,14 @@ export default function ClassicFeed() {
               ) : undefined
             }
           >
-            {!hydrated ? (
+            {!circleReady ? (
               <FeedSkeleton />
             ) : visible.length === 0 ? (
               <FeedEmptyState
                 hasFilter={!browsingAll}
                 onClear={() => {
                   setFilter("all");
-                  setCircleScope("all");
+                  setCircleScope("network");
                   setQuery("");
                 }}
               />
@@ -287,7 +319,7 @@ export default function ClassicFeed() {
                           i < 4 ? { animationDelay: `${i * 45}ms` } : undefined
                         }
                       >
-                        <ListingCard listing={l} compactTrust />
+                        <ListingCard listing={l} compactTrust imagePriority={i === 0} />
                       </div>
                     ))
                   : bundles.slice(0, feedShown).map((bundle, i) => (
@@ -304,6 +336,7 @@ export default function ClassicFeed() {
                           listing={bundle.featured}
                           compactTrust
                           moreCount={bundle.extras.length + 1}
+                          imagePriority={i === 0}
                         />
                       </div>
                     ))}
@@ -451,7 +484,7 @@ function CircleScopeControl({
           <ul
             role="listbox"
             aria-label="محدوده حلقه"
-            className="absolute top-full right-0 z-40 mt-1.5 min-w-[13.5rem] rounded-xl border border-stone-200/80 dark:border-zinc-700 bg-[color:var(--circle-surface)] dark:bg-zinc-900 shadow-lg overflow-hidden py-1"
+            className="absolute top-full left-0 z-40 mt-1.5 w-[min(16.5rem,calc(100vw-2.5rem))] rounded-xl border border-stone-200/80 dark:border-zinc-700 bg-[color:var(--circle-surface)] dark:bg-zinc-900 shadow-lg overflow-hidden py-1"
           >
             {SCOPE_OPTIONS.map((opt) => {
               const active = opt.key === value;
@@ -551,7 +584,7 @@ function FeedEmptyState({
 }
 
 function EventStripCard({ event }: { event: CircleEvent }) {
-  const { getPerson } = useStore();
+  const getPerson = useStore((s) => s.getPerson);
   const host = getPerson(event.hostId);
   const count = event.attendees.length;
 
@@ -586,7 +619,8 @@ function EventStripCard({ event }: { event: CircleEvent }) {
 }
 
 function RequestDenseRow({ request }: { request: Request }) {
-  const { getPerson, getOffers } = useStore();
+  const getPerson = useStore((s) => s.getPerson);
+  const getOffers = useStore((s) => s.getOffers);
   const requester = getPerson(request.requesterId);
   const offers = getOffers(request.id);
 

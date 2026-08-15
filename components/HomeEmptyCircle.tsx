@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import InviteSheet from "@/components/InviteSheet";
+import { lazyUi } from "@/lib/lazy-ui";
 import ListingCard from "@/components/ListingCard";
 import { CircleUsersIcon } from "@/components/Icons";
 import {
@@ -18,12 +18,16 @@ import { relationLabels } from "@/lib/labels";
 
 const PREVIEW_LIMIT = 2;
 
+const InviteSheet = lazyUi(() => import("@/components/InviteSheet"));
+
 /**
  * Home when the live circle is empty — not a stripped marketplace.
  * One job: invite the first person. Own listings sit apart from the feed.
  */
 export default function HomeEmptyCircle() {
-  const { listings, invites, joinRequests } = useStore();
+  const listings = useStore((s) => s.listings);
+  const invites = useStore((s) => s.invites);
+  const joinRequests = useStore((s) => s.joinRequests);
   const [showInvite, setShowInvite] = useState(false);
 
   const pending = invites.filter(

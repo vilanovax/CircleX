@@ -25,6 +25,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
     listings,
     requests,
     getPerson,
+    networkLinks,
     getThread,
     getListing,
     addMessage,
@@ -45,11 +46,18 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
 
   const viaName = useMemo(() => {
     if (!peer || isActiveCircleMember(peer)) return null;
-    const graph = buildTrustGraph(people, listings, requests, getPerson);
+    const graph = buildTrustGraph(
+      people,
+      listings,
+      requests,
+      getPerson,
+      undefined,
+      networkLinks,
+    );
     const parentId = graph.parent[peer.id];
     if (!parentId || parentId === "me") return null;
     return graph.nodes.find((n) => n.id === parentId)?.name ?? null;
-  }, [peer, people, listings, requests, getPerson]);
+  }, [peer, people, listings, requests, getPerson, networkLinks]);
 
   const subtitle = peer ? chatPeerSubtitle(peer, viaName) : "";
 

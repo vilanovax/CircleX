@@ -1,21 +1,23 @@
 // Loading placeholders shown while the store hydrates.
 
+import { ShieldCheckIcon } from "./Icons";
+
 const bone = "bg-zinc-100 dark:bg-zinc-800";
 
 export function ListingCardSkeleton() {
   return (
-    <div className="card p-3 animate-pulse">
-      <div className="flex gap-3">
-        <div className={`w-20 h-20 rounded-xl ${bone} shrink-0`} />
+    <div className="card p-2.5 animate-pulse">
+      <div className="flex items-center gap-2 mb-1.5">
+        <div className={`w-8 h-8 rounded-full ${bone} shrink-0`} />
+        <div className={`h-3 w-24 ${bone} rounded`} />
+      </div>
+      <div className="flex gap-2.5">
+        <div className={`w-24 h-24 rounded-xl ${bone} shrink-0`} />
         <div className="flex-1 space-y-2 py-1">
-          <div className={`h-3 w-20 ${bone} rounded-full`} />
           <div className={`h-4 w-3/4 ${bone} rounded`} />
           <div className={`h-4 w-1/3 ${bone} rounded`} />
+          <div className={`h-3 w-1/2 ${bone} rounded`} />
         </div>
-      </div>
-      <div className={`mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800 space-y-2`}>
-        <div className={`h-3 w-2/3 ${bone} rounded`} />
-        <div className={`h-3 w-1/2 ${bone} rounded`} />
       </div>
     </div>
   );
@@ -37,6 +39,35 @@ export function FeedSkeleton({ count = 4 }: { count?: number }) {
       {Array.from({ length: count }).map((_, i) => (
         <ListingCardSkeleton key={i} />
       ))}
+    </div>
+  );
+}
+
+/** First paint while session resolves — matches home chrome so LCP is the title. */
+export function HomeBootSkeleton() {
+  return (
+    <div
+      className="pb-24 min-h-[100dvh]"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <header className="sticky top-0 z-20 border-b border-transparent bg-[color:var(--circle-canvas)] dark:bg-zinc-950">
+        <div className="px-4 pt-[max(0.85rem,env(safe-area-inset-top))] pb-1.5">
+          <div className="flex items-center gap-1.5">
+            <div className="w-8 h-8 rounded-xl bg-brand-600 text-white flex items-center justify-center shadow-sm shadow-brand-600/20">
+              <ShieldCheckIcon className="w-4 h-4" />
+            </div>
+            <p className="text-[15px] font-extrabold text-ink dark:text-zinc-50 tracking-tight">
+              سیرکل
+            </p>
+          </div>
+        </div>
+      </header>
+      <section className="px-4 pt-3.5">
+        <div className="h-5 w-16 rounded bg-zinc-100 dark:bg-zinc-800 mb-2.5" />
+        <FeedSkeleton />
+      </section>
     </div>
   );
 }

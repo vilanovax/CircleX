@@ -73,12 +73,12 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const [lookup, setLookup] = useState<"idle" | "loading" | "miss">("idle");
   useEffect(() => {
     if (!hydrated) return;
-    if (listing) {
+    if (listing && !listing.feedPreview) {
       setLookup("idle");
       return;
     }
     let cancelled = false;
-    setLookup("loading");
+    if (!listing) setLookup("loading");
     void ensureListing(id).then((row) => {
       if (cancelled) return;
       setLookup(row ? "idle" : "miss");

@@ -1,5 +1,5 @@
+import { loadHomeFeed } from "@/lib/circle-network";
 import { prisma } from "@/lib/db";
-import { loadCircleNetwork } from "@/lib/circle-network";
 import { jsonError } from "@/lib/http";
 import {
   inviteExpectedInclude,
@@ -15,7 +15,7 @@ export async function GET() {
   const session = await getSessionUser();
   if (!session) return jsonError("وارد نشده‌ای", 401, "unauthorized");
 
-  const [inviteRows, joinRows, network] = await Promise.all([
+  const [inviteRows, joinRows, feed] = await Promise.all([
     prisma.invite.findMany({
       where: { inviterUserId: session.id, status: "pending" },
       orderBy: { createdAt: "desc" },
@@ -26,7 +26,7 @@ export async function GET() {
       include: { guest: true },
       orderBy: { createdAt: "desc" },
     }),
-    loadCircleNetwork(session.id),
+    loadHomeFeed(session.id),
   ]);
 
   const now = Date.now();
@@ -43,19 +43,12 @@ export async function GET() {
 
   const pending = live.map(toClientInvite);
 
-  const links = network.links.map((link) => ({
-    ...link,
-    fromId: link.fromId === session.id ? "me" : link.fromId,
-    toId: link.toId === session.id ? "me" : link.toId,
-  }));
-
   return Response.json({
-    members: network.members,
-    network: network.network,
-    links,
+    members: feed.members,
+    network: feed.network,
     pending,
     pendingPeople: pending.map(pendingPersonFromInvite),
-    listings: network.listings,
+    listings: feed.listings,
     joinRequests: joinRows.map(toClientJoinRequest),
   });
 }

@@ -49,6 +49,8 @@ export default function Avatar({
           height={px}
           className="w-full h-full object-cover"
           draggable={false}
+          loading={size === "lg" ? "eager" : "lazy"}
+          decoding="async"
         />
       </div>
       {level && showLevel && (

@@ -29,13 +29,21 @@ export default function TrustGraph({
 }: {
   focusId?: string | null;
 }) {
-  const { people, listings, requests, getPerson } = useStore();
+  const { people, listings, requests, getPerson, networkLinks } = useStore();
   const [selected, setSelected] = useState<string | null>(null);
   const [zoomed, setZoomed] = useState(false);
 
   const graph = useMemo(
-    () => buildTrustGraph(people, listings, requests, getPerson),
-    [people, listings, requests, getPerson],
+    () =>
+      buildTrustGraph(
+        people,
+        listings,
+        requests,
+        getPerson,
+        undefined,
+        networkLinks,
+      ),
+    [people, listings, requests, getPerson, networkLinks],
   );
 
   const nodeById = useMemo(

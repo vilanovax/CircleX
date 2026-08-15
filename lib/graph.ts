@@ -66,6 +66,7 @@ export function buildTrustGraph(
   requests: Request[],
   getPerson: (id: string) => Person | undefined,
   viewSize?: number,
+  networkLinks: { fromId: string; toId: string }[] = [],
 ): TrustGraph {
   const edges: GraphEdge[] = [];
   const edgeKeys = new Set<string>();
@@ -85,6 +86,12 @@ export function buildTrustGraph(
   };
 
   people.filter(isActiveCircleMember).forEach((p) => link("me", p.id));
+
+  for (const l of networkLinks) {
+    const a = l.fromId === "me" ? "me" : l.fromId;
+    const b = l.toId === "me" ? "me" : l.toId;
+    link(a, b);
+  }
 
   const chains: string[][] = [
     ...listings.map((l) => ["me", ...l.trustPath.map((h) => h.personId), l.sellerId]),

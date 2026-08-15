@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
@@ -40,13 +40,35 @@ function viaPathLabel(
 }
 
 export default function GraphClassic() {
-  const { people, listings, requests, getPerson } = useStore();
+  const {
+    people,
+    listings,
+    requests,
+    getPerson,
+    networkLinks,
+    circleReady,
+    circleFull,
+    refreshCircle,
+  } = useStore();
   const [view, setView] = useState<ViewMode>("list");
   const [mapFocus, setMapFocus] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!circleReady || circleFull) return;
+    void refreshCircle();
+  }, [circleReady, circleFull, refreshCircle]);
+
   const graph = useMemo(
-    () => buildTrustGraph(people, listings, requests, getPerson),
-    [people, listings, requests, getPerson],
+    () =>
+      buildTrustGraph(
+        people,
+        listings,
+        requests,
+        getPerson,
+        undefined,
+        networkLinks,
+      ),
+    [people, listings, requests, getPerson, networkLinks],
   );
   const insights = useMemo(() => graphInsights(graph), [graph]);
 
