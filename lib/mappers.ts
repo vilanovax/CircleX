@@ -1,14 +1,45 @@
 import type {
   CircleEdge,
+  CircleJoinRequest as DbJoinRequest,
   Invite as DbInvite,
+  InviteExpected,
   InviteStatus as DbInviteStatus,
+  MarketListing,
   User,
 } from "@prisma/client";
 import { relationLabels } from "./labels";
+import { parseDealStatus, parseSpecs } from "./listing-payload";
+import { toPersianDigits } from "./persian";
 import { maskPhone } from "./phone";
-import type { Invite, Person } from "./types";
+import type {
+  CircleJoinRequest,
+  Invite,
+  InviteExpectedPerson,
+  Listing,
+  ListingType,
+  Person,
+  Privacy,
+} from "./types";
 
-export function toClientInvite(row: DbInvite): Invite {
+export const inviteExpectedInclude = {
+  expected: { orderBy: { createdAt: "asc" as const } },
+};
+
+export function toClientExpected(
+  row: InviteExpected,
+): InviteExpectedPerson {
+  return {
+    id: row.id,
+    phone: row.phone,
+    name: row.name ?? undefined,
+    joined: Boolean(row.joinedUserId),
+    joinedUserId: row.joinedUserId ?? undefined,
+  };
+}
+
+export function toClientInvite(
+  row: DbInvite & { expected?: InviteExpected[] },
+): Invite {
   return {
     id: row.id,
     code: row.code,
@@ -26,6 +57,7 @@ export function toClientInvite(row: DbInvite): Invite {
     acceptedAt: row.acceptedAt?.toISOString(),
     createdAt: row.createdAt.toISOString(),
     personId: row.id,
+    expected: row.expected?.map(toClientExpected),
   };
 }
 
@@ -53,7 +85,7 @@ export function memberFromEdge(
     Math.abs(edge.updatedAt.getTime() - edge.createdAt.getTime()) > 1500;
   return {
     id: edge.to.id,
-    name: edge.to.name || "عضو حلقه",
+    name: edge.displayName?.trim() || edge.to.name || "عضو حلقه",
     avatar: edge.to.avatar || "/avatars/01.webp",
     relation: edge.relationType,
     level: edge.trustGroup,
@@ -87,6 +119,62 @@ export function pendingPersonFromInvite(invite: Invite): Person {
     inviteStatus: "pending",
     phone,
     phoneNormalized: phone,
+  };
+}
+
+export function relativePostedAt(date: Date, now = Date.now()): string {
+  const diff = Math.max(0, now - date.getTime());
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 1) return "همین حالا";
+  if (minutes < 60) return `${toPersianDigits(minutes)} دقیقه پیش`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${toPersianDigits(hours)} ساعت پیش`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "دیروز";
+  if (days < 7) return `${toPersianDigits(days)} روز پیش`;
+  if (days < 30) return `${toPersianDigits(Math.floor(days / 7))} هفته پیش`;
+  return `${toPersianDigits(Math.floor(days / 30))} ماه پیش`;
+}
+
+export function toClientListing(
+  row: MarketListing,
+  viewerId?: string,
+): Listing {
+  const images = row.images.length > 0 ? row.images : [row.image];
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    type: row.type as ListingType,
+    price: row.price ?? undefined,
+    category: row.category,
+    image: row.image,
+    images,
+    sellerId: viewerId && row.sellerId === viewerId ? "me" : row.sellerId,
+    postedAt: relativePostedAt(row.createdAt),
+    condition: row.condition ?? undefined,
+    privacy: (row.privacy as Privacy) || "ABC",
+    endorsements: [],
+    trustPath: [],
+    city: row.city ?? undefined,
+    specs: parseSpecs(row.specs),
+    dealStatus: parseDealStatus(row.dealStatus),
+  };
+}
+
+export function toClientJoinRequest(
+  row: DbJoinRequest & { guest: User },
+): CircleJoinRequest {
+  return {
+    id: row.id,
+    guest: {
+      id: row.guest.id,
+      name: row.guest.name || "عضو جدید",
+      avatar: row.guest.avatar || "/avatars/01.webp",
+      city: row.guest.city ?? undefined,
+    },
+    inviteId: row.inviteId ?? undefined,
+    createdAt: row.createdAt.toISOString(),
   };
 }
 

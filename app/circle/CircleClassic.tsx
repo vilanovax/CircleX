@@ -8,7 +8,8 @@ import BottomNav from "@/components/BottomNav";
 import SheetShell from "@/components/SheetShell";
 import { CardListSkeleton } from "@/components/Skeleton";
 import Avatar from "@/components/Avatar";
-import InviteSheet from "@/components/InviteSheet";
+import InviteSheet, { InviteSharePanel } from "@/components/InviteSheet";
+import JoinRequestSheet from "@/components/JoinRequestSheet";
 import { GraphIcon, UserPlusIcon } from "@/components/Icons";
 import { levelHint } from "@/lib/labels";
 import { viewerRelationPhrase } from "@/lib/trust";
@@ -16,12 +17,15 @@ import { activeCircle } from "@/lib/circle-member";
 import {
   copyText,
   effectiveInviteStatus,
+  inviteRosterJoined,
+  inviteRosterTotal,
   inviteShareText,
   inviteUrl,
+  smsShareHref,
   whatsappShareHref,
 } from "@/lib/invite";
 import { formatPhoneDisplay } from "@/lib/phone";
-import type { Invite, Person, TrustLevel } from "@/lib/types";
+import type { CircleJoinRequest, Invite, Person, TrustLevel } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
 import { useToast } from "@/components/Toast";
 import { relationLabels } from "@/lib/labels";
@@ -73,7 +77,18 @@ function circleRelationLine(person: Person): string {
 }
 
 export default function CircleClassic() {
-  const { people, invites, me, setLevel, revokeInvite, hydrated } = useStore();
+  const {
+    people,
+    invites,
+    joinRequests,
+    me,
+    setLevel,
+    revokeInvite,
+    createWaveFromPending,
+    acceptJoinRequest,
+    rejectJoinRequest,
+    hydrated,
+  } = useStore();
   const { show } = useToast();
   const mine = activeCircle(people);
   const pendingInvites = useMemo(() => {
@@ -86,10 +101,19 @@ export default function CircleClassic() {
       return 0;
     });
   }, [invites]);
+  const personalPending = useMemo(
+    () => pendingInvites.filter((inv) => inv.kind === "personal"),
+    [pendingInvites],
+  );
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<Person | null>(null);
   const [placing, setPlacing] = useState(false);
   const [moreInvite, setMoreInvite] = useState<Invite | null>(null);
+  const [selecting, setSelecting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [shareInvite, setShareInvite] = useState<Invite | null>(null);
+  const [consolidating, setConsolidating] = useState(false);
+  const [reviewing, setReviewing] = useState<CircleJoinRequest | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -115,7 +139,10 @@ export default function CircleClassic() {
     [mine],
   );
 
-  const emptyCircle = mine.length === 0 && pendingInvites.length === 0;
+  const emptyCircle =
+    mine.length === 0 &&
+    pendingInvites.length === 0 &&
+    joinRequests.length === 0;
 
   return (
     <main className="pb-28 min-h-[100dvh]">
@@ -123,7 +150,9 @@ export default function CircleClassic() {
         title="حلقه‌ی من"
         subtitle={
           mine.length === 0
-            ? pendingInvites.length > 0
+            ? joinRequests.length > 0
+              ? `${toPersianDigits(joinRequests.length)} درخواست عضویت`
+              : pendingInvites.length > 0
               ? `${toPersianDigits(pendingInvites.length)} دعوت در انتظار`
               : "هنوز کسی اضافه نشده"
             : `${toPersianDigits(mine.length)} نفر که مستقیماً می‌شناسید`
@@ -168,6 +197,51 @@ export default function CircleClassic() {
             <CardListSkeleton count={5} />
           ) : (
             <>
+              {joinRequests.length > 0 && (
+                <div className="card overflow-hidden">
+                  <div className="flex items-center gap-2 px-3.5 pt-3 pb-1">
+                    <h2 className="text-[13px] font-bold text-ink dark:text-zinc-100">
+                      درخواست عضویت
+                    </h2>
+                    <span className="inline-flex min-w-[1.25rem] h-5 px-1.5 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-500/20 text-[11px] font-bold text-amber-800 dark:text-amber-200 nums">
+                      {toPersianDigits(joinRequests.length)}
+                    </span>
+                  </div>
+                  <p className="px-3.5 pb-1 text-[12px] text-ink-muted leading-relaxed">
+                    با لینک آمده‌اند، اما در لیست دعوت تو نبودند.
+                  </p>
+                  <ul className="divide-y divide-stone-100 dark:divide-zinc-800">
+                    {joinRequests.map((req) => (
+                      <li
+                        key={req.id}
+                        className="flex items-center gap-2.5 px-3.5 py-2.5"
+                      >
+                        <Avatar
+                          name={req.guest.name}
+                          src={req.guest.avatar}
+                          size="sm"
+                          showLevel={false}
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-bold text-[13px] text-ink dark:text-zinc-100 truncate">
+                            {req.guest.name}
+                          </span>
+                          <span className="block text-[11px] text-ink-muted mt-px">
+                            آیا این فرد را می‌شناسی؟
+                          </span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setReviewing(req)}
+                          className="shrink-0 text-[12px] font-bold text-brand-700 dark:text-brand-400 px-2 py-1.5"
+                        >
+                          بررسی
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {unplaced.length > 0 && (
                 <div className="card px-3.5 py-3">
                   <p className="text-[13px] font-bold text-ink dark:text-zinc-100 nums">
@@ -230,16 +304,62 @@ export default function CircleClassic() {
                     <span className="inline-flex min-w-[1.25rem] h-5 px-1.5 items-center justify-center rounded-full bg-stone-100 dark:bg-zinc-800 text-[11px] font-bold text-ink-muted nums">
                       {toPersianDigits(pendingInvites.length)}
                     </span>
+                    {personalPending.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelecting((v) => !v);
+                          setSelectedIds(new Set());
+                        }}
+                        className="mr-auto text-[12px] font-semibold text-brand-700 dark:text-brand-400"
+                      >
+                        {selecting ? "انصراف" : "انتخاب"}
+                      </button>
+                    )}
                   </div>
                   <ul className="divide-y divide-stone-100 dark:divide-zinc-800">
                     {pendingInvites.map((inv) => (
                       <PendingInviteRow
                         key={inv.id}
                         invite={inv}
+                        selecting={selecting && inv.kind === "personal"}
+                        selected={selectedIds.has(inv.id)}
+                        onToggle={() => {
+                          setSelectedIds((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(inv.id)) next.delete(inv.id);
+                            else next.add(inv.id);
+                            return next;
+                          });
+                        }}
                         onMore={() => setMoreInvite(inv)}
                       />
                     ))}
                   </ul>
+                  {selecting && selectedIds.size > 0 && (
+                    <div className="px-3.5 py-3 border-t border-stone-100 dark:border-zinc-800">
+                      <button
+                        type="button"
+                        disabled={consolidating}
+                        onClick={() => {
+                          setConsolidating(true);
+                          void createWaveFromPending(Array.from(selectedIds))
+                            .then((invite) => {
+                              setSelecting(false);
+                              setSelectedIds(new Set());
+                              setShareInvite(invite);
+                            })
+                            .catch(() => show("ساخت لینک کلی ممکن نشد"))
+                            .finally(() => setConsolidating(false));
+                        }}
+                        className="btn-primary w-full min-h-11"
+                      >
+                        {consolidating
+                          ? "در حال ساخت…"
+                          : `یک لینک برای ${toPersianDigits(selectedIds.size)} نفر`}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </>
@@ -267,6 +387,32 @@ export default function CircleClassic() {
           </Link>
           )}
         </div>
+      )}
+
+      {reviewing && (
+        <JoinRequestSheet
+          request={reviewing}
+          onClose={() => setReviewing(null)}
+          onAccept={async (input) => {
+            const name = input.displayName;
+            try {
+              await acceptJoinRequest(reviewing.id, input);
+              setReviewing(null);
+              show(`${name} به حلقه اضافه شد`);
+            } catch {
+              show("قبول درخواست ممکن نشد");
+            }
+          }}
+          onReject={async () => {
+            try {
+              await rejectJoinRequest(reviewing.id);
+              setReviewing(null);
+              show("درخواست رد شد");
+            } catch {
+              show("رد درخواست ممکن نشد");
+            }
+          }}
+        />
       )}
 
       {showAdd && <InviteSheet onClose={() => setShowAdd(false)} />}
@@ -300,6 +446,14 @@ export default function CircleClassic() {
             show(`${person.name} به «${SECTION_LABEL[lvl]}» منتقل شد.`);
             if (unplaced.length <= 1) setPlacing(false);
           }}
+        />
+      )}
+
+      {shareInvite && (
+        <InviteSharePanel
+          invite={shareInvite}
+          inviterName={me.name}
+          onClose={() => setShareInvite(null)}
         />
       )}
 
@@ -480,7 +634,7 @@ function inviteRowCopy(invite: Invite): { title: string; sub: string; isWave: bo
   if (isWave) {
     return {
       title: `لینک ${relationLabels[invite.relationType]}`,
-      sub: `${toPersianDigits(invite.useCount)} از ${toPersianDigits(invite.maxUses)} پیوسته‌اند`,
+      sub: `${toPersianDigits(inviteRosterJoined(invite))} از ${toPersianDigits(inviteRosterTotal(invite))} پیوسته‌اند`,
       isWave: true,
     };
   }
@@ -496,39 +650,112 @@ function inviteRowCopy(invite: Invite): { title: string; sub: string; isWave: bo
 function PendingInviteRow({
   invite,
   onMore,
+  selecting,
+  selected,
+  onToggle,
 }: {
   invite: Invite;
   onMore: () => void;
+  selecting?: boolean;
+  selected?: boolean;
+  onToggle?: () => void;
 }) {
   const { title, sub, isWave } = inviteRowCopy(invite);
+  const [open, setOpen] = useState(false);
+  const roster = invite.expected ?? [];
 
   return (
-    <li className="flex items-center gap-2 px-3.5 py-2.5">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <p className="font-bold text-[13px] text-ink dark:text-zinc-100 truncate">
-            {title}
-          </p>
-          {isWave && (
-            <span className="shrink-0 text-[10px] font-bold text-brand-700 dark:text-brand-400 bg-brand-50 dark:bg-brand-500/15 px-1.5 py-0.5 rounded-md">
-              گروهی
-            </span>
-          )}
-        </div>
-        <p className="text-[11px] text-ink-muted mt-0.5 nums truncate">{sub}</p>
+    <li>
+      <div className="flex items-center gap-2 px-3.5 py-2.5">
+        {selecting && (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-pressed={selected}
+            aria-label={selected ? `حذف ${title}` : `انتخاب ${title}`}
+            className={`shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+              selected
+                ? "border-brand-600 bg-brand-600 text-white"
+                : "border-stone-300 dark:border-zinc-600"
+            }`}
+          >
+            {selected ? (
+              <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
+              </svg>
+            ) : null}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => (isWave ? setOpen((v) => !v) : onMore())}
+          className="min-w-0 flex-1 text-right"
+        >
+          <div className="flex items-center gap-1.5 min-w-0">
+            <p className="font-bold text-[13px] text-ink dark:text-zinc-100 truncate">
+              {title}
+            </p>
+            {isWave && (
+              <span className="shrink-0 text-[10px] font-bold text-brand-700 dark:text-brand-400 bg-brand-50 dark:bg-brand-500/15 px-1.5 py-0.5 rounded-md">
+                گروهی
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-ink-muted mt-0.5 nums truncate">{sub}</p>
+        </button>
+        <button
+          type="button"
+          onClick={onMore}
+          aria-label={`گزینه‌های ${title}`}
+          className="shrink-0 w-10 h-10 rounded-lg text-ink-muted dark:text-zinc-400 active:bg-stone-100 dark:active:bg-zinc-800 flex items-center justify-center"
+        >
+          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <circle cx="12" cy="6" r="1.6" />
+            <circle cx="12" cy="12" r="1.6" />
+            <circle cx="12" cy="18" r="1.6" />
+          </svg>
+        </button>
       </div>
-      <button
-        type="button"
-        onClick={onMore}
-        aria-label={`گزینه‌های ${title}`}
-        className="shrink-0 w-10 h-10 rounded-lg text-ink-muted dark:text-zinc-400 active:bg-stone-100 dark:active:bg-zinc-800 flex items-center justify-center"
-      >
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-          <circle cx="12" cy="6" r="1.6" />
-          <circle cx="12" cy="12" r="1.6" />
-          <circle cx="12" cy="18" r="1.6" />
-        </svg>
-      </button>
+      {isWave && open && roster.length > 0 && (
+        <ul className="px-3.5 pb-3 space-y-1.5">
+          {roster.map((row) => (
+            <li
+              key={row.id}
+              className="flex items-center gap-2 rounded-xl bg-stone-50/80 dark:bg-zinc-800/40 px-2.5 py-2"
+            >
+              <span
+                className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold ${
+                  row.joined
+                    ? "bg-brand-600 text-white"
+                    : "bg-stone-200 dark:bg-zinc-700 text-ink-muted"
+                }`}
+                aria-hidden
+              >
+                {row.joined ? (
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
+                  </svg>
+                ) : (
+                  (row.name?.trim() || "؟").charAt(0)
+                )}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[12px] font-bold text-ink dark:text-zinc-100 truncate">
+                  {row.name?.trim() || formatPhoneDisplay(row.phone)}
+                </span>
+                {row.name?.trim() && (
+                  <span dir="ltr" className="block text-[11px] text-ink-muted nums">
+                    {formatPhoneDisplay(row.phone)}
+                  </span>
+                )}
+              </span>
+              <span className="text-[11px] font-semibold text-ink-muted">
+                {row.joined ? "پیوست" : "در انتظار"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </li>
   );
 }
@@ -549,6 +776,14 @@ function InviteMoreSheet({
   const { title, sub, isWave } = inviteRowCopy(invite);
   const url = inviteUrl(invite.code);
   const text = inviteShareText(inviterName, url);
+  const roster = invite.expected ?? [];
+  const pendingPhones = roster.filter((row) => !row.joined).map((row) => row.phone);
+  const waPhone = isWave ? undefined : invite.invitedPhone;
+  const smsPhones = isWave
+    ? pendingPhones.length > 0
+      ? pendingPhones
+      : undefined
+    : invite.invitedPhone;
 
   async function onCopy() {
     const ok = await copyText(url);
@@ -589,7 +824,9 @@ function InviteMoreSheet({
 
       <p className="text-[13px] text-ink-muted mt-2.5 leading-relaxed">
         {isWave
-          ? "لینک گروهی آماده است. صبر کن تا کسی از آن وارد شود."
+          ? roster.length > 0
+            ? "یک لینک برای همه. وقتی با همان شماره وارد شوند، اینجا تیک می‌خورند."
+            : "لینک گروهی آماده است. صبر کن تا کسی از آن وارد شود."
           : "دعوت آماده است. صبر کن تا بپیوندد."}
       </p>
       {sub && (
@@ -599,6 +836,24 @@ function InviteMoreSheet({
         >
           {sub}
         </p>
+      )}
+
+      {roster.length > 0 && (
+        <ul className="mt-3 space-y-1.5">
+          {roster.map((row) => (
+            <li
+              key={row.id}
+              className="flex items-center justify-between gap-2 text-[12px]"
+            >
+              <span className="font-bold text-ink dark:text-zinc-100 truncate">
+                {row.name?.trim() || formatPhoneDisplay(row.phone)}
+              </span>
+              <span className="shrink-0 text-ink-muted">
+                {row.joined ? "پیوست" : "در انتظار"}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
 
       <div className="mt-4 rounded-2xl border border-stone-200/80 dark:border-zinc-700 bg-stone-50/70 dark:bg-zinc-800/40 px-3.5 py-3">
@@ -618,12 +873,18 @@ function InviteMoreSheet({
             {copied ? "کپی شد" : "کپی"}
           </button>
           <a
-            href={whatsappShareHref(text, invite.invitedPhone)}
+            href={whatsappShareHref(text, waPhone)}
             target="_blank"
             rel="noreferrer"
             className="text-[13px] font-semibold text-brand-700 dark:text-brand-400"
           >
             واتساپ
+          </a>
+          <a
+            href={smsShareHref(text, smsPhones)}
+            className="text-[13px] font-semibold text-brand-700 dark:text-brand-400"
+          >
+            پیامک
           </a>
         </div>
       </div>

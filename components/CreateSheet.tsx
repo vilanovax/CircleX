@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ApiError } from "@/lib/api";
 import { useStore } from "@/lib/store";
 import { useSheetA11y } from "@/lib/use-sheet-a11y";
 import { lazyUi } from "@/lib/lazy-ui";
@@ -43,6 +44,7 @@ const MENU_OPTIONS = [
 
 export default function CreateSheet({ onClose }: { onClose: () => void }) {
   const [step, setStep] = useState<Step>("menu");
+  const publishingRef = useRef(false);
   const router = useRouter();
   const addListing = useStore((s) => s.addListing);
   const addRequest = useStore((s) => s.addRequest);
@@ -63,11 +65,18 @@ export default function CreateSheet({ onClose }: { onClose: () => void }) {
       <AddListingSheet
         onClose={onClose}
         onBack={() => setStep("menu")}
-        onAdd={(input) => {
-          const id = addListing(input);
-          onClose();
-          show("آگهی شما در حلقه منتشر شد ✓");
-          router.push(`/listing/${id}`);
+        onAdd={async (input) => {
+          if (publishingRef.current) return;
+          publishingRef.current = true;
+          try {
+            const id = await addListing(input);
+            onClose();
+            show("آگهی شما در حلقه منتشر شد ✓");
+            router.push(`/listing/${id}`);
+          } catch (err) {
+            show(err instanceof ApiError ? err.message : "آگهی ذخیره نشد");
+            publishingRef.current = false;
+          }
         }}
       />
     );

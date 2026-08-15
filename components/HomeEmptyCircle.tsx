@@ -5,7 +5,12 @@ import Link from "next/link";
 import InviteSheet from "@/components/InviteSheet";
 import ListingCard from "@/components/ListingCard";
 import { CircleUsersIcon } from "@/components/Icons";
-import { effectiveInviteStatus } from "@/lib/invite";
+import {
+  effectiveInviteStatus,
+  inviteRosterJoined,
+  inviteRosterPending,
+  inviteRosterTotal,
+} from "@/lib/invite";
 import { toPersianDigits } from "@/lib/persian";
 import { useStore } from "@/lib/store";
 import type { Listing } from "@/lib/types";
@@ -18,13 +23,17 @@ const PREVIEW_LIMIT = 2;
  * One job: invite the first person. Own listings sit apart from the feed.
  */
 export default function HomeEmptyCircle() {
-  const { listings, invites } = useStore();
+  const { listings, invites, joinRequests } = useStore();
   const [showInvite, setShowInvite] = useState(false);
 
   const pending = invites.filter(
     (inv) => effectiveInviteStatus(inv) === "pending",
   );
   const wave = pending.find((inv) => inv.kind === "wave");
+  const waitingCount = pending.reduce(
+    (sum, inv) => sum + inviteRosterPending(inv),
+    0,
+  );
   const mine = listings.filter((l) => l.sellerId === "me");
   const preview = mine.slice(0, PREVIEW_LIMIT);
   const rest = mine.length - preview.length;
@@ -33,21 +42,30 @@ export default function HomeEmptyCircle() {
   const pluralAds = mine.length > 1;
   const adWord = pluralAds ? "آگهی‌هات" : "آگهی‌ات";
 
-  const title = hasPending
-    ? "دعوتت ارسال شد"
-    : hasMine
-      ? `${adWord} آماده‌ست`
-      : "حلقه‌ات هنوز خالی است";
+  const hasJoinRequests = joinRequests.length > 0;
+  const title = hasJoinRequests
+    ? "کسی با لینک آمده"
+    : hasPending
+      ? "دعوتت ارسال شد"
+      : hasMine
+        ? `${adWord} آماده‌ست`
+        : "حلقه‌ات هنوز خالی است";
 
-  const body = hasPending
-    ? hasMine
-      ? `هنوز کسی نپیوسته. تا بپیوندد ${adWord} را هم نمی‌بیند.`
-      : "هنوز کسی از لینک دعوت وارد حلقه نشده."
-    : hasMine
-      ? `یکی از نزدیکانت را دعوت کن تا ${adWord} را ببیند.`
-      : "اینجا آگهی‌ها و درخواست‌های آدم‌های آشنا را می‌بینی. برای شروع یکی از نزدیکانت را دعوت کن.";
+  const body = hasJoinRequests
+    ? `${toPersianDigits(joinRequests.length)} نفر با لینک دعوت آمده‌اند. اول بگو آیا می‌شناسی‌شان.`
+    : hasPending
+      ? hasMine
+        ? `هنوز کسی نپیوسته. تا بپیوندد ${adWord} را هم نمی‌بیند.`
+        : "هنوز کسی از لینک دعوت وارد حلقه نشده."
+      : hasMine
+        ? `یکی از نزدیکانت را دعوت کن تا ${adWord} را ببیند.`
+        : "اینجا آگهی‌ها و درخواست‌های آدم‌های آشنا را می‌بینی. برای شروع یکی از نزدیکانت را دعوت کن.";
 
-  const cta = hasPending ? "دعوت یک نفر دیگر" : "دعوت اولین نفر";
+  const cta = hasJoinRequests
+    ? "بررسی درخواست‌ها"
+    : hasPending
+      ? "دعوت یک نفر دیگر"
+      : "دعوت اولین نفر";
 
   return (
     <div className="px-4 pt-4 pb-2 space-y-4">
@@ -61,17 +79,48 @@ export default function HomeEmptyCircle() {
         <p className="text-[13px] text-ink-muted dark:text-zinc-400 mt-1.5 leading-relaxed">
           {body}
         </p>
-        <button
-          type="button"
-          onClick={() => setShowInvite(true)}
-          className="btn-primary w-full mt-3.5 min-h-11 shadow-md shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150"
-        >
-          {cta}
-        </button>
+        {hasJoinRequests ? (
+          <Link
+            href="/circle"
+            className="btn-primary w-full mt-3.5 min-h-11 shadow-md shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150 inline-flex items-center justify-center"
+          >
+            {cta}
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowInvite(true)}
+            className="btn-primary w-full mt-3.5 min-h-11 shadow-md shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150"
+          >
+            {cta}
+          </button>
+        )}
         <p className="text-[11px] text-ink-muted dark:text-zinc-500 mt-2 leading-snug">
           دعوت با لینک، واتساپ یا پیامک
         </p>
       </div>
+
+      {hasJoinRequests && (
+        <Link
+          href="/circle"
+          className="card block px-3.5 py-3 active:scale-[0.99] transition-transform duration-150"
+        >
+          <div className="flex items-center gap-2">
+            <p className="text-[13px] font-bold text-ink dark:text-zinc-100">
+              درخواست عضویت
+            </p>
+            <span className="inline-flex min-w-[1.25rem] h-5 px-1.5 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-500/20 text-[11px] font-bold text-amber-800 dark:text-amber-200 nums">
+              {toPersianDigits(joinRequests.length)}
+            </span>
+          </div>
+          <p className="text-[12px] text-ink-muted mt-1 leading-relaxed">
+            اول بگو آیا می‌شناسی‌شان — تا آن وقت عضو حلقه نیستند.
+          </p>
+          <p className="mt-2 text-[13px] font-semibold text-brand-700 dark:text-brand-400">
+            بررسی
+          </p>
+        </Link>
+      )}
 
       {hasPending && (
         <Link
@@ -83,17 +132,19 @@ export default function HomeEmptyCircle() {
               دعوت‌های در انتظار
             </p>
             <span className="inline-flex min-w-[1.25rem] h-5 px-1.5 items-center justify-center rounded-full bg-stone-100 dark:bg-zinc-800 text-[11px] font-bold text-ink-muted nums">
-              {toPersianDigits(pending.length)}
+              {toPersianDigits(waitingCount || pending.length)}
             </span>
           </div>
           <p className="text-[12px] text-ink-muted mt-1 leading-relaxed">
-            هنوز کسی نپیوسته.
+            {waitingCount > 0
+              ? `${toPersianDigits(waitingCount)} نفر هنوز نپیوسته‌اند.`
+              : "هنوز کسی نپیوسته."}
           </p>
           {wave && (
             <p className="text-[12px] text-ink-muted mt-1 nums">
               لینک {relationLabels[wave.relationType]} ·{" "}
-              {toPersianDigits(wave.useCount)} از{" "}
-              {toPersianDigits(wave.maxUses)} پیوسته‌اند
+              {toPersianDigits(inviteRosterJoined(wave))} از{" "}
+              {toPersianDigits(inviteRosterTotal(wave))} پیوسته‌اند
             </p>
           )}
           <p className="mt-2 text-[13px] font-semibold text-brand-700 dark:text-brand-400">

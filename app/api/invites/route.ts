@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { jsonError, readJson } from "@/lib/http";
-import { toClientInvite } from "@/lib/mappers";
+import { WAVE_ROSTER_LIMIT } from "@/lib/invite";
+import { inviteExpectedInclude, toClientInvite } from "@/lib/mappers";
 import { isValidIranMobile, normalizePhone } from "@/lib/phone";
 import { createInviteRecord } from "@/lib/server-invite";
 import { getSessionUser } from "@/lib/server-auth";
@@ -24,6 +25,7 @@ export async function GET() {
   const rows = await prisma.invite.findMany({
     where: { inviterUserId: session.id },
     orderBy: { createdAt: "desc" },
+    include: inviteExpectedInclude,
   });
 
   const now = Date.now();
@@ -55,6 +57,7 @@ export async function POST(req: Request) {
     invitedPhone?: string;
     invitedName?: string;
     kind?: string;
+    people?: { name?: string; phone?: string }[];
   }>(req);
 
   const relationType = body?.relationType as RelationType | undefined;
@@ -85,6 +88,27 @@ export async function POST(req: Request) {
     invitedName = body.invitedName.trim().slice(0, 40);
   }
 
+  let people: { phone: string; name?: string }[] | undefined;
+  if (kind === "wave" && Array.isArray(body?.people) && body.people.length > 0) {
+    if (body.people.length > WAVE_ROSTER_LIMIT) {
+      return jsonError(`حداکثر ${WAVE_ROSTER_LIMIT} نفر در هر لینک`, 400);
+    }
+    const seen = new Set<string>();
+    people = [];
+    for (const row of body.people) {
+      const phone = row?.phone ? normalizePhone(row.phone) : "";
+      if (!isValidIranMobile(phone)) {
+        return jsonError("یکی از شماره‌ها معتبر نیست", 400);
+      }
+      if (seen.has(phone)) continue;
+      seen.add(phone);
+      people.push({
+        phone,
+        name: row.name?.trim().slice(0, 40) || undefined,
+      });
+    }
+  }
+
   const invite = await createInviteRecord({
     inviterUserId: session.id,
     relationType,
@@ -92,6 +116,7 @@ export async function POST(req: Request) {
     kind,
     invitedPhone,
     invitedName,
+    people,
   });
   if (!invite) return jsonError("ساخت لینک ممکن نشد", 500);
 

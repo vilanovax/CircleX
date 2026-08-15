@@ -2,11 +2,12 @@ import { prisma } from "@/lib/db";
 import { jsonError } from "@/lib/http";
 import {
   effectiveDbInviteStatus,
-  inviteIsFull,
+  inviteExpectedInclude,
   personFromUser,
   toClientInvite,
 } from "@/lib/mappers";
 import { getSessionUser } from "@/lib/server-auth";
+import { isExpectedInvitee } from "@/lib/server-invite";
 import { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +22,7 @@ export async function POST(
   const code = String(params.code ?? "").trim().toLowerCase();
   const row = await prisma.invite.findFirst({
     where: { code: { equals: code, mode: "insensitive" } },
-    include: { inviter: true },
+    include: { inviter: true, expected: true },
   });
   if (!row) return jsonError("این دعوت معتبر نیست", 404, "invalid");
 
@@ -55,6 +56,40 @@ export async function POST(
     return jsonError("تو از قبل در این حلقه هستی", 409, "already");
   }
 
+  const expected = isExpectedInvitee(row, session.phoneNormalized);
+  const inviter = personFromUser(row.inviter, {
+    relation: "friend",
+    level: "B",
+  });
+
+  if (!expected) {
+    await prisma.circleJoinRequest.upsert({
+      where: {
+        hostUserId_guestUserId: {
+          hostUserId: row.inviterUserId,
+          guestUserId: session.id,
+        },
+      },
+      create: {
+        hostUserId: row.inviterUserId,
+        guestUserId: session.id,
+        inviteId: row.id,
+        status: "pending",
+      },
+      update: {
+        status: "pending",
+        inviteId: row.id,
+        resolvedAt: null,
+      },
+    });
+    return Response.json({
+      invite: toClientInvite(row),
+      inviter,
+      edgeCreated: false,
+      requested: true,
+    });
+  }
+
   if (row.kind === "personal") {
     if (status === "accepted") {
       if (row.acceptedByUserId === session.id) {
@@ -62,7 +97,7 @@ export async function POST(
       }
       return jsonError("این دعوت قبلاً استفاده شده", 409, "accepted");
     }
-  } else if (inviteIsFull(row) || status === "accepted") {
+  } else if (row.useCount >= row.maxUses || status === "accepted") {
     return jsonError("سقف این لینک پر شده", 409, "full");
   }
 
@@ -70,7 +105,10 @@ export async function POST(
 
   try {
     const invite = await prisma.$transaction(async (tx) => {
-      const current = await tx.invite.findUnique({ where: { id: row.id } });
+      const current = await tx.invite.findUnique({
+        where: { id: row.id },
+        include: { expected: true },
+      });
       if (!current) throw new Error("invalid");
 
       if (current.kind === "wave") {
@@ -99,7 +137,12 @@ export async function POST(
             relationType: current.relationType,
           },
         });
-        return updated;
+        await markExpectedJoined(tx, current.id, session.id, session.phoneNormalized);
+        await resolveJoinRequest(tx, current.inviterUserId, session.id);
+        return tx.invite.findUniqueOrThrow({
+          where: { id: updated.id },
+          include: inviteExpectedInclude,
+        });
       }
 
       await tx.inviteAcceptance.create({
@@ -122,16 +165,19 @@ export async function POST(
           relationType: current.relationType,
         },
       });
-      return updated;
+      await markExpectedJoined(tx, current.id, session.id, session.phoneNormalized);
+      await resolveJoinRequest(tx, current.inviterUserId, session.id);
+      return tx.invite.findUniqueOrThrow({
+        where: { id: updated.id },
+        include: inviteExpectedInclude,
+      });
     });
 
     return Response.json({
       invite: toClientInvite(invite),
-      inviter: personFromUser(row.inviter, {
-        relation: "friend",
-        level: "B",
-      }),
+      inviter,
       edgeCreated: true,
+      requested: false,
     });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
@@ -142,4 +188,28 @@ export async function POST(
     }
     throw err;
   }
+}
+
+async function resolveJoinRequest(
+  tx: Prisma.TransactionClient,
+  hostUserId: string,
+  guestUserId: string,
+) {
+  await tx.circleJoinRequest.updateMany({
+    where: { hostUserId, guestUserId, status: "pending" },
+    data: { status: "accepted", resolvedAt: new Date() },
+  });
+}
+
+async function markExpectedJoined(
+  tx: Prisma.TransactionClient,
+  inviteId: string,
+  userId: string,
+  phone: string,
+) {
+  if (!phone) return;
+  await tx.inviteExpected.updateMany({
+    where: { inviteId, phone, joinedUserId: null },
+    data: { joinedUserId: userId },
+  });
 }

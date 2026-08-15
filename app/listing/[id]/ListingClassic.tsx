@@ -52,8 +52,16 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const params = useParams();
   const router = useRouter();
   const id = String(params.id);
-  const { getListing, getPerson, people, toggleEndorsement, toggleSaved, isSaved } =
-    useStore();
+  const {
+    getListing,
+    ensureListing,
+    getPerson,
+    people,
+    toggleEndorsement,
+    toggleSaved,
+    isSaved,
+    hydrated,
+  } = useStore();
   const { show } = useToast();
   const [showRefer, setShowRefer] = useState(false);
   const [pathExpanded, setPathExpanded] = useState(false);
@@ -62,6 +70,24 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const saved = isSaved(id);
 
   const listing = getListing(id);
+  const [lookup, setLookup] = useState<"idle" | "loading" | "miss">("idle");
+  useEffect(() => {
+    if (!hydrated) return;
+    if (listing) {
+      setLookup("idle");
+      return;
+    }
+    let cancelled = false;
+    setLookup("loading");
+    void ensureListing(id).then((row) => {
+      if (cancelled) return;
+      setLookup(row ? "idle" : "miss");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [ensureListing, hydrated, id, listing]);
+
   const isDirectTrust =
     !!listing &&
     listing.sellerId !== "me" &&
@@ -88,11 +114,13 @@ export default function ListingClassic(_props: { params: { id: string } }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  if (!listing) {
+  if (!hydrated || !listing) {
     return (
       <main className="min-h-[100dvh]">
         <Header title="آگهی" back />
-        <p className="text-center text-ink-faint py-20 text-sm">آگهی پیدا نشد.</p>
+        <p className="text-center text-ink-faint py-20 text-sm">
+          {hydrated && lookup === "miss" ? "آگهی پیدا نشد." : "در حال بارگذاری…"}
+        </p>
       </main>
     );
   }

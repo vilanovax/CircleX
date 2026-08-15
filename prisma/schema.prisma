@@ -34,6 +34,12 @@ enum InviteKind {
   wave
 }
 
+enum JoinRequestStatus {
+  pending
+  accepted
+  rejected
+}
+
 model User {
   id                 String    @id @default(cuid())
   phoneNormalized    String    @unique
@@ -49,8 +55,12 @@ model User {
   invitesSent        Invite[]           @relation("Inviter")
   invitesAccepted    Invite[]           @relation("AcceptedBy")
   inviteAcceptances  InviteAcceptance[]
+  inviteExpected     InviteExpected[]
   edgesFrom          CircleEdge[]       @relation("EdgeFrom")
   edgesTo            CircleEdge[]       @relation("EdgeTo")
+  listings           MarketListing[]
+  joinRequestsHost   CircleJoinRequest[] @relation("JoinHost")
+  joinRequestsGuest  CircleJoinRequest[] @relation("JoinGuest")
 
   @@index([phoneNormalized])
 }
@@ -99,9 +109,26 @@ model Invite {
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   acceptances      InviteAcceptance[]
+  expected         InviteExpected[]
+  joinRequests     CircleJoinRequest[]
 
   @@index([inviterUserId, status])
   @@index([invitedPhone])
+}
+
+model InviteExpected {
+  id           String   @id @default(cuid())
+  inviteId     String
+  phone        String
+  name         String?
+  joinedUserId String?
+  createdAt    DateTime @default(now())
+  invite       Invite   @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  joinedUser   User?    @relation(fields: [joinedUserId], references: [id], onDelete: SetNull)
+
+  @@unique([inviteId, phone])
+  @@index([inviteId])
+  @@index([phone])
 }
 
 model InviteAcceptance {
@@ -117,12 +144,33 @@ model InviteAcceptance {
   @@index([userId])
 }
 
+model CircleJoinRequest {
+  id          String            @id @default(cuid())
+  hostUserId  String
+  guestUserId String
+  inviteId    String?
+  status      JoinRequestStatus @default(pending)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  resolvedAt  DateTime?
+
+  host   User    @relation("JoinHost", fields: [hostUserId], references: [id], onDelete: Cascade)
+  guest  User    @relation("JoinGuest", fields: [guestUserId], references: [id], onDelete: Cascade)
+  invite Invite? @relation(fields: [inviteId], references: [id], onDelete: SetNull)
+
+  @@unique([hostUserId, guestUserId])
+  @@index([hostUserId, status])
+  @@index([guestUserId])
+  @@index([inviteId])
+}
+
 model CircleEdge {
   id           String       @id @default(cuid())
   fromUserId   String
   toUserId     String
   trustGroup   TrustGroup
   relationType RelationType
+  displayName  String?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   from         User         @relation("EdgeFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
@@ -131,4 +179,26 @@ model CircleEdge {
   @@unique([fromUserId, toUserId])
   @@index([fromUserId])
   @@index([toUserId])
+}
+
+model MarketListing {
+  id          String   @id @default(cuid())
+  sellerId    String
+  seller      User     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  type        String
+  price       Int?
+  category    String
+  image       String
+  images      String[] @default([])
+  condition   String?
+  privacy     String   @default("ABC")
+  city        String?
+  specs       Json?
+  dealStatus  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sellerId])
 }

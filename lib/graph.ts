@@ -12,6 +12,17 @@ export interface GraphNode {
   inCircle: boolean;
   x: number;
   y: number;
+  /** Distance from center — used to draw the ring this node sits on. */
+  ring: number;
+  /** How many nodes share this ring (for label crowding). */
+  ringCount: number;
+}
+
+export interface GraphRing {
+  key: string;
+  radius: number;
+  label: string;
+  count: number;
 }
 
 export interface GraphEdge {
@@ -26,25 +37,36 @@ export interface TrustGraph {
   parent: Record<string, string>;
   maxDepth: number;
   size: number;
+  rings: GraphRing[];
+  nodeR: number;
+  meR: number;
+  legend: GraphRing[];
 }
 
-const LEVEL_ORDER: Record<TrustLevel, number> = { A: 0, B: 1, C: 2 };
+const LEVEL_RING_LABEL: Record<TrustLevel, string> = {
+  A: "نزدیکان",
+  B: "مورد اعتماد",
+  C: "آشنایان",
+};
+
+const VIEW_MIN = 360;
+
+function clamp(n: number, lo: number, hi: number) {
+  return Math.max(lo, Math.min(hi, n));
+}
 
 /**
- * Build a radial trust graph centred on "me". Circle members sit on the inner
- * ring; friends-of-friends fan out on deeper rings near the person who
- * connects them. Edges come from direct membership plus every post's trust path.
+ * Build a radial trust graph centred on "me". Direct members sit on A→B→C
+ * rings packed by circumference (never more faces than the ring can hold).
+ * Friends-of-friends sit further out, near the person who connects them.
  */
 export function buildTrustGraph(
   people: Person[],
   listings: Listing[],
   requests: Request[],
   getPerson: (id: string) => Person | undefined,
-  size = 320,
+  viewSize?: number,
 ): TrustGraph {
-  const C = size / 2;
-  const ringRadius = [0, size * 0.2, size * 0.33, size * 0.45];
-
   const edges: GraphEdge[] = [];
   const edgeKeys = new Set<string>();
   const adj = new Map<string, Set<string>>();
@@ -62,10 +84,8 @@ export function buildTrustGraph(
     adj.get(b)!.add(a);
   };
 
-  // Direct circle membership.
   people.filter(isActiveCircleMember).forEach((p) => link("me", p.id));
 
-  // Trust-path chains from every post: me → hop0 → … → poster.
   const chains: string[][] = [
     ...listings.map((l) => ["me", ...l.trustPath.map((h) => h.personId), l.sellerId]),
     ...requests.map((r) => ["me", ...r.trustPath.map((h) => h.personId), r.requesterId]),
@@ -74,7 +94,6 @@ export function buildTrustGraph(
     for (let i = 0; i < chain.length - 1; i++) link(chain[i], chain[i + 1]);
   });
 
-  // BFS from me → shortest depth + parent for each reachable node.
   const depth = new Map<string, number>([["me", 0]]);
   const parent = new Map<string, string>();
   const queue = ["me"];
@@ -90,7 +109,6 @@ export function buildTrustGraph(
     });
   }
 
-  // Group nodes by depth.
   const byDepth = new Map<number, string[]>();
   depth.forEach((d, id) => {
     if (id === "me") return;
@@ -98,42 +116,138 @@ export function buildTrustGraph(
     byDepth.get(d)!.push(id);
   });
 
-  const angle = new Map<string, number>([["me", -90]]);
-
-  // Inner ring: spread evenly, grouped by trust level.
-  const ring1 = (byDepth.get(1) ?? []).slice().sort((a, b) => {
-    const pa = getPerson(a);
-    const pb = getPerson(b);
-    const la = pa ? LEVEL_ORDER[pa.level] : 9;
-    const lb = pb ? LEVEL_ORDER[pb.level] : 9;
-    return la - lb || (pa?.name ?? "").localeCompare(pb?.name ?? "");
+  const byLevel: Record<TrustLevel, string[]> = { A: [], B: [], C: [] };
+  (byDepth.get(1) ?? []).forEach((id) => {
+    const level = getPerson(id)?.level ?? "B";
+    byLevel[level].push(id);
   });
-  ring1.forEach((id, i) => {
-    angle.set(id, -90 + (360 / Math.max(ring1.length, 1)) * i);
+  (["A", "B", "C"] as TrustLevel[]).forEach((lvl) => {
+    byLevel[lvl].sort((a, b) =>
+      (getPerson(a)?.name ?? "").localeCompare(getPerson(b)?.name ?? "", "fa"),
+    );
   });
 
-  // Deeper rings: cluster children around their parent's angle.
   const maxDepth = Math.max(1, ...Array.from(byDepth.keys()));
+  const viaIds: string[] = [];
   for (let d = 2; d <= maxDepth; d++) {
-    const groups = new Map<string, string[]>();
-    (byDepth.get(d) ?? []).forEach((id) => {
-      const par = parent.get(id)!;
-      if (!groups.has(par)) groups.set(par, []);
-      groups.get(par)!.push(id);
-    });
-    const spread = 18;
-    groups.forEach((children) => {
-      const base = angle.get(parent.get(children[0])!) ?? -90;
-      children.forEach((id, j) => {
-        angle.set(id, base + (j - (children.length - 1) / 2) * spread);
-      });
-    });
+    viaIds.push(...(byDepth.get(d) ?? []));
   }
+  viaIds.sort((a, b) =>
+    (getPerson(a)?.name ?? "").localeCompare(getPerson(b)?.name ?? "", "fa"),
+  );
+
+  type Seat = { id: string; group: "A" | "B" | "C" | "via" };
+  const directs: Seat[] = [
+    ...byLevel.A.map((id) => ({ id, group: "A" as const })),
+    ...byLevel.B.map((id) => ({ id, group: "B" as const })),
+    ...byLevel.C.map((id) => ({ id, group: "C" as const })),
+  ];
+  const vias: Seat[] = viaIds.map((id) => ({ id, group: "via" as const }));
+  const crowd = directs.length + vias.length;
+
+  const nodeR = crowd > 24 ? 12.5 : crowd > 14 ? 13.5 : 15;
+  const meR = 19;
+  const minArc = nodeR * 2 + 14;
+  const ringGap = nodeR * 2 + 18;
+  const innerR = meR + nodeR + 22;
+
+  type Lane = { key: string; ids: string[]; label: string; via: boolean };
+  const planned: Lane[] = [];
+
+  const groupLabel = (group: Seat["group"]) =>
+    group === "via" ? "از طریق دیگران" : LEVEL_RING_LABEL[group];
+
+  const pack = (seats: Seat[], via: boolean) => {
+    let i = 0;
+    let ringIndex = 0;
+    let r = planned.length === 0 ? innerR : innerR + planned.length * ringGap;
+    while (i < seats.length) {
+      const cap = Math.min(
+        10,
+        Math.max(6, Math.floor((2 * Math.PI * r) / minArc)),
+      );
+      const slice = seats.slice(i, i + cap);
+      const first = slice[0]!;
+      const labeled = !planned.some((p) => p.label === groupLabel(first.group));
+      planned.push({
+        key: `${first.group}-${ringIndex}`,
+        ids: slice.map((s) => s.id),
+        label: labeled ? groupLabel(first.group) : "",
+        via,
+      });
+      i += slice.length;
+      ringIndex += 1;
+      r += ringGap;
+    }
+  };
+
+  pack(directs, false);
+  pack(vias, true);
+
+  const lastR =
+    planned.length === 0 ? innerR : innerR + (planned.length - 1) * ringGap;
+  const size = viewSize ?? Math.max(VIEW_MIN, Math.ceil(2 * (lastR + nodeR + 22)));
+
+  const legend: GraphRing[] = [
+    { key: "A", radius: 0, label: LEVEL_RING_LABEL.A, count: byLevel.A.length },
+    { key: "B", radius: 0, label: LEVEL_RING_LABEL.B, count: byLevel.B.length },
+    { key: "C", radius: 0, label: LEVEL_RING_LABEL.C, count: byLevel.C.length },
+    { key: "via", radius: 0, label: "از طریق دیگران", count: viaIds.length },
+  ].filter((item) => item.count > 0);
+  const C = size / 2;
+  const fitScale = lastR > 0 ? clamp((C - nodeR - 26) / lastR, 0.72, 1) : 1;
+
+  const angle = new Map<string, number>([["me", -90]]);
+  const radius = new Map<string, number>([["me", 0]]);
+  const ringCount = new Map<string, number>([["me", 1]]);
+  const rings: GraphRing[] = [];
+
+  planned.forEach((lane, laneIndex) => {
+    const r = (innerR + laneIndex * ringGap) * fitScale;
+    rings.push({
+      key: lane.key,
+      radius: r,
+      label: lane.label,
+      count: lane.ids.length,
+    });
+
+    if (lane.via) {
+      const groups = new Map<string, string[]>();
+      lane.ids.forEach((id) => {
+        const par = parent.get(id) ?? "me";
+        if (!groups.has(par)) groups.set(par, []);
+        groups.get(par)!.push(id);
+      });
+      const n = lane.ids.length;
+      const fallbackGap = 360 / Math.max(n, 1);
+      let cursor = 0;
+      groups.forEach((children) => {
+        const par = parent.get(children[0]!) ?? "me";
+        const base = angle.get(par) ?? -90 + cursor * fallbackGap;
+        const spread = children.length === 1 ? 0 : 22;
+        children.forEach((id, j) => {
+          angle.set(id, base + (j - (children.length - 1) / 2) * spread);
+          radius.set(id, r);
+          ringCount.set(id, n);
+        });
+        cursor += children.length;
+      });
+    } else {
+      const n = lane.ids.length;
+      // Gap at 12 o'clock so the ring title does not sit on a face.
+      const start = -90 + 180 / n + laneIndex * (9 + 180 / n);
+      lane.ids.forEach((id, i) => {
+        angle.set(id, start + (360 / n) * i);
+        radius.set(id, r);
+        ringCount.set(id, n);
+      });
+    }
+  });
 
   const nodes: GraphNode[] = Array.from(depth.entries()).map(([id, d]) => {
     const p = getPerson(id);
     const a = ((angle.get(id) ?? -90) * Math.PI) / 180;
-    const r = ringRadius[Math.min(d, 3)];
+    const r = radius.get(id) ?? 0;
     return {
       id,
       name: id === "me" ? "شما" : p?.name ?? "؟",
@@ -144,6 +258,8 @@ export function buildTrustGraph(
       inCircle: id === "me" ? true : Boolean(p && isActiveCircleMember(p)),
       x: C + r * Math.cos(a),
       y: C + r * Math.sin(a),
+      ring: r,
+      ringCount: ringCount.get(id) ?? 1,
     };
   });
 
@@ -153,6 +269,10 @@ export function buildTrustGraph(
     parent: Object.fromEntries(parent),
     maxDepth,
     size,
+    rings,
+    nodeR,
+    meR,
+    legend,
   };
 }
 
@@ -164,7 +284,7 @@ export function pathToMe(nodeId: string, parent: Record<string, string>): string
     cur = parent[cur];
     path.push(cur);
   }
-  return path; // [node, …, "me"]
+  return path;
 }
 
 export interface GraphInsights {
@@ -188,7 +308,7 @@ export function graphInsights(graph: TrustGraph): GraphInsights {
   const through = new Map<string, number>();
   graph.nodes.forEach((n) => {
     if (n.id === "me") return;
-    const chain = pathToMe(n.id, graph.parent); // [self, …, me]
+    const chain = pathToMe(n.id, graph.parent);
     chain.slice(1, -1).forEach((id) => {
       through.set(id, (through.get(id) ?? 0) + 1);
     });
@@ -224,7 +344,7 @@ export function connectionPathSentence(
   pathFromNodeToMe: string[],
   nameOf: (id: string) => string,
 ): { sentence: string; trail: string } {
-  const chain = pathFromNodeToMe.slice().reverse(); // [me, …, selected]
+  const chain = pathFromNodeToMe.slice().reverse();
   const trail = chain
     .map((id) => (id === "me" ? "شما" : nameOf(id)))
     .join(" ← ");

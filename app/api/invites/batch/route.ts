@@ -1,4 +1,5 @@
 import { jsonError, readJson } from "@/lib/http";
+import { WAVE_ROSTER_LIMIT } from "@/lib/invite";
 import { toClientInvite } from "@/lib/mappers";
 import { isValidIranMobile, normalizePhone } from "@/lib/phone";
 import { createInviteRecord } from "@/lib/server-invite";
@@ -14,8 +15,6 @@ const RELATIONS: RelationType[] = [
   "neighbor",
   "acquaintance",
 ];
-
-const BATCH_LIMIT = 20;
 
 export async function POST(req: Request) {
   const session = await getSessionUser();
@@ -33,8 +32,8 @@ export async function POST(req: Request) {
 
   const raw = Array.isArray(body?.people) ? body.people : [];
   if (raw.length === 0) return jsonError("حداقل یک شماره وارد کن", 400);
-  if (raw.length > BATCH_LIMIT) {
-    return jsonError(`حداکثر ${BATCH_LIMIT} نفر در هر بار`, 400);
+  if (raw.length > WAVE_ROSTER_LIMIT) {
+    return jsonError(`حداکثر ${WAVE_ROSTER_LIMIT} نفر در هر لینک`, 400);
   }
 
   const seen = new Set<string>();
@@ -50,19 +49,14 @@ export async function POST(req: Request) {
     people.push({ phone, name });
   }
 
-  const invites = [];
-  for (const person of people) {
-    const invite = await createInviteRecord({
-      inviterUserId: session.id,
-      relationType,
-      trustGroup: "B",
-      kind: "personal",
-      invitedPhone: person.phone,
-      invitedName: person.name,
-    });
-    if (!invite) return jsonError("ساخت لینک ممکن نشد", 500);
-    invites.push(toClientInvite(invite));
-  }
+  const invite = await createInviteRecord({
+    inviterUserId: session.id,
+    relationType,
+    trustGroup: "B",
+    kind: "wave",
+    people,
+  });
+  if (!invite) return jsonError("ساخت لینک ممکن نشد", 500);
 
-  return Response.json({ invites }, { status: 201 });
+  return Response.json({ invite: toClientInvite(invite) }, { status: 201 });
 }

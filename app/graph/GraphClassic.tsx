@@ -19,7 +19,7 @@ import {
 const TrustGraph = lazyUi(() => import("@/components/TrustGraph"), {
   loading: () => (
     <div
-      className="w-full aspect-square max-h-[340px] rounded-xl bg-stone-100/80 dark:bg-zinc-800/60 animate-pulse"
+      className="w-full aspect-square min-h-[420px] rounded-xl bg-stone-100/80 dark:bg-zinc-800/60 animate-pulse"
       aria-hidden
     />
   ),
@@ -42,6 +42,7 @@ function viaPathLabel(
 export default function GraphClassic() {
   const { people, listings, requests, getPerson } = useStore();
   const [view, setView] = useState<ViewMode>("list");
+  const [mapFocus, setMapFocus] = useState<string | null>(null);
 
   const graph = useMemo(
     () => buildTrustGraph(people, listings, requests, getPerson),
@@ -92,10 +93,13 @@ export default function GraphClassic() {
           />
         </div>
 
-        {insights.hub && insights.hub.count > 0 && (
+        {insights.hub && insights.hub.count > 1 && (
           <button
             type="button"
-            onClick={() => setView("map")}
+            onClick={() => {
+              setMapFocus(insights.hub!.id);
+              setView("map");
+            }}
             className="w-full flex items-center gap-2.5 rounded-xl bg-brand-50/80 dark:bg-brand-500/10 px-3 py-2.5 text-start active:opacity-80 transition-opacity"
           >
             <span className="w-8 h-8 rounded-lg bg-[color:var(--circle-surface)] dark:bg-zinc-900 text-brand-600 flex items-center justify-center shrink-0 ring-1 ring-brand-100 dark:ring-brand-500/20">
@@ -117,16 +121,16 @@ export default function GraphClassic() {
         )}
 
         {view === "map" ? (
-          <div className="card p-3 overflow-hidden">
+          <div className="card p-2.5 overflow-hidden">
             <div className="flex items-center justify-between gap-2 px-0.5 mb-1">
               <h2 className="text-[13px] font-bold text-ink dark:text-zinc-100">
                 نقشه ارتباط‌ها
               </h2>
               <span className="text-[11px] text-ink-faint">
-                نزدیک‌تر به مرکز = مستقیم‌تر
+                دو انگشت · بکشید
               </span>
             </div>
-            <TrustGraph />
+            <TrustGraph focusId={mapFocus} />
           </div>
         ) : (
           <div className="space-y-3">

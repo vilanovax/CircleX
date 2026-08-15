@@ -32,6 +32,7 @@ import { useToast } from "@/components/Toast";
 import type {
   Listing,
   Person,
+  RelationType,
   TrustHop,
   TrustLevel,
 } from "@/lib/types";
@@ -57,6 +58,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
     requests,
     removePerson,
     setLevel,
+    setRelation,
     addToCircle,
     getThread,
     hydrated,
@@ -386,6 +388,10 @@ export default function PersonClassic(_props: { params: { id: string } }) {
             setLevel(id, lvl);
             show(`گروه ${person.name}: ${levelShort[lvl]}`);
           }}
+          onSetRelation={(rel) => {
+            setRelation(id, rel);
+            show(`${person.name}: ${relationLabels[rel]}`);
+          }}
           onRemove={() => {
             setShowEditRelation(false);
             handleRemoveFromCircle();
@@ -628,6 +634,14 @@ function EndorsementBlock({
   );
 }
 
+const RELATIONS: RelationType[] = [
+  "family",
+  "friend",
+  "colleague",
+  "neighbor",
+  "acquaintance",
+];
+
 function EditRelationSheet({
   person,
   personId,
@@ -636,6 +650,7 @@ function EditRelationSheet({
   trustPath,
   onClose,
   onSetLevel,
+  onSetRelation,
   onRemove,
 }: {
   person: Person;
@@ -645,6 +660,7 @@ function EditRelationSheet({
   trustPath: TrustHop[];
   onClose: () => void;
   onSetLevel: (lvl: TrustLevel) => void;
+  onSetRelation: (relation: RelationType) => void;
   onRemove: () => void;
 }) {
   const titleId = useId();
@@ -657,12 +673,33 @@ function EditRelationSheet({
       >
         تغییر رابطه
       </h2>
-      <p className="text-[12px] text-ink-muted mb-4 leading-relaxed">
+      <p className="text-[12px] text-ink-muted mb-3 leading-relaxed">
         {relationPhrase} · حلقه {relationLabels[person.relation]}
       </p>
 
       <p className="text-[11px] text-ink-faint mb-2">
-        {person.name} در کدام گروه باشد؟
+        {person.name} را چطور می‌شناسی؟
+      </p>
+      <div className="flex flex-wrap gap-2 mb-4">
+        {RELATIONS.map((r) => (
+          <button
+            key={r}
+            type="button"
+            onClick={() => onSetRelation(r)}
+            aria-pressed={person.relation === r}
+            className={`chip !px-3 !py-1.5 border ${
+              person.relation === r
+                ? "bg-brand-600 text-white border-brand-600"
+                : "bg-[color:var(--circle-surface)] text-ink-muted border-stone-200 dark:border-zinc-700"
+            }`}
+          >
+            {relationLabels[r]}
+          </button>
+        ))}
+      </div>
+
+      <p className="text-[11px] text-ink-faint mb-2">
+        در کدام گروه باشد؟
       </p>
       <div className="flex gap-2 mb-4">
         {LEVELS.map((lvl) => (

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import { resolveAvatarSrc } from "@/lib/avatar";
 import {
@@ -13,18 +13,28 @@ import {
 import { relationLabels } from "@/lib/labels";
 import { viewerRelationPhrase } from "@/lib/trust";
 
-const SIZE = 340;
 const BRAND = "#7c3aed";
 const RING = "rgba(120,113,108,0.42)";
+const MIN_K = 1;
+const MAX_K = 2.8;
 
 const ekey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
 
-export default function TrustGraph() {
+function clamp(n: number, lo: number, hi: number) {
+  return Math.max(lo, Math.min(hi, n));
+}
+
+export default function TrustGraph({
+  focusId = null,
+}: {
+  focusId?: string | null;
+}) {
   const { people, listings, requests, getPerson } = useStore();
   const [selected, setSelected] = useState<string | null>(null);
+  const [zoomed, setZoomed] = useState(false);
 
   const graph = useMemo(
-    () => buildTrustGraph(people, listings, requests, getPerson, SIZE),
+    () => buildTrustGraph(people, listings, requests, getPerson),
     [people, listings, requests, getPerson],
   );
 
@@ -51,10 +61,7 @@ export default function TrustGraph() {
   }, [selected, graph.parent]);
 
   const dim = (id: string) => selected != null && !pathNodes.has(id);
-  const ringRadii = [SIZE * 0.2, SIZE * 0.33, SIZE * 0.45].slice(
-    0,
-    graph.maxDepth,
-  );
+  const size = graph.size;
 
   const selectedNode = selected ? nodeById[selected] : null;
   const selectedPerson = selected ? getPerson(selected) : null;
@@ -66,13 +73,218 @@ export default function TrustGraph() {
     );
   }, [selected, pathChain, nodeById]);
 
+  useEffect(() => {
+    if (focusId) setSelected(focusId);
+  }, [focusId]);
+
+  const svgRef = useRef<SVGSVGElement>(null);
+  const viewRef = useRef({ cx: size / 2, cy: size / 2, k: 1 });
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{
+    dist: number;
+    k: number;
+    midSvg: { x: number; y: number };
+  } | null>(null);
+  const pan = useRef<{
+    x: number;
+    y: number;
+    cx: number;
+    cy: number;
+  } | null>(null);
+  const dragged = useRef(false);
+
+  const applyView = () => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const { cx, cy, k } = viewRef.current;
+    const w = size / k;
+    svg.setAttribute("viewBox", `${cx - w / 2} ${cy - w / 2} ${w} ${w}`);
+    setZoomed(k > 1.02);
+  };
+
+  const resetView = () => {
+    viewRef.current = { cx: size / 2, cy: size / 2, k: 1 };
+    applyView();
+  };
+
+  const clampCenter = () => {
+    const { k } = viewRef.current;
+    if (k <= 1.001) {
+      viewRef.current.k = 1;
+      viewRef.current.cx = size / 2;
+      viewRef.current.cy = size / 2;
+      return;
+    }
+    const half = size / (2 * k);
+    const pad = half * 0.35;
+    viewRef.current.cx = clamp(viewRef.current.cx, half - pad, size - half + pad);
+    viewRef.current.cy = clamp(viewRef.current.cy, half - pad, size - half + pad);
+  };
+
+  useEffect(() => {
+    viewRef.current = { cx: size / 2, cy: size / 2, k: 1 };
+    applyView();
+    // size is the only reset trigger — applyView reads refs
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [size]);
+
+  const clientToSvg = (clientX: number, clientY: number) => {
+    const svg = svgRef.current;
+    if (!svg) return { x: size / 2, y: size / 2 };
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    const m = svg.getScreenCTM();
+    if (!m) return { x: size / 2, y: size / 2 };
+    const p = pt.matrixTransform(m.inverse());
+    return { x: p.x, y: p.y };
+  };
+
+  const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    dragged.current = false;
+    if (pointers.current.size === 1) {
+      pan.current = {
+        x: e.clientX,
+        y: e.clientY,
+        cx: viewRef.current.cx,
+        cy: viewRef.current.cy,
+      };
+      pinch.current = null;
+    } else if (pointers.current.size >= 2) {
+      const pts = Array.from(pointers.current.values());
+      const a = pts[0]!;
+      const b = pts[1]!;
+      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      pinch.current = {
+        dist: Math.hypot(a.x - b.x, a.y - b.y),
+        k: viewRef.current.k,
+        midSvg: clientToSvg(mid.x, mid.y),
+      };
+      pan.current = null;
+    }
+  };
+
+  const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (!pointers.current.has(e.pointerId)) return;
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    if (rect.width < 1) return;
+
+    if (pointers.current.size >= 2 && pinch.current) {
+      const pts = Array.from(pointers.current.values());
+      const a = pts[0]!;
+      const b = pts[1]!;
+      const dist = Math.max(8, Math.hypot(a.x - b.x, a.y - b.y));
+      const k = clamp((pinch.current.k * dist) / pinch.current.dist, MIN_K, MAX_K);
+      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      const w = size / k;
+      const fx = (mid.x - rect.left) / rect.width;
+      const fy = (mid.y - rect.top) / rect.height;
+      viewRef.current.k = k;
+      viewRef.current.cx = pinch.current.midSvg.x - fx * w + w / 2;
+      viewRef.current.cy = pinch.current.midSvg.y - fy * w + w / 2;
+      clampCenter();
+      dragged.current = true;
+      applyView();
+      return;
+    }
+
+    if (pointers.current.size === 1 && pan.current && viewRef.current.k > 1.02) {
+      const dx = e.clientX - pan.current.x;
+      const dy = e.clientY - pan.current.y;
+      if (Math.hypot(dx, dy) > 5) dragged.current = true;
+      const w = size / viewRef.current.k;
+      viewRef.current.cx = pan.current.cx - (dx / rect.width) * w;
+      viewRef.current.cy = pan.current.cy - (dy / rect.height) * w;
+      clampCenter();
+      applyView();
+    } else if (pointers.current.size === 1 && pan.current) {
+      const dx = e.clientX - pan.current.x;
+      const dy = e.clientY - pan.current.y;
+      if (Math.hypot(dx, dy) > 8) dragged.current = true;
+    }
+  };
+
+  const onPointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size < 2) pinch.current = null;
+    if (pointers.current.size === 0) pan.current = null;
+    if (pointers.current.size === 1) {
+      const only = Array.from(pointers.current.values())[0]!;
+      pan.current = {
+        x: only.x,
+        y: only.y,
+        cx: viewRef.current.cx,
+        cy: viewRef.current.cy,
+      };
+    }
+  };
+
+  const onWheel = (e: React.WheelEvent<SVGSVGElement>) => {
+    e.preventDefault();
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const k0 = viewRef.current.k;
+    const k = clamp(k0 * (e.deltaY < 0 ? 1.12 : 1 / 1.12), MIN_K, MAX_K);
+    if (k === k0) return;
+    const w = size / k;
+    const fx = (e.clientX - rect.left) / rect.width;
+    const fy = (e.clientY - rect.top) / rect.height;
+    const focus = clientToSvg(e.clientX, e.clientY);
+    viewRef.current.k = k;
+    viewRef.current.cx = focus.x - fx * w + w / 2;
+    viewRef.current.cy = focus.y - fy * w + w / 2;
+    clampCenter();
+    applyView();
+  };
+
+  const selectNode = (id: string) => {
+    if (dragged.current) return;
+    setSelected((s) => (s === id ? null : id));
+  };
+
+  const legend = graph.legend;
+
   return (
     <div>
-      <div className="relative rounded-xl overflow-hidden bg-gradient-to-br from-brand-50/70 via-[color:var(--circle-surface)] to-teal-50/50 dark:from-brand-500/10 dark:via-zinc-900 dark:to-teal-500/5">
+      {legend.length > 0 ? (
+        <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 px-1 pb-2">
+          {legend.map((ring) => (
+            <span
+              key={ring.key}
+              className="text-[10px] font-bold text-ink-muted dark:text-zinc-400 nums"
+            >
+              {ring.label}
+              <span className="text-ink-faint font-semibold">
+                {" "}
+                {ring.count}
+              </span>
+            </span>
+          ))}
+        </div>
+      ) : null}
+      <div
+        dir="ltr"
+        className="relative rounded-xl overflow-hidden bg-gradient-to-br from-brand-50/70 via-[color:var(--circle-surface)] to-teal-50/50 dark:from-brand-500/10 dark:via-zinc-900 dark:to-teal-500/5"
+      >
         <svg
-          viewBox={`-12 -12 ${SIZE + 24} ${SIZE + 36}`}
-          className="w-full select-none"
-          onClick={() => setSelected(null)}
+          ref={svgRef}
+          viewBox={`0 0 ${size} ${size}`}
+          className="w-full aspect-square select-none block touch-none"
+          style={{ touchAction: "none" }}
+          onClick={() => {
+            if (!dragged.current) setSelected(null);
+          }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          onWheel={onWheel}
           role="img"
           aria-label="نقشه ارتباط‌های حلقهٔ شما"
         >
@@ -92,48 +304,24 @@ export default function TrustGraph() {
           </defs>
 
           <circle
-            cx={SIZE / 2}
-            cy={SIZE / 2}
-            r={SIZE * 0.42}
+            cx={size / 2}
+            cy={size / 2}
+            r={Math.max(size * 0.22, (graph.rings[0]?.radius ?? 80) * 0.62)}
             fill="url(#tg-center-glow)"
           />
 
-          {ringRadii.map((r, i) => {
-            const depth = i + 1;
-            const labelY = SIZE / 2 - r;
-            return (
-              <g key={i}>
-                <circle
-                  cx={SIZE / 2}
-                  cy={SIZE / 2}
-                  r={r}
-                  fill="none"
-                  className="stroke-stone-300/80 dark:stroke-zinc-600/55"
-                  strokeWidth={1.15}
-                  strokeDasharray="4 5"
-                />
-                <rect
-                  x={SIZE / 2 - 28}
-                  y={labelY - 7}
-                  width={56}
-                  height={14}
-                  rx={7}
-                  className="fill-[color:var(--circle-surface)] dark:fill-zinc-900"
-                  opacity={0.92}
-                />
-                <text
-                  x={SIZE / 2}
-                  y={labelY + 3.5}
-                  textAnchor="middle"
-                  fontSize={8.5}
-                  fontWeight={700}
-                  className="fill-zinc-500 dark:fill-zinc-400"
-                >
-                  {depthRingLabel(depth)}
-                </text>
-              </g>
-            );
-          })}
+          {graph.rings.map((ring) => (
+            <circle
+              key={ring.key}
+              cx={size / 2}
+              cy={size / 2}
+              r={ring.radius}
+              fill="none"
+              className="stroke-stone-300/80 dark:stroke-zinc-600/55"
+              strokeWidth={1.15}
+              strokeDasharray="4 5"
+            />
+          ))}
 
           <g className="animate-appear">
             {graph.edges.map((e, i) => {
@@ -149,13 +337,13 @@ export default function TrustGraph() {
                   x2={b.x}
                   y2={b.y}
                   stroke={hot ? BRAND : undefined}
-                  strokeWidth={hot ? 3 : 1.35}
+                  strokeWidth={hot ? 3 : 1.2}
                   strokeLinecap="round"
                   className={
                     hot
                       ? "transition-[stroke-width,opacity] duration-200"
                       : `stroke-stone-400 dark:stroke-zinc-500 transition-opacity duration-200 ${
-                          selected ? "opacity-12" : "opacity-70"
+                          selected ? "opacity-15" : "opacity-55"
                         }`
                   }
                 />
@@ -165,16 +353,17 @@ export default function TrustGraph() {
 
           {graph.nodes.map((n, i) => {
             const isMe = n.id === "me";
-            const r = isMe ? 20 : 15.5;
+            const r = isMe ? graph.meR : graph.nodeR;
             const onPath = pathNodes.has(n.id);
             const isSelected = selected === n.id;
+            const showName = true;
             return (
               <g
                 key={n.id}
                 transform={`translate(${n.x} ${n.y})`}
                 onClick={(ev) => {
                   ev.stopPropagation();
-                  if (!isMe) setSelected((s) => (s === n.id ? null : n.id));
+                  if (!isMe) selectNode(n.id);
                 }}
                 className={isMe ? "cursor-default" : "cursor-pointer"}
                 role={isMe ? undefined : "button"}
@@ -185,7 +374,7 @@ export default function TrustGraph() {
                     : (ev) => {
                         if (ev.key === "Enter" || ev.key === " ") {
                           ev.preventDefault();
-                          setSelected((s) => (s === n.id ? null : n.id));
+                          selectNode(n.id);
                         }
                       }
                 }
@@ -199,7 +388,7 @@ export default function TrustGraph() {
                 >
                   <g
                     className={`transition-opacity duration-200 ${
-                      dim(n.id) ? "opacity-22" : "opacity-100"
+                      dim(n.id) ? "opacity-25" : "opacity-100"
                     }`}
                   >
                     {(isMe || onPath || isSelected) && (
@@ -215,6 +404,7 @@ export default function TrustGraph() {
                         <circle r={r} />
                       </clipPath>
                     </defs>
+                    <circle r={r} className="fill-white dark:fill-zinc-800" />
                     <image
                       href={resolveAvatarSrc(n.name, n.avatar)}
                       x={-r}
@@ -227,28 +417,38 @@ export default function TrustGraph() {
                     <circle
                       r={r}
                       fill="none"
-                      stroke={
-                        isMe || isSelected || onPath ? BRAND : RING
-                      }
+                      stroke={isMe || isSelected || onPath ? BRAND : RING}
                       strokeWidth={
-                        isMe ? 2 : isSelected ? 3.25 : onPath ? 2.6 : 2.2
+                        isMe ? 2.4 : isSelected ? 3.1 : onPath ? 2.4 : 2
                       }
                     />
-                    <text
-                      y={r + 12}
-                      textAnchor="middle"
-                      fontSize={9.5}
-                      fontWeight={onPath || isMe || isSelected ? 700 : 500}
-                      className="fill-zinc-700 dark:fill-zinc-300"
-                    >
-                      {n.name}
-                    </text>
+                    {showName ? (
+                      <text
+                        y={r + 12}
+                        textAnchor="middle"
+                        fontSize={isMe ? 10 : 8.5}
+                        fontWeight={onPath || isMe || isSelected ? 700 : 600}
+                        className="fill-zinc-700 dark:fill-zinc-300"
+                      >
+                        {n.name.length > 7 ? `${n.name.slice(0, 6)}…` : n.name}
+                      </text>
+                    ) : null}
                   </g>
                 </g>
               </g>
             );
           })}
         </svg>
+
+        {zoomed ? (
+          <button
+            type="button"
+            onClick={resetView}
+            className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 px-3 py-1.5 text-[11px] font-bold text-brand-700 dark:text-brand-300 shadow-sm ring-1 ring-stone-200/80 dark:ring-zinc-700"
+          >
+            نمایش همه
+          </button>
+        ) : null}
       </div>
 
       <div className="mt-3 min-h-[88px]">
@@ -312,7 +512,8 @@ export default function TrustGraph() {
               یک نفر را لمس کنید
             </p>
             <p className="text-[12px] text-ink-faint dark:text-zinc-500 mt-0.5 leading-relaxed">
-              مسیر وصل شدنش روشن می‌شود — مستقیم یا از طریق دیگران.
+              مسیر وصل شدنش روشن می‌شود. دو انگشت بزنید تا نزدیک شوید، بعد
+              بکشید.
             </p>
           </div>
         )}

@@ -20,7 +20,7 @@ import { useStore } from "@/lib/store";
 import type { Person, PublicInvite } from "@/lib/types";
 
 const ERROR_COPY: Record<
-  Exclude<InviteViewKind, "pending" | "own">,
+  Exclude<InviteViewKind, "pending" | "own" | "requested">,
   { title: string; body: string }
 > = {
   invalid: {
@@ -130,6 +130,10 @@ export default function InviteLandingPage() {
           setAcceptKind("own");
           return;
         }
+        if (result.requested) {
+          setAcceptKind("requested");
+          return;
+        }
         setPlaceTarget(result.inviter);
       } catch (err) {
         clearPendingInviteCode();
@@ -170,6 +174,33 @@ export default function InviteLandingPage() {
           publicInvite ? { name: publicInvite.inviter.name } : null
         }
       />
+    );
+  }
+
+  if (kind === "requested" && publicInvite) {
+    return (
+      <InviteFrame>
+        <Avatar
+          name={publicInvite.inviter.name}
+          src={publicInvite.inviter.avatar}
+          size="lg"
+          showLevel={false}
+        />
+        <h1 className="mt-4 text-lg font-extrabold text-ink dark:text-zinc-50 leading-snug">
+          درخواستت ارسال شد
+        </h1>
+        <p className="text-sm text-ink-muted mt-2.5 leading-relaxed">
+          {publicInvite.inviter.name} باید تأیید کند که تو را می‌شناسد. تا آن
+          وقت وارد حلقه‌اش نمی‌شوی.
+        </p>
+        <button
+          type="button"
+          className="btn-primary w-full mt-5"
+          onClick={() => router.push("/")}
+        >
+          رفتن به خانه
+        </button>
+      </InviteFrame>
     );
   }
 
@@ -214,7 +245,7 @@ export default function InviteLandingPage() {
 
   if (kind !== "pending") {
     const copy =
-      kind === "own"
+      kind === "own" || kind === "requested"
         ? ERROR_COPY.invalid
         : (ERROR_COPY[kind] ?? ERROR_COPY.invalid);
     return (

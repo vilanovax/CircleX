@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ApiError } from "@/lib/api";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import ListingComposeForm from "@/components/ListingComposeForm";
@@ -12,6 +14,7 @@ export default function NewClassic() {
   const router = useRouter();
   const { addListing } = useStore();
   const { show } = useToast();
+  const [publishing, setPublishing] = useState(false);
 
   return (
     <main className="pb-28 min-h-[100dvh]">
@@ -33,11 +36,18 @@ export default function NewClassic() {
         </Link>
 
         <ListingComposeForm
-          submitLabel="انتشار آگهی در حلقه"
-          onSubmit={(input) => {
-            const id = addListing(input);
-            show("آگهی شما در حلقه منتشر شد ✓");
-            router.push(`/listing/${id}`);
+          submitLabel={publishing ? "در حال انتشار…" : "انتشار آگهی در حلقه"}
+          onSubmit={async (input) => {
+            if (publishing) return;
+            setPublishing(true);
+            try {
+              const id = await addListing(input);
+              show("آگهی شما در حلقه منتشر شد ✓");
+              router.push(`/listing/${id}`);
+            } catch (err) {
+              show(err instanceof ApiError ? err.message : "آگهی ذخیره نشد");
+              setPublishing(false);
+            }
           }}
         />
       </div>

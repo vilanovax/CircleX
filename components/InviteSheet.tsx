@@ -7,6 +7,7 @@ import { levelHint, levelLabels, relationLabels } from "@/lib/labels";
 import {
   GROUP_PRIVATE_LINE,
   WAVE_MAX_USES,
+  WAVE_ROSTER_LIMIT,
   copyText,
   inviteShareText,
   inviteUrl,
@@ -52,7 +53,7 @@ function CheckMark({ className }: { className?: string }) {
 }
 
 export default function InviteSheet({ onClose }: { onClose: () => void }) {
-  const { me, createInvite, createInvitesBatch } = useStore();
+  const { me, createInvite } = useStore();
   const { show } = useToast();
   const [mode, setMode] = useState<"personal" | "wave">("personal");
   const [relation, setRelation] = useState<RelationType>("friend");
@@ -60,7 +61,6 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
   const [level, setLevel] = useState<TrustLevel>("B");
   const [phoneInput, setPhoneInput] = useState("");
   const [created, setCreated] = useState<Invite | null>(null);
-  const [batch, setBatch] = useState<Invite[] | null>(null);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const [creating, setCreating] = useState(false);
@@ -87,32 +87,22 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
 
   async function onCreateWave() {
     if (creating) return;
+    const parsed = parseInviteLines(pasteText);
+    if (pasteOpen && parsed.valid.length === 0) return;
+    if (parsed.valid.length > WAVE_ROSTER_LIMIT) {
+      show(`حداکثر ${toPersianDigits(WAVE_ROSTER_LIMIT)} نفر`);
+      return;
+    }
     setCreating(true);
     try {
       const invite = await createInvite({
         relationType: waveRelation,
         kind: "wave",
+        people: parsed.valid.length > 0 ? parsed.valid : undefined,
       });
       setCreated(invite);
     } catch {
       show("ساخت لینک ممکن نشد");
-    } finally {
-      setCreating(false);
-    }
-  }
-
-  async function onCreateBatch() {
-    const parsed = parseInviteLines(pasteText);
-    if (parsed.valid.length === 0 || creating) return;
-    setCreating(true);
-    try {
-      const invites = await createInvitesBatch({
-        relationType: waveRelation,
-        people: parsed.valid,
-      });
-      setBatch(invites);
-    } catch {
-      show("ساخت دعوت‌ها ممکن نشد");
     } finally {
       setCreating(false);
     }
@@ -128,18 +118,9 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
     );
   }
 
-  if (batch && batch.length > 0) {
-    return (
-      <BatchSharePanel
-        invites={batch}
-        inviterName={me.name}
-        onClose={onClose}
-      />
-    );
-  }
-
   if (mode === "wave") {
     const parsed = parseInviteLines(pasteText);
+    const pasteBlocked = pasteOpen && parsed.valid.length === 0;
     return (
       <SheetShell
         onClose={onClose}
@@ -147,29 +128,18 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
         zClass="z-50"
         footer={
           <div className="flex flex-col gap-1 pb-1">
-            {pasteOpen ? (
-              <button
-                type="button"
-                disabled={creating || parsed.valid.length === 0}
-                onClick={() => void onCreateBatch()}
-                className="btn-primary w-full min-h-12 shadow-md shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150"
-              >
-                {creating
-                  ? "در حال ساخت…"
-                  : parsed.valid.length > 0
-                    ? `ساخت ${toPersianDigits(parsed.valid.length)} دعوت`
-                    : "حداقل یک شماره معتبر"}
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled={creating}
-                onClick={() => void onCreateWave()}
-                className="btn-primary w-full min-h-12 shadow-md shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150"
-              >
-                {creating ? "در حال ساخت…" : "ساخت لینک گروهی"}
-              </button>
-            )}
+            <button
+              type="button"
+              disabled={creating || pasteBlocked}
+              onClick={() => void onCreateWave()}
+              className="btn-primary w-full min-h-12 shadow-md shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150"
+            >
+              {creating
+                ? "در حال ساخت…"
+                : parsed.valid.length > 0
+                  ? `ساخت لینک برای ${toPersianDigits(parsed.valid.length)} نفر`
+                  : "ساخت لینک گروهی"}
+            </button>
             <button
               type="button"
               onClick={() => setMode("personal")}
@@ -187,8 +157,8 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
           چند نفر با یک لینک
         </h2>
         <p className="text-[13px] text-ink-muted dark:text-zinc-400 mt-1.5 leading-relaxed">
-          لینک را در گروه بفرست. تا {toPersianDigits(WAVE_MAX_USES)} نفر
-          می‌توانند بپیوندند. جایگاه را بعداً عوض می‌کنی.
+          یک لینک می‌سازی و همان را می‌فرستی. وقتی با شمارهٔ خودشان وارد
+          شوند، در حلقه دیده می‌شوند. تا {toPersianDigits(WAVE_MAX_USES)} نفر.
         </p>
 
         <p className="text-[13px] font-bold mt-5 mb-2 text-ink dark:text-zinc-200">
@@ -250,7 +220,7 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
             />
             <p className="text-[11px] text-ink-muted mt-2 leading-relaxed nums">
               {parsed.valid.length > 0
-                ? `${toPersianDigits(parsed.valid.length)} شماره آماده`
+                ? `${toPersianDigits(parsed.valid.length)} نفر روی همین لینک`
                 : "هر سطر یک نفر — نام اختیاری است"}
               {parsed.invalid.length > 0
                 ? ` · ${toPersianDigits(parsed.invalid.length)} نامعتبر`
@@ -266,7 +236,7 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
             onClick={() => setPasteOpen(true)}
             className="mt-4 w-full text-[13px] font-semibold text-brand-700 dark:text-brand-400 py-2.5 rounded-xl active:bg-brand-50/80 dark:active:bg-brand-500/10"
           >
-            یا چند شماره جدا وارد کن
+            یا شماره‌ها را همین‌جا بچسبان
           </button>
         )}
       </SheetShell>
@@ -418,7 +388,7 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
           چند نفر با یک لینک
         </span>
         <span className="block text-[11px] text-ink-muted mt-0.5 leading-snug">
-          گروه واتساپ، یا چند شماره یک‌جا
+          یک لینک برای گروه یا چند شماره
         </span>
       </button>
     </SheetShell>
@@ -435,13 +405,29 @@ export function InviteSharePanel({
   onClose: () => void;
 }) {
   const { show } = useToast();
+  const [copied, setCopied] = useState(false);
   const url = inviteUrl(invite.code);
   const text = inviteShareText(inviterName, url);
   const isWave = invite.kind === "wave";
+  const roster = invite.expected ?? [];
+  const pendingPhones = roster.filter((row) => !row.joined).map((row) => row.phone);
+  const waPhone = isWave ? undefined : invite.invitedPhone;
+  const smsPhones = isWave
+    ? pendingPhones.length > 0
+      ? pendingPhones
+      : undefined
+    : invite.invitedPhone;
+  const visibleRoster = roster.slice(0, 6);
+  const extraRoster = roster.length - visibleRoster.length;
 
   async function onCopy() {
     const ok = await copyText(url);
-    show(ok ? "لینک کپی شد" : "کپی ممکن نشد");
+    if (ok) {
+      setCopied(true);
+      show("لینک کپی شد");
+    } else {
+      show("کپی ممکن نشد");
+    }
   }
 
   async function onShare() {
@@ -459,205 +445,125 @@ export function InviteSharePanel({
       labelledBy="invite-share-title"
       zClass="z-50"
       footer={
-        <button type="button" onClick={onClose} className="btn-ghost w-full">
-          بستن
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full min-h-11 text-[13px] font-semibold text-ink-muted dark:text-zinc-400 active:opacity-70"
+        >
+          بعداً می‌فرستم
         </button>
       }
     >
-      <h2
-        id="invite-share-title"
-        className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50"
-      >
-        لینک دعوت آماده است
-      </h2>
-      <p className="text-sm text-ink-muted mt-1.5 leading-relaxed">
-        {isWave
-          ? "این لینک را در گروه بفرست. تا وقتی نپیوندند در حلقه دیده نمی‌شوند."
-          : "این لینک را برایش بفرست. تا وقتی نپیوندد در حلقه دیده نمی‌شود."}
-      </p>
-      <p
-        dir="ltr"
-        className="mt-3 rounded-xl bg-stone-50 dark:bg-zinc-800 px-3 py-2.5 text-[12px] font-medium text-ink break-all text-left"
-      >
-        {url}
-      </p>
-      <div className="grid grid-cols-2 gap-2 mt-4">
-        <button type="button" onClick={() => void onShare()} className="btn-primary">
-          اشتراک‌گذاری
+      <div className="flex flex-col items-center text-center pt-0.5">
+        <span
+          className="w-10 h-10 rounded-full bg-brand-600 text-white flex items-center justify-center shadow-md shadow-brand-600/20"
+          aria-hidden
+        >
+          <svg
+            className="w-[18px] h-[18px]"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
+          </svg>
+        </span>
+        <h2
+          id="invite-share-title"
+          className="mt-2.5 font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 tracking-tight"
+        >
+          لینک آماده است
+        </h2>
+        <p className="text-[13px] text-ink-muted mt-1 leading-relaxed max-w-[19rem]">
+          {isWave
+            ? roster.length > 0
+              ? `یک لینک برای ${toPersianDigits(roster.length)} نفر. همان را بفرست.`
+              : "این لینک را در گروه بفرست. تا نپیوندند عضو نیستند."
+            : "این لینک را برایش بفرست. تا نپیوندد عضو نیست."}
+        </p>
+      </div>
+
+      {roster.length > 0 && (
+        <ul className="mt-4 rounded-2xl border border-stone-200/80 dark:border-zinc-700 divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
+          {visibleRoster.map((row) => {
+            const name = row.name?.trim();
+            return (
+              <li key={row.id} className="flex items-center gap-2.5 px-3 py-2">
+                <span
+                  className="w-8 h-8 rounded-full bg-brand-50 dark:bg-brand-500/15 text-brand-700 dark:text-brand-300 font-extrabold text-[13px] flex items-center justify-center shrink-0"
+                  aria-hidden
+                >
+                  {(name || "؟").charAt(0)}
+                </span>
+                <span className="min-w-0 flex-1 text-right">
+                  <span className="block text-[13px] font-bold text-ink dark:text-zinc-100 truncate">
+                    {name || formatPhoneDisplay(row.phone)}
+                  </span>
+                  {name ? (
+                    <span
+                      dir="ltr"
+                      className="block text-[11px] text-ink-muted nums tracking-wide mt-0.5"
+                    >
+                      {formatPhoneDisplay(row.phone)}
+                    </span>
+                  ) : null}
+                </span>
+              </li>
+            );
+          })}
+          {extraRoster > 0 && (
+            <li className="px-3 py-2 text-[12px] font-semibold text-ink-muted nums">
+              و {toPersianDigits(extraRoster)} نفر دیگر
+            </li>
+          )}
+        </ul>
+      )}
+
+      <div className="mt-3 rounded-2xl bg-stone-50 dark:bg-zinc-800/70 px-3 py-2 flex items-center gap-2">
+        <div className="min-w-0 flex-1 text-right">
+          <p className="text-[11px] font-bold text-ink-muted">لینک دعوت</p>
+          <p
+            dir="ltr"
+            className="text-[12px] font-medium text-ink dark:text-zinc-200 truncate text-left mt-0.5"
+          >
+            {url.replace(/^https?:\/\//, "")}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void onCopy()}
+          className="shrink-0 min-h-9 px-2.5 rounded-lg text-[12px] font-bold text-brand-700 dark:text-brand-400 bg-[color:var(--circle-surface)] dark:bg-zinc-900 ring-1 ring-stone-200/80 dark:ring-zinc-700 active:scale-[0.98] transition-transform duration-150"
+        >
+          {copied ? "کپی شد" : "کپی"}
         </button>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
         <a
-          href={whatsappShareHref(text, invite.invitedPhone)}
+          href={whatsappShareHref(text, waPhone)}
           target="_blank"
           rel="noreferrer"
-          className="btn-ghost text-center"
+          className="btn-primary min-h-12 text-center shadow-md shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150"
         >
           واتساپ
         </a>
         <a
-          href={smsShareHref(text, invite.invitedPhone)}
-          className="btn-ghost text-center"
+          href={smsShareHref(text, smsPhones)}
+          className="btn-ghost min-h-12 text-center active:scale-[0.98] transition-transform duration-150"
         >
           پیامک
         </a>
-        <button type="button" onClick={() => void onCopy()} className="btn-ghost">
-          کپی لینک
-        </button>
       </div>
-    </SheetShell>
-  );
-}
-
-function batchPersonLabel(invite: Invite): { name: string; phone?: string } {
-  const phone = invite.invitedPhone;
-  const raw = invite.invitedName?.trim() ?? "";
-  const stripped = raw
-    .replace(/[0-9۰-۹+]/g, "")
-    .replace(/[،,]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  return {
-    name: stripped || "بدون نام",
-    phone: phone || undefined,
-  };
-}
-
-function BatchSharePanel({
-  invites,
-  inviterName,
-  onClose,
-}: {
-  invites: Invite[];
-  inviterName: string;
-  onClose: () => void;
-}) {
-  const { show } = useToast();
-  const [doneIds, setDoneIds] = useState<Set<string>>(() => new Set());
-
-  function markDone(id: string) {
-    setDoneIds((prev) => {
-      if (prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.add(id);
-      return next;
-    });
-  }
-
-  const doneCount = doneIds.size;
-
-  return (
-    <SheetShell
-      onClose={onClose}
-      labelledBy="batch-share-title"
-      zClass="z-50"
-      footer={
-        <button
-          type="button"
-          onClick={onClose}
-          className="btn-primary w-full min-h-12 shadow-md shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150"
-        >
-          تمام
-        </button>
-      }
-    >
-      <div className="flex items-center gap-2">
-        <h2
-          id="batch-share-title"
-          className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50"
-        >
-          دعوت‌ها آماده شد
-        </h2>
-        <span className="inline-flex min-w-[1.25rem] h-5 px-1.5 items-center justify-center rounded-full bg-brand-50 dark:bg-brand-500/15 text-[11px] font-bold text-brand-700 dark:text-brand-400 nums">
-          {toPersianDigits(invites.length)}
-        </span>
-      </div>
-      <p className="text-[13px] text-ink-muted mt-1.5 leading-relaxed">
-        هر نفر لینک خودش را می‌گیرد. تا نپیوندد عضو نیست.
-      </p>
-      {doneCount > 0 && (
-        <p className="text-[12px] font-semibold text-brand-700 dark:text-brand-400 mt-2 nums">
-          {toPersianDigits(doneCount)} از {toPersianDigits(invites.length)}{" "}
-          فرستاده شد
-        </p>
-      )}
-
-      <ul className="mt-3 card divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
-        {invites.map((invite) => {
-          const url = inviteUrl(invite.code);
-          const text = inviteShareText(inviterName, url);
-          const { name, phone } = batchPersonLabel(invite);
-          const done = doneIds.has(invite.id);
-          return (
-            <li
-              key={invite.id}
-              className={`flex items-center gap-2.5 px-3 py-2.5 ${
-                done ? "bg-brand-50/40 dark:bg-brand-500/5" : ""
-              }`}
-            >
-              <div
-                className={`w-9 h-9 rounded-full font-extrabold text-[14px] flex items-center justify-center shrink-0 ${
-                  done
-                    ? "bg-brand-600 text-white"
-                    : "bg-stone-100 dark:bg-zinc-800 text-ink-muted"
-                }`}
-                aria-hidden
-              >
-                {done ? (
-                  <svg
-                    className="w-4 h-4"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
-                  </svg>
-                ) : (
-                  name.charAt(0)
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="font-bold text-[13px] text-ink dark:text-zinc-100 truncate leading-snug">
-                  {name}
-                </p>
-                {phone && (
-                  <p
-                    dir="ltr"
-                    className="text-[11px] text-ink-muted mt-0.5 nums tracking-wide"
-                  >
-                    {formatPhoneDisplay(phone)}
-                  </p>
-                )}
-              </div>
-              <a
-                href={whatsappShareHref(text, phone)}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => markDone(invite.id)}
-                className="shrink-0 min-h-9 px-2.5 rounded-lg text-[12px] font-bold flex items-center bg-brand-600 text-white active:scale-[0.98] transition-transform duration-150"
-              >
-                واتساپ
-              </a>
-              <button
-                type="button"
-                onClick={async () => {
-                  const ok = await copyText(url);
-                  if (ok) {
-                    markDone(invite.id);
-                    show("لینک کپی شد");
-                  } else {
-                    show("کپی ممکن نشد");
-                  }
-                }}
-                className="shrink-0 min-h-9 px-2.5 rounded-lg text-[12px] font-semibold text-ink-muted dark:text-zinc-400 bg-stone-100 dark:bg-zinc-800 active:scale-[0.98] transition-transform duration-150"
-              >
-                کپی
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+      <button
+        type="button"
+        onClick={() => void onShare()}
+        className="w-full mt-1 min-h-9 text-[12px] font-semibold text-ink-faint active:opacity-70"
+      >
+        اشتراک دیگر
+      </button>
     </SheetShell>
   );
 }

@@ -205,6 +205,15 @@ export type InviteStatus = "pending" | "accepted" | "expired" | "revoked";
 
 export type InviteKind = "personal" | "wave";
 
+/** Expected invitee on a wave link — matched later by OTP phone. */
+export type InviteExpectedPerson = {
+  id: string;
+  phone: string;
+  name?: string;
+  joined: boolean;
+  joinedUserId?: string;
+};
+
 /** Server session payload. Client `me.id` stays `"me"`. */
 export type SessionUser = {
   id: string;
@@ -224,7 +233,21 @@ export type PublicInvite = {
   inviter: { name: string; avatar: string };
   isOwn: boolean;
   alreadyMember: boolean;
+  alreadyRequested: boolean;
   full: boolean;
+};
+
+/** Inbound join request: used the link, but was not on the host's roster. */
+export type CircleJoinRequest = {
+  id: string;
+  guest: {
+    id: string;
+    name: string;
+    avatar: string;
+    city?: string;
+  };
+  inviteId?: string;
+  createdAt: string;
 };
 
 /** Directed invite from the current user to someone not yet (or just) joined. */
@@ -246,4 +269,6 @@ export interface Invite {
   createdAt: string;
   /** Placeholder person row in the inviter's circle. */
   personId: string;
+  /** Wave roster. Personal invites leave this empty. */
+  expected?: InviteExpectedPerson[];
 }

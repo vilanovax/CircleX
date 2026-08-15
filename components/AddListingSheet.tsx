@@ -15,7 +15,7 @@ export default function AddListingSheet({
   onAdd,
 }: {
   onClose: () => void;
-  onAdd: (input: ListingInput) => void;
+  onAdd: (input: ListingInput) => void | Promise<void>;
   onBack?: () => void;
 }) {
   const formRef = useRef<ListingComposeHandle>(null);

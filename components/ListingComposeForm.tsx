@@ -138,7 +138,7 @@ function sourceFromDraft(
 const ListingComposeForm = forwardRef<
   ListingComposeHandle,
   {
-    onSubmit: (input: ListingInput) => void;
+    onSubmit: (input: ListingInput) => void | Promise<void>;
     onCancel?: () => void;
     cancelLabel?: string;
     submitLabel?: string;

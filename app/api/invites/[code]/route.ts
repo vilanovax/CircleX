@@ -30,16 +30,28 @@ export async function GET(
   const session = await getSessionUser();
   const isOwn = session?.id === row.inviterUserId;
   let alreadyMember = false;
+  let alreadyRequested = false;
   if (session && !isOwn) {
-    const edge = await prisma.circleEdge.findUnique({
-      where: {
-        fromUserId_toUserId: {
-          fromUserId: row.inviterUserId,
-          toUserId: session.id,
+    const [edge, joinReq] = await Promise.all([
+      prisma.circleEdge.findUnique({
+        where: {
+          fromUserId_toUserId: {
+            fromUserId: row.inviterUserId,
+            toUserId: session.id,
+          },
         },
-      },
-    });
+      }),
+      prisma.circleJoinRequest.findUnique({
+        where: {
+          hostUserId_guestUserId: {
+            hostUserId: row.inviterUserId,
+            guestUserId: session.id,
+          },
+        },
+      }),
+    ]);
     alreadyMember = Boolean(edge);
+    alreadyRequested = joinReq?.status === "pending";
   }
 
   const full = inviteIsFull({ ...row, status });
@@ -55,6 +67,7 @@ export async function GET(
     },
     isOwn,
     alreadyMember,
+    alreadyRequested,
     full,
   };
   return Response.json(payload);

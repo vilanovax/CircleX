@@ -11,10 +11,8 @@ import { createContext, useContextSelector } from "use-context-selector";
 import { AVATAR_IMAGES } from "./avatar";
 import { api, ApiError } from "./api";
 import { newUuid } from "./invite";
-import { isListingPhoto } from "./listing-image";
 import {
   EVENTS,
-  LISTINGS,
   ME,
   MESSAGES,
   OFFERS,
@@ -24,6 +22,7 @@ import {
 import type {
   BadgeType,
   CircleEvent,
+  CircleJoinRequest,
   EventKind,
   Invite,
   Listing,
@@ -95,6 +94,7 @@ export interface StoreValue {
   events: CircleEvent[];
   saved: string[];
   invites: Invite[];
+  joinRequests: CircleJoinRequest[];
   /** Null until mock phone/OTP login succeeds. */
   sessionPhone: string | null;
   onboarded: boolean;
@@ -102,6 +102,7 @@ export interface StoreValue {
   profileCompletedAt: string | null;
   getPerson: (id: string) => Person | undefined;
   getListing: (id: string) => Listing | undefined;
+  ensureListing: (id: string) => Promise<Listing | undefined>;
   getRequest: (id: string) => Request | undefined;
   getEvent: (id: string) => CircleEvent | undefined;
   addEvent: (input: NewEventInput) => string;
@@ -123,15 +124,27 @@ export interface StoreValue {
     invitedPhone?: string;
     invitedName?: string;
     kind?: "personal" | "wave";
+    people?: { name?: string; phone: string }[];
   }) => Promise<Invite>;
-  createInvitesBatch: (input: {
-    relationType: RelationType;
-    people: { name?: string; phone: string }[];
-  }) => Promise<Invite[]>;
+  createWaveFromPending: (inviteIds: string[]) => Promise<Invite>;
   getInvite: (code: string) => Invite | undefined;
   acceptInvite: (
     code: string,
-  ) => Promise<{ invite: Invite; inviter: Person } | null>;
+  ) => Promise<{
+    invite: Invite;
+    inviter: Person;
+    edgeCreated?: boolean;
+    requested?: boolean;
+  } | null>;
+  acceptJoinRequest: (
+    id: string,
+    input: {
+      relation: RelationType;
+      level: TrustLevel;
+      displayName?: string;
+    },
+  ) => Promise<void>;
+  rejectJoinRequest: (id: string) => Promise<void>;
   revokeInvite: (id: string) => Promise<void>;
   placePersonInMyCircle: (
     id: string,
@@ -145,11 +158,12 @@ export interface StoreValue {
   ) => void;
   removePerson: (id: string) => void;
   setLevel: (id: string, level: TrustLevel) => void;
-  addListing: (input: NewListingInput) => string;
+  setRelation: (id: string, relation: RelationType) => void;
+  addListing: (input: NewListingInput) => Promise<string>;
   setListingDealStatus: (
     listingId: string,
     status: NonNullable<Listing["dealStatus"]>,
-  ) => void;
+  ) => Promise<void>;
   toggleEndorsement: (listingId: string, type: BadgeType) => void;
   addRequest: (input: NewRequestInput) => string;
   addOffer: (input: NewOfferInput) => void;
@@ -168,7 +182,7 @@ export interface StoreValue {
 const StoreContext = createContext<StoreValue | null>(null);
 
 const STORAGE_KEY = "circle-store-v2";
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 const AVATAR_POOL = AVATAR_IMAGES;
 const SEED_IDS = new Set(PEOPLE.map((p) => p.id));
@@ -188,13 +202,14 @@ function blankMe(): Person {
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [meProfile, setMeProfile] = useState<Person>(blankMe);
   const [people, setPeople] = useState<Person[]>(networkSeed);
-  const [listings, setListings] = useState<Listing[]>(LISTINGS);
+  const [listings, setListings] = useState<Listing[]>([]);
   const [requests, setRequests] = useState<Request[]>(REQUESTS);
   const [offers, setOffers] = useState<Offer[]>(OFFERS);
   const [messages, setMessages] = useState<Message[]>(MESSAGES);
   const [events, setEvents] = useState<CircleEvent[]>(EVENTS);
   const [saved, setSaved] = useState<string[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
+  const [joinRequests, setJoinRequests] = useState<CircleJoinRequest[]>([]);
   const [sessionPhone, setSessionPhone] = useState<string | null>(null);
   const [meServerId, setMeServerId] = useState<string | null>(null);
   const [onboarded, setOnboarded] = useState(false);
@@ -224,8 +239,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       members: Person[];
       pending: Invite[];
       pendingPeople: Person[];
+      listings?: Listing[];
+      joinRequests?: CircleJoinRequest[];
     }>("/api/circle");
     setInvites(data.pending);
+    setJoinRequests(data.joinRequests ?? []);
     setPeople(() => {
       const overlayIds = new Set([
         ...data.members.map((m) => m.id),
@@ -234,6 +252,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const seed = networkSeed().filter((p) => !overlayIds.has(p.id));
       return [...data.members, ...data.pendingPeople, ...seed];
     });
+    setListings(data.listings ?? []);
   }, []);
 
   // Load persisted marketplace state, then overlay the cookie session.
@@ -265,22 +284,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               .filter((p): p is Person => Boolean(p));
             if (!cancelled) setPeople(restored.length ? restored : networkSeed());
           }
-          if (Array.isArray(data.listings)) {
-            setListings(
-              data.listings.map((l: Listing) => {
-                const seed = LISTINGS.find((s) => s.id === l.id);
-                if (!seed) return l;
-                return {
-                  ...l,
-                  image: isListingPhoto(l.image) ? l.image : seed.image,
-                  images: l.images?.length ? l.images : seed.images,
-                  specs: seed.specs ?? l.specs,
-                  description: seed.description,
-                  condition: seed.condition ?? l.condition,
-                };
-              }),
-            );
-          }
+          // Listings live on Postgres; local cache is ignored.
           if (Array.isArray(data.requests)) {
             setRequests(
               data.requests.map((r: Request) => ({
@@ -318,7 +322,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setProfileCompletedAt(null);
         setMeProfile(blankMe());
         setInvites([]);
+        setJoinRequests([]);
         setPeople(networkSeed());
+        setListings([]);
       }
       if (!cancelled) setHydrated(true);
     }
@@ -338,7 +344,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         JSON.stringify({
           schemaVersion: SCHEMA_VERSION,
           people,
-          listings,
           requests,
           offers,
           messages,
@@ -352,7 +357,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [
     people,
-    listings,
     requests,
     offers,
     messages,
@@ -376,8 +380,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [hydrated, sessionPhone, loadCircle]);
 
   const getPerson = useCallback(
-    (id: string) => (id === "me" ? meProfile : people.find((p) => p.id === id)),
-    [meProfile, people],
+    (id: string) =>
+      id === "me" || (meServerId && id === meServerId)
+        ? meProfile
+        : people.find((p) => p.id === id),
+    [meProfile, meServerId, people],
   );
 
   const updateProfile = useCallback(
@@ -391,6 +398,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     (id: string) => listings.find((l) => l.id === id),
     [listings],
   );
+
+  const ensureListing = useCallback(async (id: string) => {
+    const existing = listings.find((l) => l.id === id);
+    if (existing) return existing;
+    try {
+      const { listing } = await api<{ listing: Listing }>(
+        `/api/listings/${encodeURIComponent(id)}`,
+      );
+      setListings((prev) =>
+        prev.some((row) => row.id === listing.id)
+          ? prev
+          : [listing, ...prev],
+      );
+      return listing;
+    } catch {
+      return undefined;
+    }
+  }, [listings]);
 
   const getRequest = useCallback(
     (id: string) => requests.find((r) => r.id === id),
@@ -504,6 +529,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       invitedPhone?: string;
       invitedName?: string;
       kind?: "personal" | "wave";
+      people?: { name?: string; phone: string }[];
     }) => {
       const { invite } = await api<{ invite: Invite }>("/api/invites", {
         method: "POST",
@@ -515,19 +541,44 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [loadCircle],
   );
 
-  const createInvitesBatch = useCallback(
-    async (input: {
-      relationType: RelationType;
-      people: { name?: string; phone: string }[];
-    }) => {
-      const { invites } = await api<{ invites: Invite[] }>("/api/invites/batch", {
+  const createWaveFromPending = useCallback(
+    async (inviteIds: string[]) => {
+      const selected = invites.filter(
+        (inv) => inviteIds.includes(inv.id) && inv.kind === "personal",
+      );
+      const people = selected
+        .filter((inv) => inv.invitedPhone)
+        .map((inv) => ({
+          phone: inv.invitedPhone as string,
+          name: inv.invitedName,
+        }));
+      if (people.length === 0) {
+        throw new Error("no-phones");
+      }
+      const relationType = selected.every(
+        (inv) => inv.relationType === selected[0].relationType,
+      )
+        ? selected[0].relationType
+        : selected[0].relationType;
+      const { invite } = await api<{ invite: Invite }>("/api/invites", {
         method: "POST",
-        body: JSON.stringify(input),
+        body: JSON.stringify({
+          relationType,
+          kind: "wave",
+          people,
+        }),
       });
+      await Promise.all(
+        selected.map((inv) =>
+          api(`/api/invites/${encodeURIComponent(inv.id)}/revoke`, {
+            method: "POST",
+          }),
+        ),
+      );
       await loadCircle();
-      return invites;
+      return invite;
     },
-    [loadCircle],
+    [invites, loadCircle],
   );
 
   const getInvite = useCallback(
@@ -539,7 +590,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const acceptInvite = useCallback(
     async (code: string) => {
       try {
-        const data = await api<{ invite: Invite; inviter: Person }>(
+        const data = await api<{
+          invite: Invite;
+          inviter: Person;
+          edgeCreated?: boolean;
+          requested?: boolean;
+        }>(
           `/api/invites/${encodeURIComponent(code)}/accept`,
           { method: "POST" },
         );
@@ -553,6 +609,38 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (err instanceof ApiError && err.code === "own") return null;
         throw err;
       }
+    },
+    [loadCircle],
+  );
+
+  const acceptJoinRequest = useCallback(
+    async (
+      id: string,
+      input: {
+        relation: RelationType;
+        level: TrustLevel;
+        displayName?: string;
+      },
+    ) => {
+      await api(`/api/circle/requests/${encodeURIComponent(id)}/accept`, {
+        method: "POST",
+        body: JSON.stringify({
+          relationType: input.relation,
+          trustGroup: input.level,
+          displayName: input.displayName,
+        }),
+      });
+      await loadCircle();
+    },
+    [loadCircle],
+  );
+
+  const rejectJoinRequest = useCallback(
+    async (id: string) => {
+      await api(`/api/circle/requests/${encodeURIComponent(id)}/reject`, {
+        method: "POST",
+      });
+      await loadCircle();
     },
     [loadCircle],
   );
@@ -623,6 +711,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setPeople((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
+  const persistEdge = useCallback(
+    (id: string, input: { level: TrustLevel; relation: RelationType }) => {
+      if (SEED_IDS.has(id)) return;
+      void api("/api/circle/edges", {
+        method: "POST",
+        body: JSON.stringify({
+          toUserId: id,
+          trustGroup: input.level,
+          relationType: input.relation,
+        }),
+      })
+        .then(() => loadCircle())
+        .catch(() => {});
+    },
+    [loadCircle],
+  );
+
   const setLevel = useCallback(
     (id: string, level: TrustLevel) => {
       setPeople((prev) =>
@@ -631,54 +736,57 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ),
       );
       const person = people.find((p) => p.id === id);
-      if (!person || SEED_IDS.has(id) || person.inviteStatus === "pending") {
-        return;
-      }
-      void api("/api/circle/edges", {
-        method: "POST",
-        body: JSON.stringify({
-          toUserId: id,
-          trustGroup: level,
-          relationType: person.relation,
-        }),
-      })
-        .then(() => loadCircle())
-        .catch(() => {});
+      if (!person || person.inviteStatus === "pending") return;
+      persistEdge(id, { level, relation: person.relation });
     },
-    [people, loadCircle],
+    [people, persistEdge],
   );
 
-  const addListing = useCallback((input: NewListingInput) => {
-    const id = `new_${Date.now()}`;
-    const listing: Listing = {
-      id,
-      title: input.title,
-      description: input.description,
-      type: input.type,
-      price: input.price,
-      category: input.category,
-      image: input.image,
-      images: input.images,
-      specs: input.specs,
-      condition: input.condition,
-      sellerId: "me",
-      postedAt: "همین حالا",
-      privacy: input.privacy,
-      endorsements: [],
-      trustPath: [],
-      city: ME.city,
-    };
-    setListings((prev) => [listing, ...prev]);
-    return id;
+  const setRelation = useCallback(
+    (id: string, relation: RelationType) => {
+      setPeople((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, relation } : p)),
+      );
+      const person = people.find((p) => p.id === id);
+      if (!person || person.inviteStatus === "pending") return;
+      persistEdge(id, { level: person.level, relation });
+    },
+    [people, persistEdge],
+  );
+
+  const addListing = useCallback(async (input: NewListingInput) => {
+    const { listing } = await api<{ listing: Listing }>("/api/listings", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    setListings((prev) => [
+      listing,
+      ...prev.filter((row) => row.id !== listing.id),
+    ]);
+    return listing.id;
   }, []);
 
   const setListingDealStatus = useCallback(
-    (listingId: string, status: NonNullable<Listing["dealStatus"]>) => {
+    async (listingId: string, status: NonNullable<Listing["dealStatus"]>) => {
       setListings((prev) =>
         prev.map((l) => (l.id === listingId ? { ...l, dealStatus: status } : l)),
       );
+      try {
+        const { listing } = await api<{ listing: Listing }>(
+          `/api/listings/${encodeURIComponent(listingId)}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({ dealStatus: status }),
+          },
+        );
+        setListings((prev) =>
+          prev.map((row) => (row.id === listingId ? listing : row)),
+        );
+      } catch {
+        await loadCircle();
+      }
     },
-    [],
+    [loadCircle],
   );
 
   // Toggle MY endorsement of a listing (acting as the current user).
@@ -820,6 +928,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       } catch {
         setPeople(networkSeed());
         setInvites([]);
+        setJoinRequests([]);
       }
     },
     [applyUserLocal, loadCircle],
@@ -837,7 +946,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setOnboarded(false);
     setMeProfile(blankMe());
     setInvites([]);
+    setJoinRequests([]);
     setPeople(networkSeed());
+    setListings([]);
   }, []);
 
   const value = useMemo<StoreValue>(
@@ -851,12 +962,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       events,
       saved,
       invites,
+      joinRequests,
       sessionPhone,
       onboarded,
       hydrated,
       profileCompletedAt,
       getPerson,
       getListing,
+      ensureListing,
       getRequest,
       getEvent,
       addEvent,
@@ -873,15 +986,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       markThreadRead,
       addPerson,
       createInvite,
-      createInvitesBatch,
+      createWaveFromPending,
       getInvite,
       acceptInvite,
+      acceptJoinRequest,
+      rejectJoinRequest,
       revokeInvite,
       placePersonInMyCircle,
       completeProfile,
       addToCircle,
       removePerson,
       setLevel,
+      setRelation,
       addListing,
       setListingDealStatus,
       toggleEndorsement,
@@ -907,12 +1023,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       events,
       saved,
       invites,
+      joinRequests,
       sessionPhone,
       onboarded,
       hydrated,
       profileCompletedAt,
       getPerson,
       getListing,
+      ensureListing,
       getRequest,
       getEvent,
       addEvent,
@@ -929,15 +1047,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       markThreadRead,
       addPerson,
       createInvite,
-      createInvitesBatch,
+      createWaveFromPending,
       getInvite,
       acceptInvite,
+      acceptJoinRequest,
+      rejectJoinRequest,
       revokeInvite,
       placePersonInMyCircle,
       completeProfile,
       addToCircle,
       removePerson,
       setLevel,
+      setRelation,
       addListing,
       setListingDealStatus,
       toggleEndorsement,

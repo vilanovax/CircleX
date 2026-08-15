@@ -9,6 +9,16 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_BASE_PATH: basePath,
   },
+  async redirects() {
+    return [
+      {
+        source: "/",
+        destination: basePath,
+        permanent: false,
+        basePath: false,
+      },
+    ];
+  },
   images: {
     // Remote/data listing photos use `unoptimized` on the Image component.
     // Local public paths stay eligible for the optimizer.
