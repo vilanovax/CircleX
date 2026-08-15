@@ -8,7 +8,7 @@ import BottomNav from "@/components/BottomNav";
 import SheetShell from "@/components/SheetShell";
 import { CardListSkeleton } from "@/components/Skeleton";
 import Avatar from "@/components/Avatar";
-import InviteSheet, { InviteSharePanel } from "@/components/InviteSheet";
+import InviteSheet from "@/components/InviteSheet";
 import { GraphIcon, UserPlusIcon } from "@/components/Icons";
 import { levelHint } from "@/lib/labels";
 import { viewerRelationPhrase } from "@/lib/trust";
@@ -16,7 +16,9 @@ import { activeCircle } from "@/lib/circle-member";
 import {
   copyText,
   effectiveInviteStatus,
+  inviteShareText,
   inviteUrl,
+  whatsappShareHref,
 } from "@/lib/invite";
 import { formatPhoneDisplay } from "@/lib/phone";
 import type { Invite, Person, TrustLevel } from "@/lib/types";
@@ -85,7 +87,6 @@ export default function CircleClassic() {
     });
   }, [invites]);
   const [showAdd, setShowAdd] = useState(false);
-  const [reshare, setReshare] = useState<Invite | null>(null);
   const [editing, setEditing] = useState<Person | null>(null);
   const [placing, setPlacing] = useState(false);
   const [moreInvite, setMoreInvite] = useState<Invite | null>(null);
@@ -235,7 +236,6 @@ export default function CircleClassic() {
                       <PendingInviteRow
                         key={inv.id}
                         invite={inv}
-                        onReshare={() => setReshare(inv)}
                         onMore={() => setMoreInvite(inv)}
                       />
                     ))}
@@ -270,14 +270,6 @@ export default function CircleClassic() {
       )}
 
       {showAdd && <InviteSheet onClose={() => setShowAdd(false)} />}
-
-      {reshare && (
-        <InviteSharePanel
-          invite={reshare}
-          inviterName={me.name}
-          onClose={() => setReshare(null)}
-        />
-      )}
 
       {editing && (
         <GroupSheet
@@ -314,12 +306,8 @@ export default function CircleClassic() {
       {moreInvite && (
         <InviteMoreSheet
           invite={moreInvite}
+          inviterName={me.name}
           onClose={() => setMoreInvite(null)}
-          onReshare={() => {
-            const inv = moreInvite;
-            setMoreInvite(null);
-            setReshare(inv);
-          }}
           onRevoke={() => {
             const id = moreInvite.id;
             setMoreInvite(null);
@@ -507,47 +495,32 @@ function inviteRowCopy(invite: Invite): { title: string; sub: string; isWave: bo
 
 function PendingInviteRow({
   invite,
-  onReshare,
   onMore,
 }: {
   invite: Invite;
-  onReshare: () => void;
   onMore: () => void;
 }) {
   const { title, sub, isWave } = inviteRowCopy(invite);
 
   return (
     <li className="flex items-center gap-2 px-3.5 py-2.5">
-      <button
-        type="button"
-        onClick={onReshare}
-        className="min-w-0 flex-1 text-right active:opacity-80"
-      >
-        <span className="flex items-center gap-1.5 min-w-0">
-          <span className="font-bold text-[13px] text-ink dark:text-zinc-100 truncate">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <p className="font-bold text-[13px] text-ink dark:text-zinc-100 truncate">
             {title}
-          </span>
+          </p>
           {isWave && (
             <span className="shrink-0 text-[10px] font-bold text-brand-700 dark:text-brand-400 bg-brand-50 dark:bg-brand-500/15 px-1.5 py-0.5 rounded-md">
               گروهی
             </span>
           )}
-        </span>
-        <span className="block text-[11px] text-ink-muted mt-0.5 nums truncate">
-          {sub}
-        </span>
-      </button>
-      <button
-        type="button"
-        onClick={onReshare}
-        className="shrink-0 min-h-10 px-2.5 rounded-lg text-[12px] font-semibold text-brand-700 dark:text-brand-400 bg-brand-50 dark:bg-brand-500/15 active:scale-[0.98]"
-      >
-        فرستادن
-      </button>
+        </div>
+        <p className="text-[11px] text-ink-muted mt-0.5 nums truncate">{sub}</p>
+      </div>
       <button
         type="button"
         onClick={onMore}
-        aria-label={`گزینه‌های بیشتر برای ${title}`}
+        aria-label={`گزینه‌های ${title}`}
         className="shrink-0 w-10 h-10 rounded-lg text-ink-muted dark:text-zinc-400 active:bg-stone-100 dark:active:bg-zinc-800 flex items-center justify-center"
       >
         <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -562,53 +535,106 @@ function PendingInviteRow({
 
 function InviteMoreSheet({
   invite,
+  inviterName,
   onClose,
-  onReshare,
   onRevoke,
 }: {
   invite: Invite;
+  inviterName: string;
   onClose: () => void;
-  onReshare: () => void;
   onRevoke: () => void;
 }) {
   const { show } = useToast();
-  const { title } = inviteRowCopy(invite);
+  const [copied, setCopied] = useState(false);
+  const { title, sub, isWave } = inviteRowCopy(invite);
+  const url = inviteUrl(invite.code);
+  const text = inviteShareText(inviterName, url);
+
+  async function onCopy() {
+    const ok = await copyText(url);
+    if (ok) {
+      setCopied(true);
+      show("لینک کپی شد");
+    } else {
+      show("کپی ممکن نشد");
+    }
+  }
 
   return (
-    <SheetShell onClose={onClose} labelledBy="invite-more-title" zClass="z-50">
-      <h2
-        id="invite-more-title"
-        className="font-extrabold text-[1.1rem] text-ink dark:text-zinc-50 truncate"
-      >
-        {title}
-      </h2>
-      <div className="mt-4 flex flex-col gap-2">
+    <SheetShell
+      onClose={onClose}
+      labelledBy="invite-more-title"
+      zClass="z-50"
+      footer={
         <button
           type="button"
-          onClick={onReshare}
-          className="btn-primary w-full min-h-12"
+          onClick={onClose}
+          className="btn-primary w-full min-h-12 shadow-md shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150"
         >
-          فرستادن دوباره
+          باشه
         </button>
-        <button
-          type="button"
-          onClick={async () => {
-            const ok = await copyText(inviteUrl(invite.code));
-            show(ok ? "لینک کپی شد" : "کپی ممکن نشد");
-            if (ok) onClose();
-          }}
-          className="w-full min-h-12 rounded-xl font-bold text-[15px] bg-stone-100 dark:bg-zinc-800 text-ink dark:text-zinc-100"
+      }
+    >
+      <div className="flex items-start justify-between gap-3">
+        <h2
+          id="invite-more-title"
+          className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 truncate min-w-0"
         >
-          کپی لینک
-        </button>
-        <button
-          type="button"
-          onClick={onRevoke}
-          className="w-full min-h-11 text-[13px] font-semibold text-ink-muted"
-        >
-          لغو دعوت
-        </button>
+          {title}
+        </h2>
+        <span className="shrink-0 inline-flex items-center rounded-full bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-200 px-2.5 py-1 text-[11px] font-bold">
+          در انتظار
+        </span>
       </div>
+
+      <p className="text-[13px] text-ink-muted mt-2.5 leading-relaxed">
+        {isWave
+          ? "لینک گروهی آماده است. صبر کن تا کسی از آن وارد شود."
+          : "دعوت آماده است. صبر کن تا بپیوندد."}
+      </p>
+      {sub && (
+        <p
+          dir={isWave ? undefined : "ltr"}
+          className="mt-1 text-[12px] text-ink-faint nums tracking-wide"
+        >
+          {sub}
+        </p>
+      )}
+
+      <div className="mt-4 rounded-2xl border border-stone-200/80 dark:border-zinc-700 bg-stone-50/70 dark:bg-zinc-800/40 px-3.5 py-3">
+        <p className="text-[11px] font-bold text-ink-muted mb-1.5">لینک دعوت</p>
+        <p
+          dir="ltr"
+          className="text-[12px] font-medium text-ink dark:text-zinc-200 break-all text-left leading-snug"
+        >
+          {url}
+        </p>
+        <div className="flex items-center gap-3 mt-3">
+          <button
+            type="button"
+            onClick={() => void onCopy()}
+            className="text-[13px] font-semibold text-brand-700 dark:text-brand-400"
+          >
+            {copied ? "کپی شد" : "کپی"}
+          </button>
+          <a
+            href={whatsappShareHref(text, invite.invitedPhone)}
+            target="_blank"
+            rel="noreferrer"
+            className="text-[13px] font-semibold text-brand-700 dark:text-brand-400"
+          >
+            واتساپ
+          </a>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={onRevoke}
+        className="w-full mt-4 min-h-10 text-[12px] font-semibold text-ink-faint"
+      >
+        لغو دعوت
+      </button>
     </SheetShell>
   );
 }

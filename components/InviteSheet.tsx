@@ -531,7 +531,18 @@ function BatchSharePanel({
   onClose: () => void;
 }) {
   const { show } = useToast();
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [doneIds, setDoneIds] = useState<Set<string>>(() => new Set());
+
+  function markDone(id: string) {
+    setDoneIds((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }
+
+  const doneCount = doneIds.size;
 
   return (
     <SheetShell
@@ -542,7 +553,7 @@ function BatchSharePanel({
         <button
           type="button"
           onClick={onClose}
-          className="w-full min-h-12 rounded-xl font-bold text-[15px] text-ink dark:text-zinc-100 bg-stone-100 dark:bg-zinc-800 active:scale-[0.99] transition-transform duration-150"
+          className="btn-primary w-full min-h-12 shadow-md shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150"
         >
           تمام
         </button>
@@ -560,61 +571,89 @@ function BatchSharePanel({
         </span>
       </div>
       <p className="text-[13px] text-ink-muted mt-1.5 leading-relaxed">
-        هر لینک را جدا برای همان نفر بفرست. تا نپیوندد عضو نیست.
+        هر نفر لینک خودش را می‌گیرد. تا نپیوندد عضو نیست.
       </p>
-      <ul className="mt-4 space-y-2.5">
+      {doneCount > 0 && (
+        <p className="text-[12px] font-semibold text-brand-700 dark:text-brand-400 mt-2 nums">
+          {toPersianDigits(doneCount)} از {toPersianDigits(invites.length)}{" "}
+          فرستاده شد
+        </p>
+      )}
+
+      <ul className="mt-3 card divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
         {invites.map((invite) => {
           const url = inviteUrl(invite.code);
           const text = inviteShareText(inviterName, url);
           const { name, phone } = batchPersonLabel(invite);
-          const copied = copiedId === invite.id;
+          const done = doneIds.has(invite.id);
           return (
             <li
               key={invite.id}
-              className="rounded-2xl border border-stone-200/80 dark:border-zinc-700 px-3 py-3"
+              className={`flex items-center gap-2.5 px-3 py-2.5 ${
+                done ? "bg-brand-50/40 dark:bg-brand-500/5" : ""
+              }`}
             >
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-full bg-brand-50 dark:bg-brand-500/15 text-brand-700 dark:text-brand-400 font-extrabold text-[15px] flex items-center justify-center shrink-0"
-                  aria-hidden
-                >
-                  {name.charAt(0)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold text-[14px] text-ink dark:text-zinc-100 truncate leading-snug">
-                    {name}
+              <div
+                className={`w-9 h-9 rounded-full font-extrabold text-[14px] flex items-center justify-center shrink-0 ${
+                  done
+                    ? "bg-brand-600 text-white"
+                    : "bg-stone-100 dark:bg-zinc-800 text-ink-muted"
+                }`}
+                aria-hidden
+              >
+                {done ? (
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
+                  </svg>
+                ) : (
+                  name.charAt(0)
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-[13px] text-ink dark:text-zinc-100 truncate leading-snug">
+                  {name}
+                </p>
+                {phone && (
+                  <p
+                    dir="ltr"
+                    className="text-[11px] text-ink-muted mt-0.5 nums tracking-wide"
+                  >
+                    {formatPhoneDisplay(phone)}
                   </p>
-                  {phone && (
-                    <p
-                      dir="ltr"
-                      className="text-[12px] text-ink-muted mt-0.5 nums tracking-wide"
-                    >
-                      {formatPhoneDisplay(phone)}
-                    </p>
-                  )}
-                </div>
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-2 mt-3">
-                <a
-                  href={whatsappShareHref(text, phone)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn-primary !py-2.5 text-[13px] text-center font-bold active:scale-[0.98] transition-transform duration-150"
-                >
-                  واتساپ
-                </a>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const ok = await copyText(url);
-                    if (ok) setCopiedId(invite.id);
-                    show(ok ? "لینک کپی شد" : "کپی ممکن نشد");
-                  }}
-                  className="min-h-11 rounded-xl text-[13px] font-bold bg-stone-100 dark:bg-zinc-800 text-ink dark:text-zinc-100 active:scale-[0.98] transition-transform duration-150"
-                >
-                  {copied ? "کپی شد" : "کپی لینک"}
-                </button>
-              </div>
+              <a
+                href={whatsappShareHref(text, phone)}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => markDone(invite.id)}
+                className="shrink-0 min-h-9 px-2.5 rounded-lg text-[12px] font-bold flex items-center bg-brand-600 text-white active:scale-[0.98] transition-transform duration-150"
+              >
+                واتساپ
+              </a>
+              <button
+                type="button"
+                onClick={async () => {
+                  const ok = await copyText(url);
+                  if (ok) {
+                    markDone(invite.id);
+                    show("لینک کپی شد");
+                  } else {
+                    show("کپی ممکن نشد");
+                  }
+                }}
+                className="shrink-0 min-h-9 px-2.5 rounded-lg text-[12px] font-semibold text-ink-muted dark:text-zinc-400 bg-stone-100 dark:bg-zinc-800 active:scale-[0.98] transition-transform duration-150"
+              >
+                کپی
+              </button>
             </li>
           );
         })}
