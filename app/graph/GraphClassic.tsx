@@ -8,13 +8,16 @@ import BottomNav from "@/components/BottomNav";
 import Avatar from "@/components/Avatar";
 import { lazyUi } from "@/lib/lazy-ui";
 import { GraphIcon } from "@/components/Icons";
+import { relationLabels } from "@/lib/labels";
 import { toPersianDigits } from "@/lib/persian";
+import { isActiveCircleMember } from "@/lib/circle-member";
 import { viewerRelationPhrase } from "@/lib/trust";
 import {
   buildTrustGraph,
   graphInsights,
   pathToMe,
 } from "@/lib/graph";
+import type { Person, RelationType } from "@/lib/types";
 
 const TrustGraph = lazyUi(() => import("@/components/TrustGraph"), {
   loading: () => (
@@ -26,6 +29,16 @@ const TrustGraph = lazyUi(() => import("@/components/TrustGraph"), {
 });
 
 type ViewMode = "map" | "list";
+type RelationFilter = RelationType | "all";
+
+const ABOVE_FOLD_AVATARS = 4;
+const RELATION_ORDER: RelationType[] = [
+  "family",
+  "friend",
+  "colleague",
+  "neighbor",
+  "acquaintance",
+];
 
 function viaPathLabel(
   pathFromNodeToMe: string[],
@@ -39,58 +52,154 @@ function viaPathLabel(
   return `از طریق ${vias[0]} و ${toPersianDigits(vias.length - 1)} نفر دیگر`;
 }
 
+function matchesRelationFilter(
+  id: string,
+  filter: RelationFilter,
+  getPerson: (id: string) => Person | undefined,
+  parent: Record<string, string>,
+  networkLinks: { fromId: string; toId: string; relationType: RelationType }[],
+): boolean {
+  if (filter === "all" || id === "me") return true;
+
+  const person = getPerson(id);
+  if (person && isActiveCircleMember(person) && person.relation === filter) {
+    return true;
+  }
+
+  // FoF edge type (e.g. لیلا → حسین as colleague)
+  for (const link of networkLinks) {
+    if (link.relationType !== filter) continue;
+    if (link.fromId === "me" || link.toId === "me") continue;
+    if (link.fromId === id || link.toId === id) return true;
+  }
+
+  // Anyone reached through a direct member of this relation
+  const bridgeId = parent[id];
+  if (bridgeId && bridgeId !== "me") {
+    const bridge = getPerson(bridgeId);
+    if (
+      bridge &&
+      isActiveCircleMember(bridge) &&
+      bridge.relation === filter
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export default function GraphClassic() {
-  const {
-    people,
-    listings,
-    requests,
-    getPerson,
-    networkLinks,
-    circleReady,
-    circleFull,
-    refreshCircle,
-  } = useStore();
+  const people = useStore((s) => s.people);
+  const getPerson = useStore((s) => s.getPerson);
+  const networkLinks = useStore((s) => s.networkLinks);
+  const circleReady = useStore((s) => s.circleReady);
+  const circleFull = useStore((s) => s.circleFull);
+  const refreshGraph = useStore((s) => s.refreshGraph);
   const [view, setView] = useState<ViewMode>("list");
   const [mapFocus, setMapFocus] = useState<string | null>(null);
+  const [relationFilter, setRelationFilter] = useState<RelationFilter>("all");
 
   useEffect(() => {
-    if (!circleReady || circleFull) return;
-    void refreshCircle();
-  }, [circleReady, circleFull, refreshCircle]);
+    if (!circleReady) return;
+    void refreshGraph();
+  }, [circleReady, refreshGraph]);
 
   const graph = useMemo(
-    () =>
-      buildTrustGraph(
-        people,
-        listings,
-        requests,
-        getPerson,
-        undefined,
-        networkLinks,
-      ),
-    [people, listings, requests, getPerson, networkLinks],
+    () => buildTrustGraph(people, [], [], getPerson, undefined, networkLinks),
+    [people, getPerson, networkLinks],
   );
   const insights = useMemo(() => graphInsights(graph), [graph]);
 
   const nameOf = (id: string) =>
     id === "me" ? "شما" : (graph.nodes.find((x) => x.id === id)?.name ?? "؟");
 
+  const relationCounts = useMemo(() => {
+    const counts: Partial<Record<RelationType, number>> = {};
+    for (const n of graph.nodes) {
+      if (n.id === "me") continue;
+      for (const rel of RELATION_ORDER) {
+        if (
+          matchesRelationFilter(
+            n.id,
+            rel,
+            getPerson,
+            graph.parent,
+            networkLinks,
+          )
+        ) {
+          counts[rel] = (counts[rel] ?? 0) + 1;
+        }
+      }
+    }
+    return counts;
+  }, [graph.nodes, graph.parent, getPerson, networkLinks]);
+
+  const highlightIds = useMemo(() => {
+    if (relationFilter === "all") return null;
+    const ids = new Set<string>();
+    for (const n of graph.nodes) {
+      if (n.id === "me") continue;
+      if (
+        matchesRelationFilter(
+          n.id,
+          relationFilter,
+          getPerson,
+          graph.parent,
+          networkLinks,
+        )
+      ) {
+        ids.add(n.id);
+      }
+    }
+    return ids;
+  }, [relationFilter, graph.nodes, graph.parent, getPerson, networkLinks]);
+
   const directNodes = useMemo(
     () =>
       graph.nodes
         .filter((n) => n.depth === 1)
+        .filter(
+          (n) =>
+            relationFilter === "all" ||
+            matchesRelationFilter(
+              n.id,
+              relationFilter,
+              getPerson,
+              graph.parent,
+              networkLinks,
+            ),
+        )
         .sort((a, b) => a.name.localeCompare(b.name, "fa")),
-    [graph.nodes],
+    [graph.nodes, graph.parent, relationFilter, getPerson, networkLinks],
   );
   const viaNodes = useMemo(
     () =>
       graph.nodes
         .filter((n) => n.depth >= 2)
+        .filter(
+          (n) =>
+            relationFilter === "all" ||
+            matchesRelationFilter(
+              n.id,
+              relationFilter,
+              getPerson,
+              graph.parent,
+              networkLinks,
+            ),
+        )
         .sort((a, b) => a.depth - b.depth || a.name.localeCompare(b.name, "fa")),
-    [graph.nodes],
+    [graph.nodes, graph.parent, relationFilter, getPerson, networkLinks],
   );
 
-  const subtitle = `${toPersianDigits(insights.reach)} نفر · ${toPersianDigits(insights.direct)} ارتباط مستقیم`;
+  const chipRelations = useMemo(
+    () => RELATION_ORDER.filter((rel) => (relationCounts[rel] ?? 0) > 0),
+    [relationCounts],
+  );
+
+  const subtitle = circleFull
+    ? `${toPersianDigits(insights.reach)} نفر · ${toPersianDigits(insights.direct)} ارتباط مستقیم`
+    : `${toPersianDigits(insights.direct)} ارتباط مستقیم`;
 
   return (
     <main className="pb-24 min-h-[100dvh]">
@@ -115,7 +224,31 @@ export default function GraphClassic() {
           />
         </div>
 
-        {insights.hub && insights.hub.count > 1 && (
+        {chipRelations.length > 0 && (
+          <div
+            className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-0.5 px-0.5"
+            role="group"
+            aria-label="فیلتر نسبت"
+          >
+            <RelationChip
+              active={relationFilter === "all"}
+              label="همه"
+              count={insights.reach}
+              onClick={() => setRelationFilter("all")}
+            />
+            {chipRelations.map((rel) => (
+              <RelationChip
+                key={rel}
+                active={relationFilter === rel}
+                label={relationLabels[rel]}
+                count={relationCounts[rel] ?? 0}
+                onClick={() => setRelationFilter(rel)}
+              />
+            ))}
+          </div>
+        )}
+
+        {circleFull && insights.hub && insights.hub.count > 1 && (
           <button
             type="button"
             onClick={() => {
@@ -152,16 +285,32 @@ export default function GraphClassic() {
                 دو انگشت · بکش
               </span>
             </div>
-            <TrustGraph focusId={mapFocus} />
+            {circleFull ? (
+              <TrustGraph
+                graph={graph}
+                getPerson={getPerson}
+                focusId={mapFocus}
+                highlightIds={highlightIds}
+              />
+            ) : (
+              <div
+                className="w-full aspect-square min-h-[420px] rounded-xl bg-stone-100/80 dark:bg-zinc-800/60 animate-pulse"
+                aria-hidden
+              />
+            )}
           </div>
         ) : (
           <div className="space-y-3">
             <PeopleGroup
               title="ارتباط‌های مستقیم"
               count={directNodes.length}
-              empty="هنوز کسی را مستقیم اضافه نکرده‌ای."
+              empty={
+                relationFilter === "all"
+                  ? "هنوز کسی را مستقیم اضافه نکرده‌ای."
+                  : `در «${relationLabels[relationFilter]}» ارتباط مستقیمی نیست.`
+              }
             >
-              {directNodes.map((n) => {
+              {directNodes.map((n, idx) => {
                 const person = getPerson(n.id);
                 return (
                   <PersonRow
@@ -172,33 +321,92 @@ export default function GraphClassic() {
                     relation={
                       person ? viewerRelationPhrase(person) : "مستقیم"
                     }
+                    eager={idx < ABOVE_FOLD_AVATARS}
                   />
                 );
               })}
             </PeopleGroup>
 
-            <PeopleGroup
-              title="از طریق آشنایان"
-              subtitle="افرادی که از طریق آشنایان به تو متصل‌اند"
-              count={viaNodes.length}
-              empty="هنوز کسی از مسیر دیگران به تو وصل نیست."
-            >
-              {viaNodes.map((n) => (
-                <PersonRow
-                  key={n.id}
-                  id={n.id}
-                  name={n.name}
-                  avatar={n.avatar}
-                  relation={viaPathLabel(pathToMe(n.id, graph.parent), nameOf)}
-                />
-              ))}
-            </PeopleGroup>
+            {!circleFull ? (
+              <section className="card overflow-hidden">
+                <div className="px-3.5 py-2.5 border-b border-stone-100 dark:border-zinc-800">
+                  <h2 className="text-[13px] font-bold text-ink dark:text-zinc-100">
+                    از طریق آشنایان
+                  </h2>
+                </div>
+                <ul className="divide-y divide-stone-100 dark:divide-zinc-800">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <li
+                      key={i}
+                      className="flex items-center gap-3 px-3.5 py-2.5 animate-pulse"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 shrink-0" />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-3 w-24 rounded bg-zinc-100 dark:bg-zinc-800" />
+                        <div className="h-2.5 w-32 rounded bg-zinc-100 dark:bg-zinc-800" />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : (
+              <PeopleGroup
+                title="از طریق آشنایان"
+                subtitle="افرادی که از طریق آشنایان به تو متصل‌اند"
+                count={viaNodes.length}
+                empty={
+                  relationFilter === "all"
+                    ? "هنوز کسی از مسیر دیگران به تو وصل نیست."
+                    : `با فیلتر «${relationLabels[relationFilter]}» کسی از مسیر دیگران نیست.`
+                }
+              >
+                {viaNodes.map((n) => (
+                  <PersonRow
+                    key={n.id}
+                    id={n.id}
+                    name={n.name}
+                    avatar={n.avatar}
+                    relation={viaPathLabel(pathToMe(n.id, graph.parent), nameOf)}
+                  />
+                ))}
+              </PeopleGroup>
+            )}
           </div>
         )}
       </div>
 
       <BottomNav />
     </main>
+  );
+}
+
+function RelationChip({
+  active,
+  label,
+  count,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  count: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`chip whitespace-nowrap !px-2.5 !py-1.5 border text-[12px] nums shrink-0 ${
+        active
+          ? "bg-brand-600 text-white border-brand-600 shadow-sm shadow-brand-600/20"
+          : "bg-[color:var(--circle-surface)] text-ink-muted dark:text-zinc-300 border-stone-200/70 dark:border-zinc-700"
+      }`}
+    >
+      {label}
+      <span className={active ? "text-white/80" : "text-ink-faint"}>
+        {" "}
+        {toPersianDigits(count)}
+      </span>
+    </button>
   );
 }
 
@@ -272,11 +480,13 @@ function PersonRow({
   name,
   avatar,
   relation,
+  eager,
 }: {
   id: string;
   name: string;
   avatar?: string;
   relation: string;
+  eager?: boolean;
 }) {
   return (
     <li>
@@ -284,7 +494,13 @@ function PersonRow({
         href={`/person/${id}`}
         className="flex items-center gap-3 px-3.5 py-2.5 active:bg-stone-50 dark:active:bg-zinc-800/50"
       >
-        <Avatar name={name} src={avatar} size="sm" showLevel={false} />
+        <Avatar
+          name={name}
+          src={avatar}
+          size="sm"
+          showLevel={false}
+          eager={eager}
+        />
         <span className="min-w-0 flex-1">
           <span className="block text-[13px] font-bold text-ink dark:text-zinc-100 truncate">
             {name}

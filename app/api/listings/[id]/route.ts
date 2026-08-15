@@ -1,4 +1,4 @@
-import { canViewListing, listingTrustPath } from "@/lib/circle-network";
+import { listingAccess } from "@/lib/circle-network";
 import { prisma } from "@/lib/db";
 import { jsonError, readJson } from "@/lib/http";
 import { toClientListing } from "@/lib/mappers";
@@ -19,13 +19,13 @@ export async function GET(
   });
   if (!row) return jsonError("آگهی پیدا نشد", 404);
 
-  if (!(await canViewListing(session.id, row.sellerId))) {
+  const access = await listingAccess(session.id, row.sellerId);
+  if (!access.ok) {
     return jsonError("این آگهی در حلقه تو نیست", 403);
   }
 
-  const trustPath = await listingTrustPath(session.id, row.sellerId);
   return Response.json({
-    listing: toClientListing(row, session.id, trustPath),
+    listing: toClientListing(row, session.id, access.trustPath),
   });
 }
 

@@ -128,14 +128,14 @@ export default function LoginGate({
     setError(null);
     void (async () => {
       try {
-        const { user } = await api<{ user: SessionUser }>(
-          "/api/auth/verify-otp",
-          {
-            method: "POST",
-            body: JSON.stringify({ phone, code }),
-          },
-        );
-        await completeLogin(user);
+        const { user, needsSeed } = await api<{
+          user: SessionUser;
+          needsSeed?: boolean;
+        }>("/api/auth/verify-otp", {
+          method: "POST",
+          body: JSON.stringify({ phone, code }),
+        });
+        await completeLogin(user, { needsSeed });
       } catch (err) {
         flashError(
           err instanceof ApiError && err.code === "invalid_code"

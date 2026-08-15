@@ -11,7 +11,25 @@ import {
 import { createInviteRecord } from "@/lib/server-invite";
 import type { RelationType, TrustGroup, User } from "@prisma/client";
 
-const DEMO_MARKER = "demo-circle-v1";
+export async function demoCircleAlreadyLinked(
+  viewerId: string,
+): Promise<boolean> {
+  const marker = await prisma.user.findUnique({
+    where: { phoneNormalized: DEMO_PHONES.leila },
+    select: { id: true },
+  });
+  if (!marker) return false;
+  const edge = await prisma.circleEdge.findUnique({
+    where: {
+      fromUserId_toUserId: {
+        fromUserId: viewerId,
+        toUserId: marker.id,
+      },
+    },
+    select: { fromUserId: true },
+  });
+  return Boolean(edge);
+}
 
 async function ensureUser(input: {
   phone: string;
@@ -120,19 +138,7 @@ async function ensureListingsFor(
  * one pending invite, one join request.
  */
 export async function seedDemoCircle(viewerId: string, viewerPhone: string) {
-  const marker = await prisma.user.findUnique({
-    where: { phoneNormalized: DEMO_PHONES.leila },
-  });
-  const alreadyLinked =
-    marker &&
-    (await prisma.circleEdge.findUnique({
-      where: {
-        fromUserId_toUserId: {
-          fromUserId: viewerId,
-          toUserId: marker.id,
-        },
-      },
-    }));
+  if (await demoCircleAlreadyLinked(viewerId)) return;
 
   const byKey = new Map<DemoPersonKey, User>();
 
@@ -276,11 +282,6 @@ export async function seedDemoCircle(viewerId: string, viewerPhone: string) {
           status: "pending",
         },
       });
-    } else if (existingReq.status === "rejected" && !alreadyLinked) {
-      // only reset on first seed pass; leave after user acted
     }
   }
-
-  // Soft marker comment in DB via invite note isn't available; edge to لیلا is the marker.
-  void DEMO_MARKER;
 }

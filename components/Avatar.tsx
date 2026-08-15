@@ -16,6 +16,7 @@ export default function Avatar({
   size = "md",
   src,
   showLevel = true,
+  eager = false,
 }: {
   name: string;
   level?: TrustLevel;
@@ -24,6 +25,8 @@ export default function Avatar({
   src?: string;
   /** Hide the degree badge (e.g. when proximity is spelled out in text). */
   showLevel?: boolean;
+  /** Load immediately — above-fold faces on circle/home. */
+  eager?: boolean;
   /** @deprecated Unused — all avatars are photos now. */
   soft?: boolean;
 }) {
@@ -49,7 +52,7 @@ export default function Avatar({
           height={px}
           className="w-full h-full object-cover"
           draggable={false}
-          loading={size === "lg" ? "eager" : "lazy"}
+          loading={eager || size === "lg" ? "eager" : "lazy"}
           decoding="async"
         />
       </div>

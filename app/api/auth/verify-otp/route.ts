@@ -8,7 +8,7 @@ import {
   otpDevCode,
   toSessionUser,
 } from "@/lib/server-auth";
-import { seedCircleForUser } from "@/lib/server-circle-seed";
+import { demoCircleAlreadyLinked } from "@/lib/server-circle-seed";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
 
   await prisma.otpChallenge.deleteMany({ where: { phoneNormalized: phone } });
   await createSession(user.id);
-  await seedCircleForUser(user.id, phone);
+  const needsSeed = !(await demoCircleAlreadyLinked(user.id));
 
-  return Response.json({ user: toSessionUser(user) });
+  return Response.json({ user: toSessionUser(user), needsSeed });
 }

@@ -17,26 +17,25 @@ import {
 } from "@/components/Icons";
 import { threadPreview } from "@/lib/message-preview";
 import { toPersianDigits } from "@/lib/persian";
-import { buildTrustGraph } from "@/lib/graph";
-import { chatPeerSubtitle, viewerRelationPhrase } from "@/lib/trust";
+import {
+  chatPeerSubtitle,
+  viaConnectorName,
+  viewerRelationPhrase,
+} from "@/lib/trust";
 import type { Message, Person } from "@/lib/types";
 
 type Filter = "all" | "unread";
 
 export default function MessagesClassic() {
-  const {
-    people,
-    listings,
-    requests,
-    getPerson,
-    networkLinks,
-    getThread,
-    getListing,
-    threadPeers,
-    unreadCount,
-    totalUnread,
-    hydrated,
-  } = useStore();
+  const people = useStore((s) => s.people);
+  const networkLinks = useStore((s) => s.networkLinks);
+  const getPerson = useStore((s) => s.getPerson);
+  const getListing = useStore((s) => s.getListing);
+  const getThread = useStore((s) => s.getThread);
+  const threadPeers = useStore((s) => s.threadPeers);
+  const unreadCount = useStore((s) => s.unreadCount);
+  const totalUnread = useStore((s) => s.totalUnread);
+  const hydrated = useStore((s) => s.hydrated);
   const peers = threadPeers();
   const unreadTotal = totalUnread();
   const [showCompose, setShowCompose] = useState(false);
@@ -52,24 +51,18 @@ export default function MessagesClassic() {
   }, [hydrated, peers.length, unreadTotal]);
 
   const viaById = useMemo(() => {
-    const graph = buildTrustGraph(
-      people,
-      listings,
-      requests,
-      getPerson,
-      undefined,
-      networkLinks,
-    );
     const map: Record<string, string> = {};
-    for (const n of graph.nodes) {
-      if (n.id === "me" || n.inCircle) continue;
-      const parentId = graph.parent[n.id];
-      if (!parentId || parentId === "me") continue;
-      const name = graph.nodes.find((x) => x.id === parentId)?.name;
-      if (name) map[n.id] = name;
+    for (const peerId of peers) {
+      const via = viaConnectorName(
+        peerId,
+        getPerson,
+        networkLinks,
+        people,
+      );
+      if (via) map[peerId] = via;
     }
     return map;
-  }, [people, listings, requests, getPerson, networkLinks]);
+  }, [peers, getPerson, networkLinks, people]);
 
   const rows = useMemo(() => {
     const q = query.trim();
@@ -172,7 +165,7 @@ export default function MessagesClassic() {
           </div>
         ) : (
           <div className="card overflow-hidden divide-y divide-stone-100 dark:divide-zinc-800">
-            {rows.map(({ peerId, peer, last, unread, preview }) => (
+            {rows.map(({ peerId, peer, last, unread, preview }, idx) => (
               <ThreadRow
                 key={peerId}
                 peer={peer}
@@ -181,6 +174,7 @@ export default function MessagesClassic() {
                 unread={unread}
                 preview={preview}
                 relationLine={chatPeerSubtitle(peer, viaById[peerId])}
+                eager={idx < 4}
               />
             ))}
           </div>
@@ -200,6 +194,7 @@ function ThreadRow({
   unread,
   preview,
   relationLine,
+  eager,
 }: {
   peer: Person;
   peerId: string;
@@ -207,6 +202,7 @@ function ThreadRow({
   unread: number;
   preview: string;
   relationLine: string;
+  eager?: boolean;
 }) {
   const hasUnread = unread > 0;
 
@@ -217,7 +213,13 @@ function ThreadRow({
         hasUnread ? "bg-brand-50/55 dark:bg-brand-500/10" : ""
       }`}
     >
-      <Avatar name={peer.name} src={peer.avatar} size="md" showLevel={false} />
+      <Avatar
+        name={peer.name}
+        src={peer.avatar}
+        size="md"
+        showLevel={false}
+        eager={eager}
+      />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline justify-between gap-2">
@@ -317,8 +319,8 @@ function EmptyState({ onStart }: { onStart: () => void }) {
 
 function ComposeSheet({ onClose }: { onClose: () => void }) {
   const router = useRouter();
-  const { people } = useStore();
-  const circle = activeCircle(people);
+  const people = useStore((s) => s.people);
+  const circle = useMemo(() => activeCircle(people), [people]);
   const [q, setQ] = useState("");
 
   const filtered = useMemo(() => {

@@ -2,16 +2,16 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useStore } from "@/lib/store";
 import { resolveAvatarSrc } from "@/lib/avatar";
 import {
-  buildTrustGraph,
   connectionPathSentence,
   depthRingLabel,
   pathToMe,
+  type TrustGraph as TrustGraphModel,
 } from "@/lib/graph";
 import { relationLabels } from "@/lib/labels";
 import { viewerRelationPhrase } from "@/lib/trust";
+import type { Person } from "@/lib/types";
 
 const BRAND = "#7c3aed";
 const RING = "rgba(120,113,108,0.42)";
@@ -25,26 +25,19 @@ function clamp(n: number, lo: number, hi: number) {
 }
 
 export default function TrustGraph({
+  graph,
+  getPerson,
   focusId = null,
+  highlightIds = null,
 }: {
+  graph: TrustGraphModel;
+  getPerson: (id: string) => Person | undefined;
   focusId?: string | null;
+  /** When set, nodes outside this set are dimmed ( «me» always stays bright). */
+  highlightIds?: Set<string> | null;
 }) {
-  const { people, listings, requests, getPerson, networkLinks } = useStore();
   const [selected, setSelected] = useState<string | null>(null);
   const [zoomed, setZoomed] = useState(false);
-
-  const graph = useMemo(
-    () =>
-      buildTrustGraph(
-        people,
-        listings,
-        requests,
-        getPerson,
-        undefined,
-        networkLinks,
-      ),
-    [people, listings, requests, getPerson, networkLinks],
-  );
 
   const nodeById = useMemo(
     () => Object.fromEntries(graph.nodes.map((n) => [n.id, n])),
@@ -68,7 +61,18 @@ export default function TrustGraph({
     return { pathNodes: nodes, pathEdges: edges, pathChain: chain };
   }, [selected, graph.parent]);
 
-  const dim = (id: string) => selected != null && !pathNodes.has(id);
+  const filtering = Boolean(highlightIds && highlightIds.size > 0);
+  const dim = (id: string) => {
+    if (selected != null) return !pathNodes.has(id);
+    if (!filtering || id === "me") return false;
+    return !highlightIds!.has(id);
+  };
+  const edgeFaint = (from: string, to: string) => {
+    if (selected != null) return !pathEdges.has(ekey(from, to));
+    if (!filtering) return false;
+    const ok = (id: string) => id === "me" || highlightIds!.has(id);
+    return !(ok(from) && ok(to));
+  };
   const size = graph.size;
 
   const selectedNode = selected ? nodeById[selected] : null;
@@ -343,6 +347,7 @@ export default function TrustGraph({
               const b = nodeById[e.to];
               if (!a || !b) return null;
               const hot = pathEdges.has(ekey(e.from, e.to));
+              const faint = !hot && edgeFaint(e.from, e.to);
               return (
                 <line
                   key={i}
@@ -357,7 +362,11 @@ export default function TrustGraph({
                     hot
                       ? "transition-[stroke-width,opacity] duration-200"
                       : `stroke-stone-400 dark:stroke-zinc-500 transition-opacity duration-200 ${
-                          selected ? "opacity-15" : "opacity-55"
+                          faint
+                            ? "opacity-12"
+                            : selected
+                              ? "opacity-15"
+                              : "opacity-55"
                         }`
                   }
                 />

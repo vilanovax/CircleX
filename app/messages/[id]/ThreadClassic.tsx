@@ -10,28 +10,22 @@ import Header from "@/components/Header";
 import LockedMessaging from "@/components/LockedMessaging";
 import { SendIcon } from "@/components/Icons";
 import { formatPrice } from "@/lib/labels";
-import { isActiveCircleMember } from "@/lib/circle-member";
 import { canDirectMessage } from "@/lib/messaging";
-import { buildTrustGraph } from "@/lib/graph";
-import { chatPeerSubtitle } from "@/lib/trust";
+import { chatPeerSubtitle, viaConnectorName } from "@/lib/trust";
 import type { Message } from "@/lib/types";
 
 export default function ThreadClassic(_props: { params: { id: string } }) {
   const params = useParams();
   const searchParams = useSearchParams();
   const peerId = String(params.id);
-  const {
-    people,
-    listings,
-    requests,
-    getPerson,
-    networkLinks,
-    getThread,
-    getListing,
-    addMessage,
-    markThreadRead,
-    setListingDealStatus,
-  } = useStore();
+  const people = useStore((s) => s.people);
+  const networkLinks = useStore((s) => s.networkLinks);
+  const getPerson = useStore((s) => s.getPerson);
+  const getThread = useStore((s) => s.getThread);
+  const getListing = useStore((s) => s.getListing);
+  const addMessage = useStore((s) => s.addMessage);
+  const markThreadRead = useStore((s) => s.markThreadRead);
+  const setListingDealStatus = useStore((s) => s.setListingDealStatus);
   const [text, setText] = useState("");
   const draftApplied = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -44,20 +38,10 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   const isSellerOfContext = contextListing?.sellerId === "me";
   const dealStatus = contextListing?.dealStatus ?? "available";
 
-  const viaName = useMemo(() => {
-    if (!peer || isActiveCircleMember(peer)) return null;
-    const graph = buildTrustGraph(
-      people,
-      listings,
-      requests,
-      getPerson,
-      undefined,
-      networkLinks,
-    );
-    const parentId = graph.parent[peer.id];
-    if (!parentId || parentId === "me") return null;
-    return graph.nodes.find((n) => n.id === parentId)?.name ?? null;
-  }, [peer, people, listings, requests, getPerson, networkLinks]);
+  const viaName = useMemo(
+    () => viaConnectorName(peerId, getPerson, networkLinks, people),
+    [peerId, getPerson, networkLinks, people],
+  );
 
   const subtitle = peer ? chatPeerSubtitle(peer, viaName) : "";
 
@@ -402,7 +386,7 @@ function ReferralCard({
   listingId: string;
   fromMe?: boolean;
 }) {
-  const { getListing } = useStore();
+  const getListing = useStore((s) => s.getListing);
   const listing = getListing(listingId);
   if (!listing) return null;
   return (

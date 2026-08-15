@@ -87,9 +87,12 @@ export function buildTrustGraph(
 
   people.filter(isActiveCircleMember).forEach((p) => link("me", p.id));
 
+  // Only wire peers we can name — orphan link ids become «؟» in the list.
+  const known = (id: string) => id === "me" || Boolean(getPerson(id));
   for (const l of networkLinks) {
     const a = l.fromId === "me" ? "me" : l.fromId;
     const b = l.toId === "me" ? "me" : l.toId;
+    if (!known(a) || !known(b)) continue;
     link(a, b);
   }
 
@@ -98,7 +101,12 @@ export function buildTrustGraph(
     ...requests.map((r) => ["me", ...r.trustPath.map((h) => h.personId), r.requesterId]),
   ];
   chains.forEach((chain) => {
-    for (let i = 0; i < chain.length - 1; i++) link(chain[i], chain[i + 1]);
+    for (let i = 0; i < chain.length - 1; i++) {
+      const a = chain[i]!;
+      const b = chain[i + 1]!;
+      if (!known(a) || !known(b)) continue;
+      link(a, b);
+    }
   });
 
   const depth = new Map<string, number>([["me", 0]]);
@@ -251,13 +259,15 @@ export function buildTrustGraph(
     }
   });
 
-  const nodes: GraphNode[] = Array.from(depth.entries()).map(([id, d]) => {
+  const nodes: GraphNode[] = Array.from(depth.entries())
+    .filter(([id]) => id === "me" || Boolean(getPerson(id)))
+    .map(([id, d]) => {
     const p = getPerson(id);
     const a = ((angle.get(id) ?? -90) * Math.PI) / 180;
     const r = radius.get(id) ?? 0;
     return {
       id,
-      name: id === "me" ? "شما" : p?.name ?? "؟",
+      name: id === "me" ? "شما" : p?.name?.trim() || "عضو حلقه",
       avatar: p?.avatar ?? resolveAvatarSrc(p?.name ?? id),
       level: id === "me" ? undefined : p?.level,
       depth: d,

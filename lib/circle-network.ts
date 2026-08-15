@@ -47,19 +47,20 @@ function personFromNetworkUser(
   };
 }
 
-type Connector = { edge: CircleEdge & { to: User }; bridge: Person };
-
-type TrustContext = {
+type DirectCircle = {
   members: Person[];
   directIds: string[];
   directSet: Set<string>;
   memberById: Map<string, Person>;
+};
+
+type TrustContext = DirectCircle & {
   hopEdges: Array<CircleEdge & { to: User }>;
-  connectorBySeller: Map<string, Connector>;
+  connectorBySeller: Map<string, Person>;
   networkPeople: Map<string, Person>;
 };
 
-async function loadTrustContext(viewerId: string): Promise<TrustContext> {
+async function loadDirectCircle(viewerId: string): Promise<DirectCircle> {
   const myEdges = await prisma.circleEdge.findMany({
     where: { fromUserId: viewerId },
     include: { to: true },
@@ -68,29 +69,37 @@ async function loadTrustContext(viewerId: string): Promise<TrustContext> {
 
   const members = myEdges.map(memberFromEdge);
   const directIds = myEdges.map((e) => e.toUserId);
-  const directSet = new Set(directIds);
-  const memberById = new Map(members.map((m) => [m.id, m]));
+  return {
+    members,
+    directIds,
+    directSet: new Set(directIds),
+    memberById: new Map(members.map((m) => [m.id, m])),
+  };
+}
+
+async function loadTrustContext(viewerId: string): Promise<TrustContext> {
+  const direct = await loadDirectCircle(viewerId);
 
   const hopEdges =
-    directIds.length === 0
+    direct.directIds.length === 0
       ? []
       : await prisma.circleEdge.findMany({
           where: {
-            fromUserId: { in: directIds },
+            fromUserId: { in: direct.directIds },
             toUserId: { not: viewerId },
           },
           include: { to: true },
         });
 
-  const connectorBySeller = new Map<string, Connector>();
+  const connectorBySeller = new Map<string, Person>();
   const networkPeople = new Map<string, Person>();
 
   for (const edge of hopEdges) {
-    if (directSet.has(edge.toUserId)) continue;
-    const bridge = memberById.get(edge.fromUserId);
+    if (direct.directSet.has(edge.toUserId)) continue;
+    const bridge = direct.memberById.get(edge.fromUserId);
     if (!bridge) continue;
     if (!connectorBySeller.has(edge.toUserId)) {
-      connectorBySeller.set(edge.toUserId, { edge, bridge });
+      connectorBySeller.set(edge.toUserId, bridge);
     }
     if (!networkPeople.has(edge.toUserId)) {
       const note = noteForFof(edge.to.phoneNormalized, bridge.name);
@@ -107,10 +116,7 @@ async function loadTrustContext(viewerId: string): Promise<TrustContext> {
   }
 
   return {
-    members,
-    directIds,
-    directSet,
-    memberById,
+    ...direct,
     hopEdges,
     connectorBySeller,
     networkPeople,
@@ -119,6 +125,40 @@ async function loadTrustContext(viewerId: string): Promise<TrustContext> {
 
 function sellerIdsFor(viewerId: string, ctx: TrustContext): string[] {
   return [viewerId, ...ctx.directIds, ...Array.from(ctx.connectorBySeller.keys())];
+}
+
+function linksFromContext(viewerId: string, ctx: TrustContext): NetworkLink[] {
+  const links: NetworkLink[] = [];
+  const linkKeys = new Set<string>();
+  const addLink = (fromId: string, toId: string, relationType: RelationType) => {
+    if (fromId === toId) return;
+    const key = fromId < toId ? `${fromId}|${toId}` : `${toId}|${fromId}`;
+    if (linkKeys.has(key)) return;
+    linkKeys.add(key);
+    links.push({ fromId, toId, relationType });
+  };
+
+  for (const member of ctx.members) {
+    addLink(viewerId, member.id, member.relation);
+  }
+  for (const edge of ctx.hopEdges) {
+    addLink(edge.fromUserId, edge.toUserId, edge.relationType);
+  }
+  return links;
+}
+
+/** People + peer links for the map — no listing bodies. */
+export async function loadGraphNetwork(viewerId: string): Promise<{
+  members: Person[];
+  network: Person[];
+  links: NetworkLink[];
+}> {
+  const ctx = await loadTrustContext(viewerId);
+  return {
+    members: ctx.members,
+    network: Array.from(ctx.networkPeople.values()),
+    links: linksFromContext(viewerId, ctx),
+  };
 }
 
 /**
@@ -150,28 +190,11 @@ export async function loadCircleNetwork(viewerId: string): Promise<{
     ),
   );
 
-  const links: NetworkLink[] = [];
-  const linkKeys = new Set<string>();
-  const addLink = (fromId: string, toId: string, relationType: RelationType) => {
-    if (fromId === toId) return;
-    const key = fromId < toId ? `${fromId}|${toId}` : `${toId}|${fromId}`;
-    if (linkKeys.has(key)) return;
-    linkKeys.add(key);
-    links.push({ fromId, toId, relationType });
-  };
-
-  for (const member of ctx.members) {
-    addLink(viewerId, member.id, member.relation);
-  }
-  for (const edge of ctx.hopEdges) {
-    addLink(edge.fromUserId, edge.toUserId, edge.relationType);
-  }
-
   return {
     members: ctx.members,
     network: Array.from(ctx.networkPeople.values()),
     listings,
-    links,
+    links: linksFromContext(viewerId, ctx),
   };
 }
 
@@ -189,14 +212,41 @@ const HOME_LISTING_SELECT = {
   city: true,
 } as const;
 
-/** Home feed: card fields only, FoF people who actually appear as sellers. */
+/** First paint shows 8 seller cards; keep a small buffer for filters. */
+const HOME_FEED_LIMIT = 24;
+
+/** Home feed: capped cards, FoF users only for sellers on those cards. */
 export async function loadHomeFeed(viewerId: string): Promise<{
   members: Person[];
   network: Person[];
   listings: Listing[];
 }> {
-  const ctx = await loadTrustContext(viewerId);
-  const sellerIds = sellerIdsFor(viewerId, ctx);
+  const direct = await loadDirectCircle(viewerId);
+
+  const hopEdges =
+    direct.directIds.length === 0
+      ? []
+      : await prisma.circleEdge.findMany({
+          where: {
+            fromUserId: { in: direct.directIds },
+            toUserId: { not: viewerId },
+          },
+          select: { fromUserId: true, toUserId: true },
+        });
+
+  const connectorBySeller = new Map<string, Person>();
+  for (const edge of hopEdges) {
+    if (direct.directSet.has(edge.toUserId)) continue;
+    const bridge = direct.memberById.get(edge.fromUserId);
+    if (!bridge || connectorBySeller.has(edge.toUserId)) continue;
+    connectorBySeller.set(edge.toUserId, bridge);
+  }
+
+  const sellerIds = [
+    viewerId,
+    ...direct.directIds,
+    ...Array.from(connectorBySeller.keys()),
+  ];
 
   const marketRows =
     sellerIds.length === 0
@@ -204,57 +254,62 @@ export async function loadHomeFeed(viewerId: string): Promise<{
       : await prisma.marketListing.findMany({
           where: { sellerId: { in: sellerIds } },
           orderBy: { createdAt: "desc" },
+          take: HOME_FEED_LIMIT,
           select: HOME_LISTING_SELECT,
         });
 
+  const pathCtx = {
+    directSet: direct.directSet,
+    memberById: direct.memberById,
+    connectorBySeller,
+  };
+
   const listings = marketRows.map((row) =>
-    toHomeListing(row, viewerId, trustPathForListing(row, viewerId, ctx)),
+    toHomeListing(row, viewerId, trustPathForListing(row, viewerId, pathCtx)),
   );
 
-  const sellerSet = new Set(
-    listings.map((row) => (row.sellerId === "me" ? viewerId : row.sellerId)),
-  );
-  const network = Array.from(ctx.networkPeople.values()).filter((p) =>
-    sellerSet.has(p.id),
+  const fofSellerIds = Array.from(
+    new Set(
+      marketRows
+        .map((row) => row.sellerId)
+        .filter((id) => id !== viewerId && !direct.directSet.has(id)),
+    ),
   );
 
-  return { members: ctx.members, network, listings };
+  const fofUsers =
+    fofSellerIds.length === 0
+      ? []
+      : await prisma.user.findMany({ where: { id: { in: fofSellerIds } } });
+
+  const network = fofUsers.map((user) => {
+    const bridge = connectorBySeller.get(user.id);
+    const note = noteForFof(user.phoneNormalized, bridge?.name ?? "حلقه");
+    return personFromNetworkUser(user, {
+      relation: "acquaintance",
+      level: "C",
+      note,
+      inMyCircle: false,
+    });
+  });
+
+  return { members: direct.members, network, listings };
 }
 
-export async function listingTrustPath(
+export type ListingAccess = {
+  ok: boolean;
+  trustPath: TrustHop[];
+};
+
+/**
+ * May the viewer open this seller's listing, and the one-hop trust path if any.
+ * Does not load the rest of the FoF graph.
+ */
+export async function listingAccess(
   viewerId: string,
   sellerId: string,
-): Promise<TrustHop[]> {
-  const ctx = await loadTrustContext(viewerId);
-  return trustPathForListing({ sellerId }, viewerId, ctx);
-}
+): Promise<ListingAccess> {
+  if (sellerId === viewerId) return { ok: true, trustPath: [] };
 
-function trustPathForListing(
-  row: { sellerId: string },
-  viewerId: string,
-  ctx: TrustContext,
-): TrustHop[] {
-  if (row.sellerId === viewerId) return [];
-  if (ctx.directSet.has(row.sellerId)) return [];
-
-  const hit = ctx.connectorBySeller.get(row.sellerId);
-  if (!hit) return [];
-
-  const bridge = hit.bridge;
-  const myRelation = ctx.memberById.get(bridge.id)?.relation;
-  const label = myRelation
-    ? `${relationLabels[myRelation]} من`
-    : "آشنای من";
-
-  return [{ personId: bridge.id, relationLabel: label }];
-}
-
-/** True when viewer may open a listing (direct circle or one FoF hop). */
-export async function canViewListing(
-  viewerId: string,
-  sellerId: string,
-): Promise<boolean> {
-  if (sellerId === viewerId) return true;
   const direct = await prisma.circleEdge.findUnique({
     where: {
       fromUserId_toUserId: {
@@ -262,21 +317,55 @@ export async function canViewListing(
         toUserId: sellerId,
       },
     },
+    select: { fromUserId: true },
   });
-  if (direct) return true;
+  if (direct) return { ok: true, trustPath: [] };
 
   const myEdges = await prisma.circleEdge.findMany({
     where: { fromUserId: viewerId },
-    select: { toUserId: true },
+    select: { toUserId: true, relationType: true },
   });
-  const directIds = myEdges.map((e) => e.toUserId);
-  if (directIds.length === 0) return false;
+  if (myEdges.length === 0) return { ok: false, trustPath: [] };
 
   const hop = await prisma.circleEdge.findFirst({
     where: {
-      fromUserId: { in: directIds },
+      fromUserId: { in: myEdges.map((e) => e.toUserId) },
       toUserId: sellerId,
     },
+    select: { fromUserId: true },
   });
-  return Boolean(hop);
+  if (!hop) return { ok: false, trustPath: [] };
+
+  const bridge = myEdges.find((e) => e.toUserId === hop.fromUserId);
+  const label = bridge
+    ? `${relationLabels[bridge.relationType]} من`
+    : "آشنای من";
+
+  return {
+    ok: true,
+    trustPath: [{ personId: hop.fromUserId, relationLabel: label }],
+  };
+}
+
+function trustPathForListing(
+  row: { sellerId: string },
+  viewerId: string,
+  ctx: {
+    directSet: Set<string>;
+    memberById: Map<string, Person>;
+    connectorBySeller: Map<string, Person>;
+  },
+): TrustHop[] {
+  if (row.sellerId === viewerId) return [];
+  if (ctx.directSet.has(row.sellerId)) return [];
+
+  const bridge = ctx.connectorBySeller.get(row.sellerId);
+  if (!bridge) return [];
+
+  const myRelation = ctx.memberById.get(bridge.id)?.relation;
+  const label = myRelation
+    ? `${relationLabels[myRelation]} من`
+    : "آشنای من";
+
+  return [{ personId: bridge.id, relationLabel: label }];
 }

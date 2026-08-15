@@ -1,5 +1,12 @@
 import { isActiveCircleMember } from "./circle-member";
-import type { Endorsement, Listing, Person, Privacy, TrustHop } from "./types";
+import type {
+  Endorsement,
+  Listing,
+  NetworkLink,
+  Person,
+  Privacy,
+  TrustHop,
+} from "./types";
 import { relationLabels } from "./labels";
 import { toPersianDigits } from "./persian";
 
@@ -83,6 +90,45 @@ export function viewerRelationPhrase(person: Person): string {
     return base;
   }
   return `${base} تو`;
+}
+
+/**
+ * Who connects an FoF peer to my circle — from peer edges or their note.
+ * Cheap path for chat labels; does not build the trust map.
+ */
+export function viaConnectorName(
+  peerId: string,
+  getPerson: (id: string) => Person | undefined,
+  networkLinks: NetworkLink[] = [],
+  people: Person[] = [],
+): string | null {
+  const peer = getPerson(peerId);
+  if (!peer || isActiveCircleMember(peer)) return null;
+
+  for (const link of networkLinks) {
+    const other =
+      link.fromId === peerId
+        ? link.toId
+        : link.toId === peerId
+          ? link.fromId
+          : null;
+    if (!other || other === "me") continue;
+    const bridge = getPerson(other);
+    if (bridge && isActiveCircleMember(bridge)) return bridge.name;
+  }
+
+  const note = peer.note?.trim();
+  if (!note) return null;
+  if (note.startsWith("از طریق ")) {
+    const name = note.slice("از طریق ".length).trim();
+    return name || null;
+  }
+  // Demo notes look like «همکار لیلا».
+  for (const p of people) {
+    if (!isActiveCircleMember(p)) continue;
+    if (p.name && note.includes(p.name)) return p.name;
+  }
+  return null;
 }
 
 /** One-line chat header: direct relation, or path — never a circle placement chip. */

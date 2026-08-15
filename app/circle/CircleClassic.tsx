@@ -8,8 +8,7 @@ import BottomNav from "@/components/BottomNav";
 import SheetShell from "@/components/SheetShell";
 import { CardListSkeleton } from "@/components/Skeleton";
 import Avatar from "@/components/Avatar";
-import InviteSheet, { InviteSharePanel } from "@/components/InviteSheet";
-import JoinRequestSheet from "@/components/JoinRequestSheet";
+import { lazyUi } from "@/lib/lazy-ui";
 import { GraphIcon, UserPlusIcon } from "@/components/Icons";
 import { levelHint } from "@/lib/labels";
 import { viewerRelationPhrase } from "@/lib/trust";
@@ -46,6 +45,18 @@ const RELATION_ORDER: RelationType[] = [
 ];
 const SECTION_PREVIEW = 6;
 const INVITE_PREVIEW = 3;
+const ABOVE_FOLD_AVATARS = 4;
+
+const InviteSheet = lazyUi(() => import("@/components/InviteSheet"));
+const InviteSharePanel = lazyUi(
+  () =>
+    import("@/components/InviteSheet").then((mod) => ({
+      default: mod.InviteSharePanel,
+    })) as Promise<{
+      default: typeof import("@/components/InviteSheet").InviteSharePanel;
+    }>,
+);
+const JoinRequestSheet = lazyUi(() => import("@/components/JoinRequestSheet"));
 
 /** Section title — slightly longer than the row chip for group B. */
 const SECTION_LABEL: Record<TrustLevel, string> = {
@@ -92,28 +103,18 @@ function circleRelationLine(person: Person): string {
 }
 
 export default function CircleClassic() {
-  const {
-    people,
-    invites,
-    joinRequests,
-    me,
-    setLevel,
-    revokeInvite,
-    createWaveFromPending,
-    acceptJoinRequest,
-    rejectJoinRequest,
-    hydrated,
-    circleReady,
-    circleFull,
-    refreshCircle,
-  } = useStore();
-
-  useEffect(() => {
-    if (!circleReady || circleFull) return;
-    void refreshCircle();
-  }, [circleReady, circleFull, refreshCircle]);
+  const people = useStore((s) => s.people);
+  const invites = useStore((s) => s.invites);
+  const joinRequests = useStore((s) => s.joinRequests);
+  const meName = useStore((s) => s.me.name);
+  const setLevel = useStore((s) => s.setLevel);
+  const revokeInvite = useStore((s) => s.revokeInvite);
+  const createWaveFromPending = useStore((s) => s.createWaveFromPending);
+  const acceptJoinRequest = useStore((s) => s.acceptJoinRequest);
+  const rejectJoinRequest = useStore((s) => s.rejectJoinRequest);
+  const circleReady = useStore((s) => s.circleReady);
   const { show } = useToast();
-  const mine = activeCircle(people);
+  const mine = useMemo(() => activeCircle(people), [people]);
   const pendingInvites = useMemo(() => {
     const live = invites.filter(
       (inv) => effectiveInviteStatus(inv) === "pending",
@@ -215,7 +216,11 @@ export default function CircleClassic() {
         }
       />
 
-      {emptyCircle ? (
+      {!circleReady ? (
+        <div className="px-4 pt-3">
+          <CardListSkeleton count={5} />
+        </div>
+      ) : emptyCircle ? (
         <div className="px-4 pt-10 listing-detail-rise">
           <div className="card p-6 text-center">
             <div className="w-14 h-14 rounded-2xl bg-brand-50 dark:bg-brand-500/15 text-brand-600 flex items-center justify-center mx-auto mb-3">
@@ -239,10 +244,6 @@ export default function CircleClassic() {
         </div>
       ) : (
         <div className="px-4 pt-3 space-y-3 listing-detail-rise">
-          {!hydrated ? (
-            <CardListSkeleton count={5} />
-          ) : (
-            <>
               {joinRequests.length > 0 && (
                 <div className="card overflow-hidden">
                   <div className="flex items-center gap-2 px-3.5 pt-3 pb-1">
@@ -257,7 +258,7 @@ export default function CircleClassic() {
                     با لینک آمده‌اند، اما در لیست دعوت تو نبودند.
                   </p>
                   <ul className="divide-y divide-stone-100 dark:divide-zinc-800">
-                    {joinRequests.map((req) => (
+                    {joinRequests.map((req, reqIndex) => (
                       <li
                         key={req.id}
                         className="flex items-center gap-2.5 px-3.5 py-2.5"
@@ -267,6 +268,7 @@ export default function CircleClassic() {
                           src={req.guest.avatar}
                           size="sm"
                           showLevel={false}
+                          eager={reqIndex === 0}
                         />
                         <span className="min-w-0 flex-1">
                           <span className="block font-bold text-[13px] text-ink dark:text-zinc-100 truncate">
@@ -388,10 +390,11 @@ export default function CircleClassic() {
                       {open ? (
                         <>
                           <ul className="divide-y divide-stone-100 dark:divide-zinc-800">
-                            {shown.map((p) => (
+                            {shown.map((p, idx) => (
                               <CircleMemberRow
                                 key={p.id}
                                 person={p}
+                                eager={i === 0 && idx < ABOVE_FOLD_AVATARS}
                                 onEditGroup={() => setEditing(p)}
                               />
                             ))}
@@ -523,8 +526,6 @@ export default function CircleClassic() {
                   )}
                 </div>
               )}
-            </>
-          )}
         </div>
       )}
 
@@ -591,7 +592,7 @@ export default function CircleClassic() {
       {shareInvite && (
         <InviteSharePanel
           invite={shareInvite}
-          inviterName={me.name}
+          inviterName={meName}
           onClose={() => setShareInvite(null)}
         />
       )}
@@ -599,7 +600,7 @@ export default function CircleClassic() {
       {moreInvite && (
         <InviteMoreSheet
           invite={moreInvite}
-          inviterName={me.name}
+          inviterName={meName}
           onClose={() => setMoreInvite(null)}
           onRevoke={() => {
             const id = moreInvite.id;
@@ -649,9 +650,11 @@ function RelationChip({
 
 function CircleMemberRow({
   person,
+  eager,
   onEditGroup,
 }: {
   person: Person;
+  eager?: boolean;
   onEditGroup: () => void;
 }) {
   return (
@@ -660,7 +663,13 @@ function CircleMemberRow({
         href={`/person/${person.id}`}
         className="flex items-center gap-2.5 min-w-0 flex-1 active:opacity-90 transition-opacity"
       >
-        <Avatar name={person.name} src={person.avatar} size="sm" showLevel={false} />
+        <Avatar
+          name={person.name}
+          src={person.avatar}
+          size="sm"
+          showLevel={false}
+          eager={eager}
+        />
         <span className="min-w-0 flex-1">
           <span className="block font-bold text-[13px] text-ink dark:text-zinc-100 truncate leading-snug">
             {person.name}
