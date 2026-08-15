@@ -43,7 +43,7 @@ export default function PlaceInviterSheet({
           onClick={() => onPlace({ relation, level })}
           className="btn-primary w-full min-h-12"
         >
-          افزودن به حلقه
+          به حلقه‌ات اضافه کن
         </button>
       }
     >
@@ -80,7 +80,7 @@ export default function PlaceInviterSheet({
       </div>
 
       <p className="text-sm font-medium mb-2 text-ink dark:text-zinc-200">
-        در کدام گروه باشد؟
+        جایگاهش کجا باشد؟
       </p>
       <div className="flex flex-col gap-2 mb-2">
         {LEVELS.map((lvl) => (

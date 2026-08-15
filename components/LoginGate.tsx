@@ -110,7 +110,7 @@ export default function LoginGate({
     e.preventDefault();
     const normalized = normalizePhone(phoneInput);
     if (!isValidIranMobile(normalized)) {
-      flashError("شماره را با ۰۹ شروع کنید — ۱۱ رقم");
+      flashError("شماره را با ۰۹ شروع کن — ۱۱ رقم");
       return;
     }
     setPhoneInput(normalized);
@@ -120,7 +120,7 @@ export default function LoginGate({
   function verifyCode(code: string) {
     if (verifyLock.current) return;
     if (code.length !== OTP_LEN) {
-      flashError("کد ۵ رقمی را کامل وارد کنید");
+      flashError("کد ۵ رقمی را کامل وارد کن");
       return;
     }
     verifyLock.current = true;
@@ -234,7 +234,7 @@ export default function LoginGate({
           <p className="login-gate-kicker">خرید و فروش بین آشنایان</p>
           <h1 className="login-gate-title">سیرکل</h1>
           <p className="login-gate-tagline">
-            فقط حلقهٔ خودتان — نه غریبه، نه بازار عمومی.
+            فقط حلقهٔ خودت — نه غریبه، نه بازار عمومی.
           </p>
         </header>
 
@@ -258,7 +258,7 @@ export default function LoginGate({
                     </p>
                   )}
                   <h2 className="login-gate-heading">
-                    شماره موبایل خود را وارد کنید
+                    شماره‌ات را وارد کن
                   </h2>
                   <p className="login-gate-sub">
                     کد یک‌بارمصرف می‌فرستیم — بدون رمز عبور.
@@ -377,7 +377,7 @@ export default function LoginGate({
                       {inviteFrom.name} دعوتت کرده به حلقه‌اش بپیوندی.
                     </p>
                   )}
-                  <h2 className="login-gate-heading">کد تأیید را وارد کنید</h2>
+                  <h2 className="login-gate-heading">کد تأیید را وارد کن</h2>
                   <p className="login-gate-sub">
                     برای{" "}
                     <span className="login-gate-phone-emph nums" dir="ltr">

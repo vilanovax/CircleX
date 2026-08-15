@@ -142,13 +142,13 @@ export default function PersonClassic(_props: { params: { id: string } }) {
   function handleRemoveFromCircle() {
     if (
       !window.confirm(
-        `${personName} از حلقه‌های شما حذف می‌شود و ممکن است دیگر آگهی‌های محدود به حلقه را نبینید. به او اطلاع داده نمی‌شود.`,
+        `${personName} از حلقه‌ات حذف می‌شود و ممکن است دیگر آگهی‌های محدود به حلقه را نبیند. به او اطلاع داده نمی‌شود.`,
       )
     ) {
       return;
     }
     removePerson(id);
-    show(`${personName} از حلقهٔ شما حذف شد`);
+    show(`${personName} از حلقه‌ات حذف شد`);
     router.push("/circle");
   }
 
@@ -249,15 +249,15 @@ export default function PersonClassic(_props: { params: { id: string } }) {
             title={`${person.name} آگهی یا درخواست فعالی ندارد`}
             description={
               canMessage
-                ? "می‌توانید مستقیم پیام بدهید و بپرسید آیا چیزی برای فروش یا نیاز دارد."
-                : "با افزودن به حلقه یا درخواست معرفی، ارتباط نزدیک‌تر برقرار کنید."
+                ? "مستقیم پیام بده و بپرس آیا چیزی برای فروش یا نیاز دارد."
+                : "با اضافه کردن به حلقه‌ات یا درخواست معرفی، ارتباط نزدیک‌تر برقرار کن."
             }
             actionLabel={
               canMessage
                 ? `پیام به ${person.name}`
                 : isActiveCircleMember(person)
                   ? "درخواست معرفی"
-                  : "افزودن به حلقه"
+                  : "به حلقه‌ات اضافه کن"
             }
             onAction={() => {
               if (canMessage) {
@@ -271,7 +271,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
               setShowAddToCircle(true);
             }}
             secondaryActionLabel={
-              canMessage && !isActiveCircleMember(person) ? "افزودن به حلقه" : undefined
+              canMessage && !isActiveCircleMember(person) ? "به حلقه‌ات اضافه کن" : undefined
             }
             onSecondaryAction={
               canMessage && !isActiveCircleMember(person)
@@ -292,7 +292,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
             {relationPhrase}
             {isActiveCircleMember(person)
               ? ` · حلقه ${relationLabels[person.relation]}`
-              : " · هنوز مستقیم به حلقهٔ شما اضافه نشده"}
+              : " · هنوز توی حلقه‌ات نیست"}
           </p>
           {evidenceLine ? (
             <p className="text-[12px] font-semibold text-ink dark:text-zinc-200 mt-1.5 nums leading-snug">
@@ -321,7 +321,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
                 onClick={() => setShowAddToCircle(true)}
                 className="flex-1 rounded-xl bg-brand-600 text-white py-2 text-[12px] font-bold active:opacity-90"
               >
-                افزودن به حلقه
+                به حلقه‌ات اضافه کن
               </button>
             )}
           </div>
@@ -347,7 +347,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
                   className="btn-primary flex-1 !py-2.5 text-[15px] flex items-center justify-center gap-2"
                 >
                   <UserPlusIcon className="w-[18px] h-[18px]" />
-                  افزودن به حلقه
+                  به حلقه‌ات اضافه کن
                 </button>
                 <button
                   type="button"
@@ -414,7 +414,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
           onAdd={(input) => {
             addToCircle(id, input);
             setShowAddToCircle(false);
-            show(`${person.name} به حلقهٔ شما اضافه شد ✓`);
+            show(`${person.name} به حلقه‌ات اضافه شد ✓`);
           }}
         />
       )}
@@ -699,7 +699,7 @@ function EditRelationSheet({
       </div>
 
       <p className="text-[11px] text-ink-faint mb-2">
-        در کدام گروه باشد؟
+        جایگاهش کجا باشد؟
       </p>
       <div className="flex gap-2 mb-4">
         {LEVELS.map((lvl) => (
@@ -731,7 +731,7 @@ function EditRelationSheet({
           onClick={onClose}
           className="inline-flex items-center gap-1 text-[12px] text-brand-600 font-medium mb-4"
         >
-          نقشه‌ی ارتباط‌ها را ببینید ‹
+          نقشه‌ی ارتباط‌ها را ببین ‹
         </Link>
       )}
 

@@ -135,7 +135,7 @@ export default function CreateSheet({ onClose }: { onClose: () => void }) {
               id="create-sheet-title"
               className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 leading-tight"
             >
-              چه چیزی می‌خواهید ثبت کنید؟
+              چه چیزی می‌خواهی ثبت کنی؟
             </h2>
             <button
               type="button"

@@ -80,7 +80,7 @@ export async function POST(req: Request) {
   if (kind === "personal" && body?.invitedPhone) {
     const phone = normalizePhone(body.invitedPhone);
     if (!isValidIranMobile(phone)) {
-      return jsonError("شماره را با ۰۹ شروع کنید — ۱۱ رقم", 400);
+      return jsonError("شماره را با ۰۹ شروع کن — ۱۱ رقم", 400);
     }
     invitedPhone = phone;
   }

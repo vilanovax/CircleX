@@ -26,12 +26,12 @@ export default function NewClassic() {
           className="card block px-3.5 py-3 active:scale-[0.99] transition"
         >
           <p className="font-bold text-[13px] text-ink dark:text-zinc-100">
-            دنبال چیزی هستید؟
+            دنبال چیزی هستی؟
           </p>
           <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
             مثلاً «کلاس نقاشی کودک» — به‌جای آگهی،{" "}
             <span className="font-semibold text-amber-800/80 dark:text-amber-200/90">درخواست</span>{" "}
-            ثبت کنید تا افراد حلقه بتوانند کمک کنند.
+            ثبت کن تا افراد حلقه بتوانند کمک کنند.
           </p>
         </Link>
 

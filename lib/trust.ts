@@ -72,12 +72,12 @@ export type TrustContentKind = "listing" | "request" | "event";
 /** How this person relates to the viewer — for trust copy on cards. */
 export function viewerRelationPhrase(person: Person): string {
   const note = person.note ?? "";
-  if (/خواهر/.test(note)) return "خواهر شما";
-  if (/برادر/.test(note)) return "برادر شما";
-  if (/همسر/.test(note)) return "همسر شما";
-  if (/همکار/.test(note)) return "همکار شما";
-  if (/همسایه/.test(note)) return "همسایه‌ی شما";
-  if (/دوست/.test(note)) return "دوست شما";
+  if (/خواهر/.test(note)) return "خواهر تو";
+  if (/برادر/.test(note)) return "برادر تو";
+  if (/همسر/.test(note)) return "همسر تو";
+  if (/همکار/.test(note)) return "همکار تو";
+  if (/همسایه/.test(note)) return "همسایه تو";
+  if (/دوست/.test(note)) return "دوست تو";
   return relationLabels[person.relation];
 }
 
@@ -88,13 +88,13 @@ export function chatPeerSubtitle(
 ): string {
   if (isActiveCircleMember(person)) return viewerRelationPhrase(person);
   if (viaName) return `از طریق ${viaName}`;
-  return "از طریق حلقهٔ شما";
+  return "از طریق حلقه‌ات";
 }
 
 const ownContentRelation: Record<TrustContentKind, string> = {
-  listing: "آگهی شما",
-  request: "درخواست شما",
-  event: "رویداد شما",
+  listing: "آگهی‌ات",
+  request: "درخواستت",
+  event: "رویدادت",
 };
 
 /**
@@ -116,7 +116,7 @@ export function posterCardRelation(
 
 /**
  * Proximity line for feed cards — only when relation alone is not enough.
- * Direct circle with a clear relation → null (avoid «خواهر شما» + «نزدیک»).
+ * Direct circle with a clear relation → null (avoid «خواهر تو» + «نزدیک»).
  * Indirect / FoF → «از طریق آشنایان».
  */
 export function posterProximityLabel(
@@ -131,9 +131,9 @@ export function posterProximityLabel(
 }
 
 const ownContentHeadline: Record<TrustContentKind, string> = {
-  listing: "آگهی شما در حلقه",
-  request: "درخواست شما در حلقه",
-  event: "رویداد شما در حلقه",
+  listing: "آگهی‌ات در حلقه",
+  request: "درخواستت در حلقه",
+  event: "رویدادت در حلقه",
 };
 
 const endorsementObject: Record<TrustContentKind, string> = {
@@ -159,7 +159,7 @@ export function trustHighlightMessage(
 
   if (trustPath.length === 0 && isActiveCircleMember(poster)) {
     return {
-      headline: `${poster.name} را مستقیم می‌شناسید`,
+      headline: `${poster.name} را مستقیم می‌شناسی`,
       subline: viewerRelationPhrase(poster),
     };
   }
@@ -168,7 +168,7 @@ export function trustHighlightMessage(
     const connector = getPerson(trustPath[0].personId);
     if (!connector) return null;
     const rel =
-      trustPath[0].relationLabel.replace(/\s*من\s*$/, " شما").trim() ||
+      trustPath[0].relationLabel.replace(/\s*من\s*$/, " تو").trim() ||
       viewerRelationPhrase(connector);
     return {
       headline: `توسط ${connector.name} معرفی شده`,
@@ -180,7 +180,7 @@ export function trustHighlightMessage(
     const hops = trustPath
       .map((h) => getPerson(h.personId)?.name)
       .filter(Boolean) as string[];
-    const chain = ["شما", ...hops, poster.name].join(" ← ");
+    const chain = ["تو", ...hops, poster.name].join(" ← ");
     return {
       headline: "از مسیر ارتباط",
       subline: chain,
@@ -189,7 +189,7 @@ export function trustHighlightMessage(
 
   // Reachable but no path stored — fallback.
   return {
-    headline: `${poster.name} از طریق حلقه‌ی شما`,
+    headline: `${poster.name} از طریق حلقه‌ات`,
     subline: posterRole,
   };
 }
@@ -237,18 +237,18 @@ export function privacyAudience(privacy: Privacy, circle: Person[]): string {
     case "A":
       return a === 0
         ? "هنوز نزدیکانی در حلقه نیست"
-        : `${fa(a)} نفر از نزدیکان شما`;
+        : `${fa(a)} نفر از نزدیکانت`;
     case "AB":
       return a + b === 0
         ? "هنوز کسی در این گروه‌ها نیست"
-        : `${fa(a + b)} نفر از نزدیکان و افراد مورد اعتماد شما`;
+        : `${fa(a + b)} نفر از نزدیکان و افراد مورد اعتمادت`;
     case "ABC":
       return a + b + c === 0
-        ? "حلقهٔ شما هنوز خالی است"
-        : `${fa(a + b + c)} نفر از حلقهٔ شما`;
+        ? "حلقه‌ات هنوز خالی است"
+        : `${fa(a + b + c)} نفر از حلقه‌ات`;
     case "referral":
-      return "حلقهٔ شما و آشنایان آن‌ها";
+      return "حلقه‌ات و آشنایان آن‌ها";
     case "approved":
-      return "فقط با اجازهٔ شما";
+      return "فقط با اجازهٔ تو";
   }
 }

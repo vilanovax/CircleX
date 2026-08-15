@@ -346,24 +346,24 @@ export function connectionPathSentence(
 ): { sentence: string; trail: string } {
   const chain = pathFromNodeToMe.slice().reverse();
   const trail = chain
-    .map((id) => (id === "me" ? "شما" : nameOf(id)))
+    .map((id) => (id === "me" ? "تو" : nameOf(id)))
     .join(" ← ");
   if (chain.length <= 2) {
     const name = nameOf(chain[chain.length - 1] ?? "");
     return {
-      sentence: `${name} را مستقیم می‌شناسید.`,
+      sentence: `${name} را مستقیم می‌شناسی.`,
       trail,
     };
   }
   const vias = chain.slice(1, -1).map((id) => nameOf(id));
   if (vias.length === 1) {
     return {
-      sentence: `از طریق ${vias[0]} به حلقهٔ شما وصل است.`,
+      sentence: `از طریق ${vias[0]} به حلقه‌ات وصل است.`,
       trail,
     };
   }
   return {
-    sentence: `از طریق ${vias.join(" و ")} به حلقهٔ شما وصل است.`,
+    sentence: `از طریق ${vias.join(" و ")} به حلقه‌ات وصل است.`,
     trail,
   };
 }

@@ -38,8 +38,8 @@ export default function LockedAccess({
           <span className="font-medium">{privacyLabels[privacy]}</span> می‌بینند.
         </p>
         <p className="text-xs text-ink-faint mt-3 leading-relaxed max-w-xs">
-          از کسی در حلقهٔ خود بخواهید شما را معرفی کند تا بتوانید این {kindLabel}{" "}
-          را ببینید.
+          از کسی در حلقه بخواه تو را معرفی کند تا این {kindLabel}{" "}
+          را ببینی.
         </p>
         <button
           type="button"

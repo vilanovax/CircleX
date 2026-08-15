@@ -225,7 +225,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
               گفتگو با {peer.name}
             </p>
             <p className="text-[13px] text-ink-muted mt-1.5 leading-relaxed max-w-xs">
-              اولین پیام را بفرستید.
+              اولین پیام را بفرست.
             </p>
           </div>
         ) : (

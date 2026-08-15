@@ -16,10 +16,10 @@ export async function POST(req: Request) {
   const phone = normalizePhone(body?.phone ?? "");
   const code = (body?.code ?? "").replace(/\D/g, "");
   if (!isValidIranMobile(phone)) {
-    return jsonError("شماره را با ۰۹ شروع کنید — ۱۱ رقم", 400);
+    return jsonError("شماره را با ۰۹ شروع کن — ۱۱ رقم", 400);
   }
   if (code.length !== 5) {
-    return jsonError("کد ۵ رقمی را کامل وارد کنید", 400);
+    return jsonError("کد ۵ رقمی را کامل وارد کن", 400);
   }
 
   const challenge = await prisma.otpChallenge.findFirst({

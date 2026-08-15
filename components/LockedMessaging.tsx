@@ -67,11 +67,11 @@ export default function LockedMessaging({ peer }: { peer: Person }) {
                 پیام خصوصی قفل است
               </p>
               <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
-                در سیرکل فقط با اعضای حلقهٔ خود چت می‌کنید.{" "}
+                فقط با حلقه‌ات چت می‌کنی.{" "}
                 <span className="font-semibold text-ink dark:text-zinc-200">
                   {peer.name}
                 </span>{" "}
-                هنوز در حلقهٔ شما نیست.
+                هنوز توی حلقه‌ات نیست.
               </p>
             </div>
           </div>
@@ -94,13 +94,13 @@ export default function LockedMessaging({ peer }: { peer: Person }) {
             <PathCard
               step="۱"
               title="درخواست معرفی"
-              body={`از کسی در حلقه بخواهید شما را به ${peer.name} وصل کند.`}
+              body={`از کسی در حلقه بخواه تو را به ${peer.name} وصل کند.`}
               icon={<ChatIcon className="w-4 h-4" />}
             />
             <PathCard
               step="۲"
-              title="افزودن به حلقه"
-              body="اگر خودتان می‌شناسیدش، مستقیم به حلقه اضافه کنید تا چت باز شود."
+              title="به حلقه‌ات اضافه کن"
+              body="اگر خودت می‌شناسی‌اش، مستقیم به حلقه‌ات اضافه کن تا چت باز شود."
               icon={<UserPlusIcon className="w-4 h-4" />}
             />
           </div>
@@ -121,7 +121,7 @@ export default function LockedMessaging({ peer }: { peer: Person }) {
           >
             <span className="inline-flex items-center justify-center gap-1.5">
               <UserPlusIcon className="w-4 h-4" />
-              افزودن به حلقه
+              به حلقه‌ات اضافه کن
             </span>
           </button>
           <div className="flex items-center justify-center gap-4 pt-1">
@@ -159,7 +159,7 @@ export default function LockedMessaging({ peer }: { peer: Person }) {
           onAdd={(input) => {
             addToCircle(peer.id, input);
             setShowAdd(false);
-            show(`${peer.name} به حلقه‌ی شما اضافه شد ✓`);
+            show(`${peer.name} به حلقه‌ات اضافه شد ✓`);
           }}
         />
       )}

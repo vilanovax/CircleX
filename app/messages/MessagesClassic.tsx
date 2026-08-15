@@ -293,15 +293,15 @@ function EmptyState({ onStart }: { onStart: () => void }) {
       <div className="w-14 h-14 rounded-2xl bg-brand-50 dark:bg-brand-500/15 text-brand-600 flex items-center justify-center mx-auto mb-3">
         <ChatIcon className="w-7 h-7" />
       </div>
-      <p className="font-bold text-ink dark:text-zinc-100">هنوز گفتگویی ندارید</p>
+      <p className="font-bold text-ink dark:text-zinc-100">هنوز گفتگویی نداری</p>
       <p className="text-sm text-ink-muted dark:text-zinc-400 mt-1.5 leading-relaxed max-w-xs mx-auto">
-        از یک آگهی پیام بدهید، یا همین‌جا با کسی از حلقه شروع کنید.
+        از یک آگهی پیام بده، یا همین‌جا با کسی از حلقه شروع کن.
       </p>
       <button type="button" onClick={onStart} className="btn-primary inline-block mt-4">
         پیام دادن
       </button>
       <Link href="/circle" className="block text-xs text-brand-600 font-medium mt-3">
-        یا اول حلقه را بسازید ‹
+        یا اول حلقه‌ات را بساز ‹
       </Link>
     </div>
   );
@@ -339,7 +339,7 @@ function ComposeSheet({ onClose }: { onClose: () => void }) {
             گفتگوی جدید
           </h2>
           <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1">
-            فقط افراد حلقهٔ شما اینجا هستند
+            فقط حلقه‌ات اینجاست
           </p>
         </div>
       </div>
@@ -361,7 +361,7 @@ function ComposeSheet({ onClose }: { onClose: () => void }) {
       <div className="card overflow-hidden divide-y divide-stone-100 dark:divide-zinc-800 mb-2">
         {circle.length === 0 ? (
           <div className="text-center py-8 px-4">
-            <p className="text-sm text-ink-muted">هنوز کسی در حلقه‌ی شما نیست.</p>
+            <p className="text-sm text-ink-muted">هنوز کسی در حلقه‌ات نیست.</p>
             <Link href="/circle" className="btn-primary inline-block mt-4 text-sm">
               ساخت حلقه
             </Link>

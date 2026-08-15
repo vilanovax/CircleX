@@ -70,7 +70,7 @@ function EventsContent() {
           </p>
           <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
             کلاس، دورهمی خانوادگی، بازارچه‌ی خیریه، بازی کودکان و سفر گروهی — همه
-            بین آدم‌هایی که می‌شناسید.
+            بین آدم‌هایی که می‌شناسی.
           </p>
         </div>
 
@@ -80,7 +80,7 @@ function EventsContent() {
           <EmptyState
             icon="🎉"
             title="رویدادی نیست"
-            description="کلاس، دورهمی، بازارچه یا سفر گروهی — بین آدم‌هایی که می‌شناسید."
+            description="کلاس، دورهمی، بازارچه یا سفر گروهی — بین آدم‌هایی که می‌شناسی."
             actionLabel="ساخت اولین رویداد"
             onAction={() => setShowAdd(true)}
           />

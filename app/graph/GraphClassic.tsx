@@ -110,7 +110,7 @@ export default function GraphClassic() {
                 بیشترین ارتباط از طریق {insights.hub.name} است
               </span>
               <span className="block text-[11px] text-ink-muted mt-0.5 nums truncate">
-                {insights.hub.name} شما را به{" "}
+                {insights.hub.name} تو را به{" "}
                 {toPersianDigits(insights.hub.count)} نفر دیگر متصل می‌کند
               </span>
             </span>
@@ -127,7 +127,7 @@ export default function GraphClassic() {
                 نقشه ارتباط‌ها
               </h2>
               <span className="text-[11px] text-ink-faint">
-                دو انگشت · بکشید
+                دو انگشت · بکش
               </span>
             </div>
             <TrustGraph focusId={mapFocus} />
@@ -137,7 +137,7 @@ export default function GraphClassic() {
             <PeopleGroup
               title="ارتباط‌های مستقیم"
               count={directNodes.length}
-              empty="هنوز کسی را مستقیم اضافه نکرده‌اید."
+              empty="هنوز کسی را مستقیم اضافه نکرده‌ای."
             >
               {directNodes.map((n) => {
                 const person = getPerson(n.id);
@@ -157,9 +157,9 @@ export default function GraphClassic() {
 
             <PeopleGroup
               title="از طریق آشنایان"
-              subtitle="افرادی که از طریق آشنایان به شما متصل‌اند"
+              subtitle="افرادی که از طریق آشنایان به تو متصل‌اند"
               count={viaNodes.length}
-              empty="هنوز کسی از مسیر دیگران به شما وصل نیست."
+              empty="هنوز کسی از مسیر دیگران به تو وصل نیست."
             >
               {viaNodes.map((n) => (
                 <PersonRow

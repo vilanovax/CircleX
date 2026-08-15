@@ -25,12 +25,27 @@ import {
   whatsappShareHref,
 } from "@/lib/invite";
 import { formatPhoneDisplay } from "@/lib/phone";
-import type { CircleJoinRequest, Invite, Person, TrustLevel } from "@/lib/types";
+import type {
+  CircleJoinRequest,
+  Invite,
+  Person,
+  RelationType,
+  TrustLevel,
+} from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
 import { useToast } from "@/components/Toast";
 import { relationLabels } from "@/lib/labels";
 
 const LEVELS: TrustLevel[] = ["A", "B", "C"];
+const RELATION_ORDER: RelationType[] = [
+  "family",
+  "friend",
+  "colleague",
+  "neighbor",
+  "acquaintance",
+];
+const SECTION_PREVIEW = 6;
+const INVITE_PREVIEW = 3;
 
 /** Section title — slightly longer than the row chip for group B. */
 const SECTION_LABEL: Record<TrustLevel, string> = {
@@ -64,15 +79,15 @@ function circleRelationLine(person: Person): string {
     .trim();
   if (!rest) return phrase;
 
-  const core = phrase.replace(/\s*شما\s*$/, "").trim();
-  if (/^(در|از)\s/.test(rest)) return `${core} شما ${rest}`;
+  const core = phrase.replace(/\s*(شما|تو)\s*$/, "").trim();
+  if (/^(در|از)\s/.test(rest)) return `${core} تو ${rest}`;
 
   const parts = rest.split(/\s+/);
   const afterFirst = parts.slice(1).join(" ");
   if (parts.length >= 2 && /^(از|در)\s/.test(afterFirst)) {
-    return `${core} ${parts[0]} شما ${afterFirst}`;
+    return `${core} ${parts[0]} تو ${afterFirst}`;
   }
-  if (parts.length === 1) return `${core} شما در ${rest}`;
+  if (parts.length === 1) return `${core} تو در ${rest}`;
   return `${core} ${rest}`.replace(/\s+/g, " ");
 }
 
@@ -114,6 +129,16 @@ export default function CircleClassic() {
   const [shareInvite, setShareInvite] = useState<Invite | null>(null);
   const [consolidating, setConsolidating] = useState(false);
   const [reviewing, setReviewing] = useState<CircleJoinRequest | null>(null);
+  const [relationFilter, setRelationFilter] = useState<RelationType | "all">(
+    "all",
+  );
+  const [openRelations, setOpenRelations] = useState<Set<RelationType>>(
+    () => new Set(),
+  );
+  const [fullRelations, setFullRelations] = useState<Set<RelationType>>(
+    () => new Set(),
+  );
+  const [invitesOpen, setInvitesOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -121,12 +146,25 @@ export default function CircleClassic() {
     if (q.get("invite") === "1") setShowAdd(true);
   }, []);
 
-  const grouped = useMemo(() => {
-    return LEVELS.map((lvl) => ({
-      level: lvl,
-      members: mine.filter((p) => p.level === lvl),
+  const relationGroups = useMemo(() => {
+    return RELATION_ORDER.map((relation) => ({
+      relation,
+      members: mine
+        .filter((p) => p.relation === relation)
+        .sort((a, b) => a.name.localeCompare(b.name, "fa")),
     })).filter((g) => g.members.length > 0);
   }, [mine]);
+
+  const visibleGroups = useMemo(() => {
+    if (relationFilter === "all") return relationGroups;
+    return relationGroups.filter((g) => g.relation === relationFilter);
+  }, [relationGroups, relationFilter]);
+
+  useEffect(() => {
+    if (openRelations.size > 0) return;
+    const first = relationGroups[0]?.relation;
+    if (first) setOpenRelations(new Set([first]));
+  }, [relationGroups, openRelations.size]);
 
   const unplaced = useMemo(
     () =>
@@ -155,7 +193,7 @@ export default function CircleClassic() {
               : pendingInvites.length > 0
               ? `${toPersianDigits(pendingInvites.length)} دعوت در انتظار`
               : "هنوز کسی اضافه نشده"
-            : `${toPersianDigits(mine.length)} نفر که مستقیماً می‌شناسید`
+            : `${toPersianDigits(mine.length)} نفر که خودت می‌شناسی`
         }
         action={
           <button
@@ -164,7 +202,7 @@ export default function CircleClassic() {
             className="inline-flex items-center gap-1 h-8 rounded-xl bg-brand-600 text-white px-2.5 text-[11px] font-bold active:scale-95 transition-transform duration-150"
           >
             <UserPlusIcon className="w-4 h-4" />
-            افزودن
+            دعوت
           </button>
         }
       />
@@ -176,7 +214,7 @@ export default function CircleClassic() {
               <UserPlusIcon className="w-7 h-7" />
             </div>
             <p className="font-bold text-ink dark:text-zinc-100">
-              حلقهٔ شما هنوز خالی است
+              حلقه‌ات هنوز خالی است
             </p>
             <p className="text-sm text-ink-muted dark:text-zinc-400 mt-1.5 leading-relaxed">
               خانواده و دوستان را دعوت کن تا آگهی‌ها و رویدادهایشان اینجا دیده
@@ -187,7 +225,7 @@ export default function CircleClassic() {
               onClick={() => setShowAdd(true)}
               className="btn-primary inline-block mt-4"
             >
-              دعوت به حلقه
+              دعوت
             </button>
           </div>
         </div>
@@ -256,10 +294,33 @@ export default function CircleClassic() {
                     onClick={() => setPlacing(true)}
                     className="mt-2.5 text-[13px] font-semibold text-brand-700 dark:text-brand-400"
                   >
-                    تعیین جایگاه‌ها
+                    جایگاه‌ها را مشخص کن
                   </button>
                 </div>
               )}
+              {mine.length > 0 && relationGroups.length > 1 && (
+                <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+                  <RelationChip
+                    active={relationFilter === "all"}
+                    label="همه"
+                    count={mine.length}
+                    onClick={() => setRelationFilter("all")}
+                  />
+                  {relationGroups.map((g) => (
+                    <RelationChip
+                      key={g.relation}
+                      active={relationFilter === g.relation}
+                      label={relationLabels[g.relation]}
+                      count={g.members.length}
+                      onClick={() => {
+                        setRelationFilter(g.relation);
+                        setOpenRelations((prev) => new Set(prev).add(g.relation));
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
               {mine.length > 0 && (
               <div className="card overflow-hidden">
                 <h2 className="px-3.5 pt-3 pb-1 text-[13px] font-bold text-ink dark:text-zinc-100 nums">
@@ -269,30 +330,106 @@ export default function CircleClassic() {
                     {toPersianDigits(mine.length)}
                   </span>
                 </h2>
-                {grouped.map(({ level, members }, i) => (
+                {visibleGroups.map(({ relation, members }, i) => {
+                  const forcedOpen = relationFilter !== "all";
+                  const open = forcedOpen || openRelations.has(relation);
+                  const showAll = forcedOpen || fullRelations.has(relation);
+                  const shown = open
+                    ? showAll
+                      ? members
+                      : members.slice(0, SECTION_PREVIEW)
+                    : [];
+                  const hiddenCount = members.length - shown.length;
+                  return (
                     <section
-                      key={level}
+                      key={relation}
                       className={i > 0 ? "border-t border-stone-100 dark:border-zinc-800" : ""}
                     >
-                      <h3 className="px-3.5 pt-2.5 pb-1 text-[13px] font-bold text-ink dark:text-zinc-100 nums">
-                        {SECTION_LABEL[level]}
-                        <span className="text-ink-muted font-semibold">
-                          {" · "}
-                          {toPersianDigits(members.length)}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenRelations((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(relation) && relationFilter === "all") {
+                              next.delete(relation);
+                            } else {
+                              next.add(relation);
+                            }
+                            return next;
+                          });
+                        }}
+                        className="w-full flex items-center justify-between gap-2 px-3.5 pt-2.5 pb-1.5 text-right"
+                        aria-expanded={open}
+                      >
+                        <h3 className="text-[13px] font-bold text-ink dark:text-zinc-100 nums">
+                          {relationLabels[relation]}
+                          <span className="text-ink-muted font-semibold">
+                            {" · "}
+                            {toPersianDigits(members.length)}
+                          </span>
+                        </h3>
+                        <span
+                          className={`text-ink-faint text-[12px] transition-transform ${
+                            open ? "rotate-180" : ""
+                          }`}
+                          aria-hidden
+                        >
+                          ▾
                         </span>
-                      </h3>
-                      <ul className="divide-y divide-stone-100 dark:divide-zinc-800">
-                        {members.map((p) => (
-                          <CircleMemberRow
-                            key={p.id}
-                            person={p}
-                            onEditGroup={() => setEditing(p)}
-                          />
-                        ))}
-                      </ul>
+                      </button>
+                      {open ? (
+                        <>
+                          <ul className="divide-y divide-stone-100 dark:divide-zinc-800">
+                            {shown.map((p) => (
+                              <CircleMemberRow
+                                key={p.id}
+                                person={p}
+                                onEditGroup={() => setEditing(p)}
+                              />
+                            ))}
+                          </ul>
+                          {hiddenCount > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setFullRelations((prev) =>
+                                  new Set(prev).add(relation),
+                                )
+                              }
+                              className="w-full py-2.5 text-[12px] font-bold text-brand-700 dark:text-brand-300"
+                            >
+                              {toPersianDigits(hiddenCount)} نفر دیگر در{" "}
+                              {relationLabels[relation]}
+                            </button>
+                          ) : null}
+                        </>
+                      ) : null}
                     </section>
-                  ))}
+                  );
+                })}
               </div>
+              )}
+
+              {mine.length > 0 && (
+              <Link
+                href="/graph"
+                className="flex items-center gap-3 rounded-xl bg-brand-50/70 dark:bg-brand-500/10 px-3 py-2.5 active:opacity-80 transition-opacity"
+              >
+                <span className="w-8 h-8 rounded-lg bg-[color:var(--circle-surface)] dark:bg-zinc-900 text-brand-600 flex items-center justify-center shrink-0 ring-1 ring-brand-100 dark:ring-brand-500/20">
+                  <GraphIcon className="w-4 h-4" />
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[13px] font-bold text-ink dark:text-zinc-100">
+                    دیدن نقشه ارتباط‌ها
+                  </span>
+                  <span className="block text-[11px] text-ink-muted mt-0.5 truncate">
+                    ببین هر کس چطور به تو وصل است
+                  </span>
+                </span>
+                <span className="text-[12px] font-bold text-brand-600 dark:text-brand-400 shrink-0">
+                  ‹
+                </span>
+              </Link>
               )}
 
               {pendingInvites.length > 0 && (
@@ -310,6 +447,7 @@ export default function CircleClassic() {
                         onClick={() => {
                           setSelecting((v) => !v);
                           setSelectedIds(new Set());
+                          setInvitesOpen(true);
                         }}
                         className="mr-auto text-[12px] font-semibold text-brand-700 dark:text-brand-400"
                       >
@@ -318,7 +456,10 @@ export default function CircleClassic() {
                     )}
                   </div>
                   <ul className="divide-y divide-stone-100 dark:divide-zinc-800">
-                    {pendingInvites.map((inv) => (
+                    {(invitesOpen || selecting
+                      ? pendingInvites
+                      : pendingInvites.slice(0, INVITE_PREVIEW)
+                    ).map((inv) => (
                       <PendingInviteRow
                         key={inv.id}
                         invite={inv}
@@ -336,6 +477,18 @@ export default function CircleClassic() {
                       />
                     ))}
                   </ul>
+                  {!invitesOpen &&
+                    !selecting &&
+                    pendingInvites.length > INVITE_PREVIEW && (
+                      <button
+                        type="button"
+                        onClick={() => setInvitesOpen(true)}
+                        className="w-full py-2.5 text-[12px] font-bold text-brand-700 dark:text-brand-300"
+                      >
+                        {toPersianDigits(pendingInvites.length - INVITE_PREVIEW)}{" "}
+                        دعوت دیگر
+                      </button>
+                    )}
                   {selecting && selectedIds.size > 0 && (
                     <div className="px-3.5 py-3 border-t border-stone-100 dark:border-zinc-800">
                       <button
@@ -363,28 +516,6 @@ export default function CircleClassic() {
                 </div>
               )}
             </>
-          )}
-
-          {mine.length > 0 && (
-          <Link
-            href="/graph"
-            className="flex items-center gap-3 rounded-xl bg-brand-50/70 dark:bg-brand-500/10 px-3 py-2.5 active:opacity-80 transition-opacity"
-          >
-            <span className="w-8 h-8 rounded-lg bg-[color:var(--circle-surface)] dark:bg-zinc-900 text-brand-600 flex items-center justify-center shrink-0 ring-1 ring-brand-100 dark:ring-brand-500/20">
-              <GraphIcon className="w-4 h-4" />
-            </span>
-            <span className="flex-1 min-w-0">
-              <span className="block text-[13px] font-bold text-ink dark:text-zinc-100">
-                دیدن نقشه ارتباط‌ها
-              </span>
-              <span className="block text-[11px] text-ink-muted mt-0.5 truncate">
-                ببینید هر فرد چگونه به شما وصل است
-              </span>
-            </span>
-            <span className="text-[12px] font-bold text-brand-600 dark:text-brand-400 shrink-0">
-              ‹
-            </span>
-          </Link>
           )}
         </div>
       )}
@@ -478,6 +609,36 @@ export default function CircleClassic() {
   );
 }
 
+function RelationChip({
+  active,
+  label,
+  count,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  count: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`chip whitespace-nowrap !px-2.5 !py-1.5 border text-[12px] nums ${
+        active
+          ? "bg-brand-600 text-white border-brand-600 shadow-sm shadow-brand-600/20"
+          : "bg-[color:var(--circle-surface)] text-ink-muted dark:text-zinc-300 border-stone-200/70 dark:border-zinc-700"
+      }`}
+    >
+      {label}
+      <span className={active ? "text-white/80" : "text-ink-faint"}>
+        {" "}
+        {toPersianDigits(count)}
+      </span>
+    </button>
+  );
+}
+
 function CircleMemberRow({
   person,
   onEditGroup,
@@ -529,10 +690,10 @@ function GroupSheet({
           id="group-sheet-title"
           className="font-extrabold text-[1.1rem] text-ink dark:text-zinc-50"
         >
-          {person.name} در کدام گروه باشد؟
+          جایگاه {person.name} کجا باشد؟
         </h2>
         <p className="text-[12px] text-ink-muted mt-1 mb-3">
-          این انتخاب فقط برای خود شما نمایش داده می‌شود.
+          این انتخاب فقط برای خودت است.
         </p>
         <div className="space-y-2">
           {LEVELS.map((lvl) => {
@@ -639,7 +800,7 @@ function inviteRowCopy(invite: Invite): { title: string; sub: string; isWave: bo
     };
   }
   return {
-    title: name || (invite.invitedPhone ? formatPhoneDisplay(invite.invitedPhone) : "لینک دعوت"),
+    title: name || (invite.invitedPhone ? formatPhoneDisplay(invite.invitedPhone) : "لینک"),
     sub: name && invite.invitedPhone
       ? formatPhoneDisplay(invite.invitedPhone)
       : "هنوز نپیوسته",
@@ -857,7 +1018,9 @@ function InviteMoreSheet({
       )}
 
       <div className="mt-4 rounded-2xl border border-stone-200/80 dark:border-zinc-700 bg-stone-50/70 dark:bg-zinc-800/40 px-3.5 py-3">
-        <p className="text-[11px] font-bold text-ink-muted mb-1.5">لینک دعوت</p>
+        <p className="text-[11px] font-bold text-ink-muted mb-1.5">
+          {isWave ? "لینک گروهی" : "لینک"}
+        </p>
         <p
           dir="ltr"
           className="text-[12px] font-medium text-ink dark:text-zinc-200 break-all text-left leading-snug"

@@ -102,7 +102,7 @@ export async function processListingPhoto(file: File): Promise<string> {
   }
 
   if (byteLength(dataUrl) > LISTING_PHOTO_MAX_BYTES) {
-    throw new Error("عکس بعد از فشرده‌سازی هنوز بزرگ است — عکس کوچک‌تری انتخاب کنید.");
+    throw new Error("عکس بعد از فشرده‌سازی هنوز بزرگ است — عکس کوچک‌تری انتخاب کن.");
   }
 
   return dataUrl;

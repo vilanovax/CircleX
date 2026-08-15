@@ -338,7 +338,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
                   مسیر ارتباط تا فروشنده
                 </h2>
                 <p className="text-[11px] text-ink-muted mt-0.5">
-                  این آگهی از طریق آشنایان به شما می‌رسد
+                  این آگهی از طریق آشنایان به تو می‌رسد
                 </p>
               </div>
             </div>
@@ -357,8 +357,8 @@ export default function ListingClassic(_props: { params: { id: string } }) {
             </button>
             {pathExpanded && (
               <p className="mt-2 text-[12px] text-ink-muted leading-relaxed">
-                هر نفر در مسیر کسی است که می‌شناسید، یا از طریق آشنای مشترک به
-                او می‌رسید.
+                هر نفر در مسیر کسی است که می‌شناسی، یا از طریق آشنای مشترک به
+                او می‌رسی.
               </p>
             )}
           </div>
@@ -379,7 +379,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
           {!isMine && (
             <div className="mt-4 pt-3.5 border-t border-stone-100 dark:border-zinc-800">
               <p className="text-[12px] font-semibold text-ink dark:text-zinc-200 mb-1">
-                افزودن تأیید شما
+                افزودن تأییدت
               </p>
               <p className="text-[11px] text-ink-faint mb-2.5 leading-relaxed">
                 فقط چیزی را بگویید که می‌دانید — حرف عضو حلقه است، نه مهر تأیید
@@ -439,10 +439,10 @@ export default function ListingClassic(_props: { params: { id: string } }) {
             </span>
             <span className="flex-1 min-w-0">
               <span className="block font-bold text-[13px] text-ink dark:text-zinc-100">
-                کسی در حلقهٔ شما دنبال چنین چیزی است؟
+                کسی در حلقه‌ات دنبال چنین چیزی است؟
               </span>
               <span className="block text-[11px] text-ink-muted mt-0.5">
-                آگهی را فقط داخل حلقه برایش بفرستید
+                آگهی را فقط داخل حلقه برایش بفرست
               </span>
             </span>
             <span className="shrink-0 text-[12px] font-bold text-brand-600 dark:text-brand-400">

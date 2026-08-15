@@ -6,7 +6,7 @@
  *   تأیید       a member’s claim (not a guarantee)
  *   سابقه       activity record
  *   آگهی / درخواست / رویداد
- *   Address the user as شما — rewrite the sentence, don’t paste «شما» onto «تو» copy.
+ *   Address the user as تو — rewrite the sentence, don’t paste «تو» onto «شما» copy.
  */
 import type {
   BadgeType,
@@ -69,9 +69,9 @@ export const levelDot: Record<TrustLevel, string> = {
 
 /** Accessible explanation of A/B/C groups — never expose the letter in UI. */
 export const levelHint: Record<TrustLevel, string> = {
-  A: "افرادی که ارتباط خیلی نزدیکی با آن‌ها دارید.",
-  B: "افرادی که می‌شناسید و به آن‌ها اطمینان دارید.",
-  C: "افرادی که ارتباط محدودتری با آن‌ها دارید.",
+  A: "افرادی که ارتباط خیلی نزدیکی با آن‌ها داری.",
+  B: "افرادی که می‌شناسی و به آن‌ها اطمینان داری.",
+  C: "افرادی که ارتباط محدودتری با آن‌ها داری.",
 };
 
 export const listingTypeLabels: Record<ListingType, string> = {

@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   const body = await readJson<{ phone?: string }>(req);
   const phone = normalizePhone(body?.phone ?? "");
   if (!isValidIranMobile(phone)) {
-    return jsonError("شماره را با ۰۹ شروع کنید — ۱۱ رقم", 400);
+    return jsonError("شماره را با ۰۹ شروع کن — ۱۱ رقم", 400);
   }
 
   const recent = await prisma.otpChallenge.findFirst({

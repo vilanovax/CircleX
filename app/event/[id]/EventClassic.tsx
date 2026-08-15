@@ -184,7 +184,7 @@ export default function EventClassic(_props: { params: { id: string } }) {
                 مسیر ارتباط
               </h2>
               <p className="text-[11px] text-ink-muted mt-0.5">
-                چطور به میزبان وصل هستید
+                چطور به میزبان وصل هستی
               </p>
             </div>
           </div>

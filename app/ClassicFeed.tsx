@@ -21,7 +21,7 @@ import { FeedSkeleton } from "@/components/Skeleton";
 import Avatar from "@/components/Avatar";
 import { CircleUsersIcon, LockIcon, SearchIcon, ShieldCheckIcon } from "@/components/Icons";
 import { formatPrice } from "@/lib/labels";
-import type { CircleEvent, ListingType, Request } from "@/lib/types";
+import type { CircleEvent, Listing, ListingType, Request } from "@/lib/types";
 import { formatEventDateDisplay, normalizeFa, toPersianDigits } from "@/lib/persian";
 import { canView, filterByAccess, trustScore } from "@/lib/trust";
 
@@ -29,7 +29,37 @@ const Onboarding = lazyUi(() => import("@/components/Onboarding"));
 
 const SCROLL_COLLAPSE_THRESHOLD = 48;
 const PREVIEW_LIMIT = 8;
+const HOME_SELLERS = 8;
+const SEARCH_PAGE = 12;
 const CONCEPT_TIP_KEY = "circle-home-concept-tip-v1";
+
+type SellerBundle = {
+  sellerId: string;
+  featured: Listing;
+  extras: Listing[];
+};
+
+function bundleBySeller(listings: Listing[]): SellerBundle[] {
+  const order: string[] = [];
+  const bySeller = new Map<string, Listing[]>();
+  for (const listing of listings) {
+    const existing = bySeller.get(listing.sellerId);
+    if (!existing) {
+      order.push(listing.sellerId);
+      bySeller.set(listing.sellerId, [listing]);
+    } else {
+      existing.push(listing);
+    }
+  }
+  return order.map((sellerId) => {
+    const items = bySeller.get(sellerId) ?? [];
+    return {
+      sellerId,
+      featured: items[0]!,
+      extras: items.slice(1),
+    };
+  });
+}
 
 /** Who in the circle the feed draws from (maps to trustScore floors). */
 type CircleScope = "all" | "near" | "trusted";
@@ -63,6 +93,7 @@ export default function ClassicFeed() {
   const [headerCompact, setHeaderCompact] = useState(false);
   const [showConceptTip, setShowConceptTip] = useState(false);
   const [conceptTipReady, setConceptTipReady] = useState(false);
+  const [feedPage, setFeedPage] = useState(1);
 
   useEffect(() => {
     const onScroll = () => setHeaderCompact(window.scrollY > SCROLL_COLLAPSE_THRESHOLD);
@@ -141,6 +172,17 @@ export default function ClassicFeed() {
     });
   }, [allowed, filter, deferredQuery, circleScope, getPerson]);
 
+  const searching = deferredQuery.trim().length > 0;
+  const bundles = useMemo(() => bundleBySeller(visible), [visible]);
+  const pageSize = searching ? SEARCH_PAGE : HOME_SELLERS;
+  const feedTotal = searching ? visible.length : bundles.length;
+  const feedShown = Math.min(feedPage * pageSize, feedTotal);
+  const feedRemaining = feedTotal - feedShown;
+
+  useEffect(() => {
+    setFeedPage(1);
+  }, [filter, deferredQuery, circleScope]);
+
   const browsingAll =
     filter === "all" &&
     query.trim().length === 0 &&
@@ -175,7 +217,7 @@ export default function ClassicFeed() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="جستجو…"
-                  aria-label="جستجو در حلقه‌ی شما"
+                  aria-label="جستجو در حلقه‌ات"
                   className="field !pr-9 !py-2 !px-3 text-sm !border-stone-200/80 dark:!border-zinc-700"
                 />
               </div>
@@ -234,7 +276,8 @@ export default function ClassicFeed() {
           {/* Listings first — home's primary job */}
           <FeedSection
             title="آگهی‌ها"
-            count={hydrated ? visible.length : undefined}
+            count={hydrated ? feedTotal : undefined}
+            countUnit={searching ? "مورد" : "نفر"}
             scopeControl={
               circleCount > 0 ? (
                 <CircleScopeControl
@@ -259,15 +302,63 @@ export default function ClassicFeed() {
                 }}
               />
             ) : (
-              visible.map((l, i) => (
-                <div
-                  key={l.id}
-                  className={i < 4 ? "animate-fade-up" : undefined}
-                  style={i < 4 ? { animationDelay: `${i * 45}ms` } : undefined}
-                >
-                  <ListingCard listing={l} compactTrust />
-                </div>
-              ))
+              <>
+                {searching
+                  ? visible.slice(0, feedShown).map((l, i) => (
+                      <div
+                        key={l.id}
+                        className={i < 4 ? "animate-fade-up" : undefined}
+                        style={
+                          i < 4 ? { animationDelay: `${i * 45}ms` } : undefined
+                        }
+                      >
+                        <ListingCard listing={l} compactTrust />
+                      </div>
+                    ))
+                  : bundles.slice(0, feedShown).map((bundle, i) => {
+                      const seller = getPerson(bundle.sellerId);
+                      const sellerName = seller?.name ?? "این نفر";
+                      const moreHref =
+                        bundle.sellerId === "me"
+                          ? "/profile"
+                          : `/person/${bundle.sellerId}`;
+                      return (
+                        <div
+                          key={bundle.sellerId}
+                          className={i < 4 ? "animate-fade-up" : undefined}
+                          style={
+                            i < 4
+                              ? { animationDelay: `${i * 45}ms` }
+                              : undefined
+                          }
+                        >
+                          <ListingCard
+                            listing={bundle.featured}
+                            compactTrust
+                            moreFrom={
+                              bundle.extras.length > 0
+                                ? {
+                                    count: bundle.extras.length,
+                                    href: moreHref,
+                                    name: sellerName,
+                                  }
+                                : undefined
+                            }
+                          />
+                        </div>
+                      );
+                    })}
+                {feedRemaining > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setFeedPage((page) => page + 1)}
+                    className="w-full rounded-xl border border-stone-200/80 dark:border-zinc-700 bg-[color:var(--circle-surface)] dark:bg-zinc-900 py-2.5 text-[13px] font-bold text-brand-700 dark:text-brand-300 active:opacity-80"
+                  >
+                    نمایش {toPersianDigits(Math.min(pageSize, feedRemaining))}{" "}
+                    {searching ? "آگهی" : "نفر"} دیگر
+                  </button>
+                ) : null}
+              </>
             )}
 
             {hidden > 0 && circleCount > 0 && (
@@ -327,12 +418,14 @@ function FeedSection({
   title,
   href,
   count,
+  countUnit = "مورد",
   scopeControl,
   children,
 }: {
   title: string;
   href?: string;
   count?: number;
+  countUnit?: string;
   scopeControl?: ReactNode;
   children: ReactNode;
 }) {
@@ -344,9 +437,9 @@ function FeedSection({
           {count != null && count > 0 && (
             <span
               className="text-[12px] font-semibold text-ink-muted dark:text-zinc-400 nums"
-              aria-label={`${toPersianDigits(count)} مورد`}
+              aria-label={`${toPersianDigits(count)} ${countUnit}`}
             >
-              · {toPersianDigits(count)} مورد
+              · {toPersianDigits(count)} {countUnit}
             </span>
           )}
         </h2>
@@ -485,7 +578,7 @@ function FeedEmptyState({
       </p>
       <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 leading-relaxed">
         {hasFilter
-          ? "فیلتر یا جستجو را عوض کنید، یا اولین آگهی را ثبت کنید."
+          ? "فیلتر یا جستجو را عوض کن، یا اولین آگهی را ثبت کن."
           : "با ثبت آگهی یا گسترش حلقه، اینجا پر می‌شود."}
       </p>
       <div className="flex flex-col gap-2 mt-4">

@@ -6,6 +6,7 @@ import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import { formatPrice, privacyLabels } from "@/lib/labels";
 import { privacyAudience } from "@/lib/trust";
+import { toPersianDigits } from "@/lib/persian";
 import ListingImage from "./ListingImage";
 import TrustHighlight from "./TrustHighlight";
 
@@ -15,6 +16,7 @@ export default function ListingCard({
   hideTrust = false,
   audienceHint,
   showOpenHint = false,
+  moreFrom,
 }: {
   listing: Listing;
   /** One-line trust row for feed (default). Full box on detail-adjacent views. */
@@ -25,6 +27,8 @@ export default function ListingCard({
   audienceHint?: string;
   /** Small chevron so the card reads as tappable. */
   showOpenHint?: boolean;
+  /** Other live posts from the same seller, collapsed on home. */
+  moreFrom?: { count: number; href: string; name: string };
 }) {
   const { people } = useStore();
   const circle = activeCircle(people);
@@ -104,6 +108,17 @@ export default function ListingCard({
           </span>
         )}
       </Link>
+      {moreFrom && moreFrom.count > 0 ? (
+        <Link
+          href={moreFrom.href}
+          className="mt-2.5 flex items-center justify-between gap-2 rounded-xl bg-stone-50 dark:bg-zinc-800/70 px-3 py-2 text-[12px] font-bold text-brand-700 dark:text-brand-300 active:opacity-80"
+        >
+          <span className="min-w-0 truncate nums">
+            {toPersianDigits(moreFrom.count)} آگهی دیگر از {moreFrom.name}
+          </span>
+          <span aria-hidden>‹</span>
+        </Link>
+      ) : null}
     </article>
   );
 }

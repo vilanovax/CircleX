@@ -56,23 +56,23 @@ const STEPS: ReadonlyArray<{
     Icon: ShieldCheckIcon,
     iconTone: "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300",
     title: "اینجا کسی غریبه نیست",
-    body: "سیرکل خرید، فروش و خدمات را فقط بین خانواده، دوستان و آشنایان شما انجام می‌دهد — نه بازار عمومی و نه غریبه.",
+    body: "سیرکل خرید، فروش و خدمات را فقط بین خانواده، دوستان و آشنایانت انجام می‌دهد — نه بازار عمومی و نه غریبه.",
     hint: "هر معامله از یک رابطهٔ واقعی شروع می‌شود.",
     showChips: false,
   },
   {
     Icon: CircleUsersIcon,
     iconTone: "bg-levelB/12 text-levelB dark:bg-levelB/20",
-    title: "حلقهٔ خود را بسازید",
-    body: "هر نفر را در یکی از سه گروه بگذارید. همین گروه‌ها تعیین می‌کنند چه کسی آگهی‌های شما را می‌بیند.",
-    hint: "از تب «حلقه‌ی من» خانواده و دوستان را اضافه کنید.",
+    title: "حلقه‌ات را بساز",
+    body: "جایگاه هر نفر را مشخص کن. همان تعیین می‌کند چه کسی آگهی‌ات را می‌بیند.",
+    hint: "از تب «حلقه‌ی من» خانواده و دوستان را اضافه کن.",
     showChips: true,
   },
   {
     Icon: HomeIcon,
     iconTone: "bg-levelA/12 text-levelA dark:bg-levelA/20",
-    title: "خانه مال حلقهٔ شماست",
-    body: "بعد از افزودن افراد، آگهی‌ها، درخواست‌ها و رویدادهای همان حلقه اینجا می‌آید — با مسیر ارتباط مشخص.",
+    title: "خانه مال حلقه‌ات است",
+    body: "بعد از دعوت، آگهی و درخواست و رویداد همان حلقه اینجا می‌آید.",
     hint: "اول حلقه، بعد معامله.",
     showChips: false,
   },
@@ -175,7 +175,7 @@ function OnboardingDialog() {
             onClick={() => finish("/circle?invite=1")}
             className="btn-primary w-full min-h-12 !py-3.5 text-base cursor-pointer active:scale-[0.99] transition-transform duration-150"
           >
-            حلقه را بسازید
+            حلقه‌ات را بساز
           </button>
           <div className="flex gap-2">
             <button
@@ -248,11 +248,10 @@ function OnboardingDialog() {
             tabIndex={-1}
             className="text-lg font-extrabold text-ink dark:text-zinc-50 outline-none"
           >
-            راهنما را رد می‌کنید؟
+            راهنما را رد می‌کنی؟
           </h2>
           <p className="text-sm text-ink-muted dark:text-zinc-300 leading-relaxed mt-2.5 px-1 max-w-[22rem]">
-            بعداً می‌توانید از پروفایل دوباره ببینید. پیشنهاد ما این است اول حلقه را
-            بسازید.
+            بعداً از پروفایل دوباره می‌بینی. اول حلقه‌ات را بساز.
           </p>
           <div className="flex flex-col gap-2 w-full mt-6">
             <button
@@ -260,14 +259,14 @@ function OnboardingDialog() {
               onClick={() => finish("/circle?invite=1")}
               className="btn-primary w-full min-h-12 !py-3.5 text-base cursor-pointer"
             >
-              حلقه را بسازید
+              حلقه‌ات را بساز
             </button>
             <button
               type="button"
               onClick={() => finish()}
               className="btn-ghost w-full min-h-11 !py-2.5 text-sm cursor-pointer"
             >
-              بله، رد کنید و بروید خانه
+              رد کن و برو خانه
             </button>
             <button
               type="button"

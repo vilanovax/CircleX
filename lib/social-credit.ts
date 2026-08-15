@@ -76,7 +76,7 @@ function trustHint(
     return { verified: false, verifiedLabel: "" };
   }
   if (isActiveCircleMember(person)) {
-    return { verified: true, verifiedLabel: "او را مستقیم می‌شناسید" };
+    return { verified: true, verifiedLabel: "او را مستقیم می‌شناسی" };
   }
   if (stats.endorsementsReceived >= 1) {
     return {

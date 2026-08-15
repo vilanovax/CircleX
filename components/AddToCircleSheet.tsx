@@ -38,10 +38,10 @@ export default function AddToCircleSheet({
   return (
     <SheetShell onClose={onClose} labelledBy="add-to-circle-title">
       <h2 id="add-to-circle-title" className="font-bold text-lg mb-1 text-ink dark:text-zinc-100">
-        افزودن به حلقه‌ی من
+        به حلقه‌ات اضافه کن
       </h2>
       <p className="text-xs text-ink-faint mb-4">
-        {person.name} از مسیر ارتباط به شما وصل است — در کدام گروه باشد؟
+        {person.name} از مسیر ارتباط به تو وصل است — جایگاهش کجا باشد؟
       </p>
 
       <div className="flex items-center gap-3 mb-4 p-3 rounded-xl bg-stone-50 dark:bg-zinc-800/50 border border-stone-200/70 dark:border-zinc-700">
@@ -55,7 +55,7 @@ export default function AddToCircleSheet({
       </div>
 
       <label className="block text-sm font-medium mb-2 text-ink dark:text-zinc-200">
-        {person.name} را چطور می‌شناسید؟
+        {person.name} را چطور می‌شناسی؟
       </label>
       <div className="flex flex-wrap gap-2 mb-4">
         {RELATIONS.map((r) => (
@@ -75,7 +75,7 @@ export default function AddToCircleSheet({
       </div>
 
       <label className="block text-sm font-medium mb-2 text-ink dark:text-zinc-200">
-        در کدام گروه باشد؟
+        جایگاهش کجا باشد؟
       </label>
       <div className="flex gap-2 mb-4">
         {LEVELS.map((lvl) => (
@@ -119,7 +119,7 @@ export default function AddToCircleSheet({
           }
           className="btn-primary flex-1"
         >
-          افزودن به حلقه
+          به حلقه‌ات اضافه کن
         </button>
       </div>
     </SheetShell>

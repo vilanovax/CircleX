@@ -107,7 +107,7 @@ export function pendingPersonFromInvite(invite: Invite): Person {
       ? `لینک ${relationLabels[invite.relationType]}`
       : phone
         ? `دعوت برای ${maskPhone(phone)}`
-        : "لینک دعوت";
+        : "لینک";
   return {
     id: invite.personId,
     name,

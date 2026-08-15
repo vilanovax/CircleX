@@ -81,7 +81,7 @@ export default function VoiceDictateButton({
   function start() {
     const Ctor = getSpeechRecognition();
     if (!Ctor) {
-      onError?.("مرورگر شما دیکته صوتی را پشتیبانی نمی‌کند.");
+      onError?.("مرورگرت دیکته صوتی را پشتیبانی نمی‌کند.");
       return;
     }
 

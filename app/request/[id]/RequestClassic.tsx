@@ -269,7 +269,7 @@ function OfferSheet({
             پیشنهاد شما
           </h2>
           <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1">
-            توضیح دهید چه دارید؛ درخواست‌دهنده از حلقهٔ شماست.
+            توضیح بده چه داری؛ درخواست‌دهنده از حلقه‌ات است.
           </p>
         </div>
         <button

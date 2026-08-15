@@ -129,7 +129,7 @@ export default function TrustPath({
           href="/graph"
           className="inline-flex items-center gap-1 text-[12px] text-brand-600 dark:text-brand-400 font-semibold mt-3"
         >
-          نقشه‌ی ارتباط‌ها را ببینید ‹
+          نقشه‌ی ارتباط‌ها را ببین ‹
         </Link>
       )}
     </div>

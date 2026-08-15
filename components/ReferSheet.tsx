@@ -153,7 +153,7 @@ export default function ReferSheet({
         <div className="rounded-2xl border border-stone-200/80 dark:border-zinc-700 overflow-hidden divide-y divide-stone-100 dark:divide-zinc-800 bg-[color:var(--circle-surface)] dark:bg-zinc-900">
           {circle.length === 0 ? (
             <p className="text-sm text-ink-muted py-8 px-4 text-center leading-relaxed">
-              هنوز کسی در حلقهٔ شما نیست. اول از «حلقه‌ی من» اضافه کنید.
+              هنوز کسی در حلقه‌ات نیست. اول از «حلقه‌ی من» اضافه کن.
             </p>
           ) : filtered.length === 0 ? (
             <p className="text-sm text-ink-muted py-8 px-4 text-center">

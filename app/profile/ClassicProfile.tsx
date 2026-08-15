@@ -167,9 +167,9 @@ export default function ClassicProfile() {
 
         <SocialCreditCard
           stats={socialCredit}
-          title="این را حلقهٔ شما می‌بیند"
-          subtitle={evidenceLine || "سابقه و تأییدهای قابل‌فهم از فعالیت شما"}
-          activityLabel="نفر در حلقه شما"
+          title="این را حلقه‌ات می‌بیند"
+          subtitle={evidenceLine || "سابقه و تأییدهای قابل‌فهم از فعالیتت"}
+          activityLabel="نفر در حلقه‌ات"
           hideVerified
           collapsible
           defaultCollapsed
@@ -232,8 +232,8 @@ export default function ClassicProfile() {
             {activeTab === "listings" &&
               (myListings.length === 0 ? (
                 <EmptyCard
-                  title="هنوز آگهی‌ای ندارید"
-                  text="چیزی برای فروش، امانت یا هدیه ثبت کنید تا حلقه ببیند."
+                  title="هنوز آگهی‌ای نداری"
+                  text="چیزی برای فروش، امانت یا هدیه ثبت کن تا حلقه ببیند."
                   href="/new"
                   cta="آگهی جدید"
                   icon="plus"
@@ -277,8 +277,8 @@ export default function ClassicProfile() {
             {activeTab === "events" &&
               (allMyEvents.length === 0 ? (
                 <EmptyCard
-                  title="رویدادی در تقویم شما نیست"
-                  text="به یک رویداد بپیوندید یا خودتان یکی بسازید."
+                  title="رویدادی در تقویمت نیست"
+                  text="به یک رویداد بپیوند یا خودت یکی بساز."
                   href="/events"
                   cta="دیدن رویدادها"
                   icon="calendar"
@@ -297,8 +297,8 @@ export default function ClassicProfile() {
             {activeTab === "saved" &&
               (savedListings.length === 0 ? (
                 <EmptyCard
-                  title="هنوز چیزی نشان نکرده‌اید"
-                  text="روی ❤ هر آگهی بزنید تا اینجا جمع شود."
+                  title="هنوز چیزی نشان نکرده‌ای"
+                  text="روی ❤ هر آگهی بزن تا اینجا جمع شود."
                   href="/"
                   cta="دیدن آگهی‌ها"
                   icon="heart"
@@ -314,8 +314,8 @@ export default function ClassicProfile() {
             {activeTab === "endorsements" &&
               (myGivenBadges.length === 0 ? (
                 <EmptyCard
-                  title="هنوز تأییدی نداده‌اید"
-                  text="از صفحهٔ آگهی می‌توانید تأیید ثبت کنید."
+                  title="هنوز تأییدی نداده‌ای"
+                  text="از صفحهٔ آگهی تأیید ثبت کن."
                   href="/"
                   cta="رفتن به آگهی‌ها"
                   icon="shield"

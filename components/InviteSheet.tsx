@@ -154,7 +154,7 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
           id="wave-invite-title"
           className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50"
         >
-          چند نفر با یک لینک
+          دعوت یک گروه
         </h2>
         <p className="text-[13px] text-ink-muted dark:text-zinc-400 mt-1.5 leading-relaxed">
           یک لینک می‌سازی و همان را می‌فرستی. وقتی با شمارهٔ خودشان وارد
@@ -162,12 +162,12 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
         </p>
 
         <p className="text-[13px] font-bold mt-5 mb-2 text-ink dark:text-zinc-200">
-          این لینک برای کیست؟
+          چه کسانی را دعوت می‌کنی؟
         </p>
         <div
           className="flex flex-wrap gap-2"
           role="radiogroup"
-          aria-label="نسبت موج"
+          aria-label="نسبت دعوت‌شدگان"
         >
           {RELATIONS.map((r) => {
             const selected = waveRelation === r;
@@ -190,7 +190,7 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
           })}
         </div>
         <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-2.5 leading-relaxed">
-          پیش‌فرض جایگاه: افراد مورد اعتماد — فقط خودت می‌بینی.
+          جایگاهشان را بعد از پیوستن مشخص می‌کنی — تا آن وقت بین افراد مورد اعتمادند.
         </p>
 
         {pasteOpen ? (
@@ -256,7 +256,7 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
             onClick={() => void onCreate()}
             className="btn-primary w-full min-h-12"
           >
-            {creating ? "در حال ساخت…" : "ساخت لینک دعوت"}
+            {creating ? "در حال ساخت…" : "ساخت لینک"}
           </button>
           <button
             type="button"
@@ -272,7 +272,7 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
         id="invite-sheet-title"
         className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50"
       >
-        دعوت به حلقه
+        دعوت به حلقه‌ات
       </h2>
       <p className="text-[13px] text-ink-muted dark:text-zinc-400 mt-1.5 leading-relaxed">
         لینک می‌سازی. تا نپیوندد در حلقه دیده نمی‌شود.
@@ -307,7 +307,7 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
       </div>
 
       <p className="text-sm font-medium mb-2 text-ink dark:text-zinc-200">
-        در کدام گروه قرار بگیرد؟
+        جایگاهش کجا باشد؟
       </p>
       <div
         className="flex flex-col gap-2 mb-2"
@@ -385,7 +385,7 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
         className="mt-4 w-full text-right px-3.5 py-3 rounded-xl bg-brand-50 dark:bg-brand-500/15 active:scale-[0.99] transition-transform duration-150"
       >
         <span className="block text-[13px] font-bold text-brand-700 dark:text-brand-400">
-          چند نفر با یک لینک
+          دعوت یک گروه
         </span>
         <span className="block text-[11px] text-ink-muted mt-0.5 leading-snug">
           یک لینک برای گروه یا چند شماره
@@ -432,7 +432,7 @@ export function InviteSharePanel({
 
   async function onShare() {
     const shared = await nativeShare({
-      title: "دعوت به حلقه",
+      title: "دعوت به حلقه‌ات",
       text,
       url,
     });
@@ -524,7 +524,9 @@ export function InviteSharePanel({
 
       <div className="mt-3 rounded-2xl bg-stone-50 dark:bg-zinc-800/70 px-3 py-2 flex items-center gap-2">
         <div className="min-w-0 flex-1 text-right">
-          <p className="text-[11px] font-bold text-ink-muted">لینک دعوت</p>
+          <p className="text-[11px] font-bold text-ink-muted">
+            {isWave ? "لینک گروهی" : "لینک"}
+          </p>
           <p
             dir="ltr"
             className="text-[12px] font-medium text-ink dark:text-zinc-200 truncate text-left mt-0.5"

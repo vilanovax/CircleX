@@ -234,15 +234,15 @@ const ListingComposeForm = forwardRef<
       ? polishing
         ? "متن را ساخت‌یافته می‌کنیم…"
         : attemptedCompose && rawText.trim().length < 12
-          ? "برای ادامه، یک جمله درباره آگهی بنویسید."
+          ? "برای ادامه، یک جمله درباره آگهی بنویس."
           : attemptedCompose && type === "exchange" && !exchangeFor.trim()
-            ? "بنویسید با چه چیزی تعویض می‌کنید."
+            ? "بنویس با چه چیزی تعویض می‌کنی."
             : attemptedCompose && type === "loan" && !loanDuration.trim()
-              ? "مدت امانت را بنویسید."
+              ? "مدت امانت را بنویس."
               : undefined
       : canReview
         ? undefined
-        : "عنوان و توضیح کوتاه را چک کنید";
+        : "عنوان و توضیح کوتاه را چک کن";
 
   const livePriceHints =
     priceHints.length > 0
@@ -431,11 +431,11 @@ const ListingComposeForm = forwardRef<
   function publish() {
     if (!canReview) return;
     if (type === "exchange" && !exchangeFor.trim()) {
-      show("بنویسید با چه چیزی تعویض می‌کنید.");
+      show("بنویس با چه چیزی تعویض می‌کنی.");
       return;
     }
     if (type === "loan" && !loanDuration.trim()) {
-      show("مدت امانت را بنویسید.");
+      show("مدت امانت را بنویس.");
       return;
     }
     const specs: ListingSpec[] = [
@@ -588,7 +588,7 @@ const ListingComposeForm = forwardRef<
             htmlFor="listing-exchange"
             className="block text-[13px] font-bold mb-1 text-ink dark:text-zinc-200"
           >
-            با چه چیزی تعویض می‌کنید؟
+            با چه چیزی تعویض می‌کنی؟
           </label>
           <input
             id="listing-exchange"
@@ -742,7 +742,7 @@ const ListingComposeForm = forwardRef<
         <>
           <section className="mb-4">
             <label className="block text-[13px] font-bold mb-1.5 text-ink dark:text-zinc-200">
-              می‌خواهید چه کاری انجام دهید؟
+              می‌خواهی چه کاری انجام دهی؟
             </label>
             <div className="grid grid-cols-6 gap-2">
               {TYPES.map((t, i) => {
@@ -818,12 +818,12 @@ const ListingComposeForm = forwardRef<
                   در حال شنیدن…
                 </p>
                 <p className="text-[12px] text-ink dark:text-zinc-100 leading-relaxed min-h-[1.25rem]">
-                  {voiceInterim || "صحبت کنید — متن موقت اینجا می‌آید"}
+                  {voiceInterim || "حرف بزن — متن موقت اینجا می‌آید"}
                 </p>
               </div>
             )}
             <p className="text-[11px] text-ink-faint mt-1.5 leading-relaxed">
-              وضعیت، مدت استفاده یا دلیل واگذاری را بنویسید. جزئیات را در
+              وضعیت، مدت استفاده یا دلیل واگذاری را بنویس. جزئیات را در
               پیش‌نمایش کامل می‌کنیم.
             </p>
           </section>
@@ -981,7 +981,7 @@ const ListingComposeForm = forwardRef<
             </p>
             {editableSpecs.length === 0 ? (
               <p className="text-[12px] text-ink-faint leading-relaxed px-0.5">
-                هنوز مشخصاتی استخراج نشد. اگر چیزی جا افتاده، بگذارید طرف مقابل
+                هنوز مشخصاتی استخراج نشد. اگر چیزی جا افتاده، بگذار طرف مقابل
                 بپرسد.
               </p>
             ) : (

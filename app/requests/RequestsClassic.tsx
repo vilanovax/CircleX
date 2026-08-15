@@ -48,7 +48,7 @@ function RequestsContent() {
         subtitle={
           hydrated && visible.length > 0
             ? `${toPersianDigits(visible.length)} درخواست در حلقه`
-            : "چیزهایی که حلقهٔ شما دنبالش می‌گردد"
+            : "چیزهایی که حلقه‌ات دنبالش می‌گردد"
         }
         back
         action={
@@ -66,10 +66,10 @@ function RequestsContent() {
       <div className="px-4 pt-3 space-y-3">
         <div className="card px-3.5 py-3">
           <p className="font-bold text-[13px] text-ink dark:text-zinc-100">
-            یک نیاز دارید؟ از حلقه بپرسید
+            یک نیاز داری؟ از حلقه بپرس
           </p>
           <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
-            به‌جای جستجو بین غریبه‌ها، درخواست را بین آدم‌های حلقه بگذارید تا
+            به‌جای جستجو بین غریبه‌ها، درخواست را بین حلقه‌ات بگذار تا
             خودشان یا آشنایانشان کمک کنند.
           </p>
         </div>
@@ -80,7 +80,7 @@ function RequestsContent() {
           <EmptyState
             icon="🔎"
             title="هنوز درخواستی نیست"
-            description="درخواست را بین حلقه بگذارید تا دیگران یا آشنایانشان کمک کنند."
+            description="درخواست را بین حلقه‌ات بگذار تا دیگران یا آشنایانشان کمک کنند."
             actionLabel="ثبت اولین درخواست"
             onAction={() => setShowAdd(true)}
           />
