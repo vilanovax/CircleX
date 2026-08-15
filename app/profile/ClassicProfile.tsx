@@ -27,6 +27,7 @@ import {
   evidenceSummaryLine,
 } from "@/lib/social-credit";
 import { formatEventDateDisplay, toPersianDigits } from "@/lib/persian";
+import { CONCEPT_TIP_KEY } from "@/lib/home-tip";
 import { ThemeSegmented } from "@/components/ThemeToggle";
 import { useToast } from "@/components/Toast";
 import { ProfileSkeleton } from "@/components/Skeleton";
@@ -355,6 +356,20 @@ export default function ClassicProfile() {
               </p>
               <ThemeSegmented />
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  localStorage.removeItem(CONCEPT_TIP_KEY);
+                } catch {
+                  /* ignore */
+                }
+                router.push("/");
+              }}
+              className="w-full text-[13px] font-bold text-ink dark:text-zinc-100 bg-stone-50 dark:bg-zinc-800/60 rounded-xl py-3 active:scale-[0.99] transition-transform"
+            >
+              سیرکل چطور کار می‌کند؟
+            </button>
             {sessionPhone && (
               <>
                 <div className="flex items-center justify-between gap-3 rounded-xl bg-stone-50/80 dark:bg-zinc-800/50 px-3 py-2.5">

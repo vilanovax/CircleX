@@ -78,7 +78,11 @@ export function viewerRelationPhrase(person: Person): string {
   if (/همکار/.test(note)) return "همکار تو";
   if (/همسایه/.test(note)) return "همسایه تو";
   if (/دوست/.test(note)) return "دوست تو";
-  return relationLabels[person.relation];
+  const base = relationLabels[person.relation];
+  if (person.relation === "family" || person.relation === "acquaintance") {
+    return base;
+  }
+  return `${base} تو`;
 }
 
 /** One-line chat header: direct relation, or path — never a circle placement chip. */

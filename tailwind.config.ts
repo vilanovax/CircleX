@@ -33,9 +33,9 @@ const config: Config = {
         },
         ink: {
           DEFAULT: "#1a1816",
-          muted: "#6b6560",
+          muted: "#534e4a",
           // ≥4.5:1 on warm canvas / card surfaces (#fffcf8 / #ebe8e3)
-          faint: "#6f6a64",
+          faint: "#5f5a55",
         },
         // Trust level colors
         levelA: "#1f6b42", // green — closest; ≥4.5:1 on card cream
@@ -43,7 +43,7 @@ const config: Config = {
         levelC: "#c27a2d", // clay amber
       },
       boxShadow: {
-        card: "0 1px 2px rgba(26,24,22,0.04), 0 4px 16px rgba(26,24,22,0.05)",
+        card: "0 1px 2px rgba(26,24,22,0.04)",
         nav: "0 -1px 16px rgba(26,24,22,0.06)",
       },
       borderRadius: {

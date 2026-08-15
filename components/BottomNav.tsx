@@ -19,7 +19,7 @@ const CreateSheet = lazyUi(() => import("./CreateSheet"));
 const items = [
   { id: "home", href: "/", label: "خانه", Icon: HomeIcon },
   { id: "circle", href: "/circle", label: "حلقه‌ی من", Icon: CircleUsersIcon },
-  { id: "create", label: "جدید", Icon: PlusIcon, center: true },
+  { id: "create", label: "ثبت", Icon: PlusIcon, center: true },
   { id: "messages", href: "/messages", label: "پیام‌ها", Icon: ChatIcon },
   { id: "profile", href: "/profile", label: "پروفایل", Icon: UserIcon },
 ] as const;
@@ -67,7 +67,7 @@ export default function BottomNav() {
                   <Link
                     href={href!}
                     className={`flex flex-col items-center gap-0.5 py-1 transition-colors ${
-                      active ? "text-brand-600 dark:text-brand-400" : "text-zinc-400 dark:text-zinc-500"
+                      active ? "text-brand-600 dark:text-brand-400" : "text-stone-500 dark:text-zinc-400"
                     }`}
                   >
                     <span className="relative">

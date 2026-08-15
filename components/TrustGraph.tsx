@@ -224,24 +224,31 @@ export default function TrustGraph({
     }
   };
 
-  const onWheel = (e: React.WheelEvent<SVGSVGElement>) => {
-    e.preventDefault();
+  useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
-    const rect = svg.getBoundingClientRect();
-    const k0 = viewRef.current.k;
-    const k = clamp(k0 * (e.deltaY < 0 ? 1.12 : 1 / 1.12), MIN_K, MAX_K);
-    if (k === k0) return;
-    const w = size / k;
-    const fx = (e.clientX - rect.left) / rect.width;
-    const fy = (e.clientY - rect.top) / rect.height;
-    const focus = clientToSvg(e.clientX, e.clientY);
-    viewRef.current.k = k;
-    viewRef.current.cx = focus.x - fx * w + w / 2;
-    viewRef.current.cy = focus.y - fy * w + w / 2;
-    clampCenter();
-    applyView();
-  };
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = svg.getBoundingClientRect();
+      if (rect.width < 1) return;
+      const k0 = viewRef.current.k;
+      const k = clamp(k0 * (e.deltaY < 0 ? 1.12 : 1 / 1.12), MIN_K, MAX_K);
+      if (k === k0) return;
+      const w = size / k;
+      const fx = (e.clientX - rect.left) / rect.width;
+      const fy = (e.clientY - rect.top) / rect.height;
+      const focus = clientToSvg(e.clientX, e.clientY);
+      viewRef.current.k = k;
+      viewRef.current.cx = focus.x - fx * w + w / 2;
+      viewRef.current.cy = focus.y - fy * w + w / 2;
+      clampCenter();
+      applyView();
+    };
+    svg.addEventListener("wheel", onWheel, { passive: false });
+    return () => svg.removeEventListener("wheel", onWheel);
+    // zoom helpers close over size + refs
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [size]);
 
   const selectNode = (id: string) => {
     if (dragged.current) return;
@@ -284,7 +291,6 @@ export default function TrustGraph({
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
-          onWheel={onWheel}
           role="img"
           aria-label="نقشه ارتباط‌های حلقه‌ات"
         >

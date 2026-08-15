@@ -380,17 +380,16 @@ export default function PersonClassic(_props: { params: { id: string } }) {
         <EditRelationSheet
           person={person}
           personId={id}
-          relationPhrase={relationPhrase}
           showTrustPath={showTrustPath}
           trustPath={trustPath}
           onClose={() => setShowEditRelation(false)}
           onSetLevel={(lvl) => {
             setLevel(id, lvl);
-            show(`گروه ${person.name}: ${levelShort[lvl]}`);
+            show(`جایگاه ${person.name} شد ${levelShort[lvl]}`);
           }}
           onSetRelation={(rel) => {
             setRelation(id, rel);
-            show(`${person.name}: ${relationLabels[rel]}`);
+            show(`${person.name} الان ${relationLabels[rel]} است`);
           }}
           onRemove={() => {
             setShowEditRelation(false);
@@ -645,7 +644,6 @@ const RELATIONS: RelationType[] = [
 function EditRelationSheet({
   person,
   personId,
-  relationPhrase,
   showTrustPath,
   trustPath,
   onClose,
@@ -655,7 +653,6 @@ function EditRelationSheet({
 }: {
   person: Person;
   personId: string;
-  relationPhrase: string;
   showTrustPath: boolean;
   trustPath: TrustHop[];
   onClose: () => void;
@@ -673,11 +670,11 @@ function EditRelationSheet({
       >
         تغییر رابطه
       </h2>
-      <p className="text-[12px] text-ink-muted mb-3 leading-relaxed">
-        {relationPhrase} · حلقه {relationLabels[person.relation]}
+      <p className="text-[13px] text-ink-muted dark:text-zinc-400 mb-4 leading-relaxed">
+        الان {relationLabels[person.relation]} است، در گروه {levelShort[person.level]}.
       </p>
 
-      <p className="text-[11px] text-ink-faint mb-2">
+      <p className="text-[13px] font-semibold text-ink dark:text-zinc-200 mb-2">
         {person.name} را چطور می‌شناسی؟
       </p>
       <div className="flex flex-wrap gap-2 mb-4">
@@ -698,8 +695,8 @@ function EditRelationSheet({
         ))}
       </div>
 
-      <p className="text-[11px] text-ink-faint mb-2">
-        جایگاهش کجا باشد؟
+      <p className="text-[13px] font-semibold text-ink dark:text-zinc-200 mb-2">
+        در کدام گروه باشد؟
       </p>
       <div className="flex gap-2 mb-4">
         {LEVELS.map((lvl) => (

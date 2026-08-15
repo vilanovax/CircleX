@@ -10,6 +10,7 @@ import {
   trustHighlightMessage,
   type TrustContentKind,
 } from "@/lib/trust";
+import { toPersianDigits } from "@/lib/persian";
 import { ShieldCheckIcon } from "./Icons";
 import Avatar from "./Avatar";
 
@@ -30,6 +31,7 @@ export default function TrustHighlight({
   posterRole = "فروشنده",
   contentKind = "listing",
   variant = "default",
+  moreCount,
 }: {
   posterId: string;
   trustPath: TrustHop[];
@@ -37,6 +39,8 @@ export default function TrustHighlight({
   posterRole?: string;
   contentKind?: TrustContentKind;
   variant?: "default" | "compact" | "line";
+  /** Live listing count for this seller — compact feed chip. */
+  moreCount?: number;
 }) {
   const { getPerson } = useStore();
   const trust = trustHighlightMessage(
@@ -129,17 +133,22 @@ export default function TrustHighlight({
             <span className="font-extrabold text-ink dark:text-zinc-50">
               {poster.name}
             </span>
-            <span className="font-medium text-ink-muted dark:text-zinc-400">
+            <span className="font-medium text-ink-muted dark:text-zinc-300">
               {" · "}
               {relation}
             </span>
           </p>
           {proximity && (
-            <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5 truncate">
+            <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 truncate">
               {proximity}
             </p>
           )}
         </div>
+        {moreCount != null && moreCount > 1 && (
+          <span className="shrink-0 rounded-md bg-stone-100 dark:bg-zinc-800 px-1.5 py-0.5 text-[10px] font-bold text-ink-muted dark:text-zinc-300 nums">
+            {toPersianDigits(moreCount)} آگهی
+          </span>
+        )}
         {endorsementLine && !isOwn && (
           <span
             className="shrink-0 inline-flex items-center gap-1 rounded-md bg-levelA/10 text-levelA px-1.5 py-0.5 text-[10px] font-bold"
@@ -154,7 +163,7 @@ export default function TrustHighlight({
     );
 
     return (
-      <div className="mb-2.5">
+      <div className="mb-1.5">
         {isOwn ? (
           <div className="flex items-center gap-2 min-w-0">{personRow}</div>
         ) : (
