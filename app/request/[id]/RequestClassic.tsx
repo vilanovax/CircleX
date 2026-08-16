@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import Avatar from "@/components/Avatar";
@@ -18,12 +18,23 @@ import { useToast } from "@/components/Toast";
 export default function RequestClassic(_props: { params: { id: string } }) {
   const params = useParams();
   const id = String(params.id);
-  const { getRequest, getPerson, getOffers, hasOffered, addOffer, withdrawOffer } =
-    useStore();
+  const request = useStore((s) => s.requests.find((r) => r.id === id));
+  const getPerson = useStore((s) => s.getPerson);
+  const offersAll = useStore((s) => s.offers);
+  const addOffer = useStore((s) => s.addOffer);
+  const withdrawOffer = useStore((s) => s.withdrawOffer);
   const { show } = useToast();
   const [showOffer, setShowOffer] = useState(false);
 
-  const request = getRequest(id);
+  const offers = useMemo(
+    () => offersAll.filter((o) => o.requestId === id),
+    [offersAll, id],
+  );
+  const offered = useMemo(
+    () => offers.some((o) => o.fromId === "me"),
+    [offers],
+  );
+
   if (!request) {
     return (
       <main className="min-h-[100dvh]">
@@ -48,9 +59,6 @@ export default function RequestClassic(_props: { params: { id: string } }) {
       </main>
     );
   }
-
-  const offers = getOffers(id);
-  const offered = hasOffered(id);
 
   return (
     <main className="pb-28 min-h-[100dvh]">

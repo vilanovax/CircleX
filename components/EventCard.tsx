@@ -20,9 +20,9 @@ export default function EventCard({
   event: CircleEvent;
   compactTrust?: boolean;
 }) {
-  const { isAttending, people } = useStore();
-  const circle = activeCircle(people);
-  const going = isAttending(event.id);
+  const going = useStore((s) => s.isAttending(event.id));
+  const people = useStore((s) => (compactTrust ? null : s.people));
+  const circle = people ? activeCircle(people) : [];
   const count = event.attendees.length;
 
   return (
@@ -72,7 +72,7 @@ export default function EventCard({
           </div>
           <p
             className="text-[11px] text-ink-faint"
-            title={privacyAudience(event.privacy, circle)}
+            title={people ? privacyAudience(event.privacy, circle) : undefined}
           >
             {privacyLabels[event.privacy]}
           </p>

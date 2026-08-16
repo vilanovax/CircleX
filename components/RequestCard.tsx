@@ -19,12 +19,16 @@ export default function RequestCard({
   /** Hide trust banner — e.g. on the requester's own profile page. */
   hideTrust?: boolean;
 }) {
-  const { getOffers, hasOffered, people } = useStore();
-  const circle = activeCircle(people);
-  const offers = getOffers(request.id);
-  const offered = hasOffered(request.id);
   /** On profile / compact feed: keep meta short (privacy lives on detail). */
   const slimMeta = compactTrust || hideTrust;
+  const offerCount = useStore(
+    (s) => s.offers.filter((o) => o.requestId === request.id).length,
+  );
+  const offered = useStore((s) =>
+    s.offers.some((o) => o.requestId === request.id && o.fromId === "me"),
+  );
+  const people = useStore((s) => (slimMeta ? null : s.people));
+  const circle = people ? activeCircle(people) : [];
 
   return (
     <article className="card overflow-hidden active:scale-[0.99] transition-transform">
@@ -75,17 +79,17 @@ export default function RequestCard({
             ·
           </span>
           <span>{request.postedAt}</span>
-          {offers.length > 0 && (
+          {offerCount > 0 && (
             <>
               <span className="text-stone-300" aria-hidden>
                 ·
               </span>
               <span className="text-ink font-medium nums">
-                {toPersianDigits(offers.length)} پیشنهاد
+                {toPersianDigits(offerCount)} پیشنهاد
               </span>
             </>
           )}
-          {!slimMeta && (
+          {!slimMeta && people && (
             <>
               <span className="text-stone-300" aria-hidden>
                 ·

@@ -19,7 +19,10 @@ const AddEventSheet = lazyUi(() => import("@/components/AddEventSheet"));
 function EventsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { events, getPerson, addEvent, hydrated } = useStore();
+  const events = useStore((s) => s.events);
+  const getPerson = useStore((s) => s.getPerson);
+  const addEvent = useStore((s) => s.addEvent);
+  const hydrated = useStore((s) => s.hydrated);
   const { show } = useToast();
   const [showAdd, setShowAdd] = useState(false);
 

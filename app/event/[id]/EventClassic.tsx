@@ -37,10 +37,16 @@ const eventHeroTint: Record<EventKind, string> = {
 export default function EventClassic(_props: { params: { id: string } }) {
   const params = useParams();
   const id = String(params.id);
-  const { getEvent, getPerson, people, toggleRsvp, isAttending } = useStore();
+  const event = useStore((s) => s.events.find((e) => e.id === id));
+  const getPerson = useStore((s) => s.getPerson);
+  const people = useStore((s) => s.people);
+  const toggleRsvp = useStore((s) => s.toggleRsvp);
+  const going = useStore(
+    (s) =>
+      s.events.find((e) => e.id === id)?.attendees.includes("me") ?? false,
+  );
   const { show } = useToast();
 
-  const event = getEvent(id);
   if (!event) {
     return (
       <main className="min-h-[100dvh]">
@@ -67,7 +73,6 @@ export default function EventClassic(_props: { params: { id: string } }) {
     );
   }
 
-  const going = isAttending(id);
   const count = event.attendees.length;
   const spotsLeft = event.capacity != null ? event.capacity - count : null;
   const full = spotsLeft != null && spotsLeft <= 0 && !going;

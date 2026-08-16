@@ -19,7 +19,10 @@ const AddRequestSheet = lazyUi(() => import("@/components/AddRequestSheet"));
 function RequestsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { requests, getPerson, addRequest, hydrated } = useStore();
+  const requests = useStore((s) => s.requests);
+  const getPerson = useStore((s) => s.getPerson);
+  const addRequest = useStore((s) => s.addRequest);
+  const hydrated = useStore((s) => s.hydrated);
   const { show } = useToast();
   const [showAdd, setShowAdd] = useState(false);
 
