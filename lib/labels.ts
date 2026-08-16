@@ -26,6 +26,18 @@ export const relationLabels: Record<RelationType, string> = {
   acquaintance: "آشنا",
 };
 
+/** «خانوادهٔ عسل» — relation of someone toward the named person. */
+export function relationTowardName(
+  relation: RelationType,
+  ofName: string,
+): string {
+  const base = relationLabels[relation];
+  const name = ofName.trim();
+  if (!name) return base;
+  if (base.endsWith("ه") || base.endsWith("ة")) return `${base}ٔ ${name}`;
+  return `${base}ِ ${name}`;
+}
+
 export const relationEmoji: Record<RelationType, string> = {
   family: "👨‍👩‍👧",
   friend: "🤝",

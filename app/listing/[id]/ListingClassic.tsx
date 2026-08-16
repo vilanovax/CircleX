@@ -15,6 +15,7 @@ import { EndorsementList } from "@/components/Endorsements";
 import {
   ChatIcon,
   CircleUsersIcon,
+  FlagIcon,
   HeartIcon,
   ShieldCheckIcon,
 } from "@/components/Icons";
@@ -24,12 +25,11 @@ import {
   listingTypeChip,
   listingTypeLabels,
   privacyDetailLabels,
-  relationLabels,
 } from "@/lib/labels";
 import type { BadgeType } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
 import LockedAccess from "@/components/LockedAccess";
-import { canView, privacyAudience, viewerRelationPhrase } from "@/lib/trust";
+import { canView, listingSellerSubtitle, privacyAudience } from "@/lib/trust";
 import { useToast } from "@/components/Toast";
 import ListingAskPrompts from "@/components/ListingAskPrompts";
 import {
@@ -40,6 +40,7 @@ import {
 import { listingGalleryImages } from "@/lib/listing-image";
 
 const ReferSheet = lazyUi(() => import("@/components/ReferSheet"));
+const ReportListingSheet = lazyUi(() => import("@/components/ReportListingSheet"));
 
 const ALL_BADGES: BadgeType[] = [
   "verify_item",
@@ -62,6 +63,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const hydrated = useStore((s) => s.hydrated);
   const { show } = useToast();
   const [showRefer, setShowRefer] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const [pathExpanded, setPathExpanded] = useState(false);
   const [promptsCollapsed, setPromptsCollapsed] = useState(false);
   const lastScrollY = useRef(0);
@@ -146,7 +148,9 @@ export default function ListingClassic(_props: { params: { id: string } }) {
     );
   }
 
-  const relationLine = seller ? viewerRelationPhrase(seller) : "";
+  const relationLine = seller
+    ? listingSellerSubtitle(seller, listing.trustPath, getPerson)
+    : "";
   const buyerPrompts = listingBuyerPrompts(listing);
   const gapPrompts = listingMissingSpecPrompts(listing);
   const emptySpecPrompts =
@@ -172,26 +176,39 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         title="جزئیات آگهی"
         back
         action={
-          <button
-            type="button"
-            onClick={() => {
-              toggleSaved(id);
-              show(
+          <div className="flex items-center gap-0.5">
+            {!isMine && (
+              <button
+                type="button"
+                onClick={() => setShowReport(true)}
+                className="w-9 h-9 rounded-xl flex items-center justify-center text-ink-faint hover:bg-stone-200/50 dark:hover:bg-zinc-800 transition-colors"
+                aria-label="گزارش آگهی"
+                title="گزارش آگهی"
+              >
+                <FlagIcon className="w-5 h-5" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                toggleSaved(id);
+                show(
+                  saved
+                    ? "از نشان‌شده‌های پروفایل حذف شد"
+                    : "در پروفایل ذخیره شد ✓",
+                );
+              }}
+              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
                 saved
-                  ? "از نشان‌شده‌های پروفایل حذف شد"
-                  : "در پروفایل ذخیره شد ✓",
-              );
-            }}
-            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
-              saved
-                ? "text-pink-500 bg-pink-50 dark:bg-pink-500/10"
-                : "text-ink-faint hover:bg-stone-200/50 dark:hover:bg-zinc-800"
-            }`}
-            aria-label={saved ? "حذف از نشان‌شده‌ها" : "نشان کردن"}
-            aria-pressed={saved}
-          >
-            <HeartIcon className="w-5 h-5" filled={saved} />
-          </button>
+                  ? "text-pink-500 bg-pink-50 dark:bg-pink-500/10"
+                  : "text-ink-faint hover:bg-stone-200/50 dark:hover:bg-zinc-800"
+              }`}
+              aria-label={saved ? "حذف از نشان‌شده‌ها" : "نشان کردن"}
+              aria-pressed={saved}
+            >
+              <HeartIcon className="w-5 h-5" filled={saved} />
+            </button>
+          </div>
         }
       />
 
@@ -298,8 +315,6 @@ export default function ListingClassic(_props: { params: { id: string } }) {
                 </p>
                 <p className="text-[12px] text-ink-muted mt-0.5 truncate">
                   {relationLine}
-                  {" · "}
-                  حلقه {relationLabels[seller.relation]}
                 </p>
                 <p className="text-[11px] text-ink-faint mt-1">
                   <span className="nums">{toPersianDigits(seller.deals)}</span>{" "}
@@ -352,8 +367,8 @@ export default function ListingClassic(_props: { params: { id: string } }) {
             </button>
             {pathExpanded && (
               <p className="mt-2 text-[12px] text-ink-muted leading-relaxed">
-                هر نفر در مسیر کسی است که می‌شناسی، یا از طریق آشنای مشترک به
-                او می‌رسی.
+                زیر هر نفر نوشته شده چه نسبتی با نفر بعدی مسیر دارد — تا بدانی
+                چرا این آگهی به تو رسیده.
               </p>
             )}
           </div>
@@ -444,6 +459,14 @@ export default function ListingClassic(_props: { params: { id: string } }) {
               معرفی ‹
             </span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setShowReport(true)}
+            className="mt-3 w-full text-center text-[12px] font-medium text-ink-faint hover:text-ink-muted dark:hover:text-zinc-400 py-1"
+          >
+            گزارش این آگهی برای تیم سیرکل
+          </button>
         </section>
       )}
 
@@ -496,6 +519,13 @@ export default function ListingClassic(_props: { params: { id: string } }) {
           listingId={listing.id}
           listingTitle={listing.title}
           onClose={() => setShowRefer(false)}
+        />
+      )}
+      {showReport && (
+        <ReportListingSheet
+          listingId={listing.id}
+          listingTitle={listing.title}
+          onClose={() => setShowReport(false)}
         />
       )}
     </main>

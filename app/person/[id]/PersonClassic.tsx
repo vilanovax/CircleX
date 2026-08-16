@@ -19,6 +19,7 @@ import { ChatIcon, UserPlusIcon } from "@/components/Icons";
 import {
   formatEndorsementReport,
   isPersonAboutBadge,
+  levelLabels,
   levelShort,
   relationLabels,
 } from "@/lib/labels";
@@ -26,7 +27,7 @@ import {
   buildSocialCredit,
   evidenceSummaryLine,
 } from "@/lib/social-credit";
-import { canView, viewerRelationPhrase } from "@/lib/trust";
+import { canView, listingSellerSubtitle, viewerRelationPhrase } from "@/lib/trust";
 import { toPersianDigits } from "@/lib/persian";
 import { useToast } from "@/components/Toast";
 import type {
@@ -323,10 +324,11 @@ export default function PersonClassic(_props: { params: { id: string } }) {
             رابطه و سابقه
           </h2>
           <p className="text-[12px] text-ink-muted dark:text-zinc-400 leading-snug">
-            {relationPhrase}
             {isActiveCircleMember(person)
-              ? ` · حلقه ${relationLabels[person.relation]}`
-              : " · هنوز توی حلقه‌ات نیست"}
+              ? `${relationPhrase} · ${levelLabels[person.level]}`
+              : trustPath.length > 0
+                ? listingSellerSubtitle(person, trustPath, getPerson)
+                : `${relationPhrase} · هنوز توی حلقه‌ات نیست`}
           </p>
           {evidenceLine ? (
             <p className="text-[12px] font-semibold text-ink dark:text-zinc-200 mt-1.5 nums leading-snug">

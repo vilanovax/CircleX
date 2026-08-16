@@ -18,7 +18,14 @@ import { chatPeerSubtitle } from "@/lib/trust";
 const IntroRequestSheet = lazyUi(() => import("./IntroRequestSheet"));
 const AddToCircleSheet = lazyUi(() => import("./AddToCircleSheet"));
 
-export default function LockedMessaging({ peer }: { peer: Person }) {
+export default function LockedMessaging({
+  peer,
+  listingContext = false,
+}: {
+  peer: Person;
+  /** Came from a listing but still can't chat (can't view / load failed). */
+  listingContext?: boolean;
+}) {
   const { addToCircle } = useStore();
   const { show } = useToast();
   const [showIntro, setShowIntro] = useState(false);
@@ -64,14 +71,26 @@ export default function LockedMessaging({ peer }: { peer: Person }) {
             </div>
             <div className="min-w-0 text-right">
               <p className="text-[13px] font-bold text-ink dark:text-zinc-100">
-                پیام خصوصی قفل است
+                {listingContext ? "پیام برای این آگهی ممکن نیست" : "پیام خصوصی قفل است"}
               </p>
               <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
-                فقط با حلقه‌ات چت می‌کنی.{" "}
-                <span className="font-semibold text-ink dark:text-zinc-200">
-                  {peer.name}
-                </span>{" "}
-                هنوز توی حلقه‌ات نیست.
+                {listingContext ? (
+                  <>
+                    برای چت آزاد باید{" "}
+                    <span className="font-semibold text-ink dark:text-zinc-200">
+                      {peer.name}
+                    </span>{" "}
+                    توی حلقه‌ات باشد. دربارهٔ آگهی هم فقط اگر ببینی‌اش می‌تونی پیام بدی.
+                  </>
+                ) : (
+                  <>
+                    فقط با حلقه‌ات چت می‌کنی.{" "}
+                    <span className="font-semibold text-ink dark:text-zinc-200">
+                      {peer.name}
+                    </span>{" "}
+                    هنوز توی حلقه‌ات نیست. از صفحهٔ آگهی می‌تونی دربارهٔ همون آگهی پیام بدی.
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -79,7 +98,9 @@ export default function LockedMessaging({ peer }: { peer: Person }) {
             <div className="rounded-xl bg-levelA/8 dark:bg-levelA/10 px-3 py-2.5 flex items-start gap-2">
               <ShieldCheckIcon className="w-4 h-4 text-levelA shrink-0 mt-0.5" />
               <p className="text-[11px] text-levelA leading-relaxed text-right">
-                بدون پیام از غریبه‌ها — اول باید مسیر ارتباط باز شود.
+                {listingContext
+                  ? "دسترسی پیام به آگهی وابسته است — اگر آگهی را نبینی، چت هم باز نمی‌شود."
+                  : "بدون پیام از غریبه‌ها — چت آزاد فقط داخل حلقه؛ پیگیری آگهی از خود آگهی."}
               </p>
             </div>
           </div>
@@ -100,7 +121,7 @@ export default function LockedMessaging({ peer }: { peer: Person }) {
             <PathCard
               step="۲"
               title="به حلقه‌ات اضافه کن"
-              body="اگر خودت می‌شناسی‌اش، مستقیم به حلقه‌ات اضافه کن تا چت باز شود."
+              body="اگر خودت می‌شناسی‌اش، مستقیم به حلقه‌ات اضافه کن تا چت آزاد باز شود."
               icon={<UserPlusIcon className="w-4 h-4" />}
             />
           </div>

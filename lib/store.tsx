@@ -16,10 +16,12 @@ import {
   EVENTS,
   ME,
   MESSAGES,
-  OFFERS,
   PEOPLE,
-  REQUESTS,
 } from "./mock-data";
+import {
+  reconcileDemoOffers,
+  reconcileDemoRequests,
+} from "./demo-requests";
 import type {
   BadgeType,
   CircleEvent,
@@ -122,7 +124,7 @@ export interface StoreValue {
   threadPeers: () => string[];
   unreadCount: (peerId: string) => number;
   totalUnread: () => number;
-  addMessage: (peerId: string, text: string) => void;
+  addMessage: (peerId: string, text: string, listingId?: string) => void;
   referListing: (peerId: string, listingId: string, note?: string) => void;
   markThreadRead: (peerId: string) => void;
   addPerson: (input: NewPersonInput) => void;
@@ -191,7 +193,7 @@ export interface StoreValue {
 const StoreContext = createContext<StoreValue | null>(null);
 
 const STORAGE_KEY = "circle-store-v2";
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 const AVATAR_POOL = AVATAR_IMAGES;
 const SEED_IDS = new Set(PEOPLE.map((p) => p.id));
@@ -218,8 +220,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [meProfile, setMeProfile] = useState<Person>(blankMe);
   const [people, setPeople] = useState<Person[]>(networkSeed);
   const [listings, setListings] = useState<Listing[]>([]);
-  const [requests, setRequests] = useState<Request[]>(REQUESTS);
-  const [offers, setOffers] = useState<Offer[]>(OFFERS);
+  const [requests, setRequests] = useState<Request[]>([]);
+  const [offers, setOffers] = useState<Offer[]>([]);
   const [messages, setMessages] = useState<Message[]>(MESSAGES);
   const [events, setEvents] = useState<CircleEvent[]>(EVENTS);
   const [saved, setSaved] = useState<string[]>([]);
@@ -262,6 +264,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     joinRequests?: CircleJoinRequest[];
   };
 
+  const peopleRef = useRef(people);
+  peopleRef.current = people;
+
   const applyCirclePayload = useCallback(
     (data: CirclePayload, opts?: { full?: boolean; keepGraph?: boolean }) => {
       const full = opts?.full ?? Boolean(data.links);
@@ -279,19 +284,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ...data.pendingPeople,
         ...(data.network ?? []),
       ];
-      if (keepGraph) {
-        setPeople((prev) => overlayPeople(prev, incoming));
-      } else {
-        const merged: Person[] = [];
-        const seen = new Set<string>();
-        for (const p of incoming) {
-          if (seen.has(p.id)) continue;
-          seen.add(p.id);
-          merged.push(p);
-        }
-        setPeople(merged);
-      }
+      const mergedPeople = keepGraph
+        ? overlayPeople(peopleRef.current, incoming)
+        : (() => {
+            const merged: Person[] = [];
+            const seen = new Set<string>();
+            for (const p of incoming) {
+              if (seen.has(p.id)) continue;
+              seen.add(p.id);
+              merged.push(p);
+            }
+            return merged;
+          })();
+      setPeople(mergedPeople);
       setListings(data.listings ?? []);
+      setRequests((prev) => reconcileDemoRequests(prev, mergedPeople));
+      setOffers((prev) => reconcileDemoOffers(prev, mergedPeople));
       setCircleReady(true);
       if (full) setCircleFull(true);
       else if (!keepGraph) setCircleFull(false);
@@ -320,13 +328,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       links: NetworkLink[];
     }>("/api/graph");
     setNetworkLinks(data.links);
-    setPeople((prev) => {
-      const pending = prev.filter((p) => p.inviteStatus === "pending");
-      return overlayPeople(pending, [
-        ...data.members,
-        ...(data.network ?? []),
-      ]);
-    });
+    const pending = peopleRef.current.filter(
+      (p) => p.inviteStatus === "pending",
+    );
+    const next = overlayPeople(pending, [
+      ...data.members,
+      ...(data.network ?? []),
+    ]);
+    setPeople(next);
+    setRequests((r) => reconcileDemoRequests(r, next));
+    setOffers((o) => reconcileDemoOffers(o, next));
     setCircleFull(true);
   }, []);
 
@@ -400,15 +411,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             if (!cancelled) setPeople(restored.length ? restored : networkSeed());
           }
           // Listings live on Postgres; local cache is ignored.
+          // Requests/offers: keep only user-authored until circle reconcile binds demo rows.
           if (Array.isArray(data.requests)) {
             setRequests(
-              data.requests.map((r: Request) => ({
-                ...r,
-                endorsements: r.endorsements ?? [],
-              })),
+              (data.requests as Request[])
+                .filter((r) => r.requesterId === "me")
+                .map((r) => ({
+                  ...r,
+                  endorsements: r.endorsements ?? [],
+                })),
             );
           }
-          if (Array.isArray(data.offers)) setOffers(data.offers);
+          if (Array.isArray(data.offers)) {
+            setOffers(
+              (data.offers as Offer[]).filter((o) => o.fromId === "me"),
+            );
+          }
           if (Array.isArray(data.messages)) setMessages(data.messages);
           if (Array.isArray(data.events)) {
             setEvents(
@@ -615,19 +633,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [messages],
   );
 
-  const addMessage = useCallback((peerId: string, text: string) => {
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `msg_${Date.now()}`,
-        peerId,
-        fromMe: true,
-        text,
-        postedAt: "همین حالا",
-        read: true,
-      },
-    ]);
-  }, []);
+  const addMessage = useCallback(
+    (peerId: string, text: string, listingId?: string) => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `msg_${Date.now()}`,
+          peerId,
+          fromMe: true,
+          text,
+          postedAt: "همین حالا",
+          read: true,
+          ...(listingId ? { listingId } : {}),
+        },
+      ]);
+    },
+    [],
+  );
 
   // Refer a listing to someone in the trust network (an in-DM recommendation).
   const referListing = useCallback(

@@ -5,22 +5,28 @@ import { useSheetA11y } from "@/lib/use-sheet-a11y";
 import { listingTypeEmoji, listingTypeLabels } from "@/lib/labels";
 import type { ListingType } from "@/lib/types";
 
-const PRIMARY: { key: ListingType | "all"; label: string; emoji: string }[] = [
-  { key: "all", label: "همه", emoji: "✨" },
-  { key: "sale", label: "فروش", emoji: listingTypeEmoji.sale },
-  { key: "service", label: "خدمات", emoji: listingTypeEmoji.service },
-  { key: "donation", label: "رایگان", emoji: listingTypeEmoji.donation },
+/** Home feed filter: listing kinds or the wants (requests) mode. */
+export type FeedFilter = ListingType | "all" | "requests";
+
+const PRIMARY: { key: FeedFilter; label: string }[] = [
+  { key: "all", label: "همه" },
+  { key: "requests", label: "درخواست‌ها" },
+  { key: "sale", label: "فروش" },
+  { key: "service", label: "خدمات" },
+  { key: "donation", label: "رایگان" },
 ];
 
 const MORE: ListingType[] = ["exchange", "loan"];
 
-function filterLabel(key: ListingType | "all"): string {
+function filterLabel(key: FeedFilter): string {
   if (key === "all") return "همه";
+  if (key === "requests") return "درخواست‌ها";
   return listingTypeLabels[key];
 }
 
-function filterEmoji(key: ListingType | "all"): string {
+function filterEmoji(key: FeedFilter): string {
   if (key === "all") return "✨";
+  if (key === "requests") return "🙋";
   return listingTypeEmoji[key];
 }
 
@@ -29,8 +35,8 @@ export default function FeedFilterBar({
   onFilter,
   compact,
 }: {
-  filter: ListingType | "all";
-  onFilter: (key: ListingType | "all") => void;
+  filter: FeedFilter;
+  onFilter: (key: FeedFilter) => void;
   compact: boolean;
 }) {
   const [showMore, setShowMore] = useState(false);

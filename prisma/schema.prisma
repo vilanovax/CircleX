@@ -59,6 +59,7 @@ model User {
   edgesFrom          CircleEdge[]       @relation("EdgeFrom")
   edgesTo            CircleEdge[]       @relation("EdgeTo")
   listings           MarketListing[]
+  listingReports     ListingReport[]
   joinRequestsHost   CircleJoinRequest[] @relation("JoinHost")
   joinRequestsGuest  CircleJoinRequest[] @relation("JoinGuest")
 
@@ -199,6 +200,38 @@ model MarketListing {
   dealStatus  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  reports     ListingReport[]
 
   @@index([sellerId])
+}
+
+enum ListingReportReason {
+  inappropriate
+  misleading
+  spam
+  other
+}
+
+enum ListingReportStatus {
+  open
+  reviewed
+  dismissed
+}
+
+model ListingReport {
+  id         String              @id @default(cuid())
+  listingId  String
+  listing    MarketListing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  reporterId String
+  reporter   User                @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  reason     ListingReportReason
+  note       String?
+  status     ListingReportStatus @default(open)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  @@unique([listingId, reporterId])
+  @@index([status, createdAt])
+  @@index([listingId])
+  @@index([reporterId])
 }

@@ -78,8 +78,16 @@ export interface Endorsement {
 /** A single hop in a trust path from the seller to the viewer. */
 export interface TrustHop {
   personId: string;
-  /** Relation of this hop relative to the previous node. */
+  /**
+   * How this hop relates toward the viewer
+   * (e.g. «خانواده من» = bridge → you).
+   */
   relationLabel: string;
+  /**
+   * How the previous node toward the poster relates to this hop
+   * (e.g. «خانوادهٔ عسل» under the seller when the hop is عسل).
+   */
+  priorRelationLabel?: string;
 }
 
 /** Undirected peer link for the trust map (DB edges among the network). */

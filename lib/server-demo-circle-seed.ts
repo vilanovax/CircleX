@@ -100,7 +100,16 @@ async function ensureListings(sellerId: string, items: DemoListingDef[]) {
     const existing = await prisma.marketListing.findFirst({
       where: { sellerId, title: item.title },
     });
-    if (existing) continue;
+    if (existing) {
+      // Heal broken seed image URLs without recreating the listing.
+      if (existing.image !== item.image) {
+        await prisma.marketListing.update({
+          where: { id: existing.id },
+          data: { image: item.image, images: item.images },
+        });
+      }
+      continue;
+    }
     await prisma.marketListing.create({
       data: {
         sellerId,

@@ -10,7 +10,7 @@ import Header from "@/components/Header";
 import LockedMessaging from "@/components/LockedMessaging";
 import { SendIcon } from "@/components/Icons";
 import { formatPrice } from "@/lib/labels";
-import { canDirectMessage } from "@/lib/messaging";
+import { canOpenThread } from "@/lib/messaging";
 import { chatPeerSubtitle, viaConnectorName } from "@/lib/trust";
 import type { Message } from "@/lib/types";
 
@@ -23,11 +23,16 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   const getPerson = useStore((s) => s.getPerson);
   const getThread = useStore((s) => s.getThread);
   const getListing = useStore((s) => s.getListing);
+  const ensureListing = useStore((s) => s.ensureListing);
   const addMessage = useStore((s) => s.addMessage);
   const markThreadRead = useStore((s) => s.markThreadRead);
   const setListingDealStatus = useStore((s) => s.setListingDealStatus);
   const [text, setText] = useState("");
+  const [listingLoadState, setListingLoadState] = useState<
+    "idle" | "loading" | "ready" | "missing"
+  >("idle");
   const draftApplied = useRef(false);
+  const listingAttached = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -38,12 +43,40 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   const isSellerOfContext = contextListing?.sellerId === "me";
   const dealStatus = contextListing?.dealStatus ?? "available";
 
+  useEffect(() => {
+    if (!listingId) {
+      setListingLoadState("idle");
+      return;
+    }
+    if (contextListing) {
+      setListingLoadState("ready");
+      return;
+    }
+    let cancelled = false;
+    setListingLoadState("loading");
+    void ensureListing(listingId).then((row) => {
+      if (cancelled) return;
+      setListingLoadState(row ? "ready" : "missing");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [listingId, contextListing, ensureListing]);
+
   const viaName = useMemo(
     () => viaConnectorName(peerId, getPerson, networkLinks, people),
     [peerId, getPerson, networkLinks, people],
   );
 
   const subtitle = peer ? chatPeerSubtitle(peer, viaName) : "";
+
+  const canChat = peer
+    ? canOpenThread(peer, {
+        hasThread: thread.length > 0,
+        listing: contextListing,
+        getPerson,
+      })
+    : false;
 
   useEffect(() => {
     markThreadRead(peerId);
@@ -77,7 +110,15 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
     );
   }
 
-  if (!canDirectMessage(peer, thread.length > 0)) {
+  if (listingId && listingLoadState === "loading") {
+    return (
+      <main className="min-h-[100dvh] flex items-center justify-center">
+        <p className="text-sm text-ink-faint">در حال باز کردن گفتگو…</p>
+      </main>
+    );
+  }
+
+  if (!canChat) {
     return (
       <main className="min-h-[100dvh] pb-8">
         <Header
@@ -86,7 +127,10 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
           title={peer.name}
           subtitle="پیام قفل است"
         />
-        <LockedMessaging peer={peer} />
+        <LockedMessaging
+          peer={peer}
+          listingContext={Boolean(listingId)}
+        />
       </main>
     );
   }
@@ -94,7 +138,12 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   function send() {
     const t = text.trim();
     if (!t) return;
-    addMessage(peerId, t);
+    const attachListing =
+      listingId && !listingAttached.current
+        ? listingId
+        : undefined;
+    if (attachListing) listingAttached.current = true;
+    addMessage(peerId, t, attachListing);
     setText("");
     inputRef.current?.focus();
   }

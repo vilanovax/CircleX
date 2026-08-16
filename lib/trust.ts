@@ -78,18 +78,52 @@ export type TrustContentKind = "listing" | "request" | "event";
 
 /** How this person relates to the viewer — for trust copy on cards. */
 export function viewerRelationPhrase(person: Person): string {
-  const note = person.note ?? "";
-  if (/خواهر/.test(note)) return "خواهر تو";
-  if (/برادر/.test(note)) return "برادر تو";
-  if (/همسر/.test(note)) return "همسر تو";
-  if (/همکار/.test(note)) return "همکار تو";
-  if (/همسایه/.test(note)) return "همسایه تو";
-  if (/دوست/.test(note)) return "دوست تو";
+  const note = person.note?.trim() ?? "";
+  // Path-style notes («دوست رضا»، «همکار لیلا») are not «X تو».
+  if (note && !isPathStyleNote(note)) {
+    if (/خواهر/.test(note)) return "خواهر تو";
+    if (/برادر/.test(note)) return "برادر تو";
+    if (/همسر/.test(note)) return "همسر تو";
+    if (/همکار/.test(note)) return "همکار تو";
+    if (/همسایه/.test(note)) return "همسایه تو";
+    if (/دوست/.test(note)) return "دوست تو";
+  }
   const base = relationLabels[person.relation];
   if (person.relation === "family" || person.relation === "acquaintance") {
     return base;
   }
   return `${base} تو`;
+}
+
+/** Notes that describe a hop (FoF), not a direct kinship label to me. */
+function isPathStyleNote(note: string): boolean {
+  if (note.startsWith("از طریق ")) return true;
+  return /^(دوست|همکار|همسایه|فامیل|خانواده|آشنای)\s+\S+/.test(note);
+}
+
+/**
+ * One clear line under the seller on listing detail:
+ * direct → «دوست تو»; FoF → «دوستِ رضا» / «از طریق رضا».
+ */
+export function listingSellerSubtitle(
+  seller: Person,
+  trustPath: TrustHop[],
+  getPerson: (id: string) => Person | undefined,
+): string {
+  const direct =
+    isActiveCircleMember(seller) && trustPath.length === 0;
+  if (direct) return viewerRelationPhrase(seller);
+
+  const hop = trustPath[0];
+  if (hop?.priorRelationLabel?.trim()) return hop.priorRelationLabel.trim();
+
+  const bridge = hop ? getPerson(hop.personId) : undefined;
+  if (bridge?.name) return `از طریق ${bridge.name}`;
+
+  const note = seller.note?.trim();
+  if (note) return note;
+
+  return "از طریق حلقه‌ات";
 }
 
 /**
@@ -217,12 +251,15 @@ export function trustHighlightMessage(
   if (trustPath.length === 1) {
     const connector = getPerson(trustPath[0].personId);
     if (!connector) return null;
-    const rel =
+    const viaYou =
       trustPath[0].relationLabel.replace(/\s*من\s*$/, " تو").trim() ||
       viewerRelationPhrase(connector);
+    const viaPoster = trustPath[0].priorRelationLabel?.trim();
     return {
       headline: `توسط ${connector.name} معرفی شده`,
-      subline: rel,
+      subline: viaPoster
+        ? `${poster.name} · ${viaPoster} · ${connector.name} · ${viaYou}`
+        : viaYou,
     };
   }
 

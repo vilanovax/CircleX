@@ -15,12 +15,12 @@ import ListingCard from "@/components/ListingCard";
 import BottomNav from "@/components/BottomNav";
 import NewUserHomePlaceholder from "@/components/NewUserHomePlaceholder";
 import { lazyUi } from "@/lib/lazy-ui";
-import FeedFilterBar from "@/components/FeedFilterBar";
+import FeedFilterBar, { type FeedFilter } from "@/components/FeedFilterBar";
+import RequestCard from "@/components/RequestCard";
 import { FeedSkeleton } from "@/components/Skeleton";
-import Avatar from "@/components/Avatar";
 import { CircleUsersIcon, LockIcon, SearchIcon, ShieldCheckIcon } from "@/components/Icons";
 import { formatPrice } from "@/lib/labels";
-import type { CircleEvent, Listing, ListingType, Person, Request } from "@/lib/types";
+import type { CircleEvent, Listing, Person, Request } from "@/lib/types";
 import { formatEventDateDisplay, normalizeFa, toPersianDigits } from "@/lib/persian";
 import { CONCEPT_TIP_KEY } from "@/lib/home-tip";
 import { canView, filterByAccess, trustScore } from "@/lib/trust";
@@ -115,6 +115,23 @@ function listingMatchesScope(
   return score >= 3;
 }
 
+function requestMatchesScope(
+  request: Request,
+  scope: CircleScope,
+  getPerson: (id: string) => Person | undefined,
+): boolean {
+  if (request.requesterId === "me") return true;
+
+  const direct = request.trustPath.length === 0;
+  const score = trustScore(request.requesterId, request.trustPath, getPerson);
+
+  if (scope === "network") return score > 0;
+  if (!direct) return false;
+  if (scope === "mine") return score > 0;
+  if (scope === "trusted") return score >= 2;
+  return score >= 3;
+}
+
 function readShowConceptTip() {
   if (typeof window === "undefined") return false;
   try {
@@ -133,7 +150,7 @@ export default function ClassicFeed() {
   const hydrated = useStore((s) => s.hydrated);
   const circleReady = useStore((s) => s.circleReady);
   const onboarded = useStore((s) => s.onboarded);
-  const [filter, setFilter] = useState<ListingType | "all">("all");
+  const [filter, setFilter] = useState<FeedFilter>("all");
   const [circleScope, setCircleScope] = useState<CircleScope>("network");
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
@@ -161,15 +178,31 @@ export default function ClassicFeed() {
   const isNewUser = hydrated && !onboarded;
   const emptyCircle = circleReady && onboarded && circleCount === 0;
   const quietChrome = isNewUser || emptyCircle;
+  const requestsMode = filter === "requests";
 
   const { allowed, hidden } = useMemo(() => {
     const { visible, hidden } = filterByAccess(listings, getPerson);
     return { allowed: visible, hidden };
   }, [listings, getPerson]);
 
-  const visibleRequests = useMemo(
-    () => requests.filter((r) => canView(r, getPerson)).slice(0, PREVIEW_LIMIT),
-    [requests, getPerson],
+  const visibleRequests = useMemo(() => {
+    const q = normalizeFa(deferredQuery);
+    return requests.filter((r) => {
+      if (!canView(r, getPerson)) return false;
+      if (!requestMatchesScope(r, circleScope, getPerson)) return false;
+      if (
+        q &&
+        !normalizeFa(`${r.title} ${r.description} ${r.category}`).includes(q)
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [requests, getPerson, circleScope, deferredQuery]);
+
+  const previewRequests = useMemo(
+    () => visibleRequests.slice(0, PREVIEW_LIMIT),
+    [visibleRequests],
   );
 
   const visibleEvents = useMemo(
@@ -178,6 +211,7 @@ export default function ClassicFeed() {
   );
 
   const visible = useMemo(() => {
+    if (requestsMode) return [];
     const q = normalizeFa(deferredQuery);
     return allowed.filter((l) => {
       if (filter !== "all" && l.type !== filter) return false;
@@ -189,12 +223,16 @@ export default function ClassicFeed() {
       if (!listingMatchesScope(l, circleScope, getPerson)) return false;
       return true;
     });
-  }, [allowed, filter, deferredQuery, circleScope, getPerson]);
+  }, [allowed, filter, deferredQuery, circleScope, getPerson, requestsMode]);
 
   const searching = deferredQuery.trim().length > 0;
   const bundles = useMemo(() => bundleBySeller(visible), [visible]);
   const pageSize = searching ? SEARCH_PAGE : HOME_SELLERS;
-  const feedTotal = searching ? visible.length : bundles.length;
+  const feedTotal = requestsMode
+    ? visibleRequests.length
+    : searching
+      ? visible.length
+      : bundles.length;
   const feedShown = Math.min(feedPage * pageSize, feedTotal);
   const feedRemaining = feedTotal - feedShown;
 
@@ -236,8 +274,10 @@ export default function ClassicFeed() {
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="جستجو…"
-                  aria-label="جستجو در حلقه‌ات"
+                  placeholder={requestsMode ? "جستجو در درخواست‌ها…" : "جستجو…"}
+                  aria-label={
+                    requestsMode ? "جستجو در درخواست‌ها" : "جستجو در حلقه‌ات"
+                  }
                   className="field !pr-9 !py-2 !px-3 text-sm !border-stone-200/80 dark:!border-zinc-700"
                 />
               </div>
@@ -281,10 +321,17 @@ export default function ClassicFeed() {
             </div>
           )}
 
-          {/* Listings first — home's primary job */}
+          {/* Listings — or requests when that filter is on */}
           <FeedSection
-            title="آگهی‌ها"
-            count={hydrated ? visible.length : undefined}
+            title={requestsMode ? "درخواست‌ها" : "آگهی‌ها"}
+            count={
+              hydrated
+                ? requestsMode
+                  ? visibleRequests.length
+                  : visible.length
+                : undefined
+            }
+            href={requestsMode ? "/requests" : undefined}
             scopeControl={
               circleCount > 0 ? (
                 <CircleScopeControl
@@ -299,6 +346,41 @@ export default function ClassicFeed() {
           >
             {!circleReady ? (
               <FeedSkeleton />
+            ) : requestsMode ? (
+              visibleRequests.length === 0 ? (
+                <FeedEmptyState
+                  hasFilter
+                  requestsMode
+                  onClear={() => {
+                    setFilter("all");
+                    setCircleScope("network");
+                    setQuery("");
+                  }}
+                />
+              ) : (
+                <>
+                  {visibleRequests.slice(0, feedShown).map((r, i) => (
+                    <div
+                      key={r.id}
+                      className={i < 4 ? "animate-fade-up" : undefined}
+                      style={
+                        i < 4 ? { animationDelay: `${i * 45}ms` } : undefined
+                      }
+                    >
+                      <RequestCard request={r} feedStyle compactTrust />
+                    </div>
+                  ))}
+                  {feedRemaining > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setFeedPage((page) => page + 1)}
+                      className="w-full rounded-xl border border-amber-200/80 dark:border-amber-500/30 bg-amber-50/50 dark:bg-amber-500/10 py-2.5 text-[13px] font-bold text-amber-900 dark:text-amber-200 active:opacity-80"
+                    >
+                      درخواست‌های بیشتر
+                    </button>
+                  ) : null}
+                </>
+              )
             ) : visible.length === 0 ? (
               <FeedEmptyState
                 hasFilter={!browsingAll}
@@ -352,7 +434,7 @@ export default function ClassicFeed() {
               </>
             )}
 
-            {hidden > 0 && circleCount > 0 && (
+            {!requestsMode && hidden > 0 && circleCount > 0 && (
               <button
                 type="button"
                 className="flex items-center justify-center gap-2 text-[12px] font-medium text-ink-muted dark:text-zinc-400 py-2 w-full"
@@ -376,21 +458,22 @@ export default function ClassicFeed() {
             </StripSection>
           )}
 
-          {showSecondary && visibleRequests.length > 0 && (
+          {showSecondary && previewRequests.length > 0 && (
             <section className="pt-5 px-4 pb-1">
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-[13px] font-bold text-ink dark:text-zinc-200">
                   درخواست‌های حلقه
                 </h2>
-                <Link
-                  href="/requests"
+                <button
+                  type="button"
+                  onClick={() => startTransition(() => setFilter("requests"))}
                   className="text-[11px] text-ink-muted dark:text-zinc-500 font-medium"
                 >
                   همه
-                </Link>
+                </button>
               </div>
-              <div className="card divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
-                {visibleRequests.slice(0, 2).map((r) => (
+              <div className="rounded-2xl border border-amber-200/70 dark:border-amber-500/25 overflow-hidden divide-y divide-amber-100/80 dark:divide-amber-500/15 bg-amber-50/40 dark:bg-amber-500/5">
+                {previewRequests.slice(0, 2).map((r) => (
                   <RequestDenseRow key={r.id} request={r} />
                 ))}
               </div>
@@ -426,7 +509,7 @@ function FeedSection({
           {count != null && count > 0 && (
             <span
               className="inline-flex items-center justify-center min-w-[1.35rem] h-5 px-1.5 rounded-md bg-stone-200/80 dark:bg-zinc-800 text-[11px] font-bold text-ink-muted dark:text-zinc-300 nums"
-              aria-label={`${toPersianDigits(count)} آگهی`}
+              aria-label={`${toPersianDigits(count)} مورد`}
             >
               {toPersianDigits(count)}
             </span>
@@ -552,22 +635,38 @@ function StripSection({
 function FeedEmptyState({
   hasFilter,
   onClear,
+  requestsMode = false,
 }: {
   hasFilter: boolean;
   onClear: () => void;
+  requestsMode?: boolean;
 }) {
   return (
     <div className="card p-6 text-center">
-      <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-xl mx-auto mb-3">
-        🔍
+      <div
+        className={`w-12 h-12 rounded-full flex items-center justify-center text-xl mx-auto mb-3 ${
+          requestsMode
+            ? "bg-amber-100 dark:bg-amber-500/20"
+            : "bg-zinc-100 dark:bg-zinc-800"
+        }`}
+      >
+        {requestsMode ? "🙋" : "🔍"}
       </div>
       <p className="font-bold text-sm text-zinc-800 dark:text-zinc-100">
-        {hasFilter ? "نتیجه‌ای پیدا نشد" : "هنوز آگهی‌ای نیست"}
+        {requestsMode
+          ? hasFilter
+            ? "درخواستی با این فیلتر نیست"
+            : "هنوز درخواستی نیست"
+          : hasFilter
+            ? "نتیجه‌ای پیدا نشد"
+            : "هنوز آگهی‌ای نیست"}
       </p>
       <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 leading-relaxed">
-        {hasFilter
-          ? "فیلتر یا جستجو را عوض کن، یا اولین آگهی را ثبت کن."
-          : "با ثبت آگهی یا گسترش حلقه، اینجا پر می‌شود."}
+        {requestsMode
+          ? "چیزی لازم داری؟ از حلقه بپرس — یا فیلتر را عوض کن."
+          : hasFilter
+            ? "فیلتر یا جستجو را عوض کن، یا اولین آگهی را ثبت کن."
+            : "با ثبت آگهی یا گسترش حلقه، اینجا پر می‌شود."}
       </p>
       <div className="flex flex-col gap-2 mt-4">
         {hasFilter && (
@@ -575,8 +674,11 @@ function FeedEmptyState({
             پاک کردن فیلتر و جستجو
           </button>
         )}
-        <Link href="/new" className="btn-primary text-sm">
-          ثبت آگهی
+        <Link
+          href={requestsMode ? "/requests?compose=1" : "/new"}
+          className="btn-primary text-sm"
+        >
+          {requestsMode ? "ثبت درخواست" : "ثبت آگهی"}
         </Link>
       </div>
     </div>
@@ -627,19 +729,22 @@ function RequestDenseRow({ request }: { request: Request }) {
   return (
     <Link
       href={`/request/${request.id}`}
-      className="flex items-center gap-3 px-3.5 py-3 active:bg-stone-50/80 dark:active:bg-zinc-800/60 transition-colors"
+      className="flex items-center gap-3 px-3.5 py-3 active:bg-amber-100/50 dark:active:bg-amber-500/10 transition-colors"
     >
-      {requester ? (
-        <Avatar
-          name={requester.name}
-          src={requester.avatar}
-          showLevel={false}
-          size="sm"
-        />
-      ) : (
-        <div className="w-8 h-8 rounded-full bg-stone-100 dark:bg-zinc-800" />
-      )}
+      <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center text-lg shrink-0 ring-1 ring-amber-200/60 dark:ring-amber-500/25">
+        {request.image}
+      </div>
       <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5 mb-0.5">
+          <span className="text-[10px] font-extrabold text-amber-800 dark:text-amber-200">
+            می‌خوام
+          </span>
+          {requester ? (
+            <span className="text-[10px] text-ink-faint truncate">
+              {requester.name}
+            </span>
+          ) : null}
+        </div>
         <p className="text-[13px] font-semibold text-ink dark:text-zinc-100 line-clamp-1">
           {request.title}
         </p>
@@ -649,8 +754,8 @@ function RequestDenseRow({ request }: { request: Request }) {
         </p>
       </div>
       {offers.length > 0 && (
-        <span className="text-[11px] font-bold text-brand-600 dark:text-brand-400 shrink-0 nums">
-          مشاهده {toPersianDigits(offers.length)} پیشنهاد
+        <span className="text-[11px] font-bold text-amber-800 dark:text-amber-200 shrink-0 nums">
+          {toPersianDigits(offers.length)} پیشنهاد
         </span>
       )}
     </Link>

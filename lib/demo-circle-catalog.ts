@@ -258,9 +258,9 @@ export const DEMO_FOF: {
         price: 2_800_000,
         category: "لوازم خانه",
         image:
-          "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bb?auto=format&fit=crop&w=800&q=80",
+          "https://images.unsplash.com/photo-1618220179428-22790b461013?auto=format&fit=crop&w=800&q=80",
         images: [
-          "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bb?auto=format&fit=crop&w=800&q=80",
+          "https://images.unsplash.com/photo-1618220179428-22790b461013?auto=format&fit=crop&w=800&q=80",
         ],
         condition: "سالم با ایراد جزئی",
         privacy: "AB",

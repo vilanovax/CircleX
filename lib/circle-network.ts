@@ -3,7 +3,7 @@ import {
   DEMO_FOF,
   DEMO_PHONES,
 } from "@/lib/demo-circle-catalog";
-import { relationLabels } from "@/lib/labels";
+import { relationLabels, relationTowardName } from "@/lib/labels";
 import { memberFromEdge, toClientListing, toHomeListing } from "@/lib/mappers";
 import type { Listing, Person, TrustHop } from "@/lib/types";
 import type { CircleEdge, RelationType, User } from "@prisma/client";
@@ -57,6 +57,8 @@ type DirectCircle = {
 type TrustContext = DirectCircle & {
   hopEdges: Array<CircleEdge & { to: User }>;
   connectorBySeller: Map<string, Person>;
+  /** Bridge→seller edge relation (how the bridge labeled the FoF). */
+  viaRelationBySeller: Map<string, RelationType>;
   networkPeople: Map<string, Person>;
 };
 
@@ -92,6 +94,7 @@ async function loadTrustContext(viewerId: string): Promise<TrustContext> {
         });
 
   const connectorBySeller = new Map<string, Person>();
+  const viaRelationBySeller = new Map<string, RelationType>();
   const networkPeople = new Map<string, Person>();
 
   for (const edge of hopEdges) {
@@ -100,6 +103,7 @@ async function loadTrustContext(viewerId: string): Promise<TrustContext> {
     if (!bridge) continue;
     if (!connectorBySeller.has(edge.toUserId)) {
       connectorBySeller.set(edge.toUserId, bridge);
+      viaRelationBySeller.set(edge.toUserId, edge.relationType);
     }
     if (!networkPeople.has(edge.toUserId)) {
       const note = noteForFof(edge.to.phoneNormalized, bridge.name);
@@ -119,6 +123,7 @@ async function loadTrustContext(viewerId: string): Promise<TrustContext> {
     ...direct,
     hopEdges,
     connectorBySeller,
+    viaRelationBySeller,
     networkPeople,
   };
 }
@@ -231,15 +236,17 @@ export async function loadHomeFeed(viewerId: string): Promise<{
             fromUserId: { in: direct.directIds },
             toUserId: { not: viewerId },
           },
-          select: { fromUserId: true, toUserId: true },
+          select: { fromUserId: true, toUserId: true, relationType: true },
         });
 
   const connectorBySeller = new Map<string, Person>();
+  const viaRelationBySeller = new Map<string, RelationType>();
   for (const edge of hopEdges) {
     if (direct.directSet.has(edge.toUserId)) continue;
     const bridge = direct.memberById.get(edge.fromUserId);
     if (!bridge || connectorBySeller.has(edge.toUserId)) continue;
     connectorBySeller.set(edge.toUserId, bridge);
+    viaRelationBySeller.set(edge.toUserId, edge.relationType);
   }
 
   const sellerIds = [
@@ -262,6 +269,7 @@ export async function loadHomeFeed(viewerId: string): Promise<{
     directSet: direct.directSet,
     memberById: direct.memberById,
     connectorBySeller,
+    viaRelationBySeller,
   };
 
   const listings = marketRows.map((row) =>
@@ -332,18 +340,29 @@ export async function listingAccess(
       fromUserId: { in: myEdges.map((e) => e.toUserId) },
       toUserId: sellerId,
     },
-    select: { fromUserId: true },
+    select: {
+      fromUserId: true,
+      relationType: true,
+      from: { select: { name: true } },
+    },
   });
   if (!hop) return { ok: false, trustPath: [] };
 
   const bridge = myEdges.find((e) => e.toUserId === hop.fromUserId);
+  const bridgeName = hop.from.name?.trim() || "آشنا";
   const label = bridge
     ? `${relationLabels[bridge.relationType]} من`
     : "آشنای من";
 
   return {
     ok: true,
-    trustPath: [{ personId: hop.fromUserId, relationLabel: label }],
+    trustPath: [
+      {
+        personId: hop.fromUserId,
+        relationLabel: label,
+        priorRelationLabel: relationTowardName(hop.relationType, bridgeName),
+      },
+    ],
   };
 }
 
@@ -354,6 +373,7 @@ function trustPathForListing(
     directSet: Set<string>;
     memberById: Map<string, Person>;
     connectorBySeller: Map<string, Person>;
+    viaRelationBySeller?: Map<string, RelationType>;
   },
 ): TrustHop[] {
   if (row.sellerId === viewerId) return [];
@@ -366,6 +386,15 @@ function trustPathForListing(
   const label = myRelation
     ? `${relationLabels[myRelation]} من`
     : "آشنای من";
+  const viaRel = ctx.viaRelationBySeller?.get(row.sellerId);
 
-  return [{ personId: bridge.id, relationLabel: label }];
+  return [
+    {
+      personId: bridge.id,
+      relationLabel: label,
+      ...(viaRel
+        ? { priorRelationLabel: relationTowardName(viaRel, bridge.name) }
+        : {}),
+    },
+  ];
 }
