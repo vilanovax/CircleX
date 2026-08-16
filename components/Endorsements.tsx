@@ -12,7 +12,7 @@ export function EndorsementSummary({
 }: {
   endorsements: Endorsement[];
 }) {
-  const { getPerson } = useStore();
+  const getPerson = useStore((s) => s.getPerson);
   const uniqueIds = Array.from(new Set(endorsements.map((e) => e.personId)));
   if (uniqueIds.length === 0) return null;
 
@@ -50,7 +50,7 @@ export function EndorsementList({
 }: {
   endorsements: Endorsement[];
 }) {
-  const { getPerson } = useStore();
+  const getPerson = useStore((s) => s.getPerson);
   if (endorsements.length === 0) {
     return (
       <p className="text-[13px] text-ink-faint leading-relaxed">

@@ -52,24 +52,19 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const params = useParams();
   const router = useRouter();
   const id = String(params.id);
-  const {
-    getListing,
-    ensureListing,
-    getPerson,
-    people,
-    toggleEndorsement,
-    toggleSaved,
-    isSaved,
-    hydrated,
-  } = useStore();
+  const listing = useStore((s) => s.listings.find((row) => row.id === id));
+  const ensureListing = useStore((s) => s.ensureListing);
+  const getPerson = useStore((s) => s.getPerson);
+  const people = useStore((s) => s.people);
+  const toggleEndorsement = useStore((s) => s.toggleEndorsement);
+  const toggleSaved = useStore((s) => s.toggleSaved);
+  const saved = useStore((s) => s.saved.includes(id));
+  const hydrated = useStore((s) => s.hydrated);
   const { show } = useToast();
   const [showRefer, setShowRefer] = useState(false);
   const [pathExpanded, setPathExpanded] = useState(false);
   const [promptsCollapsed, setPromptsCollapsed] = useState(false);
   const lastScrollY = useRef(0);
-  const saved = isSaved(id);
-
-  const listing = getListing(id);
   const [lookup, setLookup] = useState<"idle" | "loading" | "miss">("idle");
   useEffect(() => {
     if (!hydrated) return;

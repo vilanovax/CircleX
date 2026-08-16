@@ -25,7 +25,8 @@ export default function TrustPath({
   variant?: "compact" | "full";
   showGraphLink?: boolean;
 }) {
-  const { getPerson, me } = useStore();
+  const getPerson = useStore((s) => s.getPerson);
+  const meAvatar = useStore((s) => s.me.avatar);
   const poster = getPerson(posterId);
   if (!poster) return null;
 
@@ -74,7 +75,7 @@ export default function TrustPath({
       const p = getPerson(h.personId);
       return node(p?.name ?? "؟", hopSub(h, p), p?.avatar);
     }),
-    node("شما", "", me.avatar),
+    node("شما", "", meAvatar),
   ];
 
   return (

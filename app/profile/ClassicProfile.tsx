@@ -36,57 +36,92 @@ import type { CircleEvent } from "@/lib/types";
 type ActivityTab = "listings" | "events" | "saved" | "endorsements";
 
 export default function ClassicProfile() {
-  const {
-    me,
-    people,
-    listings,
-    events,
-    saved,
-    sessionPhone,
-    updateProfile,
-    signOut,
-    hydrated,
-  } = useStore();
+  const me = useStore((s) => s.me);
+  const people = useStore((s) => s.people);
+  const listings = useStore((s) => s.listings);
+  const events = useStore((s) => s.events);
+  const saved = useStore((s) => s.saved);
+  const sessionPhone = useStore((s) => s.sessionPhone);
+  const updateProfile = useStore((s) => s.updateProfile);
+  const signOut = useStore((s) => s.signOut);
+  const hydrated = useStore((s) => s.hydrated);
   const router = useRouter();
   const { show } = useToast();
   const [showEdit, setShowEdit] = useState(false);
   const [tab, setTab] = useState<ActivityTab>("listings");
   const [hashSaved, setHashSaved] = useState(false);
 
-  const myCircle = activeCircle(people);
-  const myListings = listings.filter((l) => l.sellerId === "me");
-  const savedListings = saved
-    .map((id) => listings.find((l) => l.id === id))
-    .filter((l): l is NonNullable<typeof l> => Boolean(l));
-  const hostedEvents = events.filter((e) => e.hostId === "me");
-  const attendingEvents = events.filter(
-    (e) => e.hostId !== "me" && e.attendees.includes("me"),
-  );
-  const allMyEvents = useMemo(
-    () => [...hostedEvents, ...attendingEvents],
-    [hostedEvents, attendingEvents],
+  const myCircleCount = useMemo(() => activeCircle(people).length, [people]);
+
+  const myListings = useMemo(
+    () => listings.filter((l) => l.sellerId === "me"),
+    [listings],
   );
 
-  const socialCredit = buildSocialCredit(me, listings, myCircle.length);
-  const evidenceLine = evidenceSummaryLine(socialCredit);
-
-  const myGivenBadges = listings.flatMap((l) =>
-    l.endorsements.filter((e) => e.personId === "me").map((e) => ({ l, e })),
+  const savedListings = useMemo(
+    () =>
+      saved
+        .map((id) => listings.find((l) => l.id === id))
+        .filter((l): l is NonNullable<typeof l> => Boolean(l)),
+    [saved, listings],
   );
 
-  const activityTabs = [
-    { id: "listings" as const, label: "آگهی‌ها", count: myListings.length },
-    { id: "events" as const, label: "رویدادها", count: allMyEvents.length },
-    { id: "saved" as const, label: "نشان‌ها", count: savedListings.length },
-    {
-      id: "endorsements" as const,
-      label: "تأییدهایی که داده‌ام",
-      count: myGivenBadges.length,
-    },
-  ];
+  const { hostedEvents, attendingEvents, allMyEvents } = useMemo(() => {
+    const hosted = events.filter((e) => e.hostId === "me");
+    const attending = events.filter(
+      (e) => e.hostId !== "me" && e.attendees.includes("me"),
+    );
+    return {
+      hostedEvents: hosted,
+      attendingEvents: attending,
+      allMyEvents: [...hosted, ...attending],
+    };
+  }, [events]);
 
-  const visibleTabs = activityTabs.filter(
-    (t) => t.count > 0 || (hashSaved && t.id === "saved"),
+  const socialCredit = useMemo(
+    () => buildSocialCredit(me, listings, myCircleCount),
+    [me, listings, myCircleCount],
+  );
+  const evidenceLine = useMemo(
+    () => evidenceSummaryLine(socialCredit),
+    [socialCredit],
+  );
+
+  const myGivenBadges = useMemo(
+    () =>
+      listings.flatMap((l) =>
+        l.endorsements
+          .filter((e) => e.personId === "me")
+          .map((e) => ({ l, e })),
+      ),
+    [listings],
+  );
+
+  const activityTabs = useMemo(
+    () => [
+      { id: "listings" as const, label: "آگهی‌ها", count: myListings.length },
+      { id: "events" as const, label: "رویدادها", count: allMyEvents.length },
+      { id: "saved" as const, label: "نشان‌ها", count: savedListings.length },
+      {
+        id: "endorsements" as const,
+        label: "تأییدهایی که داده‌ام",
+        count: myGivenBadges.length,
+      },
+    ],
+    [
+      myListings.length,
+      allMyEvents.length,
+      savedListings.length,
+      myGivenBadges.length,
+    ],
+  );
+
+  const visibleTabs = useMemo(
+    () =>
+      activityTabs.filter(
+        (t) => t.count > 0 || (hashSaved && t.id === "saved"),
+      ),
+    [activityTabs, hashSaved],
   );
   const showTabBar = visibleTabs.length >= 2;
   const activeTab = visibleTabs.some((t) => t.id === tab)
@@ -160,7 +195,7 @@ export default function ClassicProfile() {
                 href="/circle"
                 className="inline-block text-[12px] font-bold text-brand-700 dark:text-brand-300 mt-1.5"
               >
-                {toPersianDigits(myCircle.length)} نفر در حلقه ‹
+                {toPersianDigits(myCircleCount)} نفر در حلقه ‹
               </Link>
             </div>
           </div>
@@ -230,8 +265,8 @@ export default function ClassicProfile() {
             id={activeTab === "saved" ? "saved" : undefined}
             role="tabpanel"
           >
-            {activeTab === "listings" &&
-              (myListings.length === 0 ? (
+            {activeTab === "listings" ? (
+              myListings.length === 0 ? (
                 <EmptyCard
                   title="هنوز آگهی‌ای نداری"
                   text="چیزی برای فروش، امانت یا هدیه ثبت کن تا حلقه ببیند."
@@ -273,10 +308,11 @@ export default function ClassicProfile() {
                     </Link>
                   ))}
                 </div>
-              ))}
+              )
+            ) : null}
 
-            {activeTab === "events" &&
-              (allMyEvents.length === 0 ? (
+            {activeTab === "events" ? (
+              allMyEvents.length === 0 ? (
                 <EmptyCard
                   title="رویدادی در تقویمت نیست"
                   text="به یک رویداد بپیوند یا خودت یکی بساز."
@@ -293,10 +329,11 @@ export default function ClassicProfile() {
                     <EventGroup label="شرکت می‌کنم" events={attendingEvents} />
                   )}
                 </div>
-              ))}
+              )
+            ) : null}
 
-            {activeTab === "saved" &&
-              (savedListings.length === 0 ? (
+            {activeTab === "saved" ? (
+              savedListings.length === 0 ? (
                 <EmptyCard
                   title="هنوز چیزی نشان نکرده‌ای"
                   text="روی ❤ هر آگهی بزن تا اینجا جمع شود."
@@ -310,10 +347,11 @@ export default function ClassicProfile() {
                     <ListingCard key={l.id} listing={l} compactTrust />
                   ))}
                 </div>
-              ))}
+              )
+            ) : null}
 
-            {activeTab === "endorsements" &&
-              (myGivenBadges.length === 0 ? (
+            {activeTab === "endorsements" ? (
+              myGivenBadges.length === 0 ? (
                 <EmptyCard
                   title="هنوز تأییدی نداده‌ای"
                   text="از صفحهٔ آگهی تأیید ثبت کن."
@@ -327,7 +365,7 @@ export default function ClassicProfile() {
                     <Link
                       key={`${l.id}-${e.type}-${i}`}
                       href={`/listing/${l.id}`}
-                      className="flex items-center gap-2.5 px-3.5 py-3 text-[13px] active:bg-stone-50/80"
+                      className="flex items-center gap-3 px-3.5 py-3 text-[13px] active:bg-stone-50/80"
                     >
                       <span className="text-[11px] font-semibold text-levelA shrink-0 rounded-md bg-levelA/10 px-1.5 py-0.5">
                         {badgeLabels[e.type]}
@@ -341,7 +379,8 @@ export default function ClassicProfile() {
                     </Link>
                   ))}
                 </div>
-              ))}
+              )
+            ) : null}
           </div>
         </section>
 

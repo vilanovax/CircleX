@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -262,37 +263,50 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const applyCirclePayload = useCallback(
-    (data: CirclePayload, opts?: { full?: boolean }) => {
+    (data: CirclePayload, opts?: { full?: boolean; keepGraph?: boolean }) => {
       const full = opts?.full ?? Boolean(data.links);
+      const keepGraph = Boolean(opts?.keepGraph) && !full;
       setInvites(data.pending);
       setJoinRequests(data.joinRequests ?? []);
-      // Home payloads omit links — drop stale edges so the map never keeps
-      // ids that are no longer in `people` (those rendered as «؟»).
-      setNetworkLinks(full ? ((data.links ?? []) as NetworkLink[]) : []);
-      const merged: Person[] = [];
-      const seen = new Set<string>();
-      for (const p of [
+      if (full) {
+        setNetworkLinks((data.links ?? []) as NetworkLink[]);
+      } else if (!keepGraph) {
+        // Drop map edges so stale FoF ids never linger after a plain home load.
+        setNetworkLinks([]);
+      }
+      const incoming = [
         ...data.members,
         ...data.pendingPeople,
         ...(data.network ?? []),
-      ]) {
-        if (seen.has(p.id)) continue;
-        seen.add(p.id);
-        merged.push(p);
+      ];
+      if (keepGraph) {
+        setPeople((prev) => overlayPeople(prev, incoming));
+      } else {
+        const merged: Person[] = [];
+        const seen = new Set<string>();
+        for (const p of incoming) {
+          if (seen.has(p.id)) continue;
+          seen.add(p.id);
+          merged.push(p);
+        }
+        setPeople(merged);
       }
-      setPeople(merged);
       setListings(data.listings ?? []);
       setCircleReady(true);
-      setCircleFull(full);
+      if (full) setCircleFull(true);
+      else if (!keepGraph) setCircleFull(false);
     },
     [],
   );
 
-  const loadHome = useCallback(async () => {
-    const data = await api<CirclePayload>("/api/home");
-    applyCirclePayload(data, { full: false });
-    return data;
-  }, [applyCirclePayload]);
+  const loadHome = useCallback(
+    async (opts?: { keepGraph?: boolean }) => {
+      const data = await api<CirclePayload>("/api/home");
+      applyCirclePayload(data, { full: false, keepGraph: opts?.keepGraph });
+      return data;
+    },
+    [applyCirclePayload],
+  );
 
   const loadCircle = useCallback(async () => {
     const data = await api<CirclePayload>("/api/circle");
@@ -315,6 +329,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
     setCircleFull(true);
   }, []);
+
+  const circleFullRef = useRef(circleFull);
+  circleFullRef.current = circleFull;
+
+  /** After invite/edge changes: slim home feed, keep map if already loaded. */
+  const refreshAfterMutation = useCallback(async () => {
+    const keepGraph = circleFullRef.current;
+    await loadHome({ keepGraph });
+    if (keepGraph) await loadGraph();
+  }, [loadHome, loadGraph]);
 
   const fillHome = useCallback(
     async (opts?: { needsSeed?: boolean }) => {
@@ -497,11 +521,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const now = Date.now();
       if (now - last < 45_000) return;
       last = now;
-      void (circleFull ? loadCircle() : loadHome());
+      // Always soft-refresh the slim home feed. After the map has loaded,
+      // keep graph links + FoF people so /api/circle does not undo the cap.
+      void loadHome({ keepGraph: circleFull });
     };
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
-  }, [hydrated, sessionPhone, circleFull, loadCircle, loadHome]);
+  }, [hydrated, sessionPhone, circleFull, loadHome]);
 
   const personById = useMemo(() => {
     const map = new Map<string, Person>();
@@ -665,10 +691,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         method: "POST",
         body: JSON.stringify(input),
       });
-      await loadCircle();
+      await refreshAfterMutation();
       return invite;
     },
-    [loadCircle],
+    [refreshAfterMutation],
   );
 
   const createWaveFromPending = useCallback(
@@ -705,10 +731,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           }),
         ),
       );
-      await loadCircle();
+      await refreshAfterMutation();
       return invite;
     },
-    [invites, loadCircle],
+    [invites, refreshAfterMutation],
   );
 
   const getInvite = useCallback(
@@ -729,7 +755,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           `/api/invites/${encodeURIComponent(code)}/accept`,
           { method: "POST" },
         );
-        await loadCircle();
+        await refreshAfterMutation();
         setPeople((prev) => {
           if (prev.some((p) => p.id === data.inviter.id)) return prev;
           return [{ ...data.inviter, inMyCircle: false }, ...prev];
@@ -740,7 +766,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         throw err;
       }
     },
-    [loadCircle],
+    [refreshAfterMutation],
   );
 
   const acceptJoinRequest = useCallback(
@@ -760,9 +786,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           displayName: input.displayName,
         }),
       });
-      await loadCircle();
+      await refreshAfterMutation();
     },
-    [loadCircle],
+    [refreshAfterMutation],
   );
 
   const rejectJoinRequest = useCallback(
@@ -770,9 +796,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await api(`/api/circle/requests/${encodeURIComponent(id)}/reject`, {
         method: "POST",
       });
-      await loadCircle();
+      await refreshAfterMutation();
     },
-    [loadCircle],
+    [refreshAfterMutation],
   );
 
   const revokeInvite = useCallback(
@@ -780,9 +806,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await api(`/api/invites/${encodeURIComponent(id)}/revoke`, {
         method: "POST",
       });
-      await loadCircle();
+      await refreshAfterMutation();
     },
-    [loadCircle],
+    [refreshAfterMutation],
   );
 
   const placePersonInMyCircle = useCallback(
@@ -798,9 +824,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           relationType: input.relation,
         }),
       });
-      await loadCircle();
+      await refreshAfterMutation();
     },
-    [loadCircle],
+    [refreshAfterMutation],
   );
 
   const completeProfile = useCallback(
@@ -852,10 +878,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           relationType: input.relation,
         }),
       })
-        .then(() => loadCircle())
+        .then(() => refreshAfterMutation())
         .catch(() => {});
     },
-    [loadCircle],
+    [refreshAfterMutation],
   );
 
   const setLevel = useCallback(
@@ -913,10 +939,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           prev.map((row) => (row.id === listingId ? listing : row)),
         );
       } catch {
-        await loadCircle();
+        await loadHome({ keepGraph: circleFullRef.current });
       }
     },
-    [loadCircle],
+    [loadHome],
   );
 
   // Toggle MY endorsement of a listing (acting as the current user).
