@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useId, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { lazyUi } from "@/lib/lazy-ui";
 import { isActiveCircleMember } from "@/lib/circle-member";
@@ -52,17 +52,22 @@ export default function PersonClassic(_props: { params: { id: string } }) {
   const params = useParams();
   const router = useRouter();
   const id = String(params.id);
-  const {
-    getPerson,
-    listings,
-    requests,
-    removePerson,
-    setLevel,
-    setRelation,
-    addToCircle,
-    getThread,
-    hydrated,
-  } = useStore();
+  const person = useStore((s) =>
+    id === "me" || (s.meServerId && id === s.meServerId)
+      ? s.me
+      : s.people.find((p) => p.id === id),
+  );
+  const getPerson = useStore((s) => s.getPerson);
+  const listings = useStore((s) => s.listings);
+  const requests = useStore((s) => s.requests);
+  const removePerson = useStore((s) => s.removePerson);
+  const setLevel = useStore((s) => s.setLevel);
+  const setRelation = useStore((s) => s.setRelation);
+  const addToCircle = useStore((s) => s.addToCircle);
+  const threadLen = useStore(
+    (s) => s.messages.filter((m) => m.peerId === id).length,
+  );
+  const hydrated = useStore((s) => s.hydrated);
   const { show } = useToast();
   const [showIntro, setShowIntro] = useState(false);
   const [showAddToCircle, setShowAddToCircle] = useState(false);
@@ -70,7 +75,72 @@ export default function PersonClassic(_props: { params: { id: string } }) {
   const [showEditRelation, setShowEditRelation] = useState(false);
   const [contentTab, setContentTab] = useState<ContentTab>("listings");
 
-  const person = getPerson(id);
+  const theirListings = useMemo(
+    () =>
+      listings.filter((l) => l.sellerId === id && canView(l, getPerson)),
+    [listings, id, getPerson],
+  );
+  const theirRequests = useMemo(
+    () =>
+      requests.filter(
+        (r) => r.requesterId === id && canView(r, getPerson),
+      ),
+    [requests, id, getPerson],
+  );
+
+  const trustPath = useMemo(() => {
+    const pathSource =
+      theirListings.find((l) => l.trustPath.length > 0) ??
+      theirRequests.find((r) => r.trustPath.length > 0);
+    return pathSource?.trustPath ?? [];
+  }, [theirListings, theirRequests]);
+
+  const socialCredit = useMemo(() => {
+    if (!person) return null;
+    return buildSocialCredit(
+      person,
+      listings,
+      theirListings.length + theirRequests.length,
+    );
+  }, [person, listings, theirListings.length, theirRequests.length]);
+
+  const endorsementsReceived = useMemo(
+    () =>
+      theirListings.flatMap((l) =>
+        l.endorsements.map((e) => ({ listing: l, endorsement: e })),
+      ),
+    [theirListings],
+  );
+  const endorsementsGiven = useMemo(
+    () =>
+      listings.flatMap((l) =>
+        l.endorsements
+          .filter((e) => e.personId === id)
+          .map((e) => ({ listing: l, endorsement: e })),
+      ),
+    [listings, id],
+  );
+
+  const uniqueEndorserCount = useMemo(
+    () =>
+      new Set(endorsementsReceived.map((x) => x.endorsement.personId)).size,
+    [endorsementsReceived],
+  );
+
+  const aboutPersonEndorsements = useMemo(
+    () =>
+      endorsementsReceived.filter((x) =>
+        isPersonAboutBadge(x.endorsement.type),
+      ),
+    [endorsementsReceived],
+  );
+  const aboutListingEndorsements = useMemo(
+    () =>
+      endorsementsReceived.filter(
+        (x) => !isPersonAboutBadge(x.endorsement.type),
+      ),
+    [endorsementsReceived],
+  );
 
   if (!hydrated) {
     return (
@@ -81,7 +151,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
     );
   }
 
-  if (!person || id === "me") {
+  if (!person || id === "me" || !socialCredit) {
     return (
       <main className="min-h-[100dvh]">
         <Header title="پروفایل" back />
@@ -90,47 +160,11 @@ export default function PersonClassic(_props: { params: { id: string } }) {
     );
   }
 
-  const thread = getThread(id);
-  const canMessage = canDirectMessage(person, thread.length > 0);
-
-  const theirListings = listings.filter(
-    (l) => l.sellerId === id && canView(l, getPerson),
-  );
-  const theirRequests = requests.filter(
-    (r) => r.requesterId === id && canView(r, getPerson),
-  );
-
-  const pathSource =
-    theirListings.find((l) => l.trustPath.length > 0) ??
-    theirRequests.find((r) => r.trustPath.length > 0);
-  const trustPath = pathSource?.trustPath ?? [];
-
-  const networkActivity = theirListings.length + theirRequests.length;
-  const socialCredit = buildSocialCredit(person, listings, networkActivity);
-
-  const endorsementsReceived: EndorsementItem[] = theirListings.flatMap((l) =>
-    l.endorsements.map((e) => ({ listing: l, endorsement: e })),
-  );
-  const endorsementsGiven: EndorsementItem[] = listings.flatMap((l) =>
-    l.endorsements
-      .filter((e) => e.personId === id)
-      .map((e) => ({ listing: l, endorsement: e })),
-  );
-
-  const uniqueEndorsers = Array.from(
-    new Set(endorsementsReceived.map((x) => x.endorsement.personId)),
-  );
-
+  const canMessage = canDirectMessage(person, threadLen > 0);
   const relationPhrase = viewerRelationPhrase(person);
   const evidenceLine = evidenceSummaryLine(socialCredit, {
-    uniqueEndorsers: uniqueEndorsers.length || undefined,
+    uniqueEndorsers: uniqueEndorserCount || undefined,
   });
-  const aboutPersonEndorsements = endorsementsReceived.filter((x) =>
-    isPersonAboutBadge(x.endorsement.type),
-  );
-  const aboutListingEndorsements = endorsementsReceived.filter(
-    (x) => !isPersonAboutBadge(x.endorsement.type),
-  );
   const showTrustPath = !isActiveCircleMember(person) || trustPath.length > 0;
   const personName = person.name;
   const hasListings = theirListings.length > 0;
@@ -367,7 +401,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
           person={person}
           socialCredit={socialCredit}
           evidenceLine={evidenceLine}
-          uniqueEndorserCount={uniqueEndorsers.length}
+          uniqueEndorserCount={uniqueEndorserCount}
           aboutPerson={aboutPersonEndorsements}
           aboutListings={aboutListingEndorsements}
           given={endorsementsGiven}
