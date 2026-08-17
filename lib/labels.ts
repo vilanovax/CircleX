@@ -10,6 +10,7 @@
  */
 import type {
   BadgeType,
+  BudgetUnit,
   EventKind,
   ListingType,
   Privacy,
@@ -225,6 +226,55 @@ export const privacyDetailLabels: Record<Privacy, string> = {
   referral: "فقط کسانی که معرفی شده‌اند این آگهی را می‌بینند",
   approved: "فقط کسانی که فروشنده اجازه بدهد این آگهی را می‌بینند",
 };
+
+/** Viewer-facing privacy copy on request detail (not the requester’s «حلقهٔ من»). */
+export const requestPrivacyDetailLabels: Record<Privacy, string> = {
+  A: "فقط نزدیکان درخواست‌دهنده می‌بینند — نه اینترنت عمومی",
+  AB: "نزدیکان و افراد مورد اعتماد درخواست‌دهنده می‌بینند — نه اینترنت عمومی",
+  ABC: "همهٔ حلقهٔ درخواست‌دهنده می‌بینند — نه اینترنت عمومی",
+  referral: "فقط با معرفی دیده می‌شود — نه اینترنت عمومی",
+  approved: "فقط با اجازهٔ درخواست‌دهنده دیده می‌شود",
+};
+
+/** Detail privacy line with requester name when known. */
+export function requestPrivacyAudienceLine(
+  privacy: Privacy,
+  requesterName?: string,
+): string {
+  const who = requesterName?.trim();
+  switch (privacy) {
+    case "A":
+      return who
+        ? `نمایش فقط برای نزدیکان ${who}`
+        : "نمایش فقط برای نزدیکان درخواست‌دهنده";
+    case "AB":
+      return who
+        ? `نمایش فقط برای نزدیکان و افراد مورد اعتماد ${who}`
+        : "نمایش فقط برای نزدیکان و افراد مورد اعتماد درخواست‌دهنده";
+    case "ABC":
+      return who
+        ? `نمایش فقط برای حلقهٔ ${who}`
+        : "نمایش فقط برای حلقهٔ درخواست‌دهنده";
+    case "referral":
+      return "نمایش فقط با معرفی";
+    case "approved":
+      return who
+        ? `نمایش فقط با اجازهٔ ${who}`
+        : "نمایش فقط با اجازهٔ درخواست‌دهنده";
+  }
+}
+
+/** Request amount line — never uses the word «بودجه». */
+export function formatRequestBudget(
+  budget?: number,
+  unit?: BudgetUnit,
+): string {
+  if (unit === "negotiable" || budget == null) return "توافقی";
+  const amount = `تا ${formatPrice(budget)}`;
+  if (unit === "session") return `${amount} · هر جلسه`;
+  if (unit === "month") return `${amount} · ماهانه`;
+  return amount;
+}
 
 export const privacyEmoji: Record<Privacy, string> = {
   A: "🔒",

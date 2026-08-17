@@ -27,6 +27,9 @@ export type Privacy =
   | "referral" // only with a referral / introduction
   | "approved"; // only people I personally approve
 
+/** How a request’s optional amount is framed (session / month / total). */
+export type BudgetUnit = "session" | "month" | "total" | "negotiable";
+
 /** The kinds of social-trust badges a person can attach to a listing. */
 export type BadgeType =
   | "verify_item" // I confirm this item / its quality
@@ -107,8 +110,10 @@ export interface Request {
   image: string;
   requesterId: string;
   postedAt: string;
-  /** Optional budget in Toman. */
+  /** Optional ceiling amount in Toman. */
   budget?: number;
+  /** How `budget` is framed; omit = plain ceiling / توافقی if no amount. */
+  budgetUnit?: BudgetUnit;
   privacy: Privacy;
   /** Path of people connecting the requester to "me" (ordered me-side first). */
   trustPath: TrustHop[];

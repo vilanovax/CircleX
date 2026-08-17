@@ -24,6 +24,7 @@ import {
 } from "./demo-requests";
 import type {
   BadgeType,
+  BudgetUnit,
   CircleEvent,
   CircleJoinRequest,
   EventKind,
@@ -67,6 +68,7 @@ interface NewRequestInput {
   category: string;
   image: string;
   budget?: number;
+  budgetUnit?: BudgetUnit;
   privacy: Privacy;
 }
 
@@ -1001,6 +1003,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       requesterId: "me",
       postedAt: "همین حالا",
       budget: input.budget,
+      budgetUnit: input.budgetUnit,
       privacy: input.privacy,
       trustPath: [],
       endorsements: [],

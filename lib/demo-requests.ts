@@ -4,7 +4,7 @@ import {
   type DemoPersonKey,
 } from "@/lib/demo-circle-catalog";
 import { relationLabels, relationTowardName } from "@/lib/labels";
-import type { Offer, Person, Privacy, Request } from "@/lib/types";
+import type { Offer, Person, Privacy, BudgetUnit, Request } from "@/lib/types";
 
 export type DemoRequestDef = {
   id: string;
@@ -16,6 +16,7 @@ export type DemoRequestDef = {
   category: string;
   image: string;
   budget?: number;
+  budgetUnit?: BudgetUnit;
   privacy: Privacy;
   postedAt: string;
   city?: string;
@@ -41,6 +42,7 @@ export const DEMO_REQUEST_DEFS: DemoRequestDef[] = [
     category: "آموزش",
     image: "🎹",
     budget: 2_500_000,
+    budgetUnit: "session",
     privacy: "ABC",
     postedAt: "۲ ساعت پیش",
     city: "تهران",
@@ -53,6 +55,7 @@ export const DEMO_REQUEST_DEFS: DemoRequestDef[] = [
       "برای کار سبک و پیام. مدل متوسط کافی است. اگر اضافه دارید مجانی یا خیلی ارزان خبر بدهید.",
     category: "لوازم دیجیتال",
     image: "📱",
+    budgetUnit: "negotiable",
     privacy: "ABC",
     postedAt: "۵ ساعت پیش",
     city: "تهران",
@@ -66,6 +69,7 @@ export const DEMO_REQUEST_DEFS: DemoRequestDef[] = [
     category: "ورزش",
     image: "🚲",
     budget: 5_000_000,
+    budgetUnit: "total",
     privacy: "AB",
     postedAt: "دیروز",
     city: "تهران",
@@ -80,6 +84,7 @@ export const DEMO_REQUEST_DEFS: DemoRequestDef[] = [
     category: "آموزش",
     image: "📐",
     budget: 1_800_000,
+    budgetUnit: "session",
     privacy: "ABC",
     postedAt: "دیروز",
     city: "تهران",
@@ -94,6 +99,7 @@ export const DEMO_REQUEST_DEFS: DemoRequestDef[] = [
     category: "کودک",
     image: "🍼",
     budget: 3_000_000,
+    budgetUnit: "total",
     privacy: "AB",
     postedAt: "۳ روز پیش",
     city: "تهران",
@@ -188,6 +194,7 @@ export function bindDemoRequests(people: Person[]): {
       requesterId: requester.id,
       postedAt: def.postedAt,
       budget: def.budget,
+      budgetUnit: def.budgetUnit,
       privacy: def.privacy,
       trustPath,
       endorsements: [],

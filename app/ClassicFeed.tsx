@@ -19,7 +19,7 @@ import FeedFilterBar, { type FeedFilter } from "@/components/FeedFilterBar";
 import RequestCard from "@/components/RequestCard";
 import { FeedSkeleton } from "@/components/Skeleton";
 import { CircleUsersIcon, LockIcon, SearchIcon, ShieldCheckIcon } from "@/components/Icons";
-import { formatPrice } from "@/lib/labels";
+import { formatRequestBudget } from "@/lib/labels";
 import type { CircleEvent, Listing, Person, Request } from "@/lib/types";
 import { formatEventDateDisplay, normalizeFa, toPersianDigits } from "@/lib/persian";
 import { CONCEPT_TIP_KEY } from "@/lib/home-tip";
@@ -750,7 +750,9 @@ function RequestDenseRow({ request }: { request: Request }) {
         </p>
         <p className="text-[11px] text-ink-faint mt-0.5 line-clamp-1">
           {request.category}
-          {request.budget != null ? ` · تا ${formatPrice(request.budget)}` : ""}
+          {request.budget != null || request.budgetUnit === "negotiable"
+            ? ` · ${formatRequestBudget(request.budget, request.budgetUnit)}`
+            : ""}
         </p>
       </div>
       {offers.length > 0 && (

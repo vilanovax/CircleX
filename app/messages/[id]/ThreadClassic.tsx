@@ -6,10 +6,16 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import Avatar from "@/components/Avatar";
 import ListingImage from "@/components/ListingImage";
+import ListingAskPrompts from "@/components/ListingAskPrompts";
 import Header from "@/components/Header";
 import LockedMessaging from "@/components/LockedMessaging";
 import { SendIcon } from "@/components/Icons";
 import { formatPrice } from "@/lib/labels";
+import {
+  listingSubject,
+  suggestThreadChips,
+  type BuyerPrompt,
+} from "@/lib/listing-prompts";
 import { canOpenThread } from "@/lib/messaging";
 import { chatPeerSubtitle, viaConnectorName } from "@/lib/trust";
 import type { Message } from "@/lib/types";
@@ -69,6 +75,16 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   );
 
   const subtitle = peer ? chatPeerSubtitle(peer, viaName) : "";
+
+  const chips = useMemo(
+    () =>
+      suggestThreadChips({
+        listing: contextListing,
+        isSeller: isSellerOfContext,
+        threadLength: thread.length,
+      }),
+    [contextListing, isSellerOfContext, thread.length],
+  );
 
   const canChat = peer
     ? canOpenThread(peer, {
@@ -147,6 +163,30 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
     setText("");
     inputRef.current?.focus();
   }
+
+  function applyChip(prompt: BuyerPrompt) {
+    setText(prompt.draft);
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.focus();
+      const len = prompt.draft.length;
+      el.setSelectionRange(len, len);
+    });
+  }
+
+  const emptyHint = contextListing
+    ? `دربارهٔ ${listingSubject(contextListing)} — اولین پیام را بفرست.`
+    : "اولین پیام را بفرست.";
+
+  const chipTitle =
+    thread.length === 0
+      ? isSellerOfContext
+        ? "برای پاسخ سریع:"
+        : "برای شروع می‌تونی بپرسی:"
+      : isSellerOfContext
+        ? "پاسخ پیشنهادی:"
+        : "می‌تونی بپرسی:";
 
   return (
     <main className="flex flex-col h-[100dvh]">
@@ -266,7 +306,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
               گفتگو با {peer.name}
             </p>
             <p className="text-[13px] text-ink-muted mt-1.5 leading-relaxed max-w-xs">
-              اولین پیام را بفرست.
+              {emptyHint}
             </p>
           </div>
         ) : (
@@ -315,7 +355,17 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
         <div ref={bottomRef} />
       </div>
 
-      <div className="shrink-0 bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-xl border-t border-stone-200/70 dark:border-zinc-800 px-2.5 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
+      <div className="shrink-0 bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-xl border-t border-stone-200/70 dark:border-zinc-800 px-2.5 pt-2 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
+        {chips.length > 0 ? (
+          <div className="mb-2">
+            <ListingAskPrompts
+              prompts={chips}
+              onPick={applyChip}
+              title={chipTitle}
+              compact
+            />
+          </div>
+        ) : null}
         <div className="flex items-end gap-2">
           <textarea
             ref={inputRef}

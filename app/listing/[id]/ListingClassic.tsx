@@ -490,6 +490,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
                       <ListingAskPrompts
                         title="سؤال آماده"
                         compact
+                        hideTitle
                         prompts={buyerPrompts}
                         onPick={goAsk}
                       />

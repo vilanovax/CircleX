@@ -8,7 +8,7 @@ import { BackIcon, CloseIcon } from "@/components/Icons";
 import { useToast } from "@/components/Toast";
 import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
-import type { Privacy } from "@/lib/types";
+import type { BudgetUnit, Privacy } from "@/lib/types";
 import { formatTomanInput, toEnglishDigits } from "@/lib/persian";
 
 const EMOJIS = [
@@ -37,12 +37,20 @@ const CATEGORY_SUGGESTIONS = [
   "سایر",
 ];
 
+const BUDGET_UNITS: { id: BudgetUnit; label: string }[] = [
+  { id: "total", label: "جمع" },
+  { id: "session", label: "هر جلسه" },
+  { id: "month", label: "ماهانه" },
+  { id: "negotiable", label: "توافقی" },
+];
+
 export type RequestInput = {
   title: string;
   description: string;
   category: string;
   image: string;
   budget?: number;
+  budgetUnit?: BudgetUnit;
   privacy: Privacy;
 };
 
@@ -65,11 +73,13 @@ export default function AddRequestSheet({
   const [image, setImage] = useState("🔎");
   const [showEmojis, setShowEmojis] = useState(false);
   const [budget, setBudget] = useState("");
+  const [budgetUnit, setBudgetUnit] = useState<BudgetUnit>("total");
   const [privacy, setPrivacy] = useState<Privacy>("ABC");
   const [voiceInterim, setVoiceInterim] = useState("");
   const [voiceListening, setVoiceListening] = useState(false);
 
   const canSubmit = Boolean(title.trim());
+  const amountMode = budgetUnit !== "negotiable";
 
   function pickCategory(c: string) {
     if (c === "سایر") {
@@ -83,14 +93,22 @@ export default function AddRequestSheet({
 
   function submit() {
     if (!canSubmit) return;
+    const amount =
+      amountMode && budget
+        ? Number(toEnglishDigits(budget).replace(/\D/g, "")) || undefined
+        : undefined;
     onAdd({
       title: title.trim(),
       description: description.trim(),
       category: category.trim() || "عمومی",
       image,
-      budget: budget
-        ? Number(toEnglishDigits(budget).replace(/\D/g, "")) || undefined
-        : undefined,
+      budget: amount,
+      budgetUnit:
+        budgetUnit === "negotiable"
+          ? "negotiable"
+          : amount != null
+            ? budgetUnit
+            : undefined,
       privacy,
     });
   }
@@ -212,25 +230,51 @@ export default function AddRequestSheet({
       </section>
 
       <section className="mb-3">
-        <label
-          htmlFor="request-budget"
-          className="block text-[12px] font-medium mb-1 text-ink-muted"
-        >
-          بودجه — اختیاری
-        </label>
-        <div className="relative">
-          <input
-            id="request-budget"
-            value={budget}
-            onChange={(e) => setBudget(formatTomanInput(e.target.value))}
-            inputMode="numeric"
-            placeholder="مثلاً ۳٬۰۰۰٬۰۰۰"
-            className="field nums !py-2 !text-[13px] !pl-14"
-          />
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] text-ink-muted pointer-events-none">
-            تومان
-          </span>
+        <p className="block text-[12px] font-medium mb-1.5 text-ink-muted">
+          مبلغ تقریبی — اختیاری
+        </p>
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {BUDGET_UNITS.map((u) => {
+            const active = budgetUnit === u.id;
+            return (
+              <button
+                key={u.id}
+                type="button"
+                onClick={() => setBudgetUnit(u.id)}
+                aria-pressed={active}
+                className={`chip !px-2.5 !py-1 !text-[11px] border transition-colors ${
+                  active
+                    ? "bg-amber-600 text-white border-amber-600"
+                    : "bg-stone-50 text-ink-muted border-stone-200/80 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400"
+                }`}
+              >
+                {u.label}
+              </button>
+            );
+          })}
         </div>
+        {amountMode ? (
+          <div className="relative">
+            <label htmlFor="request-budget" className="sr-only">
+              مبلغ به تومان
+            </label>
+            <input
+              id="request-budget"
+              value={budget}
+              onChange={(e) => setBudget(formatTomanInput(e.target.value))}
+              inputMode="numeric"
+              placeholder="مثلاً ۳٬۰۰۰٬۰۰۰"
+              className="field nums !py-2 !text-[13px] !pl-14"
+            />
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] text-ink-muted pointer-events-none">
+              تومان
+            </span>
+          </div>
+        ) : (
+          <p className="text-[11px] text-ink-faint leading-relaxed px-0.5">
+            مبلغ را با پیشنهاددهنده‌ها هماهنگ می‌کنی.
+          </p>
+        )}
       </section>
 
       <section className="mb-4">

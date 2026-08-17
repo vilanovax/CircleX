@@ -102,17 +102,16 @@ function isPathStyleNote(note: string): boolean {
 }
 
 /**
- * One clear line under the seller on listing detail:
+ * One clear trust line under a peer on listing/request detail:
  * direct → «دوست تو»; FoF → «دوستِ رضا» / «از طریق رضا».
  */
 export function listingSellerSubtitle(
-  seller: Person,
+  peer: Person,
   trustPath: TrustHop[],
   getPerson: (id: string) => Person | undefined,
 ): string {
-  const direct =
-    isActiveCircleMember(seller) && trustPath.length === 0;
-  if (direct) return viewerRelationPhrase(seller);
+  const direct = isActiveCircleMember(peer) && trustPath.length === 0;
+  if (direct) return viewerRelationPhrase(peer);
 
   const hop = trustPath[0];
   if (hop?.priorRelationLabel?.trim()) return hop.priorRelationLabel.trim();
@@ -120,11 +119,14 @@ export function listingSellerSubtitle(
   const bridge = hop ? getPerson(hop.personId) : undefined;
   if (bridge?.name) return `از طریق ${bridge.name}`;
 
-  const note = seller.note?.trim();
+  const note = peer.note?.trim();
   if (note) return note;
 
   return "از طریق حلقه‌ات";
 }
+
+/** Alias — same copy for request requesters. */
+export const requestRequesterSubtitle = listingSellerSubtitle;
 
 /**
  * Who connects an FoF peer to my circle — from peer edges or their note.

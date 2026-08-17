@@ -1,30 +1,40 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import Avatar from "@/components/Avatar";
 import TrustPath from "@/components/TrustPath";
 import SheetShell from "@/components/SheetShell";
-import { ShieldCheckIcon } from "@/components/Icons";
-import { formatPrice, privacyLabels, relationLabels } from "@/lib/labels";
+import { ChatIcon, ShieldCheckIcon } from "@/components/Icons";
+import {
+  formatPrice,
+  formatRequestBudget,
+  requestPrivacyAudienceLine,
+} from "@/lib/labels";
+import { canDirectMessage } from "@/lib/messaging";
 import { toEnglishDigits, toPersianDigits } from "@/lib/persian";
 import LockedAccess from "@/components/LockedAccess";
-import { canView } from "@/lib/trust";
+import { canView, listingSellerSubtitle, viewerRelationPhrase } from "@/lib/trust";
 import { useToast } from "@/components/Toast";
+import type { Person, Request as CircleRequest } from "@/lib/types";
 
 export default function RequestClassic(_props: { params: { id: string } }) {
   const params = useParams();
+  const router = useRouter();
   const id = String(params.id);
   const request = useStore((s) => s.requests.find((r) => r.id === id));
   const getPerson = useStore((s) => s.getPerson);
+  const getThread = useStore((s) => s.getThread);
   const offersAll = useStore((s) => s.offers);
   const addOffer = useStore((s) => s.addOffer);
   const withdrawOffer = useStore((s) => s.withdrawOffer);
+  const meAvatar = useStore((s) => s.me.avatar);
   const { show } = useToast();
   const [showOffer, setShowOffer] = useState(false);
+  const [pathExpanded, setPathExpanded] = useState(false);
 
   const offers = useMemo(
     () => offersAll.filter((o) => o.requestId === id),
@@ -39,13 +49,28 @@ export default function RequestClassic(_props: { params: { id: string } }) {
     return (
       <main className="min-h-[100dvh]">
         <Header title="درخواست" back />
-        <p className="text-center text-ink-faint py-20 text-sm">درخواست پیدا نشد.</p>
+        <p className="text-center text-ink-faint py-20 text-sm">
+          درخواست پیدا نشد.
+        </p>
       </main>
     );
   }
 
   const requester = getPerson(request.requesterId);
   const isMine = request.requesterId === "me";
+  const isDirect =
+    !!requester &&
+    request.requesterId !== "me" &&
+    request.trustPath.length === 0;
+  const showPath = !isMine && !isDirect && request.trustPath.length > 0;
+  const relationLine =
+    requester && !isMine
+      ? listingSellerSubtitle(requester, request.trustPath, getPerson)
+      : "";
+  const canMsgRequester =
+    !isMine &&
+    requester &&
+    canDirectMessage(requester, getThread(requester.id).length > 0);
 
   if (!isMine && !canView(request, getPerson)) {
     return (
@@ -60,162 +85,196 @@ export default function RequestClassic(_props: { params: { id: string } }) {
     );
   }
 
+  const footerPad = isMine ? "pb-8" : "pb-28";
+
   return (
-    <main className="pb-28 min-h-[100dvh]">
+    <main className={`${footerPad} min-h-[100dvh]`}>
       <Header title="جزئیات درخواست" back />
 
-      <div className="px-4 pt-3">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="chip bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
-            درخواست
-          </span>
-          <span className="chip bg-stone-100 dark:bg-zinc-800 text-ink-muted">
-            {request.category}
-          </span>
-          <span className="text-[11px] text-ink-faint">
-            {privacyLabels[request.privacy]}
-          </span>
-        </div>
+      <div className="px-4 pt-3 listing-detail-rise">
+        <div className="rounded-[1.25rem] border border-amber-200/70 dark:border-amber-500/20 bg-gradient-to-bl from-amber-50 via-[color:var(--circle-surface)] to-[color:var(--circle-surface)] dark:from-amber-500/12 dark:via-zinc-900 dark:to-zinc-900 overflow-hidden shadow-[0_1px_0_rgba(26,24,22,0.04)]">
+          <div className="px-4 pt-3.5 pb-4">
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <span className="inline-flex items-center rounded-lg px-2 py-0.5 text-[10px] font-extrabold bg-amber-600 text-white tracking-wide shadow-sm shadow-amber-600/20">
+                درخواست
+              </span>
+              <span className="chip !px-2 !py-0.5 !text-[11px] bg-[color:var(--circle-surface)]/80 text-ink-muted ring-1 ring-stone-200/70 dark:ring-zinc-700 dark:bg-zinc-800/80">
+                {request.category}
+              </span>
+            </div>
 
-        <div className="flex items-start gap-3">
-          <div className="w-16 h-16 rounded-2xl bg-stone-50 dark:bg-zinc-800/80 ring-1 ring-stone-100 dark:ring-zinc-700/60 flex items-center justify-center text-3xl shrink-0">
-            {request.image}
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-[1.35rem] font-extrabold text-ink dark:text-zinc-50 leading-snug">
-              {request.title}
-            </h1>
-            {request.budget != null && (
-              <p className="text-[15px] font-extrabold text-ink dark:text-zinc-100 mt-1 nums tracking-tight">
-                بودجه: تا {formatPrice(request.budget)}
+            <div className="flex items-start gap-3.5">
+              <div className="w-[3.75rem] h-[3.75rem] rounded-2xl bg-amber-100 dark:bg-amber-500/20 ring-1 ring-amber-200/80 dark:ring-amber-500/30 flex items-center justify-center text-[1.75rem] shrink-0">
+                {request.image}
+              </div>
+              <div className="min-w-0 flex-1 pt-0.5">
+                <h1 className="text-[1.3rem] font-extrabold text-ink dark:text-zinc-50 leading-[1.35] tracking-tight">
+                  {request.title}
+                </h1>
+                {request.budget != null || request.budgetUnit === "negotiable" ? (
+                  <p
+                    className={`mt-2 tracking-tight ${
+                      request.budget != null
+                        ? "text-[1.15rem] font-extrabold text-ink dark:text-zinc-50 nums"
+                        : "text-[13px] font-bold text-levelA"
+                    }`}
+                  >
+                    {formatRequestBudget(request.budget, request.budgetUnit)}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-[13px] font-bold text-levelA">
+                    توافقی
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {request.description.trim() ? (
+              <p className="text-[13.5px] text-ink-muted dark:text-zinc-300 leading-[1.75] mt-3.5 whitespace-pre-line">
+                {request.description}
               </p>
-            )}
+            ) : null}
+
+            <p className="mt-3 text-[11px] text-ink-faint dark:text-zinc-500 nums leading-relaxed">
+              {[request.city, request.postedAt].filter(Boolean).join(" · ")}
+            </p>
           </div>
-        </div>
 
-        {request.description.trim() ? (
-          <p className="text-[13px] text-ink-muted dark:text-zinc-300 leading-relaxed mt-3 whitespace-pre-line">
-            {request.description}
-          </p>
-        ) : null}
-
-        <div className="flex items-center gap-2 text-[11px] text-ink-muted dark:text-zinc-400 mt-3">
-          <span>{request.city}</span>
-          <span className="text-stone-300" aria-hidden>
-            ·
-          </span>
-          <span>{request.postedAt}</span>
+          <div className="px-4 py-2.5 bg-amber-100/40 dark:bg-amber-500/10 border-t border-amber-200/40 dark:border-amber-500/15 flex items-start gap-2">
+            <ShieldCheckIcon className="w-3.5 h-3.5 text-amber-800/70 dark:text-amber-200/70 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-amber-950/70 dark:text-amber-100/70 leading-relaxed">
+              {requestPrivacyAudienceLine(
+                request.privacy,
+                isMine ? "تو" : requester?.name,
+              )}
+            </p>
+          </div>
         </div>
       </div>
 
-      <section className="px-4 pt-4">
-        <div className="card p-3.5">
-          <div className="flex items-center gap-2 mb-3">
-            <ShieldCheckIcon className="w-[18px] h-[18px] text-levelA" />
-            <h2 className="font-bold text-[13px] text-ink dark:text-zinc-100">
-              مسیر ارتباط
-            </h2>
-          </div>
-          <TrustPath
-            posterId={request.requesterId}
-            trustPath={request.trustPath}
-            variant="full"
-          />
-        </div>
-      </section>
+      {isMine ? (
+        <p className="px-4 pt-3.5 text-[12px] font-semibold text-amber-900/80 dark:text-amber-200/90">
+          درخواست تو — پیشنهادهای حلقه را اینجا می‌بینی.
+        </p>
+      ) : null}
+
+      {isMine ? (
+        <OffersSection
+          offers={offers}
+          getPerson={getPerson}
+          getThread={getThread}
+          meAvatar={meAvatar}
+          isOwner
+          onMessage={(peerId) => router.push(`/messages/${peerId}`)}
+        />
+      ) : null}
 
       {requester && !isMine && (
-        <section className="px-4 pt-2.5">
-          <Link
-            href={`/person/${request.requesterId}`}
-            className="card px-3.5 py-3 flex items-center gap-3 active:scale-[0.99] transition-transform"
-          >
-            <Avatar name={requester.name} src={requester.avatar} level={requester.level} size="md" />
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-[14px] text-ink dark:text-zinc-100">
-                {requester.name}
-              </p>
-              <p className="text-[11px] text-ink-muted mt-0.5 truncate">
-                {requester.note ? `${requester.note} · ` : ""}
-                {relationLabels[requester.relation]}
-              </p>
-              <p className="text-[11px] text-ink-faint mt-0.5">
-                <span className="nums">{toPersianDigits(requester.deals)}</span>{" "}
-                معامله · {requester.city}
-              </p>
-            </div>
-            <span className="text-ink-faint text-lg" aria-hidden>
-              ‹
-            </span>
-          </Link>
+        <section className="px-4 pt-4 animate-fade-up">
+          <p className="text-[11px] font-semibold text-ink-faint mb-2 px-0.5">
+            درخواست‌دهنده
+          </p>
+          <div className="card overflow-hidden">
+            <Link
+              href={`/person/${request.requesterId}`}
+              className="px-3.5 py-3 flex items-center gap-3 active:bg-stone-50/80 dark:active:bg-zinc-800/50 transition-colors"
+            >
+              <Avatar
+                name={requester.name}
+                src={requester.avatar}
+                showLevel={false}
+                size="md"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-[15px] text-ink dark:text-zinc-100 leading-tight">
+                  {requester.name}
+                </p>
+                <p className="text-[12px] text-ink-muted mt-0.5 truncate">
+                  {relationLine}
+                </p>
+                <p className="text-[11px] text-ink-faint mt-1 nums">
+                  {toPersianDigits(requester.deals)} معامله
+                  {requester.city ? ` · ${requester.city}` : ""}
+                </p>
+              </div>
+              <span className="text-[11px] font-bold text-brand-600 dark:text-brand-400 shrink-0">
+                پروفایل ‹
+              </span>
+            </Link>
+            {canMsgRequester ? (
+              <div className="px-3.5 pb-3 -mt-0.5">
+                <button
+                  type="button"
+                  onClick={() => router.push(`/messages/${requester.id}`)}
+                  className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-stone-100/90 dark:bg-zinc-800 py-2.5 text-[12px] font-bold text-ink dark:text-zinc-200 active:opacity-80"
+                >
+                  <ChatIcon className="w-4 h-4" />
+                  پیام به {requester.name}
+                </button>
+              </div>
+            ) : null}
+          </div>
         </section>
       )}
 
-      <section className="px-4 pt-2.5 pb-2">
-        <div className="card p-3.5">
-          <div className="flex items-center gap-2 mb-3">
-            <h2 className="font-bold text-[13px] text-ink dark:text-zinc-100">
-              پیشنهادها
-            </h2>
-            <span className="text-[11px] font-semibold text-ink-faint nums">
-              {toPersianDigits(offers.length)}
-            </span>
+      {showPath && (
+        <section className="px-4 pt-3 animate-fade-up">
+          <div className="card p-4">
+            <div className="flex items-center gap-2.5 mb-3">
+              <span className="w-8 h-8 rounded-xl bg-[color:var(--circle-trust)]/12 text-[color:var(--circle-trust)] flex items-center justify-center shrink-0">
+                <ShieldCheckIcon className="w-[18px] h-[18px]" />
+              </span>
+              <div className="min-w-0">
+                <h2 className="font-bold text-[14px] text-ink dark:text-zinc-100 leading-tight">
+                  مسیر ارتباط
+                </h2>
+                <p className="text-[11px] text-ink-muted mt-0.5">
+                  از طریق آشنایان به تو می‌رسد
+                </p>
+              </div>
+            </div>
+            <TrustPath
+              posterId={request.requesterId}
+              trustPath={request.trustPath}
+              variant="full"
+            />
+            <button
+              type="button"
+              onClick={() => setPathExpanded((v) => !v)}
+              className="mt-3 text-[12px] font-bold text-brand-600 dark:text-brand-400"
+              aria-expanded={pathExpanded}
+            >
+              {pathExpanded ? "بستن جزئیات" : "جزئیات بیشتر مسیر ‹"}
+            </button>
+            {pathExpanded && (
+              <p className="mt-2 text-[12px] text-ink-muted leading-relaxed">
+                زیر هر نفر نسبت با نفر بعدی مسیر است — تا بدانی چرا این درخواست
+                به تو رسیده.
+              </p>
+            )}
           </div>
-          {offers.length === 0 ? (
-            <p className="text-[13px] text-ink-faint">
-              هنوز کسی پیشنهاد نداده. اولین نفر باشید.
-            </p>
-          ) : (
-            <ul className="divide-y divide-stone-100 dark:divide-zinc-800 -mx-3.5">
-              {offers.map((o) => {
-                const from = getPerson(o.fromId);
-                const mine = o.fromId === "me";
-                return (
-                  <li key={o.id} className="flex gap-2.5 px-3.5 py-3">
-                    {from || mine ? (
-                      <Avatar
-                        name={mine ? "شما" : from!.name}
-                        src={from?.avatar}
-                        level={mine ? undefined : from!.level}
-                        size="sm"
-                      />
-                    ) : (
-                      <div className="w-9 h-9 rounded-full bg-stone-100 dark:bg-zinc-800 shrink-0" />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[13px] font-bold text-ink dark:text-zinc-100">
-                          {mine ? "شما" : from?.name ?? "ناشناس"}
-                        </span>
-                        {o.price != null && (
-                          <span className="text-[12px] font-bold text-ink nums">
-                            {formatPrice(o.price)}
-                          </span>
-                        )}
-                        <span className="text-[11px] text-ink-faint ms-auto nums">
-                          {o.postedAt}
-                        </span>
-                      </div>
-                      <p className="text-[13px] text-ink-muted dark:text-zinc-300 leading-relaxed mt-0.5">
-                        {o.message}
-                      </p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      </section>
+        </section>
+      )}
+
+      {!isMine ? (
+        <OffersSection
+          offers={offers}
+          getPerson={getPerson}
+          getThread={getThread}
+          meAvatar={meAvatar}
+          isOwner={false}
+          onMessage={(peerId) => router.push(`/messages/${peerId}`)}
+        />
+      ) : null}
 
       {!isMine && (
         <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
           <div className="app-shell !min-h-0 !shadow-none bg-transparent">
-            <div className="pointer-events-auto bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-xl border-t border-stone-200/70 dark:border-zinc-800 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <div className="pointer-events-auto bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-xl border-t border-stone-200/70 dark:border-zinc-800 px-3 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
               {offered ? (
                 <div className="flex gap-2">
-                  <span className="btn-ghost flex-1 text-center !text-levelA">
-                    ✓ پیشنهاد شما ثبت شد
+                  <span className="flex-1 text-center rounded-xl bg-levelA/10 text-levelA font-bold text-[13px] py-3.5">
+                    ✓ پیشنهادت ثبت شد
                   </span>
                   <button
                     type="button"
@@ -223,7 +282,7 @@ export default function RequestClassic(_props: { params: { id: string } }) {
                       withdrawOffer(id);
                       show("پیشنهاد لغو شد");
                     }}
-                    className="bg-stone-100 dark:bg-zinc-800 text-ink-muted font-medium rounded-xl px-4 active:bg-stone-200 dark:active:bg-zinc-700"
+                    className="shrink-0 px-4 rounded-xl bg-stone-100 dark:bg-zinc-800 text-ink-muted font-semibold text-[13px] active:bg-stone-200 dark:active:bg-zinc-700"
                   >
                     لغو
                   </button>
@@ -232,9 +291,9 @@ export default function RequestClassic(_props: { params: { id: string } }) {
                 <button
                   type="button"
                   onClick={() => setShowOffer(true)}
-                  className="btn-primary w-full !py-3.5 text-base"
+                  className="btn-primary w-full !py-3.5 text-[15px] shadow-lg shadow-brand-600/20 active:scale-[0.99] transition-transform"
                 >
-                  این را دارم — پیشنهاد می‌دهم
+                  پیشنهاد بده
                 </button>
               )}
             </div>
@@ -244,11 +303,12 @@ export default function RequestClassic(_props: { params: { id: string } }) {
 
       {showOffer && (
         <OfferSheet
+          request={request}
           onClose={() => setShowOffer(false)}
           onSubmit={(message, price) => {
             addOffer({ requestId: id, message, price });
             setShowOffer(false);
-            show("پیشنهاد شما فرستاده شد ✓");
+            show("پیشنهادت فرستاده شد ✓");
           }}
         />
       )}
@@ -256,10 +316,179 @@ export default function RequestClassic(_props: { params: { id: string } }) {
   );
 }
 
+function OffersSection({
+  offers,
+  getPerson,
+  getThread,
+  meAvatar,
+  isOwner,
+  onMessage,
+}: {
+  offers: {
+    id: string;
+    fromId: string;
+    message: string;
+    price?: number;
+    postedAt: string;
+  }[];
+  getPerson: (id: string) => Person | undefined;
+  getThread: (peerId: string) => { length: number };
+  meAvatar?: string;
+  isOwner: boolean;
+  onMessage: (peerId: string) => void;
+}) {
+  return (
+    <section
+      className={`px-4 ${isOwner ? "pt-3" : "pt-4"} pb-2 animate-fade-up`}
+    >
+      <div className="flex items-center justify-between gap-2 mb-2.5 px-0.5">
+        <h2 className="flex items-center gap-1.5 text-[13px] font-bold text-ink dark:text-zinc-200">
+          <span>پیشنهادها</span>
+          {offers.length > 0 ? (
+            <span className="inline-flex items-center justify-center min-w-[1.35rem] h-5 px-1.5 rounded-md bg-amber-100 dark:bg-amber-500/20 text-[11px] font-bold text-amber-900 dark:text-amber-200 nums">
+              {toPersianDigits(offers.length)}
+            </span>
+          ) : null}
+        </h2>
+      </div>
+
+      {offers.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-stone-200 dark:border-zinc-700 bg-[color:var(--circle-surface)]/60 dark:bg-zinc-900/40 px-4 py-5 text-center">
+          <p className="text-[13px] font-semibold text-ink-muted dark:text-zinc-300">
+            {isOwner ? "هنوز پیشنهادی نیامده" : "هنوز پیشنهادی نیست"}
+          </p>
+          <p className="text-[11px] text-ink-faint mt-1 leading-relaxed">
+            {isOwner
+              ? "وقتی کسی پاسخ بدهد اینجا می‌بینی."
+              : "اگر می‌تونی کمک کنی، اولین پیشنهاد را بفرست."}
+          </p>
+        </div>
+      ) : (
+        <ul className="space-y-2.5">
+          {offers.map((o, i) => {
+            const from = getPerson(o.fromId);
+            const mine = o.fromId === "me";
+            const peer = mine ? undefined : from;
+            const showDetail = isOwner || mine;
+            const canMsg =
+              isOwner &&
+              peer &&
+              canDirectMessage(peer, getThread(peer.id).length > 0);
+            const displayName = mine ? "شما" : (peer?.name ?? "ناشناس");
+            const relation = mine
+              ? "پیشنهاد تو"
+              : peer
+                ? viewerRelationPhrase(peer)
+                : "";
+
+            return (
+              <li
+                key={o.id}
+                className="rounded-2xl border border-stone-200/80 dark:border-zinc-800 bg-[color:var(--circle-surface)] dark:bg-zinc-900 px-3.5 py-3 shadow-sm shadow-stone-200/40 dark:shadow-none"
+                style={
+                  i < 3
+                    ? { animationDelay: `${i * 40}ms` }
+                    : undefined
+                }
+              >
+                <div className="flex gap-3">
+                  {mine ? (
+                    <Avatar
+                      name="شما"
+                      src={meAvatar ?? from?.avatar}
+                      showLevel={false}
+                      size="sm"
+                    />
+                  ) : peer ? (
+                    <Link
+                      href={`/person/${peer.id}`}
+                      className="shrink-0 active:opacity-80"
+                    >
+                      <Avatar
+                        name={peer.name}
+                        src={peer.avatar}
+                        showLevel={false}
+                        size="sm"
+                      />
+                    </Link>
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-stone-100 dark:bg-zinc-800 shrink-0" />
+                  )}
+
+                  <div className="min-w-0 flex-1">
+                    <div className="min-w-0">
+                      {mine || !peer ? (
+                        <p className="text-[13px] font-bold text-ink dark:text-zinc-100">
+                          {displayName}
+                        </p>
+                      ) : (
+                        <Link
+                          href={`/person/${peer.id}`}
+                          className="text-[13px] font-bold text-ink dark:text-zinc-100 active:opacity-70"
+                        >
+                          {peer.name}
+                        </Link>
+                      )}
+                      <p className="text-[11px] text-ink-faint mt-0.5 nums">
+                        {[relation, showDetail ? o.postedAt : null]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    </div>
+
+                    {showDetail ? (
+                      <>
+                        <p className="text-[13px] text-ink-muted dark:text-zinc-300 leading-relaxed mt-2">
+                          {o.message}
+                        </p>
+                        {o.price != null ? (
+                          <p className="mt-2 text-[1.05rem] font-extrabold text-ink dark:text-zinc-50 nums tracking-tight">
+                            {formatPrice(o.price)}
+                          </p>
+                        ) : null}
+                        <div className="mt-2.5 flex items-center gap-3">
+                          {peer ? (
+                            <Link
+                              href={`/person/${peer.id}`}
+                              className="text-[11px] font-bold text-ink-muted dark:text-zinc-400 active:text-brand-600"
+                            >
+                              پروفایل ‹
+                            </Link>
+                          ) : null}
+                          {canMsg && peer ? (
+                            <button
+                              type="button"
+                              onClick={() => onMessage(peer.id)}
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-brand-600 dark:text-brand-400"
+                            >
+                              <ChatIcon className="w-3.5 h-3.5" />
+                              پیام
+                            </button>
+                          ) : null}
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-[12px] font-semibold text-ink-muted dark:text-zinc-400 mt-1.5">
+                        پیشنهاد داده
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 function OfferSheet({
+  request,
   onClose,
   onSubmit,
 }: {
+  request: CircleRequest;
   onClose: () => void;
   onSubmit: (message: string, price?: number) => void;
 }) {
@@ -267,70 +496,92 @@ function OfferSheet({
   const [price, setPrice] = useState("");
 
   return (
-    <SheetShell onClose={onClose} labelledBy="offer-sheet-title">
-      <div className="flex items-start justify-between gap-3 mb-3 px-0.5">
-        <div>
-          <h2
-            id="offer-sheet-title"
-            className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50"
+    <SheetShell
+      onClose={onClose}
+      labelledBy="offer-sheet-title"
+      maxHeight="88dvh"
+      zClass="z-50"
+      footer={
+        <div className="flex gap-2 pb-0.5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn-ghost flex-1 !py-3.5"
           >
-            پیشنهاد شما
-          </h2>
-          <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1">
-            توضیح بده چه داری؛ درخواست‌دهنده از حلقه‌ات است.
-          </p>
+            انصراف
+          </button>
+          <button
+            type="button"
+            disabled={!message.trim()}
+            onClick={() =>
+              onSubmit(
+                message.trim(),
+                price
+                  ? Number(toEnglishDigits(price).replace(/\D/g, "")) ||
+                    undefined
+                  : undefined,
+              )
+            }
+            className="btn-primary flex-1 !py-3.5 disabled:opacity-40"
+          >
+            فرستادن پیشنهاد
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="shrink-0 text-[13px] font-semibold text-ink-muted px-2 py-1 rounded-lg active:bg-stone-100 dark:active:bg-zinc-800"
+      }
+    >
+      <div className="pb-1">
+        <h2
+          id="offer-sheet-title"
+          className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50"
         >
-          بستن
-        </button>
-      </div>
+          پیشنهاد بده
+        </h2>
+        <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
+          کوتاه بگو چطور می‌تونی کمک کنی.
+        </p>
 
-      <label className="block text-[13px] font-medium mb-1 text-ink dark:text-zinc-200">
-        پیام
-      </label>
-      <textarea
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        placeholder="مثلاً: یه نمونه‌ی سالم دارم، می‌تونم عکس بفرستم…"
-        rows={3}
-        className="field resize-none mb-4"
-      />
+        <div className="mt-3 rounded-xl bg-amber-50/90 dark:bg-amber-500/10 ring-1 ring-amber-200/70 dark:ring-amber-500/25 px-3 py-2.5">
+          <p className="text-[12px] font-bold text-ink dark:text-zinc-100 line-clamp-2">
+            {request.title}
+          </p>
+          {request.budget != null || request.budgetUnit === "negotiable" ? (
+            <p className="text-[11px] text-amber-900/80 dark:text-amber-200/80 mt-0.5 nums">
+              {formatRequestBudget(request.budget, request.budgetUnit)}
+            </p>
+          ) : (
+            <p className="text-[11px] text-amber-900/80 dark:text-amber-200/80 mt-0.5">
+              توافقی
+            </p>
+          )}
+        </div>
 
-      <label className="block text-[13px] font-medium mb-1 text-ink dark:text-zinc-200">
-        قیمت پیشنهادی (اختیاری)
-      </label>
-      <input
-        value={price}
-        onChange={(e) => setPrice(e.target.value)}
-        inputMode="numeric"
-        placeholder="تومان"
-        className="field nums mb-5"
-      />
+        <label className="block mt-4">
+          <span className="text-[12px] font-bold text-ink dark:text-zinc-200">
+            پیام
+          </span>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="مثلاً: می‌تونم معرفی کنم / خودم انجام می‌دم…"
+            rows={3}
+            className="field resize-none mt-1.5"
+            autoFocus
+          />
+        </label>
 
-      <div className="flex gap-2">
-        <button type="button" onClick={onClose} className="btn-ghost flex-1">
-          انصراف
-        </button>
-        <button
-          type="button"
-          disabled={!message.trim()}
-          onClick={() =>
-            onSubmit(
-              message.trim(),
-              price
-                ? Number(toEnglishDigits(price).replace(/\D/g, "")) ||
-                  undefined
-                : undefined,
-            )
-          }
-          className="btn-primary flex-1"
-        >
-          فرستادن پیشنهاد
-        </button>
+        <label className="block mt-3">
+          <span className="text-[12px] font-bold text-ink dark:text-zinc-200">
+            مبلغ پیشنهادی{" "}
+            <span className="font-medium text-ink-faint">· اختیاری</span>
+          </span>
+          <input
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            inputMode="numeric"
+            placeholder="تومان"
+            className="field nums mt-1.5"
+          />
+        </label>
       </div>
     </SheetShell>
   );

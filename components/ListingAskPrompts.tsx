@@ -7,23 +7,30 @@ export default function ListingAskPrompts({
   onPick,
   title = "از فروشنده بپرس",
   compact = false,
+  /** Hide the section label (chips only). */
+  hideTitle = false,
 }: {
   prompts: BuyerPrompt[];
   onPick: (prompt: BuyerPrompt) => void;
   title?: string;
   /** Denser chips for sticky footers. */
   compact?: boolean;
+  hideTitle?: boolean;
 }) {
   if (prompts.length === 0) return null;
 
   return (
     <section aria-label={title}>
-      {!compact && (
-        <p className="text-[11px] font-semibold text-ink-faint mb-2 px-0.5">
+      {!hideTitle && (
+        <p
+          className={`font-semibold text-ink-faint px-0.5 ${
+            compact ? "text-[10px] mb-1.5" : "text-[11px] mb-2"
+          }`}
+        >
           {title}
         </p>
       )}
-      <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+      <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
         {prompts.map((p) => (
           <button
             key={p.id}

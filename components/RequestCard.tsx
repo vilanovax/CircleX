@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { Request } from "@/lib/types";
 import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
-import { formatPrice, privacyLabels } from "@/lib/labels";
+import { formatRequestBudget, privacyLabels } from "@/lib/labels";
 import { privacyAudience } from "@/lib/trust";
 import { toPersianDigits } from "@/lib/persian";
 import TrustHighlight from "./TrustHighlight";
@@ -81,13 +81,13 @@ export default function RequestCard({
             <h3 className="font-bold text-[15px] text-ink dark:text-zinc-100 leading-snug line-clamp-2">
               {request.title}
             </h3>
-            {request.budget != null ? (
+            {request.budget != null || request.budgetUnit === "negotiable" ? (
               <p className="mt-1 text-[14px] font-extrabold text-ink dark:text-zinc-100 nums tracking-tight">
-                بودجه تا {formatPrice(request.budget)}
+                {formatRequestBudget(request.budget, request.budgetUnit)}
               </p>
             ) : feedStyle ? (
               <p className="mt-1 text-[12px] font-semibold text-amber-800/80 dark:text-amber-200/80">
-                بودجه توافقی / رایگان هم خوبه
+                توافقی یا رایگان هم خوبه
               </p>
             ) : null}
           </div>
