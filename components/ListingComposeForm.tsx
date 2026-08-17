@@ -41,6 +41,7 @@ import {
 import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import { formatTomanInput, toEnglishDigits } from "@/lib/persian";
+import { isListingPhoto } from "@/lib/listing-image";
 import type { ListingSpec, ListingType, Privacy } from "@/lib/types";
 
 const TYPE_ICONS: Record<ListingType, ComponentType<{ className?: string }>> = {
@@ -60,6 +61,53 @@ const OWNED_SPEC_LABELS = new Set([
   "قابل مذاکره",
   "هزینه",
 ]);
+
+function seedFromListing(input: ListingInput) {
+  const gallery = (
+    input.images && input.images.length > 0 ? input.images : [input.image]
+  ).filter(Boolean);
+  const photos = gallery.filter(isListingPhoto);
+  const emoji =
+    photos.length > 0
+      ? "📦"
+      : isListingPhoto(input.image)
+        ? "📦"
+        : input.image.trim() || "📦";
+  const specs = input.specs ?? [];
+  const swap = specs.find((s) => s.label === "تعویض با");
+  const duration = specs.find((s) => s.label === "مدت امانت");
+  const deposit = specs.find((s) => s.label === "ودیعه");
+  const nego = specs.find((s) => s.label === "قابل مذاکره");
+  const cost = specs.find((s) => s.label === "هزینه");
+  const extras: DraftSpec[] = specs
+    .filter((s) => !OWNED_SPEC_LABELS.has(s.label))
+    .map((s) => ({ ...s, confidence: "confirmed" as const }));
+  const noDeposit = Boolean(deposit?.value.includes("بدون"));
+  return {
+    type: input.type,
+    title: input.title,
+    description: input.description,
+    category: input.category,
+    condition: input.condition ?? "",
+    privacy: input.privacy,
+    photos,
+    emoji,
+    price:
+      input.price != null && input.price > 0
+        ? formatTomanInput(String(input.price))
+        : "",
+    priceAgreed:
+      input.type === "service" &&
+      (cost?.value === "توافقی" || input.price == null),
+    negotiable: Boolean(nego && /بله|کمی/.test(nego.value)),
+    exchangeFor: swap?.value ?? "",
+    loanDuration: duration?.value ?? "",
+    loanNoDeposit: noDeposit,
+    loanDeposit:
+      deposit && !noDeposit ? formatTomanInput(deposit.value) : "",
+    editableSpecs: extras,
+  };
+}
 
 const GENERIC_CATEGORIES = new Set([
   "فروش",
@@ -142,6 +190,8 @@ const ListingComposeForm = forwardRef<
     onCancel?: () => void;
     cancelLabel?: string;
     submitLabel?: string;
+    /** Prefill and open on the review step (edit existing listing). */
+    initial?: ListingInput;
     /** Hide bottom buttons when parent provides a pinned footer. */
     hideActions?: boolean;
     onCanSubmitChange?: (can: boolean) => void;
@@ -158,6 +208,7 @@ const ListingComposeForm = forwardRef<
     onCancel,
     cancelLabel = "انصراف",
     submitLabel = "انتشار آگهی",
+    initial,
     hideActions = false,
     onCanSubmitChange,
     onFooterMetaChange,
@@ -167,29 +218,35 @@ const ListingComposeForm = forwardRef<
   const { people } = useStore();
   const { show } = useToast();
   const circle = activeCircle(people);
+  const editMode = Boolean(initial);
+  const seed = initial ? seedFromListing(initial) : null;
 
-  const [step, setStep] = useState<"compose" | "review">("compose");
-  const [type, setType] = useState<ListingType>("sale");
+  const [step, setStep] = useState<"compose" | "review">(
+    editMode ? "review" : "compose",
+  );
+  const [type, setType] = useState<ListingType>(seed?.type ?? "sale");
   const [rawText, setRawText] = useState("");
-  const [price, setPrice] = useState("");
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [emoji, setEmoji] = useState("📦");
-  const [privacy, setPrivacy] = useState<Privacy>("AB");
+  const [price, setPrice] = useState(seed?.price ?? "");
+  const [photos, setPhotos] = useState<string[]>(seed?.photos ?? []);
+  const [emoji, setEmoji] = useState(seed?.emoji ?? "📦");
+  const [privacy, setPrivacy] = useState<Privacy>(seed?.privacy ?? "AB");
 
-  const [exchangeFor, setExchangeFor] = useState("");
-  const [loanDuration, setLoanDuration] = useState("");
-  const [loanDeposit, setLoanDeposit] = useState("");
-  const [loanNoDeposit, setLoanNoDeposit] = useState(false);
-  const [negotiable, setNegotiable] = useState(false);
-  const [priceAgreed, setPriceAgreed] = useState(false);
+  const [exchangeFor, setExchangeFor] = useState(seed?.exchangeFor ?? "");
+  const [loanDuration, setLoanDuration] = useState(seed?.loanDuration ?? "");
+  const [loanDeposit, setLoanDeposit] = useState(seed?.loanDeposit ?? "");
+  const [loanNoDeposit, setLoanNoDeposit] = useState(seed?.loanNoDeposit ?? false);
+  const [negotiable, setNegotiable] = useState(seed?.negotiable ?? false);
+  const [priceAgreed, setPriceAgreed] = useState(seed?.priceAgreed ?? false);
 
   const [draft, setDraft] = useState<ListingDraft | null>(null);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("");
-  const [condition, setCondition] = useState("");
+  const [title, setTitle] = useState(seed?.title ?? "");
+  const [description, setDescription] = useState(seed?.description ?? "");
+  const [category, setCategory] = useState(seed?.category ?? "");
+  const [condition, setCondition] = useState(seed?.condition ?? "");
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [editableSpecs, setEditableSpecs] = useState<DraftSpec[]>([]);
+  const [editableSpecs, setEditableSpecs] = useState<DraftSpec[]>(
+    seed?.editableSpecs ?? [],
+  );
   const [removedLabels, setRemovedLabels] = useState<Set<string>>(new Set());
   const [editingLabel, setEditingLabel] = useState<string | null>(null);
   const [priceHints, setPriceHints] = useState<PriceHint[]>([]);
@@ -198,11 +255,18 @@ const ListingComposeForm = forwardRef<
   const [voiceListening, setVoiceListening] = useState(false);
   const [attemptedCompose, setAttemptedCompose] = useState(false);
 
-  const [titleSource, setTitleSource] = useState<FieldSource>("suggested");
-  const [descriptionSource, setDescriptionSource] =
-    useState<FieldSource>("suggested");
-  const [categorySource, setCategorySource] = useState<FieldSource>("suggested");
-  const [conditionSource, setConditionSource] = useState<FieldSource>("suggested");
+  const [titleSource, setTitleSource] = useState<FieldSource>(
+    editMode ? "user" : "suggested",
+  );
+  const [descriptionSource, setDescriptionSource] = useState<FieldSource>(
+    editMode ? "user" : "suggested",
+  );
+  const [categorySource, setCategorySource] = useState<FieldSource>(
+    editMode ? "user" : "suggested",
+  );
+  const [conditionSource, setConditionSource] = useState<FieldSource>(
+    editMode ? "user" : "suggested",
+  );
   const [priceSource, setPriceSource] = useState<FieldSource>("user");
 
   const coverImage = photos[0] ?? emoji;
@@ -477,7 +541,7 @@ const ListingComposeForm = forwardRef<
       primaryLabel,
       hint,
       step,
-      goBack: step === "review" ? goBack : undefined,
+      goBack: !editMode && step === "review" ? goBack : undefined,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- submit closes over latest state
     [
@@ -485,6 +549,7 @@ const ListingComposeForm = forwardRef<
       primaryLabel,
       hint,
       step,
+      editMode,
       rawText,
       type,
       price,
@@ -579,6 +644,40 @@ const ListingComposeForm = forwardRef<
         </div>
       </div>
     ) : null;
+
+  const typePicker = (
+    <section className="mb-4">
+      <label className="block text-[13px] font-bold mb-1.5 text-ink dark:text-zinc-200">
+        می‌خواهی چه کاری انجام دهی؟
+      </label>
+      <div className="grid grid-cols-6 gap-2">
+        {TYPES.map((t, i) => {
+          const active = type === t;
+          const Icon = TYPE_ICONS[t];
+          return (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setType(t)}
+              aria-pressed={active}
+              className={`${i < 3 ? "col-span-2" : "col-span-3"} rounded-xl px-2.5 py-2.5 text-[12px] font-bold border flex items-center justify-center gap-1.5 transition-[transform,colors] duration-150 active:scale-[0.97] ${
+                active
+                  ? "bg-brand-600 text-white border-brand-600"
+                  : "bg-[color:var(--circle-surface)] dark:bg-zinc-900 text-ink-muted border-stone-200/80 dark:border-zinc-700"
+              }`}
+            >
+              <Icon
+                className={`w-4 h-4 shrink-0 ${
+                  active ? "text-white" : "text-ink-muted"
+                }`}
+              />
+              {listingTypeIntentLabels[t]}
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
 
   const typeFields = (
     <>
@@ -740,37 +839,7 @@ const ListingComposeForm = forwardRef<
     <div className="flex flex-col">
       {step === "compose" ? (
         <>
-          <section className="mb-4">
-            <label className="block text-[13px] font-bold mb-1.5 text-ink dark:text-zinc-200">
-              می‌خواهی چه کاری انجام دهی؟
-            </label>
-            <div className="grid grid-cols-6 gap-2">
-              {TYPES.map((t, i) => {
-                const active = type === t;
-                const Icon = TYPE_ICONS[t];
-                return (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setType(t)}
-                    aria-pressed={active}
-                    className={`${i < 3 ? "col-span-2" : "col-span-3"} rounded-xl px-2.5 py-2.5 text-[12px] font-bold border flex items-center justify-center gap-1.5 transition-[transform,colors] duration-150 active:scale-[0.97] ${
-                      active
-                        ? "bg-brand-600 text-white border-brand-600"
-                        : "bg-[color:var(--circle-surface)] dark:bg-zinc-900 text-ink-muted border-stone-200/80 dark:border-zinc-700"
-                    }`}
-                  >
-                    <Icon
-                      className={`w-4 h-4 shrink-0 ${
-                        active ? "text-white" : "text-ink-muted"
-                      }`}
-                    />
-                    {listingTypeIntentLabels[t]}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
+          {typePicker}
 
           <ListingImagePicker
             photos={photos}
@@ -841,28 +910,44 @@ const ListingComposeForm = forwardRef<
         </>
       ) : (
         <>
-          {photos.length > 0 && (
-            <div className="flex gap-1.5 overflow-x-auto no-scrollbar mb-3">
-              {photos.map((src, i) => (
-                <div
-                  key={`${i}-${src.slice(0, 20)}`}
-                  className="w-14 h-14 rounded-lg overflow-hidden shrink-0 ring-1 ring-stone-200/70 dark:ring-zinc-700"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt="" className="w-full h-full object-cover" />
+          {editMode ? (
+            <>
+              {typePicker}
+              <ListingImagePicker
+                photos={photos}
+                onPhotosChange={setPhotos}
+                emoji={emoji}
+                onEmojiChange={setEmoji}
+                onError={(msg) => show(msg)}
+                category={listingTypeLabels[type]}
+              />
+            </>
+          ) : (
+            <>
+              {photos.length > 0 && (
+                <div className="flex gap-1.5 overflow-x-auto no-scrollbar mb-3">
+                  {photos.map((src, i) => (
+                    <div
+                      key={`${i}-${src.slice(0, 20)}`}
+                      className="w-14 h-14 rounded-lg overflow-hidden shrink-0 ring-1 ring-stone-200/70 dark:ring-zinc-700"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
+              )}
 
-          <div className="flex flex-wrap gap-1.5 mb-3">
-            <p className="inline-flex text-[12px] text-ink-muted dark:text-zinc-400 leading-relaxed rounded-lg bg-stone-50 dark:bg-zinc-800/60 px-2.5 py-1">
-              {listingTypeIntentLabels[type]}
-            </p>
-            <p className="inline-flex text-[12px] text-ink-muted dark:text-zinc-400 leading-relaxed rounded-lg bg-stone-50 dark:bg-zinc-800/60 px-2.5 py-1">
-              مخاطب: {privacyLabels[privacy]}
-            </p>
-          </div>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                <p className="inline-flex text-[12px] text-ink-muted dark:text-zinc-400 leading-relaxed rounded-lg bg-stone-50 dark:bg-zinc-800/60 px-2.5 py-1">
+                  {listingTypeIntentLabels[type]}
+                </p>
+                <p className="inline-flex text-[12px] text-ink-muted dark:text-zinc-400 leading-relaxed rounded-lg bg-stone-50 dark:bg-zinc-800/60 px-2.5 py-1">
+                  مخاطب: {privacyLabels[privacy]}
+                </p>
+              </div>
+            </>
+          )}
 
           <section className="mb-3">
             <label
@@ -945,6 +1030,17 @@ const ListingComposeForm = forwardRef<
           </div>
 
           {typeFields}
+
+          {editMode && (
+            <div className={hideActions ? "mb-2" : "mb-5"}>
+              <PrivacyPicker
+                value={privacy}
+                onChange={setPrivacy}
+                circle={circle}
+                compact
+              />
+            </div>
+          )}
 
           {draft && draft.questions.length > 0 && (
             <section className="mb-4 space-y-3">
@@ -1043,7 +1139,7 @@ const ListingComposeForm = forwardRef<
             </p>
           </section>
 
-          {!hideActions && (
+          {!hideActions && !editMode && (
             <button
               type="button"
               onClick={goBack}

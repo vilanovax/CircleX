@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
@@ -14,6 +14,7 @@ import SocialCreditCard from "@/components/SocialCreditCard";
 import SheetShell from "@/components/SheetShell";
 import {
   CalendarIcon,
+  CameraIcon,
   ClockIcon,
   HeartIcon,
   MapPinIcon,
@@ -21,17 +22,19 @@ import {
   PlusIcon,
   ShieldCheckIcon,
 } from "@/components/Icons";
-import { badgeLabels, eventKindEmoji, formatPrice } from "@/lib/labels";
 import {
-  buildSocialCredit,
-  evidenceSummaryLine,
-} from "@/lib/social-credit";
+  isAvatarImage,
+  PICKER_AVATARS,
+  withBasePath,
+} from "@/lib/avatar";
+import { badgeLabels, eventKindEmoji, formatPrice } from "@/lib/labels";
+import { buildSocialCredit } from "@/lib/social-credit";
 import { formatEventDateDisplay, toPersianDigits } from "@/lib/persian";
 import { CONCEPT_TIP_KEY } from "@/lib/home-tip";
 import { ThemeSegmented } from "@/components/ThemeToggle";
 import { useToast } from "@/components/Toast";
 import { ProfileSkeleton } from "@/components/Skeleton";
-import type { CircleEvent } from "@/lib/types";
+import type { CircleEvent, Listing } from "@/lib/types";
 
 type ActivityTab = "listings" | "events" | "saved" | "endorsements";
 
@@ -57,6 +60,16 @@ export default function ClassicProfile() {
     () => listings.filter((l) => l.sellerId === "me"),
     [listings],
   );
+  const liveListings = useMemo(
+    () => myListings.filter((l) => l.dealStatus !== "inactive"),
+    [myListings],
+  );
+  const inactiveListings = useMemo(
+    () => myListings.filter((l) => l.dealStatus === "inactive"),
+    [myListings],
+  );
+  const listingsSplit =
+    liveListings.length > 0 && inactiveListings.length > 0;
 
   const savedListings = useMemo(
     () =>
@@ -81,10 +94,6 @@ export default function ClassicProfile() {
   const socialCredit = useMemo(
     () => buildSocialCredit(me, listings, myCircleCount),
     [me, listings, myCircleCount],
-  );
-  const evidenceLine = useMemo(
-    () => evidenceSummaryLine(socialCredit),
-    [socialCredit],
   );
 
   const myGivenBadges = useMemo(
@@ -203,12 +212,12 @@ export default function ClassicProfile() {
 
         <SocialCreditCard
           stats={socialCredit}
-          title="این را حلقه‌ات می‌بیند"
-          subtitle={evidenceLine || "سابقه و تأییدهای قابل‌فهم از فعالیتت"}
-          activityLabel="نفر در حلقه‌ات"
+          title="سابقهٔ تو در حلقه"
+          subtitle="اعضای حلقه این را روی پروفایلت می‌بینند — امتیاز رسمی نیست"
           hideVerified
           collapsible
           defaultCollapsed
+          forSelf
         />
 
         <section id="activity" className="scroll-mt-24">
@@ -220,6 +229,7 @@ export default function ClassicProfile() {
             >
               {visibleTabs.map((t) => {
                 const active = activeTab === t.id;
+                const listingsTab = t.id === "listings";
                 return (
                   <button
                     key={t.id}
@@ -234,17 +244,41 @@ export default function ClassicProfile() {
                     }`}
                   >
                     {t.label}
-                    <span
-                      className={`ms-1 nums text-[11px] font-semibold ${
-                        active ? "text-white/85" : "text-ink-faint"
-                      }`}
-                    >
-                      {toPersianDigits(t.count)}
-                    </span>
+                    {listingsTab && listingsSplit ? (
+                      <span
+                        className={`ms-1 nums text-[11px] font-semibold ${
+                          active ? "text-white/85" : "text-ink-faint"
+                        }`}
+                      >
+                        {toPersianDigits(liveListings.length)}
+                        <span
+                          className={
+                            active ? "text-white/55" : "text-ink-faint/80"
+                          }
+                        >
+                          {" "}
+                          · {toPersianDigits(inactiveListings.length)}
+                        </span>
+                      </span>
+                    ) : (
+                      <span
+                        className={`ms-1 nums text-[11px] font-semibold ${
+                          active ? "text-white/85" : "text-ink-faint"
+                        }`}
+                      >
+                        {toPersianDigits(t.count)}
+                      </span>
+                    )}
                   </button>
                 );
               })}
             </div>
+          ) : visibleTabs.length === 1 &&
+            activeTab === "listings" &&
+            listingsSplit ? (
+            <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-200 mb-2.5 px-0.5">
+              آگهی‌ها
+            </h2>
           ) : visibleTabs.length === 1 ? (
             <div className="flex items-center gap-2 mb-2.5 px-0.5">
               <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-200">
@@ -254,11 +288,11 @@ export default function ClassicProfile() {
                 {toPersianDigits(visibleTabs[0].count)}
               </span>
             </div>
-          ) : (
+          ) : visibleTabs.length === 0 ? (
             <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-200 mb-2.5 px-0.5">
               فعالیت من
             </h2>
-          )}
+          ) : null}
 
           <div
             className="mt-0"
@@ -274,40 +308,29 @@ export default function ClassicProfile() {
                   cta="آگهی جدید"
                   icon="plus"
                 />
-              ) : (
-                <div className="card divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
-                  {myListings.map((l) => (
-                    <Link
-                      key={l.id}
-                      href={`/listing/${l.id}`}
-                      className="flex items-center gap-3 px-3 py-2.5 active:bg-stone-50/80 dark:active:bg-zinc-800/60"
-                    >
-                      <ListingImage
-                        image={l.image}
-                        alt={l.title}
-                        size="sm"
-                        category={l.category}
-                        type={l.type}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-[13px] text-ink dark:text-zinc-100 truncate">
-                          {l.title}
-                        </p>
-                        <p className="text-[11px] text-ink-muted mt-0.5">
-                          {l.price != null ? (
-                            <span className="nums">{formatPrice(l.price)}</span>
-                          ) : (
-                            "رایگان / توافقی"
-                          )}{" "}
-                          · {l.postedAt}
-                        </p>
-                      </div>
-                      <span className="text-ink-faint" aria-hidden>
-                        ‹
-                      </span>
-                    </Link>
-                  ))}
+              ) : listingsSplit ? (
+                <div className="space-y-3">
+                  <ListingGroup
+                    label="فعال"
+                    hint="در فید حلقه دیده می‌شود"
+                    listings={liveListings}
+                  />
+                  <ListingGroup
+                    label="غیرفعال"
+                    hint="از فید برداشته شده؛ در پروفایل می‌ماند"
+                    listings={inactiveListings}
+                    inactive
+                  />
                 </div>
+              ) : inactiveListings.length > 0 ? (
+                <ListingGroup
+                  label="غیرفعال"
+                  hint="از فید برداشته شده؛ در پروفایل می‌ماند"
+                  listings={inactiveListings}
+                  inactive
+                />
+              ) : (
+                <ListingGroup listings={liveListings} />
               )
             ) : null}
 
@@ -446,8 +469,8 @@ export default function ClassicProfile() {
           city={me.city ?? ""}
           avatar={me.avatar}
           onClose={() => setShowEdit(false)}
-          onSave={(input) => {
-            updateProfile(input);
+          onSave={async (input) => {
+            await updateProfile(input);
             setShowEdit(false);
             show("پروفایل به‌روزرسانی شد ✓");
           }}
@@ -491,10 +514,122 @@ function EventGroup({
   );
 }
 
+function ListingGroup({
+  label,
+  hint,
+  listings,
+  inactive = false,
+}: {
+  label?: string;
+  hint?: string;
+  listings: Listing[];
+  inactive?: boolean;
+}) {
+  return (
+    <div>
+      {label ? (
+        <div className="mb-1.5 px-0.5">
+          <p className="text-[11px] font-semibold text-ink-muted dark:text-zinc-400">
+            {label}
+            <span className="ms-1 nums text-ink-faint">
+              {toPersianDigits(listings.length)}
+            </span>
+          </p>
+          {hint ? (
+            <p className="text-[10px] text-ink-faint mt-0.5 leading-snug">
+              {hint}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      <div
+        className={`card divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden ${
+          inactive ? "bg-stone-50/90 dark:bg-zinc-900/55" : ""
+        }`}
+      >
+        {listings.map((l) => (
+          <ProfileListingRow key={l.id} listing={l} inactive={inactive} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProfileListingRow({
+  listing,
+  inactive,
+}: {
+  listing: Listing;
+  inactive?: boolean;
+}) {
+  const price =
+    listing.price != null ? (
+      <span className="nums">{formatPrice(listing.price)}</span>
+    ) : (
+      "رایگان / توافقی"
+    );
+
+  return (
+    <Link
+      href={`/listing/${listing.id}`}
+      aria-label={
+        inactive ? `${listing.title}، غیرفعال` : listing.title
+      }
+      className="flex items-center gap-3 px-3 py-2.5 active:bg-stone-50/80 dark:active:bg-zinc-800/60"
+    >
+      <ListingImage
+        image={listing.image}
+        alt={listing.title}
+        size="sm"
+        category={listing.category}
+        type={listing.type}
+        className={inactive ? "grayscale" : ""}
+      />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <p
+            className={`font-semibold text-[13px] truncate ${
+              inactive
+                ? "text-ink-muted dark:text-zinc-400"
+                : "text-ink dark:text-zinc-100"
+            }`}
+          >
+            {listing.title}
+          </p>
+          {inactive ? (
+            <span className="shrink-0 chip !text-[10px] !py-0.5 !px-1.5 bg-stone-200/80 text-ink-muted dark:bg-zinc-800 dark:text-zinc-400">
+              غیرفعال
+            </span>
+          ) : null}
+        </div>
+        <p className="text-[11px] text-ink-muted mt-0.5">
+          {price} · {listing.postedAt}
+        </p>
+      </div>
+      <span className="text-ink-faint" aria-hidden>
+        ‹
+      </span>
+    </Link>
+  );
+}
+
+function editAvatarChoices(current?: string): string[] {
+  const list: string[] = [...PICKER_AVATARS];
+  if (
+    current &&
+    isAvatarImage(current) &&
+    !current.startsWith("data:") &&
+    !list.includes(current)
+  ) {
+    list.unshift(current);
+  }
+  return list;
+}
+
 function EditProfileSheet({
   name: initialName,
   city: initialCity,
-  avatar,
+  avatar: initialAvatar,
   onClose,
   onSave,
 }: {
@@ -502,70 +637,182 @@ function EditProfileSheet({
   city: string;
   avatar?: string;
   onClose: () => void;
-  onSave: (input: { name: string; city: string }) => void;
+  onSave: (input: {
+    name: string;
+    city: string;
+    avatar: string;
+  }) => Promise<void>;
 }) {
   const [name, setName] = useState(initialName);
   const [city, setCity] = useState(initialCity);
-  const canSave = Boolean(name.trim());
+  const [avatar, setAvatar] = useState(
+    () =>
+      initialAvatar && isAvatarImage(initialAvatar)
+        ? initialAvatar
+        : PICKER_AVATARS[0],
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const avatarGroupId = useId();
+  const choices = useMemo(() => editAvatarChoices(initialAvatar), [initialAvatar]);
+  const canSave = name.trim().length >= 2 && !busy;
+
+  async function save() {
+    const trimmed = name.trim();
+    if (trimmed.length < 2) {
+      setError("نام را حداقل با دو حرف بنویس");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await onSave({ name: trimmed, city: city.trim(), avatar });
+    } catch {
+      setError("ذخیره نشد. دوباره امتحان کن.");
+      setBusy(false);
+    }
+  }
 
   return (
     <SheetShell
       onClose={onClose}
       labelledBy="edit-profile-title"
       zClass="z-50"
+      maxHeight="92dvh"
       footer={
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="btn-ghost flex-1 !py-3.5"
-          >
-            انصراف
-          </button>
+        <div className="flex gap-2 pb-0.5">
           <button
             type="button"
             disabled={!canSave}
-            onClick={() => onSave({ name: name.trim(), city: city.trim() })}
-            className="btn-primary flex-1 !py-3.5 shadow-lg shadow-brand-600/20"
+            onClick={() => void save()}
+            className="btn-primary flex-1 !py-3.5 !font-bold active:scale-[0.98] disabled:opacity-40"
           >
-            ذخیره
+            {busy ? "در حال ذخیره…" : "ذخیره"}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onClose}
+            className="btn-ghost flex-1 !py-3.5 active:scale-[0.98]"
+          >
+            انصراف
           </button>
         </div>
       }
     >
       <h2
         id="edit-profile-title"
-        className="font-extrabold text-[1.15rem] mb-4 text-ink dark:text-zinc-100"
+        className="font-extrabold text-[1.2rem] text-ink dark:text-zinc-50 tracking-tight"
       >
         ویرایش پروفایل
       </h2>
+      <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
+        نام و تصویر را حلقه‌ات می‌بیند — نه غریبه‌ها.
+      </p>
 
-      <div className="flex flex-col items-center mb-5">
-        <div className="rounded-full ring-[3px] ring-brand-100 dark:ring-brand-500/30 shadow-md shadow-brand-600/10">
-          <Avatar name={name.trim() || initialName} src={avatar} size="lg" />
+      <div className="flex flex-col items-center mt-5 mb-1">
+        <div className="relative">
+          <div className="rounded-full ring-[3px] ring-brand-100 dark:ring-brand-500/30 shadow-md shadow-brand-600/10">
+            <Avatar
+              name={name.trim() || initialName}
+              src={avatar}
+              size="lg"
+              showLevel={false}
+            />
+          </div>
+          <span
+            className="absolute -bottom-0.5 -start-0.5 w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center shadow-sm ring-2 ring-[color:var(--circle-surface)] dark:ring-zinc-900 pointer-events-none"
+            aria-hidden
+          >
+            <CameraIcon className="w-4 h-4" />
+          </span>
         </div>
       </div>
 
-      <label className="block text-[12px] font-semibold mb-1.5 text-ink-muted">
+      <p
+        id={avatarGroupId}
+        className="text-[12px] font-bold text-ink dark:text-zinc-200 mt-4 mb-1"
+      >
+        تصویر
+      </p>
+      <p className="text-[11px] text-ink-muted mb-2.5 leading-snug">
+        یکی را بزن تا عوض شود
+      </p>
+      <div
+        role="radiogroup"
+        aria-labelledby={avatarGroupId}
+        className="grid grid-cols-5 gap-2.5"
+      >
+        {choices.map((src, i) => {
+          const selected = avatar === src;
+          return (
+            <button
+              key={src}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              aria-label={`تصویر ${i + 1}`}
+              disabled={busy}
+              onClick={() => setAvatar(src)}
+              className={`relative aspect-square rounded-full overflow-hidden bg-zinc-100 dark:bg-zinc-800 transition-transform active:scale-95 ${
+                selected
+                  ? "ring-[2.5px] ring-brand-600 ring-offset-2 ring-offset-[color:var(--circle-surface)] dark:ring-offset-zinc-900"
+                  : "ring-1 ring-black/10 dark:ring-white/10"
+              }`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={withBasePath(src)}
+                alt=""
+                width={64}
+                height={64}
+                className="w-full h-full object-cover"
+                draggable={false}
+              />
+            </button>
+          );
+        })}
+      </div>
+
+      <label className="block text-[12px] font-bold mt-5 mb-1.5 text-ink dark:text-zinc-200">
         نام
       </label>
       <input
         value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="نام شما"
-        className="field mb-4"
-        autoFocus
+        onChange={(e) => {
+          setError(null);
+          setName(e.target.value);
+        }}
+        placeholder="نام تو"
+        autoComplete="name"
+        spellCheck={false}
+        disabled={busy}
+        className="field !min-h-12 !font-semibold"
+        aria-invalid={!!error}
+        aria-describedby={error ? "edit-profile-error" : undefined}
       />
 
-      <label className="block text-[12px] font-semibold mb-1.5 text-ink-muted">
+      <label className="block text-[12px] font-bold mt-4 mb-1.5 text-ink dark:text-zinc-200">
         شهر
       </label>
       <input
         value={city}
         onChange={(e) => setCity(e.target.value)}
         placeholder="مثلاً تهران"
-        className="field mb-2"
+        autoComplete="address-level2"
+        spellCheck={false}
+        disabled={busy}
+        className="field !min-h-12"
       />
+      {error ? (
+        <p
+          id="edit-profile-error"
+          role="alert"
+          className="text-[12px] text-red-600 mt-2.5"
+        >
+          {error}
+        </p>
+      ) : null}
     </SheetShell>
   );
 }

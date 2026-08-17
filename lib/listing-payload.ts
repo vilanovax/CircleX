@@ -16,7 +16,12 @@ export const LISTING_PRIVACY: Privacy[] = [
   "approved",
 ];
 
-export const LISTING_DEAL = ["available", "reserved", "agreed"] as const;
+export const LISTING_DEAL = [
+  "available",
+  "reserved",
+  "agreed",
+  "inactive",
+] as const;
 
 export type ListingDealStatus = (typeof LISTING_DEAL)[number];
 

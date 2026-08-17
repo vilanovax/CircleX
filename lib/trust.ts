@@ -64,10 +64,12 @@ export function canView(
     hostId?: string;
     privacy: Privacy;
     trustPath: TrustHop[];
+    dealStatus?: "available" | "reserved" | "agreed" | "inactive";
   },
   getPerson: (id: string) => Person | undefined,
 ): boolean {
   const posterId = poster.sellerId ?? poster.requesterId ?? poster.hostId ?? "";
+  if (poster.dealStatus === "inactive" && posterId !== "me") return false;
   if (posterId === "me") return true;
   // "approved" also requires a direct connection, not just a high score via path.
   if (poster.privacy === "approved" && poster.trustPath.length > 0) return false;
@@ -309,8 +311,9 @@ export function filterByAccess(
   listings: Listing[],
   getPerson: (id: string) => Person | undefined,
 ): { visible: Listing[]; hidden: number } {
-  const visible = listings.filter((l) => canView(l, getPerson));
-  return { visible, hidden: listings.length - visible.length };
+  const published = listings.filter((l) => l.dealStatus !== "inactive");
+  const visible = published.filter((l) => canView(l, getPerson));
+  return { visible, hidden: published.length - visible.length };
 }
 
 /**

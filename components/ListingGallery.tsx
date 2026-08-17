@@ -51,7 +51,7 @@ export default function ListingGallery({
   };
 
   return (
-    <div className="relative listing-detail-hero">
+    <div className="relative z-0 listing-detail-hero">
       <div
         ref={scrollerRef}
         onScroll={syncIndex}

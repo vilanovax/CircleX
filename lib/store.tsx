@@ -19,8 +19,10 @@ import {
   PEOPLE,
 } from "./mock-data";
 import {
+  reconcileDemoMessages,
   reconcileDemoOffers,
   reconcileDemoRequests,
+  viewerListingsMissing,
 } from "./demo-requests";
 import { clearThreadListing } from "./thread-listing";
 import type {
@@ -184,6 +186,7 @@ export interface StoreValue {
   setLevel: (id: string, level: TrustLevel) => void;
   setRelation: (id: string, relation: RelationType) => void;
   addListing: (input: NewListingInput) => Promise<string>;
+  updateListing: (id: string, input: NewListingInput) => Promise<void>;
   setListingDealStatus: (
     listingId: string,
     status: NonNullable<Listing["dealStatus"]>,
@@ -201,7 +204,9 @@ export interface StoreValue {
   meServerId: string | null;
   refreshCircle: () => Promise<void>;
   refreshGraph: () => Promise<void>;
-  updateProfile: (input: Partial<Pick<Person, "name" | "avatar" | "city">>) => void;
+  updateProfile: (
+    input: Partial<Pick<Person, "name" | "avatar" | "city">>,
+  ) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -282,6 +287,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const peopleRef = useRef(people);
   peopleRef.current = people;
+  const listingsRef = useRef(listings);
+  listingsRef.current = listings;
 
   const applyCirclePayload = useCallback(
     (data: CirclePayload, opts?: { full?: boolean; keepGraph?: boolean }) => {
@@ -316,6 +323,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setListings(data.listings ?? []);
       setRequests((prev) => reconcileDemoRequests(prev, mergedPeople));
       setOffers((prev) => reconcileDemoOffers(prev, mergedPeople));
+      setMessages((prev) =>
+        reconcileDemoMessages(prev, mergedPeople, data.listings ?? []),
+      );
       setCircleReady(true);
       if (full) setCircleFull(true);
       else if (!keepGraph) setCircleFull(false);
@@ -354,6 +364,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setPeople(next);
     setRequests((r) => reconcileDemoRequests(r, next));
     setOffers((o) => reconcileDemoOffers(o, next));
+    setMessages((m) => reconcileDemoMessages(m, next, listingsRef.current));
     setCircleFull(true);
   }, []);
 
@@ -376,8 +387,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const data = await loadHome();
         if (
           !opts?.needsSeed &&
-          data.members.length === 0 &&
-          (data.listings?.length ?? 0) === 0
+          (viewerListingsMissing(data.listings ?? []) ||
+            (data.members.length === 0 && (data.listings?.length ?? 0) === 0))
         ) {
           await api("/api/auth/seed-circle", { method: "POST" }).catch(
             () => null,
@@ -484,8 +495,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           const home = await homePromise;
           if (cancelled) return;
           if (
-            home.members.length === 0 &&
-            (home.listings?.length ?? 0) === 0
+            viewerListingsMissing(home.listings ?? []) ||
+            (home.members.length === 0 &&
+              (home.listings?.length ?? 0) === 0)
           ) {
             await api("/api/auth/seed-circle", { method: "POST" }).catch(
               () => null,
@@ -596,10 +608,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const updateProfile = useCallback(
-    (input: Partial<Pick<Person, "name" | "avatar" | "city">>) => {
-      setMeProfile((prev) => ({ ...prev, ...input }));
+    async (input: Partial<Pick<Person, "name" | "avatar" | "city">>) => {
+      const name = (input.name ?? meProfile.name).trim();
+      const { user } = await api<{ user: SessionUser }>("/api/me", {
+        method: "PATCH",
+        body: JSON.stringify({
+          name,
+          avatar: input.avatar,
+          city: input.city,
+        }),
+      });
+      applyUserLocal(user);
     },
-    [],
+    [applyUserLocal, meProfile.name],
   );
 
   const getListing = useCallback(
@@ -1027,6 +1048,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return listing.id;
   }, []);
 
+  const updateListing = useCallback(
+    async (id: string, input: NewListingInput) => {
+      const { listing } = await api<{ listing: Listing }>(
+        `/api/listings/${encodeURIComponent(id)}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(input),
+        },
+      );
+      setListings((prev) =>
+        prev.map((row) => (row.id === listing.id ? listing : row)),
+      );
+    },
+    [],
+  );
+
   const setListingDealStatus = useCallback(
     async (listingId: string, status: NonNullable<Listing["dealStatus"]>) => {
       setListings((prev) =>
@@ -1272,6 +1309,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setLevel,
       setRelation,
       addListing,
+      updateListing,
       setListingDealStatus,
       toggleEndorsement,
       addRequest,
@@ -1345,6 +1383,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setLevel,
       setRelation,
       addListing,
+      updateListing,
       setListingDealStatus,
       toggleEndorsement,
       addRequest,

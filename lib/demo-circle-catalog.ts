@@ -25,7 +25,7 @@ export type DemoListingDef = {
   images: string[];
   condition?: string;
   privacy: Privacy;
-  dealStatus?: "available" | "reserved" | "agreed";
+  dealStatus?: "available" | "reserved" | "agreed" | "inactive";
 };
 
 export type DemoPersonDef = {
@@ -291,6 +291,57 @@ export const DEMO_FOF: {
         privacy: "ABC",
       },
     ],
+  },
+];
+
+/**
+ * Three listings posted *by the logged-in viewer* so they can test
+ * seller inbox, profile ads, and incoming messages from the demo circle.
+ * Seeded idempotently by title.
+ */
+export const VIEWER_LISTING_DEFS: DemoListingDef[] = [
+  {
+    title: "مبل راحتی دونفره — سالم",
+    description:
+      "مبل پارچه‌ای دونفره. فنرها سالم، پارچه تمیز. مناسب پذیرایی کوچک. بازدید در خانه.",
+    type: "sale",
+    price: 4_800_000,
+    category: "لوازم خانه",
+    image:
+      "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80",
+    ],
+    condition: "کارکرده تمیز",
+    privacy: "ABC",
+  },
+  {
+    title: "کمک در جابه‌جایی خانه — یک روز",
+    description:
+      "جمع کردن کارتن و حمل سبک داخل تهران. ماشین کوچک دارم. یک روز کامل هماهنگ می‌کنیم.",
+    type: "service",
+    price: 1_200_000,
+    category: "خدمات",
+    image:
+      "https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=800&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=800&q=80",
+    ],
+    privacy: "ABC",
+  },
+  {
+    title: "کتاب‌های کودک ۷–۹ سال — رایگان",
+    description:
+      "چند جلد داستان و علمی که دیگر نمی‌خوانیم. تمیز و بدون پارگی. رایگان برای حلقه.",
+    type: "donation",
+    category: "کتاب",
+    image:
+      "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=800&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=800&q=80",
+    ],
+    condition: "سالم",
+    privacy: "ABC",
   },
 ];
 

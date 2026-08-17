@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { Listing } from "@/lib/types";
 import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
-import { formatPrice, privacyLabels } from "@/lib/labels";
+import { formatPrice, listingDisplayTitle, privacyLabels } from "@/lib/labels";
 import { privacyAudience } from "@/lib/trust";
 import ListingImage from "./ListingImage";
 import TrustHighlight from "./TrustHighlight";
@@ -32,7 +32,9 @@ export default function ListingCard({
   /** LCP: first visible feed photo. */
   imagePriority?: boolean;
 }) {
-  const people = useStore((s) => (compactTrust ? null : s.people));
+  const people = useStore((s) =>
+    compactTrust || hideTrust ? null : s.people,
+  );
   const circle = people ? activeCircle(people) : [];
   const isService = listing.type === "service";
 
@@ -70,7 +72,7 @@ export default function ListingCard({
                 compactTrust ? "text-[14px]" : "text-[15px]"
               }`}
             >
-              {listing.title}
+              {listingDisplayTitle(listing.title, listing.type)}
             </h3>
             <div className={compactTrust ? "mt-0.5" : "mt-1"}>
               {listing.price != null ? (
@@ -116,7 +118,7 @@ export default function ListingCard({
               ·
             </span>
             <span className="shrink-0">{listing.postedAt}</span>
-            {!audienceHint && (
+            {!hideTrust && !audienceHint && (
               <span
                 className="mr-auto max-w-[9.5rem] truncate text-[10px] text-ink-muted dark:text-zinc-500"
                 title={privacyAudience(listing.privacy, circle)}

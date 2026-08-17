@@ -262,18 +262,20 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
                     ? "توافقی"
                     : "رایگان"}
                 {" · "}
-                {dealStatus === "reserved"
-                  ? "رزرو شده"
-                  : dealStatus === "agreed"
-                    ? "توافق شده"
-                    : "موجود"}
+                {dealStatus === "inactive"
+                  ? "غیرفعال"
+                  : dealStatus === "reserved"
+                    ? "رزرو شده"
+                    : dealStatus === "agreed"
+                      ? "توافق شده"
+                      : "موجود"}
               </p>
             </div>
             <span className="text-ink-faint text-sm" aria-hidden>
               ‹
             </span>
           </Link>
-          {isSellerOfContext && (
+          {isSellerOfContext && dealStatus !== "inactive" && (
             <div className="mt-2.5">
               <p className="text-[10px] font-semibold text-ink-faint mb-1.5">
                 وضعیت آگهی را برای طرف مقابل مشخص کن

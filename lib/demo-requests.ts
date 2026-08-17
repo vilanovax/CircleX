@@ -1,10 +1,19 @@
 import {
   DEMO_DIRECT,
   DEMO_FOF,
+  VIEWER_LISTING_DEFS,
   type DemoPersonKey,
 } from "@/lib/demo-circle-catalog";
 import { relationLabels, relationTowardName } from "@/lib/labels";
-import type { Offer, Person, Privacy, BudgetUnit, Request } from "@/lib/types";
+import type {
+  Listing,
+  Message,
+  Offer,
+  Person,
+  Privacy,
+  BudgetUnit,
+  Request,
+} from "@/lib/types";
 
 export type DemoRequestDef = {
   id: string;
@@ -134,6 +143,144 @@ export const DEMO_OFFER_DEFS: DemoOfferDef[] = [
   },
 ];
 
+/** Two wants posted by the logged-in viewer — others in the circle have acted. */
+export const VIEWER_REQUEST_DEFS: Omit<DemoRequestDef, "requesterKey">[] = [
+  {
+    id: "demo_req_me_lamp",
+    title: "چراغ مطالعه سالم برای میز کار",
+    description:
+      "چراغ رومیزی با نور سفید. اگر اضافه دارید بگویید — نو لازم نیست، فقط سالم باشد.",
+    category: "لوازم خانه",
+    image: "💡",
+    budget: 800_000,
+    budgetUnit: "total",
+    privacy: "ABC",
+    postedAt: "دیروز",
+    city: "تهران",
+  },
+  {
+    id: "demo_req_me_english",
+    title: "تمرین مکالمه انگلیسی هفته‌ای یک جلسه",
+    description:
+      "سطح متوسط. ترجیحاً حضوری نزدیک محله یا آنلاین. صبور باشد، برای کار می‌خواهم روان‌تر حرف بزنم.",
+    category: "آموزش",
+    image: "🗣️",
+    budget: 1_500_000,
+    budgetUnit: "session",
+    privacy: "AB",
+    postedAt: "۳ ساعت پیش",
+    city: "تهران",
+  },
+];
+
+export const VIEWER_OFFER_DEFS: DemoOfferDef[] = [
+  {
+    id: "demo_offer_me_lamp_reza",
+    requestId: "demo_req_me_lamp",
+    fromKey: "reza",
+    message:
+      "یه چراغ مطالعه ایکیا دارم که دیگه لازم ندارم. سالمه، حبابشم عوض کردم. ۶۵۰ می‌دم.",
+    price: 650_000,
+    postedAt: "۸ ساعت پیش",
+  },
+  {
+    id: "demo_offer_me_lamp_ali",
+    requestId: "demo_req_me_lamp",
+    fromKey: "ali",
+    message:
+      "همسایه‌ام یکی اضافه داره. می‌تونم امانت چندروزه برات بگیرم تا خودت بخری.",
+    postedAt: "۵ ساعت پیش",
+  },
+  {
+    id: "demo_offer_me_english_leila",
+    requestId: "demo_req_me_english",
+    fromKey: "leila",
+    message:
+      "خودم هفته‌ای یک جلسه می‌تونم بیام. با سطح متوسط راحت‌ام. اگر بخوای اول یک جلسه آزمایشی.",
+    price: 1_200_000,
+    postedAt: "۱ ساعت پیش",
+  },
+];
+
+type ViewerMessageDef = {
+  id: string;
+  fromKey: DemoPersonKey;
+  fromMe: boolean;
+  text: string;
+  postedAt: string;
+  read: boolean;
+  listingTitle?: string;
+};
+
+/**
+ * Incoming (and one reply) threads about the viewer's own listings / request.
+ * Bound to live person + listing ids at runtime.
+ */
+export const VIEWER_MESSAGE_DEFS: ViewerMessageDef[] = [
+  {
+    id: "demo_msg_reza_books_1",
+    fromKey: "reza",
+    fromMe: false,
+    text: "کتاب‌های کودک رو دیدم. هنوز می‌تونی بدی؟ خواهرزاده‌ام کلاس دومه.",
+    postedAt: "دیروز",
+    read: true,
+    listingTitle: "کتاب‌های کودک ۷–۹ سال — رایگان",
+  },
+  {
+    id: "demo_msg_reza_books_2",
+    fromKey: "reza",
+    fromMe: true,
+    text: "آره هنوز هست. هر وقت خواستی بیا بردار.",
+    postedAt: "دیروز",
+    read: true,
+    listingTitle: "کتاب‌های کودک ۷–۹ سال — رایگان",
+  },
+  {
+    id: "demo_msg_leila_move_1",
+    fromKey: "leila",
+    fromMe: false,
+    text: "برای جابه‌جایی آخر هفته می‌تونم کمکت کنم. چند تا کارتن داریم، ماشین هم هست.",
+    postedAt: "۵ ساعت پیش",
+    read: false,
+    listingTitle: "کمک در جابه‌جایی خانه — یک روز",
+  },
+  {
+    id: "demo_msg_leila_english_1",
+    fromKey: "leila",
+    fromMe: false,
+    text: "برای درخواست زبانت هم اگر هنوز بازه، خودم می‌تونم هفته‌ای یک جلسه بیام.",
+    postedAt: "۳ ساعت پیش",
+    read: false,
+  },
+  {
+    id: "demo_msg_ali_sofa_1",
+    fromKey: "ali",
+    fromMe: false,
+    text: "سلام، مبل راحتی هنوز هست؟ برای پذیرایی کوچیک می‌خوام.",
+    postedAt: "۲ ساعت پیش",
+    read: true,
+    listingTitle: "مبل راحتی دونفره — سالم",
+  },
+  {
+    id: "demo_msg_ali_sofa_2",
+    fromKey: "ali",
+    fromMe: true,
+    text: "آره هنوز هست. می‌تونی بیای ببینی — عصرها خانه‌ام.",
+    postedAt: "۲ ساعت پیش",
+    read: true,
+    listingTitle: "مبل راحتی دونفره — سالم",
+  },
+  {
+    id: "demo_msg_ali_sofa_3",
+    fromKey: "ali",
+    fromMe: false,
+    text: "عالی. پنجشنبه عصر اوکی هستی؟ می‌خوام قبلش ابعاد را هم بپرسم.",
+    postedAt: "۴۰ دقیقه پیش",
+    read: false,
+    listingTitle: "مبل راحتی دونفره — سالم",
+  },
+];
+
 const DEMO_NAME_BY_KEY: Record<string, string> = Object.fromEntries([
   ...DEMO_DIRECT.map((p) => [p.key, p.name] as const),
   ...DEMO_FOF.map((p) => [p.key, p.name] as const),
@@ -202,9 +349,27 @@ export function bindDemoRequests(people: Person[]): {
     });
   }
 
+  for (const def of VIEWER_REQUEST_DEFS) {
+    requests.push({
+      id: def.id,
+      title: def.title,
+      description: def.description,
+      category: def.category,
+      image: def.image,
+      requesterId: "me",
+      postedAt: def.postedAt,
+      budget: def.budget,
+      budgetUnit: def.budgetUnit,
+      privacy: def.privacy,
+      trustPath: [],
+      endorsements: [],
+      city: def.city,
+    });
+  }
+
   const requestIds = new Set(requests.map((r) => r.id));
   const offers: Offer[] = [];
-  for (const def of DEMO_OFFER_DEFS) {
+  for (const def of [...DEMO_OFFER_DEFS, ...VIEWER_OFFER_DEFS]) {
     if (!requestIds.has(def.requestId)) continue;
     const from = personByDemoKey(people, def.fromKey);
     if (!from) continue;
@@ -227,6 +392,60 @@ export function isDemoRequestId(id: string): boolean {
 
 export function isDemoOfferId(id: string): boolean {
   return id.startsWith("demo_offer_");
+}
+
+export function isDemoMessageId(id: string): boolean {
+  return id.startsWith("demo_msg_");
+}
+
+export function viewerListingsMissing(listings: Listing[]): boolean {
+  const mine = listings.filter((l) => l.sellerId === "me");
+  return VIEWER_LISTING_DEFS.some(
+    (def) => !mine.some((l) => l.title === def.title),
+  );
+}
+
+function listingIdByTitle(
+  listings: Listing[],
+  title: string | undefined,
+): string | undefined {
+  if (!title) return undefined;
+  return listings.find((l) => l.sellerId === "me" && l.title === title)?.id;
+}
+
+export function bindViewerMessages(
+  people: Person[],
+  listings: Listing[],
+): Message[] {
+  const out: Message[] = [];
+  for (const def of VIEWER_MESSAGE_DEFS) {
+    const peer = personByDemoKey(people, def.fromKey);
+    if (!peer) continue;
+    const listingId = listingIdByTitle(listings, def.listingTitle);
+    out.push({
+      id: def.id,
+      peerId: peer.id,
+      fromMe: def.fromMe,
+      text: def.text,
+      postedAt: def.postedAt,
+      read: def.read,
+      ...(listingId ? { listingId } : {}),
+    });
+  }
+  return out;
+}
+
+export function reconcileDemoMessages(
+  prev: Message[],
+  people: Person[],
+  listings: Listing[],
+): Message[] {
+  const bound = bindViewerMessages(people, listings);
+  const peopleIds = new Set(people.map((p) => p.id));
+  const userRows = prev.filter(
+    (m) => !isDemoMessageId(m.id) && peopleIds.has(m.peerId),
+  );
+  return [...userRows, ...bound];
 }
 
 /** Keep user-authored rows; replace seeded demo rows from the catalog. */

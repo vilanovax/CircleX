@@ -32,13 +32,18 @@ export default function Header({
   }
 
   return (
-    <header className="sticky top-0 z-20 bg-[color:var(--circle-surface)]/92 dark:bg-zinc-900/90 backdrop-blur-xl border-b border-stone-200/60 dark:border-zinc-800">
-      <div className="flex items-center gap-2 px-4 h-14">
+    <header className="sticky top-0 z-30 isolate pt-[env(safe-area-inset-top,0px)]">
+      {/* Blur on a sibling layer so Safari doesn't clip header actions */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[color:var(--circle-surface)]/92 dark:bg-zinc-900/90 backdrop-blur-xl border-b border-stone-200/60 dark:border-zinc-800"
+      />
+      <div className="relative flex min-h-14 items-center gap-2 px-4 py-2">
         {back && (
           <button
             onClick={handleBack}
             aria-label="برگشت"
-            className="-mr-2 w-9 h-9 flex items-center justify-center text-ink-muted dark:text-zinc-300 active:text-ink dark:active:text-zinc-100"
+            className="-mr-2 inline-grid size-9 shrink-0 place-items-center appearance-none p-0 leading-none text-ink-muted dark:text-zinc-300 active:text-ink dark:active:text-zinc-100"
           >
             <BackIcon className="w-6 h-6" />
           </button>
@@ -57,7 +62,9 @@ export default function Header({
             </>
           )}
         </div>
-        {action}
+        {action ? (
+          <div className="flex shrink-0 items-center self-center">{action}</div>
+        ) : null}
       </div>
     </header>
   );

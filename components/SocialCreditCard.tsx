@@ -8,49 +8,52 @@ import { toPersianDigits } from "@/lib/persian";
 export default function SocialCreditCard({
   stats,
   subtitle,
-  activityLabel,
-  circleLabel,
   hideVerified = false,
   collapsible = false,
   defaultCollapsed = false,
-  title = "سابقه و تأییدها",
+  title = "سابقهٔ تو در حلقه",
+  forSelf = false,
 }: {
   stats: SocialCreditStats;
   subtitle?: string;
-  /** Label for activityCount / legacy circleSize metric. */
-  activityLabel?: string;
-  /** @deprecated Prefer activityLabel */
-  circleLabel?: string;
   hideVerified?: boolean;
   collapsible?: boolean;
   defaultCollapsed?: boolean;
   title?: string;
+  /** Second-person copy for the owner’s own profile. */
+  forSelf?: boolean;
 }) {
   const [open, setOpen] = useState(!defaultCollapsed);
   const [showCalc, setShowCalc] = useState(false);
-  const resolvedActivityLabel =
-    activityLabel ?? circleLabel ?? "فعالیت در حلقه";
 
-  const activity =
-    stats.activityCount ??
-    (stats as SocialCreditStats & { circleSize?: number }).circleSize ??
-    0;
+  const deals = stats.successfulDeals;
+  const endorsements = stats.endorsementsReceived;
+  const response = formatPercent(stats.responseRate);
 
-  const evidenceBits: string[] = [];
-  if (stats.successfulDeals > 0) {
-    evidenceBits.push(
-      `${toPersianDigits(stats.successfulDeals)} معامله تکمیل‌شده`,
-    );
-  }
-  if (stats.endorsementsReceived > 0) {
-    evidenceBits.push(
-      `${toPersianDigits(stats.endorsementsReceived)} تأیید از اعضای حلقه`,
-    );
-  }
   const collapsedSummary =
-    evidenceBits.length > 0
-      ? evidenceBits.join(" · ")
-      : `عضو از ${stats.memberSince}`;
+    deals > 0
+      ? `${toPersianDigits(deals)} معامله · پاسخ‌گویی ${response}`
+      : `عضو از ${stats.memberSince} · پاسخ‌گویی ${response}`;
+
+  const openSubtitle =
+    subtitle ??
+    (forSelf
+      ? "اعضای حلقه این را روی پروفایلت می‌بینند — امتیاز رسمی نیست"
+      : "سابقه و تأییدهای اعضا، نه امتیاز رسمی");
+
+  const dealsLine =
+    deals > 0
+      ? `${toPersianDigits(deals)} معامله با حلقه`
+      : forSelf
+        ? "هنوز معاملهٔ تکمیل‌شده‌ای ثبت نشده"
+        : "هنوز معاملهٔ تکمیل‌شده‌ای ندارد";
+
+  const endorseLine =
+    endorsements > 0
+      ? `${toPersianDigits(endorsements)} تأیید از اعضای حلقه`
+      : forSelf
+        ? "هنوز کسی تأییدت نکرده"
+        : "هنوز تأییدی از حلقه نگرفته";
 
   return (
     <div className="card overflow-hidden">
@@ -65,8 +68,12 @@ export default function SocialCreditCard({
             <p className="text-[13px] font-extrabold text-ink dark:text-zinc-100">
               {title}
             </p>
-            <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 nums truncate">
-              {open ? subtitle ?? "سابقه و تأییدهای اعضا، نه امتیاز رسمی" : collapsedSummary}
+            <p
+              className={`text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 nums leading-relaxed ${
+                open ? "" : "truncate"
+              }`}
+            >
+              {open ? openSubtitle : collapsedSummary}
             </p>
           </div>
           <span
@@ -80,56 +87,53 @@ export default function SocialCreditCard({
         </button>
       ) : (
         <div className="px-3.5 pt-3.5 pb-1">
-          <div className="flex items-start justify-between gap-3 mb-2">
-            <div className="min-w-0">
-              <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-100">
-                {title}
-              </h2>
-              {subtitle && (
-                <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5">
-                  {subtitle}
-                </p>
-              )}
-              {stats.verified && !hideVerified && stats.verifiedLabel && (
-                <p className="text-[11px] font-medium text-ink-muted dark:text-zinc-400 mt-1">
-                  {stats.verifiedLabel}
-                </p>
-              )}
-            </div>
-          </div>
+          <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-100">
+            {title}
+          </h2>
+          <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-relaxed">
+            {openSubtitle}
+          </p>
+          {stats.verified && !hideVerified && stats.verifiedLabel && (
+            <p className="text-[11px] font-medium text-ink-muted dark:text-zinc-400 mt-1">
+              {stats.verifiedLabel}
+            </p>
+          )}
         </div>
       )}
 
       {(!collapsible || open) && (
         <div
-          className={`px-3.5 pb-3.5 animate-fade-up ${collapsible ? "pt-0" : ""}`}
+          className={`px-3.5 pb-3.5 animate-fade-up ${collapsible ? "pt-0" : "pt-2"}`}
         >
-          <div className="grid grid-cols-2 gap-2">
-            <Metric
-              value={toPersianDigits(stats.successfulDeals)}
-              label="معامله تکمیل‌شده"
-            />
-            <Metric
-              value={toPersianDigits(stats.endorsementsReceived)}
-              label="تأیید از اعضای حلقه"
-            />
-            <Metric value={stats.memberSince} label="عضو از" />
-            <Metric
-              value={formatPercent(stats.responseRate)}
-              label="پاسخ‌گویی به پیام‌ها"
-            />
-          </div>
+          <p
+            className={`text-[15px] leading-snug ${
+              deals > 0
+                ? "font-extrabold text-ink dark:text-zinc-50"
+                : "font-semibold text-ink-muted dark:text-zinc-400"
+            }`}
+          >
+            {dealsLine}
+          </p>
+          <p
+            className={`mt-1 text-[13px] leading-relaxed ${
+              endorsements > 0
+                ? "font-bold text-ink dark:text-zinc-100"
+                : "text-ink-muted dark:text-zinc-400"
+            }`}
+          >
+            {endorseLine}
+          </p>
+          <p className="mt-2.5 text-[12px] text-ink-faint dark:text-zinc-500 leading-relaxed nums">
+            عضو از {stats.memberSince}
+            {" · "}
+            پاسخ‌گویی به پیام‌ها {response}
+          </p>
 
           {stats.endorsementsGiven > 0 && (
-            <p className="text-[11px] text-ink-faint mt-3 leading-relaxed px-0.5">
-              تأییدهای ثبت‌شده توسط این عضو: {toPersianDigits(stats.endorsementsGiven)} —
-              در سابقهٔ او حساب نمی‌شود.
-            </p>
-          )}
-
-          {activity > 0 && (
-            <p className="text-[11px] text-ink-faint mt-1.5 leading-relaxed px-0.5">
-              {resolvedActivityLabel}: {toPersianDigits(activity)}
+            <p className="text-[11px] text-ink-faint mt-2.5 leading-relaxed">
+              {forSelf
+                ? `تأییدهایی که برای دیگران ثبت کرده‌ای (${toPersianDigits(stats.endorsementsGiven)}) اینجا حساب نمی‌شود.`
+                : `تأییدهای ثبت‌شده توسط این عضو: ${toPersianDigits(stats.endorsementsGiven)} — در سابقه‌اش حساب نمی‌شود.`}
             </p>
           )}
 
@@ -139,34 +143,29 @@ export default function SocialCreditCard({
             className="mt-3 text-[11px] font-semibold text-brand-600 dark:text-brand-400"
             aria-expanded={showCalc}
           >
-            {showCalc ? "بستن توضیح محاسبه" : "این اعداد چطور به هم مربوط‌اند؟"}
+            {showCalc ? "بستن توضیح" : "این یعنی چه؟"}
           </button>
 
           {showCalc && (
             <div className="mt-2 rounded-xl bg-stone-50/90 dark:bg-zinc-800/60 px-3 py-2.5 text-[11px] text-ink-muted dark:text-zinc-400 leading-relaxed">
-              <p>
-                سیرکل امتیاز رسمی یا احراز هویت نیست. این اعداد بر اساس
-                معامله‌های تکمیل‌شده، تأییدهای دریافتی از حلقه، و پاسخ‌گویی به پیام‌ها
-                ساخته می‌شود ({toPersianDigits(stats.score)} از ۱۰۰ · {stats.label}).
-                تأییدهایی که این عضو برای دیگران ثبت کرده فقط مشارکت است.
-              </p>
+              {forSelf ? (
+                <p>
+                  امتیاز یا مهر هویت سیرکل نیست. حلقه معامله‌های تکمیل‌شده،
+                  تأییدهایی که از اعضا گرفته‌ای، و اینکه معمولاً به پیام‌ها جواب
+                  می‌دهی را می‌بیند. تأییدهایی که خودت برای دیگران می‌گذاری اینجا
+                  حساب نمی‌شود.
+                </p>
+              ) : (
+                <p>
+                  امتیاز یا مهر هویت سیرکل نیست. حلقه معامله‌های تکمیل‌شده،
+                  تأییدهای دریافتی، و پاسخ‌گویی به پیام‌ها را می‌بیند. تأییدهایی که
+                  این عضو برای دیگران ثبت کرده فقط مشارکت است.
+                </p>
+              )}
             </div>
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-function Metric({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="rounded-xl bg-stone-50/90 dark:bg-zinc-800/60 px-3 py-2.5 ring-1 ring-stone-200/40 dark:ring-zinc-700/60">
-      <p className="text-[10px] text-ink-muted dark:text-zinc-400 font-semibold">
-        {label}
-      </p>
-      <p className="text-[1.05rem] font-extrabold text-ink dark:text-zinc-100 nums leading-none mt-1.5 tracking-tight">
-        {value}
-      </p>
     </div>
   );
 }

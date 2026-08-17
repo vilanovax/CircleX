@@ -5,6 +5,7 @@ import {
   DEMO_JOIN_GUEST,
   DEMO_PENDING_INVITE,
   DEMO_PHONES,
+  VIEWER_LISTING_DEFS,
   type DemoListingDef,
   type DemoPersonKey,
 } from "@/lib/demo-circle-catalog";
@@ -144,11 +145,28 @@ async function ensureListingsFor(
 /**
  * Idempotent demo network for the logged-in user:
  * direct colleague / neighbor / friend, FoF through them and through family,
- * one pending invite, one join request.
+ * one pending invite, one join request, plus three listings posted by the viewer.
  */
 export async function seedDemoCircle(viewerId: string, viewerPhone: string) {
-  if (await demoCircleAlreadyLinked(viewerId)) return;
+  if (!(await demoCircleAlreadyLinked(viewerId))) {
+    await seedDemoNetwork(viewerId, viewerPhone);
+  }
+  await ensureViewerListings(viewerId);
+}
 
+async function ensureViewerListings(viewerId: string) {
+  const viewer = await prisma.user.findUnique({
+    where: { id: viewerId },
+    select: { city: true },
+  });
+  await ensureListingsFor(
+    viewerId,
+    viewer?.city?.trim() || "تهران",
+    VIEWER_LISTING_DEFS,
+  );
+}
+
+async function seedDemoNetwork(viewerId: string, viewerPhone: string) {
   const byKey = new Map<DemoPersonKey, User>();
 
   for (const person of DEMO_DIRECT) {

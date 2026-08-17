@@ -151,6 +151,7 @@ export function toHomeListing(
     | "createdAt"
     | "privacy"
     | "city"
+    | "dealStatus"
   >,
   viewerId?: string,
   trustPath: TrustHop[] = [],
@@ -171,6 +172,7 @@ export function toHomeListing(
     endorsements: [],
     trustPath,
     city: row.city ?? undefined,
+    dealStatus: parseDealStatus(row.dealStatus),
     feedPreview: true,
   };
 }

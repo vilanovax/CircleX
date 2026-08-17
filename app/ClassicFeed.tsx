@@ -103,6 +103,7 @@ function listingMatchesScope(
   scope: CircleScope,
   getPerson: (id: string) => Person | undefined,
 ): boolean {
+  if (listing.dealStatus === "inactive") return false;
   if (listing.sellerId === "me") return true;
 
   const direct = listing.trustPath.length === 0;

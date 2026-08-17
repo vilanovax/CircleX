@@ -15,7 +15,7 @@ import ListingCard from "@/components/ListingCard";
 import RequestCard from "@/components/RequestCard";
 import EmptyState from "@/components/EmptyState";
 import { ProfileSkeleton } from "@/components/Skeleton";
-import { ChatIcon, UserPlusIcon } from "@/components/Icons";
+import { ChatIcon, MoreIcon, UserPlusIcon } from "@/components/Icons";
 import {
   formatEndorsementReport,
   isPersonAboutBadge,
@@ -196,9 +196,23 @@ export default function PersonClassic(_props: { params: { id: string } }) {
 
   return (
     <main className="pb-24 min-h-[100dvh]">
-      <Header title={`پروفایل ${person.name}`} back />
+      <Header
+        title="پروفایل"
+        back
+        action={
+          isActiveCircleMember(person) ? (
+            <button
+              type="button"
+              onClick={() => setShowEditRelation(true)}
+              aria-label="تغییر رابطه"
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-ink-muted hover:bg-stone-200/50 dark:hover:bg-zinc-800"
+            >
+              <MoreIcon className="w-5 h-5" />
+            </button>
+          ) : undefined
+        }
+      />
 
-      {/* 1. Compact intro — identity only; trust stats live below */}
       <div className="px-4 pt-3">
         <div className="card p-3.5">
           <div className="flex items-center gap-2.5">
@@ -214,8 +228,11 @@ export default function PersonClassic(_props: { params: { id: string } }) {
                 {person.name}
               </h2>
               <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-snug">
-                {relationPhrase}
-                {isActiveCircleMember(person) ? " · ارتباط مستقیم" : ""}
+                {isActiveCircleMember(person)
+                  ? `${relationPhrase} · ${levelLabels[person.level]}`
+                  : trustPath.length > 0
+                    ? listingSellerSubtitle(person, trustPath, getPerson)
+                    : `${relationPhrase} · هنوز توی حلقه‌ات نیست`}
               </p>
               {metaLine && (
                 <p className="text-[11px] text-ink-faint mt-1 leading-snug">
@@ -229,7 +246,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
 
       {/* 2. Activity */}
       {(hasListings || hasRequests) && (
-        <section className="px-4 pt-3.5">
+        <section className="px-4 pt-3">
           {showContentTabs ? (
             <div
               className="flex gap-1 bg-stone-100/80 dark:bg-zinc-800 rounded-xl p-1 mb-2.5"
@@ -264,7 +281,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
             </div>
           )}
 
-          <div className="space-y-2.5" role="tabpanel">
+          <div className="space-y-2" role="tabpanel">
             {activeTab === "listings" &&
               theirListings.map((l) => (
                 <ListingCard key={l.id} listing={l} hideTrust />
@@ -317,49 +334,37 @@ export default function PersonClassic(_props: { params: { id: string } }) {
         </section>
       )}
 
-      {/* 3. Relation + trust summary (single home for stats) */}
-      <section className="px-4 pt-3.5 pb-2">
-        <div className="card p-3.5">
-          <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-100 mb-1.5">
-            رابطه و سابقه
+      <section className="px-4 pt-3 pb-2">
+        <div className="card px-3.5 py-3">
+          <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-100">
+            سابقه
           </h2>
-          <p className="text-[12px] text-ink-muted dark:text-zinc-400 leading-snug">
-            {isActiveCircleMember(person)
-              ? `${relationPhrase} · ${levelLabels[person.level]}`
-              : trustPath.length > 0
-                ? listingSellerSubtitle(person, trustPath, getPerson)
-                : `${relationPhrase} · هنوز توی حلقه‌ات نیست`}
-          </p>
           {evidenceLine ? (
-            <p className="text-[12px] font-semibold text-ink dark:text-zinc-200 mt-1.5 nums leading-snug">
+            <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 nums leading-snug">
               {evidenceLine}
             </p>
-          ) : null}
-          <div className="flex gap-2 mt-3">
+          ) : (
+            <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-snug">
+              هنوز معامله یا تأییدی ثبت نشده.
+            </p>
+          )}
+          <div className="flex items-center gap-3 mt-2.5">
             <button
               type="button"
               onClick={() => setShowTrustDetails(true)}
-              className="flex-1 rounded-xl bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 py-2 text-[12px] font-bold active:opacity-80"
+              className="text-[12px] font-bold text-brand-600 dark:text-brand-400"
             >
-              سابقه و تأییدها
+              سابقه و تأییدها ‹
             </button>
-            {isActiveCircleMember(person) ? (
-              <button
-                type="button"
-                onClick={() => setShowEditRelation(true)}
-                className="flex-1 rounded-xl border border-stone-200 dark:border-zinc-700 py-2 text-[12px] font-bold text-ink dark:text-zinc-100 active:bg-stone-50 dark:active:bg-zinc-800"
-              >
-                تغییر رابطه
-              </button>
-            ) : (
+            {!isActiveCircleMember(person) ? (
               <button
                 type="button"
                 onClick={() => setShowAddToCircle(true)}
-                className="flex-1 rounded-xl bg-brand-600 text-white py-2 text-[12px] font-bold active:opacity-90"
+                className="text-[12px] font-bold text-brand-600 dark:text-brand-400"
               >
-                به حلقه‌ات اضافه کن
+                به حلقه‌ات اضافه کن ‹
               </button>
-            )}
+            ) : null}
           </div>
         </div>
       </section>

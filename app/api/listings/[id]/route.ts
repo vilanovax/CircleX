@@ -1,8 +1,9 @@
+import { Prisma } from "@prisma/client";
 import { listingAccess } from "@/lib/circle-network";
 import { prisma } from "@/lib/db";
 import { jsonError, readJson } from "@/lib/http";
 import { toClientListing } from "@/lib/mappers";
-import { parseDealStatus } from "@/lib/listing-payload";
+import { parseDealStatus, parseListingWrite } from "@/lib/listing-payload";
 import { getSessionUser } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,9 @@ export async function GET(
     where: { id: params.id },
   });
   if (!row) return jsonError("آگهی پیدا نشد", 404);
+  if (row.dealStatus === "inactive" && row.sellerId !== session.id) {
+    return jsonError("آگهی پیدا نشد", 404);
+  }
 
   const access = await listingAccess(session.id, row.sellerId);
   if (!access.ok) {
@@ -41,11 +45,45 @@ export async function PATCH(
   });
   if (!row) return jsonError("آگهی پیدا نشد", 404);
   if (row.sellerId !== session.id) {
-    return jsonError("فقط صاحب آگهی می‌تواند وضعیت را عوض کند", 403);
+    return jsonError("فقط صاحب آگهی می‌تواند آگهی را تغییر دهد", 403);
   }
 
-  const body = await readJson<{ dealStatus?: unknown }>(req);
-  const dealStatus = parseDealStatus(body?.dealStatus);
+  const body = await readJson<Record<string, unknown>>(req);
+  if (!body || typeof body !== "object") {
+    return jsonError("بدنه نامعتبر است", 400);
+  }
+
+  const dealStatus = parseDealStatus(body.dealStatus);
+  const isWrite =
+    body.title != null ||
+    body.description != null ||
+    body.type != null ||
+    body.image != null;
+
+  if (isWrite) {
+    const parsed = parseListingWrite(body);
+    if (!parsed.ok) return jsonError(parsed.error, 400);
+    const updated = await prisma.marketListing.update({
+      where: { id: row.id },
+      data: {
+        title: parsed.data.title,
+        description: parsed.data.description,
+        type: parsed.data.type,
+        price: parsed.data.price ?? null,
+        category: parsed.data.category,
+        image: parsed.data.image,
+        images: parsed.data.images,
+        condition: parsed.data.condition ?? null,
+        privacy: parsed.data.privacy,
+        specs: parsed.data.specs
+          ? (parsed.data.specs as unknown as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
+        ...(dealStatus ? { dealStatus } : {}),
+      },
+    });
+    return Response.json({ listing: toClientListing(updated, session.id) });
+  }
+
   if (!dealStatus) return jsonError("وضعیت معامله نامعتبر است", 400);
 
   const updated = await prisma.marketListing.update({

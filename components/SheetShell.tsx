@@ -19,6 +19,7 @@ export default function SheetShell({
   backdropClassName,
   autoFocus = true,
   showHandle = true,
+  hugContent = false,
 }: {
   onClose: () => void;
   labelledBy: string;
@@ -34,6 +35,11 @@ export default function SheetShell({
   autoFocus?: boolean;
   /** Drag handle. Hide on sheets that cannot be dismissed. */
   showHandle?: boolean;
+  /**
+   * Size the sheet to its children. Avoids WebKit stretching a
+   * `flex-1` scroller up to `maxHeight` on short action menus.
+   */
+  hugContent?: boolean;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   useSheetA11y(panelRef, onClose, { onEscape, autoFocus });
@@ -62,7 +68,11 @@ export default function SheetShell({
           ) : (
             <div className="h-1 shrink-0" />
           )}
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
+          <div
+            className={`${
+              hugContent ? "flex-none" : "min-h-0 flex-1"
+            } overflow-y-auto overscroll-contain px-4 pb-4`}
+          >
             {children}
           </div>
           {footer && (

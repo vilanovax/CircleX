@@ -89,11 +89,24 @@ export const levelHint: Record<TrustLevel, string> = {
 
 export const listingTypeLabels: Record<ListingType, string> = {
   sale: "فروش",
-  donation: "رایگان / اهدا",
+  donation: "اهدا",
   exchange: "تعویض",
   loan: "امانت",
   service: "خدمات",
 };
+
+/** Hide a trailing «رایگان» in the title when the price line already says it. */
+export function listingDisplayTitle(
+  title: string,
+  type: ListingType,
+): string {
+  if (type !== "donation") return title;
+  const trimmed = title
+    .replace(/\s*[—–\-]\s*رایگان\s*$/, "")
+    .replace(/\s*رایگان\s*$/, "")
+    .trim();
+  return trimmed || title;
+}
 
 /** Short intent chips on compose — donation stays «رایگان» so the five buttons fit. */
 export const listingTypeIntentLabels: Record<ListingType, string> = {
@@ -226,6 +239,34 @@ export const privacyDetailLabels: Record<Privacy, string> = {
   referral: "فقط کسانی که معرفی شده‌اند این آگهی را می‌بینند",
   approved: "فقط کسانی که فروشنده اجازه بدهد این آگهی را می‌بینند",
 };
+
+/** Short viewer-facing privacy line; uses seller name when known. */
+export function listingPrivacyAudienceLine(
+  privacy: Privacy,
+  sellerName?: string,
+): string {
+  const who = sellerName?.trim();
+  switch (privacy) {
+    case "A":
+      return who
+        ? `فقط نزدیکان ${who} این آگهی را می‌بینند`
+        : "فقط نزدیکان فروشنده این آگهی را می‌بینند";
+    case "AB":
+      return who
+        ? `فقط نزدیکان و افراد مورد اعتماد ${who} این آگهی را می‌بینند`
+        : "فقط نزدیکان و افراد مورد اعتماد فروشنده این آگهی را می‌بینند";
+    case "ABC":
+      return who
+        ? `فقط اعضای حلقهٔ ${who} این آگهی را می‌بینند`
+        : "فقط اعضای حلقهٔ فروشنده این آگهی را می‌بینند";
+    case "referral":
+      return "فقط با معرفی دیده می‌شود";
+    case "approved":
+      return who
+        ? `فقط با اجازهٔ ${who} دیده می‌شود`
+        : "فقط با اجازهٔ فروشنده دیده می‌شود";
+  }
+}
 
 /** Viewer-facing privacy copy on request detail (not the requester’s «حلقهٔ من»). */
 export const requestPrivacyDetailLabels: Record<Privacy, string> = {

@@ -217,8 +217,12 @@ export interface Listing {
    */
   trustPath: TrustHop[];
   city?: string;
-  /** Soft deal state after buyer interest (mock marketplace flow). */
-  dealStatus?: "available" | "reserved" | "agreed";
+  /**
+   * Deal / publish state.
+   * `reserved` / `agreed` are chat-only holds. `inactive` means the owner
+   * unpublished: hidden from others’ feed, still on the owner’s profile.
+   */
+  dealStatus?: "available" | "reserved" | "agreed" | "inactive";
   /** True when this row came from the home feed (no gallery/specs). */
   feedPreview?: boolean;
 }

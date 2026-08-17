@@ -147,14 +147,14 @@ function buyerOpeningCandidates(listing: Listing): Candidate[] {
   if (type === "donation") {
     out.push({
       id: "still-free",
-      label: "هنوز آزاده؟",
-      draft: greet(`اگر ${subject} هنوز آزاد باشه خوشحال می‌شم.`),
+      label: "هنوز موجوده؟",
+      draft: greet("هنوز موجوده؟"),
       skipIf: [/اهدا شده|تحویل داده|دیگر موجود نیست/],
     });
     out.push({
       id: "pickup",
       label: "تحویل چطور؟",
-      draft: greet("چطور می‌تونم تحویل بگیرم؟"),
+      draft: greet("برای تحویل چطور هماهنگ کنیم؟"),
       skipIf: [/تحویل|پیکاپ|بیایید ببرید|خودتون بیاید/],
     });
     return out;

@@ -103,6 +103,26 @@ export function PencilIcon({ className }: IconProps) {
   );
 }
 
+export function EyeIcon({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2.2 12S5.5 5.5 12 5.5 21.8 12 21.8 12 18.5 18.5 12 18.5 2.2 12 2.2 12Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+export function EyeOffIcon({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 3l18 18" />
+      <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+      <path d="M9.9 5.2A9.8 9.8 0 0 1 12 5c5 0 9 4 10.5 7-0.5 1-1.2 2-2.1 2.9" />
+      <path d="M6.1 6.1C4.4 7.3 3 8.9 1.5 12 3 15 7 19 12 19c1.6 0 3.1-.4 4.4-1" />
+    </svg>
+  );
+}
+
 export function GraphIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
