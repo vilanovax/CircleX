@@ -6,12 +6,16 @@ export function threadPreview(
 ): string {
   if (!last) return "شروع گفتگو…";
 
+  const text = last.text.trim();
   if (last.listingId) {
+    if (text) {
+      const prefix = last.fromMe ? "شما: " : "";
+      return `${prefix}${text.length > 72 ? `${text.slice(0, 72)}…` : text}`;
+    }
     const title = getListing(last.listingId)?.title ?? "آگهی";
-    return `📷 معرفی آگهی: ${title}`;
+    return `معرفی آگهی: ${title}`;
   }
 
   const prefix = last.fromMe ? "شما: " : "";
-  const text = last.text.trim();
   return `${prefix}${text.length > 72 ? `${text.slice(0, 72)}…` : text}`;
 }

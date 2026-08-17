@@ -24,7 +24,7 @@ function noteForFof(phone: string, bridgeName: string): string | undefined {
   return template.replace("{bridge}", bridgeName);
 }
 
-function personFromNetworkUser(
+export function personFromNetworkUser(
   user: User,
   opts: {
     relation: RelationType;
@@ -218,20 +218,26 @@ const HOME_LISTING_SELECT = {
   dealStatus: true,
 } as const;
 
-/** Others’ unpublished ads stay out of feeds; the owner still receives theirs. */
+/**
+ * Others’ unpublished ads stay out of feeds; the owner still receives theirs.
+ * `dealStatus` is nullable — Prisma `not: "inactive"` would also drop NULL,
+ * which hid every seeded circle ad except ones explicitly marked available.
+ */
 function visibleMarketWhere(
   viewerId: string,
   sellerIds: string[],
 ): Prisma.MarketListingWhereInput {
   return {
     sellerId: { in: sellerIds },
-    NOT: {
-      AND: [{ dealStatus: "inactive" }, { sellerId: { not: viewerId } }],
-    },
+    OR: [
+      { sellerId: viewerId },
+      { dealStatus: null },
+      { dealStatus: { not: "inactive" } },
+    ],
   };
 }
 
-/** First paint shows 8 seller cards; keep a small buffer for filters. */
+/** First paint shows a page of listing cards; keep a buffer for filters. */
 const HOME_FEED_LIMIT = 24;
 
 /** Home feed: capped cards, FoF users only for sellers on those cards. */

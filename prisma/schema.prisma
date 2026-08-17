@@ -62,6 +62,8 @@ model User {
   listingReports     ListingReport[]
   joinRequestsHost   CircleJoinRequest[] @relation("JoinHost")
   joinRequestsGuest  CircleJoinRequest[] @relation("JoinGuest")
+  messagesSent       DirectMessage[]     @relation("MessageFrom")
+  messagesReceived   DirectMessage[]     @relation("MessageTo")
 
   @@index([phoneNormalized])
 }
@@ -201,6 +203,7 @@ model MarketListing {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   reports     ListingReport[]
+  messages    DirectMessage[]
 
   @@index([sellerId])
 }
@@ -234,4 +237,25 @@ model ListingReport {
   @@index([status, createdAt])
   @@index([listingId])
   @@index([reporterId])
+}
+
+model DirectMessage {
+  id         String    @id @default(cuid())
+  fromUserId String
+  toUserId   String
+  text       String    @default("")
+  listingId  String?
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  from    User           @relation("MessageFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  to      User           @relation("MessageTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  listing MarketListing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+
+  @@index([toUserId, createdAt])
+  @@index([fromUserId, createdAt])
+  @@index([toUserId, fromUserId])
+  @@index([toUserId, readAt])
+  @@index([listingId])
 }

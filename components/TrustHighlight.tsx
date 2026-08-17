@@ -10,7 +10,6 @@ import {
   trustHighlightMessage,
   type TrustContentKind,
 } from "@/lib/trust";
-import { toPersianDigits } from "@/lib/persian";
 import { ShieldCheckIcon } from "./Icons";
 import Avatar from "./Avatar";
 
@@ -31,7 +30,6 @@ export default function TrustHighlight({
   posterRole = "فروشنده",
   contentKind = "listing",
   variant = "default",
-  moreCount,
 }: {
   posterId: string;
   trustPath: TrustHop[];
@@ -39,8 +37,6 @@ export default function TrustHighlight({
   posterRole?: string;
   contentKind?: TrustContentKind;
   variant?: "default" | "compact" | "line";
-  /** Live listing count for this seller — compact feed chip. */
-  moreCount?: number;
 }) {
   const getPerson = useStore((s) => s.getPerson);
   const trust = trustHighlightMessage(
@@ -144,11 +140,6 @@ export default function TrustHighlight({
             </p>
           )}
         </div>
-        {moreCount != null && moreCount > 1 && (
-          <span className="shrink-0 rounded-md bg-stone-100 dark:bg-zinc-800 px-1.5 py-0.5 text-[10px] font-bold text-ink-muted dark:text-zinc-300 nums">
-            {toPersianDigits(moreCount)} آگهی
-          </span>
-        )}
         {endorsementLine && !isOwn && (
           <span
             className="shrink-0 inline-flex items-center gap-1 rounded-md bg-levelA/10 text-levelA px-1.5 py-0.5 text-[10px] font-bold"

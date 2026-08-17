@@ -3,26 +3,43 @@
 import type { ReactNode } from "react";
 import SheetShell from "@/components/SheetShell";
 import ListingImage from "@/components/ListingImage";
-import { EyeIcon, EyeOffIcon, PencilIcon, TagIcon } from "@/components/Icons";
+import {
+  ChartBarsIcon,
+  ChatIcon,
+  EyeIcon,
+  EyeOffIcon,
+  PencilIcon,
+  TagIcon,
+  TrashIcon,
+} from "@/components/Icons";
 import {
   formatPrice,
   listingDisplayTitle,
   listingTypeLabels,
 } from "@/lib/labels";
+import { toPersianDigits } from "@/lib/persian";
 import type { Listing } from "@/lib/types";
 
 export default function OwnerListingMenuSheet({
   listing,
+  conversationCount = 0,
   onClose,
   onEdit,
+  onStats,
+  onMessages,
   onDeactivate,
   onReactivate,
+  onDelete,
 }: {
   listing: Listing;
+  conversationCount?: number;
   onClose: () => void;
   onEdit: () => void;
+  onStats: () => void;
+  onMessages: () => void;
   onDeactivate: () => void;
   onReactivate: () => void;
+  onDelete: () => void;
 }) {
   const inactive = listing.dealStatus === "inactive";
   const title = listingDisplayTitle(listing.title, listing.type);
@@ -33,12 +50,15 @@ export default function OwnerListingMenuSheet({
         ? "توافقی"
         : "رایگان";
   const statusLabel = inactive ? "غیرفعال" : "در حلقه دیده می‌شود";
+  const messageHint =
+    conversationCount > 0
+      ? `${toPersianDigits(conversationCount)} گفتگو`
+      : "هنوز پیامی نیست";
 
   return (
     <SheetShell
       onClose={onClose}
       labelledBy="owner-listing-menu"
-      hugContent
       zClass="z-50"
     >
       <div className="flex items-start gap-3">
@@ -53,9 +73,7 @@ export default function OwnerListingMenuSheet({
             آگهی تو
           </h2>
           <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
-            {inactive
-              ? "الان در فید نیست. ویرایش کن یا دوباره فعال کن."
-              : "ویرایش کن، یا از فید حلقه بردار."}
+            ویرایش، آمار، یا برداشتن از فید.
           </p>
         </div>
       </div>
@@ -94,6 +112,26 @@ export default function OwnerListingMenuSheet({
           hint="عنوان، عکس و جزئیات"
           onClick={onEdit}
         />
+        <ActionRow
+          icon={
+            <span className="w-10 h-10 rounded-xl bg-brand-50 dark:bg-brand-500/15 text-brand-700 dark:text-brand-300 flex items-center justify-center shrink-0">
+              <ChartBarsIcon className="w-[1.15rem] h-[1.15rem]" />
+            </span>
+          }
+          label="آمار آگهی"
+          hint="گفتگو و تأیید حلقه"
+          onClick={onStats}
+        />
+        <ActionRow
+          icon={
+            <span className="w-10 h-10 rounded-xl bg-brand-50 dark:bg-brand-500/15 text-brand-700 dark:text-brand-300 flex items-center justify-center shrink-0">
+              <ChatIcon className="w-[1.15rem] h-[1.15rem]" />
+            </span>
+          }
+          label="پیام‌های این آگهی"
+          hint={messageHint}
+          onClick={onMessages}
+        />
         {inactive ? (
           <ActionRow
             icon={
@@ -120,6 +158,20 @@ export default function OwnerListingMenuSheet({
           />
         )}
       </div>
+
+      <div className="h-px bg-stone-200/80 dark:bg-zinc-700/80 mx-1 my-3" />
+
+      <ActionRow
+        icon={
+          <span className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-500/15 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0">
+            <TrashIcon className="w-[1.15rem] h-[1.15rem]" />
+          </span>
+        }
+        label="حذف آگهی"
+        hint="برای همیشه پاک می‌شود"
+        tone="danger"
+        onClick={onDelete}
+      />
     </SheetShell>
   );
 }

@@ -456,17 +456,40 @@ export function bindViewerMessages(
   return out;
 }
 
+export function isLocalPendingMessageId(id: string): boolean {
+  return id.startsWith("local_");
+}
+
 export function reconcileDemoMessages(
   prev: Message[],
   people: Person[],
   listings: Listing[],
 ): Message[] {
   const bound = bindViewerMessages(people, listings);
-  const peopleIds = new Set(people.map((p) => p.id));
-  const userRows = prev.filter(
-    (m) => !isDemoMessageId(m.id) && peopleIds.has(m.peerId),
-  );
+  // Keep server + in-flight rows even if the peer is not in the current circle.
+  const userRows = prev.filter((m) => !isDemoMessageId(m.id));
   return [...userRows, ...bound];
+}
+
+/** Server inbox wins; keep optimistic sends and seeded demo threads. */
+export function mergeInboxMessages(
+  server: Message[],
+  prev: Message[],
+  deletedPeerIds: string[],
+): { messages: Message[]; revivedPeerIds: string[] } {
+  const unreadPeers = new Set(
+    server
+      .filter((m) => !m.fromMe && !m.read)
+      .map((m) => m.peerId),
+  );
+  const revivedPeerIds = deletedPeerIds.filter((id) => unreadPeers.has(id));
+  const hide = new Set(
+    deletedPeerIds.filter((id) => !unreadPeers.has(id)),
+  );
+  const visible = server.filter((m) => !hide.has(m.peerId));
+  const pending = prev.filter((m) => isLocalPendingMessageId(m.id));
+  const demo = prev.filter((m) => isDemoMessageId(m.id));
+  return { messages: [...visible, ...pending, ...demo], revivedPeerIds };
 }
 
 /** Keep user-authored rows; replace seeded demo rows from the catalog. */

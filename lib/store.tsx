@@ -23,6 +23,7 @@ import {
   reconcileDemoOffers,
   reconcileDemoRequests,
   circleCatalogIncomplete,
+  mergeInboxMessages,
 } from "./demo-requests";
 import { clearThreadListing } from "./thread-listing";
 import type {
@@ -118,6 +119,9 @@ export interface StoreValue {
   circleReady: boolean;
   /** True after GET /api/circle (graph links + full listings). Home boot is false. */
   circleFull: boolean;
+  /** When false, own listings stay on profile and out of the home feed. */
+  showOwnListingsInFeed: boolean;
+  setShowOwnListingsInFeed: (value: boolean) => void;
   profileCompletedAt: string | null;
   getPerson: (id: string) => Person | undefined;
   getListing: (id: string) => Listing | undefined;
@@ -133,8 +137,8 @@ export interface StoreValue {
   threadPeers: () => string[];
   unreadCount: (peerId: string) => number;
   totalUnread: () => number;
-  addMessage: (peerId: string, text: string, listingId?: string) => void;
-  referListing: (peerId: string, listingId: string, note?: string) => void;
+  addMessage: (peerId: string, text: string, listingId?: string) => Promise<void>;
+  referListing: (peerId: string, listingId: string, note?: string) => Promise<void>;
   markThreadRead: (peerId: string) => void;
   archiveThread: (peerId: string) => void;
   unarchiveThread: (peerId: string) => void;
@@ -191,6 +195,7 @@ export interface StoreValue {
     listingId: string,
     status: NonNullable<Listing["dealStatus"]>,
   ) => Promise<void>;
+  deleteListing: (listingId: string) => Promise<void>;
   toggleEndorsement: (listingId: string, type: BadgeType) => void;
   addRequest: (input: NewRequestInput) => string;
   addOffer: (input: NewOfferInput) => void;
@@ -212,7 +217,7 @@ export interface StoreValue {
 const StoreContext = createContext<StoreValue | null>(null);
 
 const STORAGE_KEY = "circle-store-v2";
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 
 const AVATAR_POOL = AVATAR_IMAGES;
 const SEED_IDS = new Set(PEOPLE.map((p) => p.id));
@@ -246,6 +251,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [saved, setSaved] = useState<string[]>([]);
   const [archivedThreads, setArchivedThreads] = useState<string[]>([]);
   const [pinnedThreads, setPinnedThreads] = useState<string[]>([]);
+  const [deletedThreads, setDeletedThreads] = useState<string[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [joinRequests, setJoinRequests] = useState<CircleJoinRequest[]>([]);
   const [networkLinks, setNetworkLinks] = useState<NetworkLink[]>([]);
@@ -255,6 +261,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [circleReady, setCircleReady] = useState(false);
   const [circleFull, setCircleFull] = useState(false);
+  const [showOwnListingsInFeed, setShowOwnListingsInFeed] = useState(true);
   const [profileCompletedAt, setProfileCompletedAt] = useState<string | null>(
     null,
   );
@@ -289,6 +296,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   peopleRef.current = people;
   const listingsRef = useRef(listings);
   listingsRef.current = listings;
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  const deletedThreadsRef = useRef(deletedThreads);
+  deletedThreadsRef.current = deletedThreads;
 
   const applyCirclePayload = useCallback(
     (data: CirclePayload, opts?: { full?: boolean; keepGraph?: boolean }) => {
@@ -333,13 +344,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const loadMessages = useCallback(async () => {
+    const data = await api<{ messages: Message[]; people: Person[] }>(
+      "/api/messages",
+    );
+    if (data.people.length > 0) {
+      setPeople((prev) => overlayPeople(prev, data.people));
+    }
+    const { messages: next, revivedPeerIds } = mergeInboxMessages(
+      data.messages,
+      messagesRef.current,
+      deletedThreadsRef.current,
+    );
+    setMessages(next);
+    if (revivedPeerIds.length > 0) {
+      const revived = new Set(revivedPeerIds);
+      setDeletedThreads((prev) => prev.filter((id) => !revived.has(id)));
+    }
+  }, []);
+
   const loadHome = useCallback(
     async (opts?: { keepGraph?: boolean }) => {
       const data = await api<CirclePayload>("/api/home");
       applyCirclePayload(data, { full: false, keepGraph: opts?.keepGraph });
+      await loadMessages().catch(() => {});
       return data;
     },
-    [applyCirclePayload],
+    [applyCirclePayload, loadMessages],
   );
 
   const loadCircle = useCallback(async () => {
@@ -464,6 +495,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               ),
             );
           }
+          if (Array.isArray(data.deletedThreads)) {
+            setDeletedThreads(
+              (data.deletedThreads as unknown[]).filter(
+                (id): id is string => typeof id === "string",
+              ),
+            );
+          }
           if (Array.isArray(data.pinnedThreads)) {
             setPinnedThreads(
               (data.pinnedThreads as unknown[])
@@ -481,6 +519,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           }
           if (Array.isArray(data.saved)) setSaved(data.saved);
           if (typeof data.onboarded === "boolean") setOnboarded(data.onboarded);
+          if (typeof data.showOwnListingsInFeed === "boolean") {
+            setShowOwnListingsInFeed(data.showOwnListingsInFeed);
+          }
         }
       } catch {
         // ignore corrupt storage
@@ -512,6 +553,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           } else {
             applyCirclePayload(home, { full: false });
           }
+          if (cancelled) return;
+          await loadMessages().catch(() => {});
         } catch {
           if (cancelled) return;
           setInvites([]);
@@ -543,7 +586,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [applyUserLocal, applyCirclePayload]);
+  }, [applyUserLocal, applyCirclePayload, loadMessages]);
 
   // Persist marketplace slices only — identity lives on the server cookie.
   useEffect(() => {
@@ -559,9 +602,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           messages,
           archivedThreads,
           pinnedThreads,
+          deletedThreads,
           events,
           saved,
           onboarded,
+          showOwnListingsInFeed,
         }),
       );
     } catch {
@@ -574,9 +619,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     messages,
     archivedThreads,
     pinnedThreads,
+    deletedThreads,
     events,
     saved,
     onboarded,
+    showOwnListingsInFeed,
     hydrated,
   ]);
 
@@ -692,53 +739,68 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const addMessage = useCallback(
-    (peerId: string, text: string, listingId?: string) => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `msg_${Date.now()}`,
-          peerId,
-          fromMe: true,
-          text,
-          postedAt: "همین حالا",
-          read: true,
-          ...(listingId ? { listingId } : {}),
-        },
-      ]);
-      // New activity brings the thread back to the main inbox.
+    async (peerId: string, text: string, listingId?: string) => {
+      const tempId = `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const optimistic: Message = {
+        id: tempId,
+        peerId,
+        fromMe: true,
+        text,
+        postedAt: "همین حالا",
+        read: true,
+        ...(listingId ? { listingId } : {}),
+      };
+      setMessages((prev) => [...prev, optimistic]);
       setArchivedThreads((prev) => prev.filter((id) => id !== peerId));
+      setDeletedThreads((prev) => prev.filter((id) => id !== peerId));
+      try {
+        const data = await api<{ message: Message; peer: Person | null }>(
+          "/api/messages",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              peerId,
+              text,
+              ...(listingId ? { listingId } : {}),
+            }),
+          },
+        );
+        if (data.peer) {
+          setPeople((prev) => overlayPeople(prev, [data.peer as Person]));
+        }
+        setMessages((prev) =>
+          prev.map((msg) => (msg.id === tempId ? data.message : msg)),
+        );
+      } catch (err) {
+        setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
+        throw err;
+      }
     },
     [],
   );
 
   // Refer a listing to someone in the trust network (an in-DM recommendation).
   const referListing = useCallback(
-    (peerId: string, listingId: string, note?: string) => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `msg_${Date.now()}`,
-          peerId,
-          fromMe: true,
-          text: note?.trim() || "این آگهی رو دیدم، فکر کردم مناسبت باشه 👇",
-          postedAt: "همین حالا",
-          read: true,
-          listingId,
-        },
-      ]);
-      setArchivedThreads((prev) => prev.filter((id) => id !== peerId));
+    async (peerId: string, listingId: string, note?: string) => {
+      await addMessage(peerId, note?.trim() ?? "", listingId);
     },
-    [],
+    [addMessage],
   );
 
   const markThreadRead = useCallback((peerId: string) => {
     setMessages((prev) => {
       // Avoid a state update (and re-render loop) when nothing is unread.
-      if (!prev.some((msg) => msg.peerId === peerId && !msg.read)) return prev;
+      if (!prev.some((msg) => msg.peerId === peerId && !msg.fromMe && !msg.read)) {
+        return prev;
+      }
       return prev.map((msg) =>
         msg.peerId === peerId ? { ...msg, read: true } : msg,
       );
     });
+    void api("/api/messages/read", {
+      method: "POST",
+      body: JSON.stringify({ peerId }),
+    }).catch(() => {});
   }, []);
 
   const archiveThread = useCallback((peerId: string) => {
@@ -761,6 +823,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setMessages((prev) => prev.filter((msg) => msg.peerId !== peerId));
     setArchivedThreads((prev) => prev.filter((id) => id !== peerId));
     setPinnedThreads((prev) => prev.filter((id) => id !== peerId));
+    setDeletedThreads((prev) =>
+      prev.includes(peerId) ? prev : [...prev, peerId],
+    );
     clearThreadListing(peerId);
   }, []);
 
@@ -1090,6 +1155,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [loadHome],
   );
 
+  const deleteListing = useCallback(async (listingId: string) => {
+    await api(`/api/listings/${encodeURIComponent(listingId)}`, {
+      method: "DELETE",
+    });
+    setListings((prev) => prev.filter((row) => row.id !== listingId));
+    setSaved((prev) => prev.filter((id) => id !== listingId));
+  }, []);
+
   // Toggle MY endorsement of a listing (acting as the current user).
   const toggleEndorsement = useCallback(
     (listingId: string, type: BadgeType) => {
@@ -1249,6 +1322,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setNetworkLinks([]);
     setPeople(networkSeed());
     setListings([]);
+    setMessages([]);
+    setArchivedThreads([]);
+    setPinnedThreads([]);
+    setDeletedThreads([]);
     setCircleReady(true);
     setCircleFull(false);
   }, []);
@@ -1273,6 +1350,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       hydrated,
       circleReady,
       circleFull,
+      showOwnListingsInFeed,
+      setShowOwnListingsInFeed,
       profileCompletedAt,
       getPerson,
       getListing,
@@ -1314,6 +1393,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addListing,
       updateListing,
       setListingDealStatus,
+      deleteListing,
       toggleEndorsement,
       addRequest,
       addOffer,
@@ -1347,6 +1427,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       hydrated,
       circleReady,
       circleFull,
+      showOwnListingsInFeed,
       profileCompletedAt,
       getPerson,
       getListing,
@@ -1388,6 +1469,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addListing,
       updateListing,
       setListingDealStatus,
+      deleteListing,
       toggleEndorsement,
       addRequest,
       addOffer,

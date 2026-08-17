@@ -28,7 +28,7 @@ import {
   listingTypeChip,
   listingTypeLabels,
 } from "@/lib/labels";
-import type { BadgeType } from "@/lib/types";
+import type { BadgeType, Listing } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
 import LockedAccess from "@/components/LockedAccess";
 import { canView, listingSellerSubtitle } from "@/lib/trust";
@@ -40,14 +40,24 @@ import {
 } from "@/lib/listing-prompts";
 import { listingGalleryImages } from "@/lib/listing-image";
 import SheetShell from "@/components/SheetShell";
-import OwnerListingMenuSheet from "@/components/OwnerListingMenuSheet";
+import { useOwnerListingFlow } from "@/components/OwnerListingManager";
 
 const ReferSheet = lazyUi(() => import("@/components/ReferSheet"));
 const ReportListingSheet = lazyUi(() => import("@/components/ReportListingSheet"));
-const EditListingSheet = lazyUi(() => import("@/components/EditListingSheet"));
-const DeactivateListingSheet = lazyUi(
-  () => import("@/components/DeactivateListingSheet"),
-);
+
+const OWNER_PLACEHOLDER: Listing = {
+  id: "",
+  title: "",
+  description: "",
+  type: "sale",
+  category: "",
+  image: "",
+  sellerId: "me",
+  postedAt: "",
+  privacy: "ABC",
+  endorsements: [],
+  trustPath: [],
+};
 
 export default function ListingClassic(_props: { params: { id: string } }) {
   const params = useParams();
@@ -65,9 +75,6 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const [showRefer, setShowRefer] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [showEndorse, setShowEndorse] = useState(false);
-  const [showEdit, setShowEdit] = useState(false);
-  const [showOwnerMenu, setShowOwnerMenu] = useState(false);
-  const [showDeactivate, setShowDeactivate] = useState(false);
   const [pathExpanded, setPathExpanded] = useState(false);
   const [promptsCollapsed, setPromptsCollapsed] = useState(false);
   const lastScrollY = useRef(0);
@@ -114,6 +121,10 @@ export default function ListingClassic(_props: { params: { id: string } }) {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  const owner = useOwnerListingFlow(listing ?? OWNER_PLACEHOLDER, {
+    onDeleted: () => router.replace("/profile"),
+  });
 
   if (!hydrated || !listing) {
     return (
@@ -185,18 +196,6 @@ export default function ListingClassic(_props: { params: { id: string } }) {
     );
   }
 
-  function openEdit() {
-    const row = listing;
-    if (!row) return;
-    if (row.feedPreview) {
-      void ensureListing(row.id).then((found) => {
-        if (found) setShowEdit(true);
-      });
-      return;
-    }
-    setShowEdit(true);
-  }
-
   return (
     <main className={`${footerPad} min-h-[100dvh]`}>
       <Header
@@ -207,11 +206,11 @@ export default function ListingClassic(_props: { params: { id: string } }) {
             {isMine ? (
               <button
                 type="button"
-                onClick={() => setShowOwnerMenu(true)}
+                onClick={owner.openMenu}
                 className="inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none text-ink-faint hover:bg-stone-200/50 dark:hover:bg-zinc-800 transition-colors"
                 aria-label="گزینه‌های آگهی"
                 aria-haspopup="dialog"
-                aria-expanded={showOwnerMenu}
+                aria-expanded={owner.menuOpen}
                 title="گزینه‌های آگهی"
               >
                 <MoreIcon className="w-5 h-5" />
@@ -486,7 +485,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
                   </button>
                   <button
                     type="button"
-                    onClick={openEdit}
+                    onClick={owner.openEdit}
                     className="btn-ghost flex-1 !py-3.5"
                   >
                     ویرایش آگهی
@@ -495,7 +494,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
               ) : (
                 <button
                   type="button"
-                  onClick={openEdit}
+                  onClick={owner.openEdit}
                   className="btn-primary w-full !py-3.5 flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20"
                 >
                   <PencilIcon className="w-5 h-5" />
@@ -589,43 +588,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
           onClose={() => setShowReport(false)}
         />
       )}
-      {showEdit && (
-        <EditListingSheet
-          listing={listing}
-          onClose={() => setShowEdit(false)}
-        />
-      )}
-      {showDeactivate && (
-        <DeactivateListingSheet
-          title={listing.title}
-          onClose={() => setShowDeactivate(false)}
-          onConfirm={() => {
-            void setListingDealStatus(listing.id, "inactive");
-            setShowDeactivate(false);
-            setShowOwnerMenu(false);
-            show("آگهی غیرفعال شد");
-          }}
-        />
-      )}
-      {showOwnerMenu && (
-        <OwnerListingMenuSheet
-          listing={listing}
-          onClose={() => setShowOwnerMenu(false)}
-          onEdit={() => {
-            setShowOwnerMenu(false);
-            openEdit();
-          }}
-          onDeactivate={() => {
-            setShowOwnerMenu(false);
-            setShowDeactivate(true);
-          }}
-          onReactivate={() => {
-            void setListingDealStatus(listing.id, "available");
-            setShowOwnerMenu(false);
-            show("آگهی دوباره در حلقه دیده می‌شود");
-          }}
-        />
-      )}
+      {isMine ? owner.sheets : null}
     </main>
   );
 }

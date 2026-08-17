@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useSheetA11y } from "@/lib/use-sheet-a11y";
 
 /**
@@ -42,9 +43,15 @@ export default function SheetShell({
   hugContent?: boolean;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
-  useSheetA11y(panelRef, onClose, { onEscape, autoFocus });
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  useSheetA11y(panelRef, onClose, {
+    onEscape,
+    autoFocus,
+    enabled: mounted,
+  });
 
-  return (
+  const ui = (
     <div className={`fixed inset-0 ${zClass} flex justify-center`}>
       <div className="relative w-full max-w-[480px]">
         <div
@@ -84,4 +91,7 @@ export default function SheetShell({
       </div>
     </div>
   );
+
+  if (!mounted) return null;
+  return createPortal(ui, document.body);
 }

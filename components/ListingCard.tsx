@@ -15,7 +15,6 @@ export default function ListingCard({
   hideTrust = false,
   audienceHint,
   showOpenHint = false,
-  moreCount,
   imagePriority = false,
 }: {
   listing: Listing;
@@ -27,8 +26,6 @@ export default function ListingCard({
   audienceHint?: string;
   /** Small chevron so the card reads as tappable. */
   showOpenHint?: boolean;
-  /** Total live posts from this seller — shown as a chip next to the name. */
-  moreCount?: number;
   /** LCP: first visible feed photo. */
   imagePriority?: boolean;
 }) {
@@ -50,7 +47,6 @@ export default function ListingCard({
           trustPath={listing.trustPath}
           endorsements={listing.endorsements}
           variant={compactTrust ? "compact" : "default"}
-          moreCount={moreCount}
         />
       )}
 

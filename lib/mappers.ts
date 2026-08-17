@@ -1,6 +1,7 @@
 import type {
   CircleEdge,
   CircleJoinRequest as DbJoinRequest,
+  DirectMessage,
   Invite as DbInvite,
   InviteExpected,
   InviteStatus as DbInviteStatus,
@@ -17,6 +18,7 @@ import type {
   InviteExpectedPerson,
   Listing,
   ListingType,
+  Message,
   Person,
   Privacy,
   TrustHop,
@@ -120,6 +122,26 @@ export function pendingPersonFromInvite(invite: Invite): Person {
     inviteStatus: "pending",
     phone,
     phoneNormalized: phone,
+  };
+}
+
+export function toClientDirectMessage(
+  row: Pick<
+    DirectMessage,
+    "id" | "fromUserId" | "toUserId" | "text" | "listingId" | "readAt" | "createdAt"
+  >,
+  viewerId: string,
+  now = Date.now(),
+): Message {
+  const fromMe = row.fromUserId === viewerId;
+  return {
+    id: row.id,
+    peerId: fromMe ? row.toUserId : row.fromUserId,
+    fromMe,
+    text: row.text,
+    postedAt: relativePostedAt(row.createdAt, now),
+    read: fromMe ? true : Boolean(row.readAt),
+    ...(row.listingId ? { listingId: row.listingId } : {}),
   };
 }
 

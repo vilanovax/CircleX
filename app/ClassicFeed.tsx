@@ -36,36 +36,7 @@ const HomeEmptyCircle = lazyUi(() => import("@/components/HomeEmptyCircle"), {
 
 const SCROLL_COLLAPSE_THRESHOLD = 48;
 const PREVIEW_LIMIT = 8;
-const HOME_SELLERS = 8;
-const SEARCH_PAGE = 12;
-
-type SellerBundle = {
-  sellerId: string;
-  featured: Listing;
-  extras: Listing[];
-};
-
-function bundleBySeller(listings: Listing[]): SellerBundle[] {
-  const order: string[] = [];
-  const bySeller = new Map<string, Listing[]>();
-  for (const listing of listings) {
-    const existing = bySeller.get(listing.sellerId);
-    if (!existing) {
-      order.push(listing.sellerId);
-      bySeller.set(listing.sellerId, [listing]);
-    } else {
-      existing.push(listing);
-    }
-  }
-  return order.map((sellerId) => {
-    const items = bySeller.get(sellerId) ?? [];
-    return {
-      sellerId,
-      featured: items[0]!,
-      extras: items.slice(1),
-    };
-  });
-}
+const FEED_PAGE = 12;
 
 /**
  * Feed boundary + depth:
@@ -151,6 +122,7 @@ export default function ClassicFeed() {
   const hydrated = useStore((s) => s.hydrated);
   const circleReady = useStore((s) => s.circleReady);
   const onboarded = useStore((s) => s.onboarded);
+  const showOwnListingsInFeed = useStore((s) => s.showOwnListingsInFeed);
   const [filter, setFilter] = useState<FeedFilter>("all");
   const [circleScope, setCircleScope] = useState<CircleScope>("network");
   const [query, setQuery] = useState("");
@@ -222,24 +194,26 @@ export default function ClassicFeed() {
       )
         return false;
       if (!listingMatchesScope(l, circleScope, getPerson)) return false;
+      if (!showOwnListingsInFeed && l.sellerId === "me") return false;
       return true;
     });
-  }, [allowed, filter, deferredQuery, circleScope, getPerson, requestsMode]);
+  }, [
+    allowed,
+    filter,
+    deferredQuery,
+    circleScope,
+    getPerson,
+    requestsMode,
+    showOwnListingsInFeed,
+  ]);
 
-  const searching = deferredQuery.trim().length > 0;
-  const bundles = useMemo(() => bundleBySeller(visible), [visible]);
-  const pageSize = searching ? SEARCH_PAGE : HOME_SELLERS;
-  const feedTotal = requestsMode
-    ? visibleRequests.length
-    : searching
-      ? visible.length
-      : bundles.length;
-  const feedShown = Math.min(feedPage * pageSize, feedTotal);
+  const feedTotal = requestsMode ? visibleRequests.length : visible.length;
+  const feedShown = Math.min(feedPage * FEED_PAGE, feedTotal);
   const feedRemaining = feedTotal - feedShown;
 
   useEffect(() => {
     setFeedPage(1);
-  }, [filter, deferredQuery, circleScope]);
+  }, [filter, deferredQuery, circleScope, showOwnListingsInFeed]);
 
   const browsingAll =
     filter === "all" &&
@@ -393,36 +367,21 @@ export default function ClassicFeed() {
               />
             ) : (
               <>
-                {searching
-                  ? visible.slice(0, feedShown).map((l, i) => (
-                      <div
-                        key={l.id}
-                        className={i < 4 ? "animate-fade-up" : undefined}
-                        style={
-                          i < 4 ? { animationDelay: `${i * 45}ms` } : undefined
-                        }
-                      >
-                        <ListingCard listing={l} compactTrust imagePriority={i === 0} />
-                      </div>
-                    ))
-                  : bundles.slice(0, feedShown).map((bundle, i) => (
-                      <div
-                        key={bundle.sellerId}
-                        className={i < 4 ? "animate-fade-up" : undefined}
-                        style={
-                          i < 4
-                            ? { animationDelay: `${i * 45}ms` }
-                            : undefined
-                        }
-                      >
-                        <ListingCard
-                          listing={bundle.featured}
-                          compactTrust
-                          moreCount={bundle.extras.length + 1}
-                          imagePriority={i === 0}
-                        />
-                      </div>
-                    ))}
+                {visible.slice(0, feedShown).map((l, i) => (
+                  <div
+                    key={l.id}
+                    className={i < 4 ? "animate-fade-up" : undefined}
+                    style={
+                      i < 4 ? { animationDelay: `${i * 45}ms` } : undefined
+                    }
+                  >
+                    <ListingCard
+                      listing={l}
+                      compactTrust
+                      imagePriority={i === 0}
+                    />
+                  </div>
+                ))}
                 {feedRemaining > 0 ? (
                   <button
                     type="button"

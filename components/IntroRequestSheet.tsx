@@ -6,6 +6,7 @@ import SheetShell from "@/components/SheetShell";
 import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import { useToast } from "./Toast";
+import { ApiError } from "@/lib/api";
 import Avatar from "./Avatar";
 import { SearchIcon, SendIcon, ShieldCheckIcon } from "./Icons";
 import { relationLabels } from "@/lib/labels";
@@ -34,6 +35,7 @@ export default function IntroRequestSheet({
   const { people, addMessage } = useStore();
   const { show } = useToast();
   const [query, setQuery] = useState("");
+  const [sending, setSending] = useState(false);
   const circle = activeCircle(people);
   const message = TEMPLATES[itemKind](itemTitle);
 
@@ -46,11 +48,18 @@ export default function IntroRequestSheet({
     );
   }, [circle, query]);
 
-  function request(peerId: string, name: string) {
-    addMessage(peerId, message);
-    onClose();
-    show(`درخواست معرفی برای ${name} فرستاده شد ✓`);
-    router.push(`/messages/${peerId}`);
+  async function request(peerId: string, name: string) {
+    if (sending) return;
+    setSending(true);
+    try {
+      await addMessage(peerId, message);
+      onClose();
+      show(`درخواست معرفی برای ${name} فرستاده شد ✓`);
+      router.push(`/messages/${peerId}`);
+    } catch (err) {
+      show(err instanceof ApiError ? err.message : "ارسال نشد. دوباره بزن.");
+      setSending(false);
+    }
   }
 
   return (
@@ -123,8 +132,9 @@ export default function IntroRequestSheet({
             <button
               key={p.id}
               type="button"
-              onClick={() => request(p.id, p.name)}
-              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-right active:bg-stone-50/90 dark:active:bg-zinc-800/70 transition-colors"
+              disabled={sending}
+              onClick={() => void request(p.id, p.name)}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-right active:bg-stone-50/90 dark:active:bg-zinc-800/70 transition-colors disabled:opacity-60"
             >
               <Avatar name={p.name} src={p.avatar} size="sm" showLevel={false} />
               <div className="flex-1 min-w-0">

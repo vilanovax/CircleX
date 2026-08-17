@@ -67,6 +67,57 @@ export function resolveThreadListingId(opts: {
   return recalledThreadListing(opts.peerId);
 }
 
+/** Peers who sent or received a message attached to this listing, newest first. */
+export function listingThreadPeers(
+  messages: Message[],
+  listingId: string,
+): string[] {
+  const seen = new Set<string>();
+  const order: string[] = [];
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.listingId !== listingId) continue;
+    if (seen.has(msg.peerId)) continue;
+    seen.add(msg.peerId);
+    order.push(msg.peerId);
+  }
+  return order;
+}
+
+export function listingMessageCount(
+  messages: Message[],
+  listingId: string,
+): number {
+  return messages.reduce(
+    (n, msg) => (msg.listingId === listingId ? n + 1 : n),
+    0,
+  );
+}
+
+/** Last message in a peer thread that belongs to this listing. */
+export function lastListingMessage(
+  thread: Message[],
+  listingId: string,
+): Message | undefined {
+  for (let i = thread.length - 1; i >= 0; i--) {
+    const msg = thread[i];
+    if (msg.listingId === listingId) return msg;
+  }
+  return undefined;
+}
+
+export function listingThreadPreview(
+  thread: Message[],
+  listingId: string,
+): string {
+  const last = lastListingMessage(thread, listingId);
+  if (!last) return "درباره این آگهی";
+  const prefix = last.fromMe ? "شما: " : "";
+  const text = last.text.trim();
+  if (!text) return last.fromMe ? "شما پیام دادید" : "پیام جدید";
+  return `${prefix}${text.length > 72 ? `${text.slice(0, 72)}…` : text}`;
+}
+
 /** Attach listing card on send only when this listing is new to the thread. */
 export function shouldAttachListingOnSend(
   thread: Message[],

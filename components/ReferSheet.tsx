@@ -1,9 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import SheetShell from "@/components/SheetShell";
 import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
+import { DEFAULT_REFER_NOTE } from "@/lib/refer";
+import { ApiError } from "@/lib/api";
 import { useToast } from "./Toast";
 import Avatar from "./Avatar";
 import ListingImage from "./ListingImage";
@@ -25,12 +28,13 @@ export default function ReferSheet({
   listingTitle: string;
   onClose: () => void;
 }) {
+  const router = useRouter();
   const { people, referListing, getListing } = useStore();
   const { show } = useToast();
-  const [note, setNote] = useState("");
-  const [showNote, setShowNote] = useState(false);
+  const [note, setNote] = useState(DEFAULT_REFER_NOTE);
   const [query, setQuery] = useState("");
-  const [sentId, setSentId] = useState<string | null>(null);
+  const [sent, setSent] = useState<{ id: string; name: string } | null>(null);
+  const [sending, setSending] = useState(false);
 
   const listing = getListing(listingId);
   const circle = activeCircle(people);
@@ -48,12 +52,26 @@ export default function ReferSheet({
     });
   }, [circle, query]);
 
-  function refer(peerId: string, name: string) {
-    if (sentId) return;
-    referListing(peerId, listingId, note);
-    setSentId(peerId);
-    show(`برای ${name} فرستاده شد ✓`);
-    window.setTimeout(onClose, 450);
+  async function refer(peerId: string, name: string) {
+    if (sent || sending) return;
+    setSending(true);
+    try {
+      await referListing(peerId, listingId, note);
+      setSent({ id: peerId, name });
+      show(`در گفتگو با ${name}`);
+    } catch (err) {
+      show(err instanceof ApiError ? err.message : "ارسال نشد. دوباره بزن.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function openThread() {
+    if (!sent) return;
+    onClose();
+    router.push(
+      `/messages/${encodeURIComponent(sent.id)}?listing=${encodeURIComponent(listingId)}`,
+    );
   }
 
   const priceLabel =
@@ -100,9 +118,28 @@ export default function ReferSheet({
             <p className="text-[11px] text-ink-muted mt-0.5 nums">{priceLabel}</p>
           </div>
         </div>
-        <p className="text-[11px] text-ink-faint mb-3">
-          فقط داخل حلقه فرستاده می‌شود.
+        <p className="text-[11px] text-ink-muted mb-3 leading-snug">
+          فقط داخل حلقه، در گفتگوی همان نفر.
         </p>
+
+        <label className="block mb-3">
+          <span className="block text-[12px] font-bold text-ink dark:text-zinc-200 mb-1">
+            اگر خواستی بگو چرا مناسبش است
+          </span>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            maxLength={200}
+            rows={3}
+            disabled={Boolean(sent) || sending}
+            placeholder="خالی بگذار تا فقط کارت آگهی برود."
+            className="field !py-2.5 !text-[13px] !min-h-[4.5rem] resize-none leading-relaxed disabled:opacity-60"
+          />
+          <span className="mt-1 flex justify-between gap-2 text-[11px] text-ink-faint nums">
+            <span>اختیاری — می‌توانی پاک کنی یا عوض کنی.</span>
+            <span>{toPersianDigits(note.length)} / {toPersianDigits(200)}</span>
+          </span>
+        </label>
 
         <div className="flex items-center justify-between gap-2 mb-1.5">
           <p className="text-[12px] font-bold text-ink dark:text-zinc-200">
@@ -124,30 +161,9 @@ export default function ReferSheet({
               placeholder="جستجوی نام…"
               className="field !pr-9 !py-2 !text-[13px]"
               autoComplete="off"
+              disabled={Boolean(sent) || sending}
             />
           </label>
-        )}
-
-        {showNote ? (
-          <label className="block mb-2">
-            <span className="sr-only">یادداشت اختیاری</span>
-            <input
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              maxLength={120}
-              placeholder="یادداشت کوتاه…"
-              className="field !py-2 !text-[13px]"
-              autoFocus
-            />
-          </label>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setShowNote(true)}
-            className="mb-2 text-[12px] font-semibold text-brand-600 dark:text-brand-400"
-          >
-            افزودن یادداشت
-          </button>
         )}
 
         <div className="rounded-2xl border border-stone-200/80 dark:border-zinc-700 overflow-hidden divide-y divide-stone-100 dark:divide-zinc-800 bg-[color:var(--circle-surface)] dark:bg-zinc-900">
@@ -161,13 +177,13 @@ export default function ReferSheet({
             </p>
           ) : (
             filtered.map((p) => {
-              const justSent = sentId === p.id;
+              const justSent = sent?.id === p.id;
               return (
                 <button
                   key={p.id}
                   type="button"
-                  disabled={Boolean(sentId)}
-                  onClick={() => refer(p.id, p.name)}
+                  disabled={Boolean(sent) || sending}
+                  onClick={() => void refer(p.id, p.name)}
                   className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-right transition-colors ${
                     justSent
                       ? "bg-levelA/10"
@@ -205,13 +221,32 @@ export default function ReferSheet({
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={onClose}
-          className="w-full mt-3 py-2 text-[13px] font-semibold text-ink-faint dark:text-zinc-500 active:text-ink"
-        >
-          بستن
-        </button>
+        {sent ? (
+          <div className="flex gap-2 mt-3">
+            <button
+              type="button"
+              onClick={openThread}
+              className="btn-primary flex-1 !py-3"
+            >
+              باز کردن گفتگو
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-ghost flex-1 !py-3"
+            >
+              بستن
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full mt-3 py-2 text-[13px] font-semibold text-ink-faint dark:text-zinc-500 active:text-ink"
+          >
+            بستن
+          </button>
+        )}
       </div>
     </SheetShell>
   );

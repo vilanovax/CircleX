@@ -10,6 +10,7 @@ import BottomNav from "@/components/BottomNav";
 import Avatar from "@/components/Avatar";
 import ListingCard from "@/components/ListingCard";
 import ListingImage from "@/components/ListingImage";
+import OwnerListingManager from "@/components/OwnerListingManager";
 import SocialCreditCard from "@/components/SocialCreditCard";
 import SheetShell from "@/components/SheetShell";
 import {
@@ -34,6 +35,7 @@ import { CONCEPT_TIP_KEY } from "@/lib/home-tip";
 import { ThemeSegmented } from "@/components/ThemeToggle";
 import { useToast } from "@/components/Toast";
 import { ProfileSkeleton } from "@/components/Skeleton";
+import { listingThreadPeers } from "@/lib/thread-listing";
 import type { CircleEvent, Listing } from "@/lib/types";
 
 type ActivityTab = "listings" | "events" | "saved" | "endorsements";
@@ -418,6 +420,7 @@ export default function ClassicProfile() {
               </p>
               <ThemeSegmented />
             </div>
+            <OwnListingsFeedSwitch />
             <button
               type="button"
               onClick={() => {
@@ -479,6 +482,45 @@ export default function ClassicProfile() {
 
       <BottomNav />
     </main>
+  );
+}
+
+function OwnListingsFeedSwitch() {
+  const show = useStore((s) => s.showOwnListingsInFeed);
+  const setShow = useStore((s) => s.setShowOwnListingsInFeed);
+  const switchId = useId();
+
+  return (
+    <div className="flex items-center gap-3 rounded-xl bg-stone-50/80 dark:bg-zinc-800/50 px-3 py-2.5">
+      <div className="min-w-0 flex-1">
+        <p
+          id={switchId}
+          className="text-[13px] font-bold text-ink dark:text-zinc-100 leading-snug"
+        >
+          آگهی‌های من در خانه
+        </p>
+        <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-snug">
+          خاموش باشد، آگهی‌هایت فقط در پروفایل دیده می‌شوند.
+        </p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={show}
+        aria-labelledby={switchId}
+        onClick={() => setShow(!show)}
+        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-150 active:scale-95 ${
+          show ? "bg-brand-600" : "bg-stone-300 dark:bg-zinc-600"
+        }`}
+      >
+        <span
+          aria-hidden
+          className={`absolute top-[3px] h-[22px] w-[22px] rounded-full bg-white shadow-sm transition-[inset-inline-start] duration-150 ease-out ${
+            show ? "start-[calc(100%-25px)]" : "start-[3px]"
+          }`}
+        />
+      </button>
+    </div>
   );
 }
 
@@ -562,6 +604,11 @@ function ProfileListingRow({
   listing: Listing;
   inactive?: boolean;
 }) {
+  const messages = useStore((s) => s.messages);
+  const conversationCount = useMemo(
+    () => listingThreadPeers(messages, listing.id).length,
+    [messages, listing.id],
+  );
   const price =
     listing.price != null ? (
       <span className="nums">{formatPrice(listing.price)}</span>
@@ -570,46 +617,52 @@ function ProfileListingRow({
     );
 
   return (
-    <Link
-      href={`/listing/${listing.id}`}
-      aria-label={
-        inactive ? `${listing.title}، غیرفعال` : listing.title
-      }
-      className="flex items-center gap-3 px-3 py-2.5 active:bg-stone-50/80 dark:active:bg-zinc-800/60"
-    >
-      <ListingImage
-        image={listing.image}
-        alt={listing.title}
-        size="sm"
-        category={listing.category}
-        type={listing.type}
-        className={inactive ? "grayscale" : ""}
-      />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <p
-            className={`font-semibold text-[13px] truncate ${
-              inactive
-                ? "text-ink-muted dark:text-zinc-400"
-                : "text-ink dark:text-zinc-100"
-            }`}
-          >
-            {listing.title}
+    <div className="flex items-stretch">
+      <Link
+        href={`/listing/${listing.id}`}
+        aria-label={inactive ? `${listing.title}، غیرفعال` : listing.title}
+        className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 active:bg-stone-50/80 dark:active:bg-zinc-800/60"
+      >
+        <ListingImage
+          image={listing.image}
+          alt={listing.title}
+          size="sm"
+          category={listing.category}
+          type={listing.type}
+          className={inactive ? "grayscale" : ""}
+        />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <p
+              className={`font-semibold text-[13px] truncate ${
+                inactive
+                  ? "text-ink-muted dark:text-zinc-400"
+                  : "text-ink dark:text-zinc-100"
+              }`}
+            >
+              {listing.title}
+            </p>
+            {inactive ? (
+              <span className="shrink-0 chip !text-[10px] !py-0.5 !px-1.5 bg-stone-200/80 text-ink-muted dark:bg-zinc-800 dark:text-zinc-400">
+                غیرفعال
+              </span>
+            ) : null}
+          </div>
+          <p className="text-[11px] text-ink-muted mt-0.5">
+            {price} · {listing.postedAt}
+            {conversationCount > 0 ? (
+              <span className="nums">
+                {" "}
+                · {toPersianDigits(conversationCount)} گفتگو
+              </span>
+            ) : null}
           </p>
-          {inactive ? (
-            <span className="shrink-0 chip !text-[10px] !py-0.5 !px-1.5 bg-stone-200/80 text-ink-muted dark:bg-zinc-800 dark:text-zinc-400">
-              غیرفعال
-            </span>
-          ) : null}
         </div>
-        <p className="text-[11px] text-ink-muted mt-0.5">
-          {price} · {listing.postedAt}
-        </p>
+      </Link>
+      <div className="flex items-center pe-1.5">
+        <OwnerListingManager listing={listing} />
       </div>
-      <span className="text-ink-faint" aria-hidden>
-        ‹
-      </span>
-    </Link>
+    </div>
   );
 }
 

@@ -124,7 +124,7 @@ async function ensureListings(sellerId: string, items: DemoListingDef[]) {
         condition: item.condition ?? null,
         privacy: item.privacy,
         city: null,
-        dealStatus: item.dealStatus ?? null,
+        dealStatus: item.dealStatus ?? "available",
       },
     });
   }

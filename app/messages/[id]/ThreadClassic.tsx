@@ -26,6 +26,8 @@ import {
 } from "@/lib/thread-listing";
 import { chatPeerSubtitle, viaConnectorName } from "@/lib/trust";
 import type { Message } from "@/lib/types";
+import { ApiError } from "@/lib/api";
+import { useToast } from "@/components/Toast";
 
 export default function ThreadClassic(_props: { params: { id: string } }) {
   const params = useParams();
@@ -40,7 +42,9 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   const addMessage = useStore((s) => s.addMessage);
   const markThreadRead = useStore((s) => s.markThreadRead);
   const setListingDealStatus = useStore((s) => s.setListingDealStatus);
+  const { show } = useToast();
   const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
   const [listingLoadState, setListingLoadState] = useState<
     "idle" | "loading" | "ready" | "missing"
   >("idle");
@@ -182,16 +186,29 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
     );
   }
 
-  function send() {
+  async function send() {
     const t = text.trim();
-    if (!t) return;
+    if (!t || sending) return;
     const attachListing = shouldAttachListingOnSend(thread, activeListingId)
       ? activeListingId
       : undefined;
     if (activeListingId) rememberThreadListing(peerId, activeListingId);
-    addMessage(peerId, t, attachListing);
-    setText("");
-    inputRef.current?.focus();
+    setSending(true);
+    try {
+      await addMessage(peerId, t, attachListing);
+      setText("");
+    } catch (err) {
+      show(
+        err instanceof ApiError ? err.message : "ارسال نشد. دوباره بزن.",
+      );
+    } finally {
+      setSending(false);
+      inputRef.current?.focus();
+    }
+  }
+
+  function notifySendError(err: unknown) {
+    show(err instanceof ApiError ? err.message : "ارسال نشد. دوباره بزن.");
   }
 
   function applyChip(prompt: BuyerPrompt) {
@@ -296,14 +313,20 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
                       onClick={() => {
                         setListingDealStatus(contextListing.id, id);
                         if (id === "reserved") {
-                          addMessage(
+                          void addMessage(
                             peerId,
                             "این آگهی را موقتاً رزرو کردم تا هماهنگ کنیم.",
-                          );
+                          ).catch(notifySendError);
                         } else if (id === "agreed") {
-                          addMessage(peerId, "روی این آگهی به توافق رسیدیم ✓");
+                          void addMessage(
+                            peerId,
+                            "روی این آگهی به توافق رسیدیم ✓",
+                          ).catch(notifySendError);
                         } else {
-                          addMessage(peerId, "آگهی دوباره موجود است.");
+                          void addMessage(
+                            peerId,
+                            "آگهی دوباره موجود است.",
+                          ).catch(notifySendError);
                         }
                       }}
                       className={`shrink-0 chip !px-2.5 !py-1 !text-[11px] border ${
@@ -416,7 +439,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
           <button
             type="button"
             onClick={send}
-            disabled={!text.trim()}
+            disabled={!text.trim() || sending}
             aria-label="ارسال"
             className="shrink-0 w-11 h-11 rounded-full bg-brand-600 text-white flex items-center justify-center active:scale-95 disabled:opacity-35 shadow-md shadow-brand-600/25 transition-transform duration-150"
           >

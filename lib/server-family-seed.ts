@@ -210,6 +210,7 @@ export async function seedFamilyCircle(inviterId: string, inviterPhone: string) 
           condition: item.condition,
           privacy: "ABC",
           city: seller.city || "تهران",
+          dealStatus: "available",
         },
       });
     }
