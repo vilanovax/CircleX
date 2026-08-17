@@ -22,7 +22,7 @@ import {
   reconcileDemoMessages,
   reconcileDemoOffers,
   reconcileDemoRequests,
-  viewerListingsMissing,
+  circleCatalogIncomplete,
 } from "./demo-requests";
 import { clearThreadListing } from "./thread-listing";
 import type {
@@ -387,8 +387,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const data = await loadHome();
         if (
           !opts?.needsSeed &&
-          (viewerListingsMissing(data.listings ?? []) ||
-            (data.members.length === 0 && (data.listings?.length ?? 0) === 0))
+          circleCatalogIncomplete(
+            data.listings ?? [],
+            data.members.length,
+          )
         ) {
           await api("/api/auth/seed-circle", { method: "POST" }).catch(
             () => null,
@@ -495,9 +497,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           const home = await homePromise;
           if (cancelled) return;
           if (
-            viewerListingsMissing(home.listings ?? []) ||
-            (home.members.length === 0 &&
-              (home.listings?.length ?? 0) === 0)
+            circleCatalogIncomplete(
+              home.listings ?? [],
+              home.members.length,
+            )
           ) {
             await api("/api/auth/seed-circle", { method: "POST" }).catch(
               () => null,

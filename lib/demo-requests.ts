@@ -405,6 +405,27 @@ export function viewerListingsMissing(listings: Listing[]): boolean {
   );
 }
 
+/** True when the home feed is missing the shared demo circle catalog. */
+export function demoNetworkListingsMissing(listings: Listing[]): boolean {
+  const titles = new Set(listings.map((l) => l.title));
+  const expected = DEMO_DIRECT.flatMap((p) =>
+    p.listings.map((item) => item.title),
+  );
+  if (expected.length === 0) return false;
+  const hits = expected.filter((title) => titles.has(title)).length;
+  return hits < Math.min(3, expected.length);
+}
+
+export function circleCatalogIncomplete(
+  listings: Listing[],
+  membersLength: number,
+): boolean {
+  if (membersLength === 0 && listings.length === 0) return true;
+  return (
+    viewerListingsMissing(listings) || demoNetworkListingsMissing(listings)
+  );
+}
+
 function listingIdByTitle(
   listings: Listing[],
   title: string | undefined,

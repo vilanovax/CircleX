@@ -146,10 +146,15 @@ async function ensureListingsFor(
  * Idempotent demo network for the logged-in user:
  * direct colleague / neighbor / friend, FoF through them and through family,
  * one pending invite, one join request, plus three listings posted by the viewer.
+ *
+ * Roster + catalog listings always backfill (so older accounts pick up
+ * new seed ads). Invite / join-request rows only run on first link.
  */
 export async function seedDemoCircle(viewerId: string, viewerPhone: string) {
-  if (!(await demoCircleAlreadyLinked(viewerId))) {
-    await seedDemoNetwork(viewerId, viewerPhone);
+  const alreadyLinked = await demoCircleAlreadyLinked(viewerId);
+  await ensureDemoRoster(viewerId);
+  if (!alreadyLinked) {
+    await ensureDemoInviteAndJoin(viewerId, viewerPhone);
   }
   await ensureViewerListings(viewerId);
 }
@@ -166,7 +171,7 @@ async function ensureViewerListings(viewerId: string) {
   );
 }
 
-async function seedDemoNetwork(viewerId: string, viewerPhone: string) {
+async function ensureDemoRoster(viewerId: string) {
   const byKey = new Map<DemoPersonKey, User>();
 
   for (const person of DEMO_DIRECT) {
@@ -262,7 +267,12 @@ async function seedDemoNetwork(viewerId: string, viewerPhone: string) {
 
     await ensureListingsFor(user.id, fof.city, fof.listings);
   }
+}
 
+async function ensureDemoInviteAndJoin(
+  viewerId: string,
+  viewerPhone: string,
+) {
   // Pending personal invite (نگار) — once per viewer.
   const pendingPhone = DEMO_PENDING_INVITE.phone;
   if (pendingPhone !== viewerPhone) {

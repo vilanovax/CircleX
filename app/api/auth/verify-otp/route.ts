@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { jsonError, readJson } from "@/lib/http";
+import { jsonError, readJson, withDb } from "@/lib/http";
 import { isValidIranMobile, normalizePhone } from "@/lib/phone";
 import {
   OTP_MAX_ATTEMPTS,
@@ -23,43 +23,45 @@ export async function POST(req: Request) {
     return jsonError("کد ۵ رقمی را کامل وارد کن", 400);
   }
 
-  const challenge = await prisma.otpChallenge.findFirst({
-    where: { phoneNormalized: phone },
-    orderBy: { createdAt: "desc" },
-  });
-  if (!challenge) {
-    return jsonError("اول درخواست کد بده", 400);
-  }
-  if (challenge.expiresAt.getTime() <= Date.now()) {
-    return jsonError("کد منقضی شده. دوباره بفرست", 400, "expired");
-  }
-  if (challenge.attempts >= OTP_MAX_ATTEMPTS) {
-    return jsonError("دفعات اشتباه زیاد شد. دوباره کد بگیر", 429, "locked");
-  }
-
-  const expected = hashOtp(phone, otpDevCode());
-  const matches =
-    challenge.codeHash === hashOtp(phone, code) ||
-    code === otpDevCode() ||
-    hashOtp(phone, code) === expected;
-
-  if (!matches) {
-    await prisma.otpChallenge.update({
-      where: { id: challenge.id },
-      data: { attempts: { increment: 1 } },
+  return withDb(async () => {
+    const challenge = await prisma.otpChallenge.findFirst({
+      where: { phoneNormalized: phone },
+      orderBy: { createdAt: "desc" },
     });
-    return jsonError("کد نادرست است", 400, "invalid_code");
-  }
+    if (!challenge) {
+      return jsonError("اول درخواست کد بده", 400);
+    }
+    if (challenge.expiresAt.getTime() <= Date.now()) {
+      return jsonError("کد منقضی شده. دوباره بفرست", 400, "expired");
+    }
+    if (challenge.attempts >= OTP_MAX_ATTEMPTS) {
+      return jsonError("دفعات اشتباه زیاد شد. دوباره کد بگیر", 429, "locked");
+    }
 
-  const user = await prisma.user.upsert({
-    where: { phoneNormalized: phone },
-    create: { phoneNormalized: phone },
-    update: {},
+    const expected = hashOtp(phone, otpDevCode());
+    const matches =
+      challenge.codeHash === hashOtp(phone, code) ||
+      code === otpDevCode() ||
+      hashOtp(phone, code) === expected;
+
+    if (!matches) {
+      await prisma.otpChallenge.update({
+        where: { id: challenge.id },
+        data: { attempts: { increment: 1 } },
+      });
+      return jsonError("کد نادرست است", 400, "invalid_code");
+    }
+
+    const user = await prisma.user.upsert({
+      where: { phoneNormalized: phone },
+      create: { phoneNormalized: phone },
+      update: {},
+    });
+
+    await prisma.otpChallenge.deleteMany({ where: { phoneNormalized: phone } });
+    await createSession(user.id);
+    const needsSeed = !(await demoCircleAlreadyLinked(user.id));
+
+    return Response.json({ user: toSessionUser(user), needsSeed });
   });
-
-  await prisma.otpChallenge.deleteMany({ where: { phoneNormalized: phone } });
-  await createSession(user.id);
-  const needsSeed = !(await demoCircleAlreadyLinked(user.id));
-
-  return Response.json({ user: toSessionUser(user), needsSeed });
 }
