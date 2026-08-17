@@ -22,6 +22,7 @@ import {
   reconcileDemoOffers,
   reconcileDemoRequests,
 } from "./demo-requests";
+import { clearThreadListing } from "./thread-listing";
 import type {
   BadgeType,
   BudgetUnit,
@@ -99,6 +100,10 @@ export interface StoreValue {
   messages: Message[];
   events: CircleEvent[];
   saved: string[];
+  /** Peer ids hidden from the main inbox (still recoverable). */
+  archivedThreads: string[];
+  /** Peer ids pinned to the top of the inbox (max a few). */
+  pinnedThreads: string[];
   invites: Invite[];
   joinRequests: CircleJoinRequest[];
   /** Peer edges among circle + FoF for the trust map. */
@@ -129,6 +134,13 @@ export interface StoreValue {
   addMessage: (peerId: string, text: string, listingId?: string) => void;
   referListing: (peerId: string, listingId: string, note?: string) => void;
   markThreadRead: (peerId: string) => void;
+  archiveThread: (peerId: string) => void;
+  unarchiveThread: (peerId: string) => void;
+  isThreadArchived: (peerId: string) => boolean;
+  togglePinThread: (peerId: string) => boolean;
+  isThreadPinned: (peerId: string) => boolean;
+  /** Delete this conversation for the current user only. */
+  deleteThread: (peerId: string) => void;
   addPerson: (input: NewPersonInput) => void;
   createInvite: (input: {
     relationType: RelationType;
@@ -227,6 +239,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [messages, setMessages] = useState<Message[]>(MESSAGES);
   const [events, setEvents] = useState<CircleEvent[]>(EVENTS);
   const [saved, setSaved] = useState<string[]>([]);
+  const [archivedThreads, setArchivedThreads] = useState<string[]>([]);
+  const [pinnedThreads, setPinnedThreads] = useState<string[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [joinRequests, setJoinRequests] = useState<CircleJoinRequest[]>([]);
   const [networkLinks, setNetworkLinks] = useState<NetworkLink[]>([]);
@@ -430,6 +444,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             );
           }
           if (Array.isArray(data.messages)) setMessages(data.messages);
+          if (Array.isArray(data.archivedThreads)) {
+            setArchivedThreads(
+              (data.archivedThreads as unknown[]).filter(
+                (id): id is string => typeof id === "string",
+              ),
+            );
+          }
+          if (Array.isArray(data.pinnedThreads)) {
+            setPinnedThreads(
+              (data.pinnedThreads as unknown[])
+                .filter((id): id is string => typeof id === "string")
+                .slice(0, 3),
+            );
+          }
           if (Array.isArray(data.events)) {
             setEvents(
               data.events.map((e: CircleEvent) => ({
@@ -514,6 +542,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           requests,
           offers,
           messages,
+          archivedThreads,
+          pinnedThreads,
           events,
           saved,
           onboarded,
@@ -527,6 +557,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     requests,
     offers,
     messages,
+    archivedThreads,
+    pinnedThreads,
     events,
     saved,
     onboarded,
@@ -649,6 +681,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           ...(listingId ? { listingId } : {}),
         },
       ]);
+      // New activity brings the thread back to the main inbox.
+      setArchivedThreads((prev) => prev.filter((id) => id !== peerId));
     },
     [],
   );
@@ -668,6 +702,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           listingId,
         },
       ]);
+      setArchivedThreads((prev) => prev.filter((id) => id !== peerId));
     },
     [],
   );
@@ -681,6 +716,52 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       );
     });
   }, []);
+
+  const archiveThread = useCallback((peerId: string) => {
+    setArchivedThreads((prev) =>
+      prev.includes(peerId) ? prev : [...prev, peerId],
+    );
+    setPinnedThreads((prev) => prev.filter((id) => id !== peerId));
+  }, []);
+
+  const unarchiveThread = useCallback((peerId: string) => {
+    setArchivedThreads((prev) => prev.filter((id) => id !== peerId));
+  }, []);
+
+  const isThreadArchived = useCallback(
+    (peerId: string) => archivedThreads.includes(peerId),
+    [archivedThreads],
+  );
+
+  const deleteThread = useCallback((peerId: string) => {
+    setMessages((prev) => prev.filter((msg) => msg.peerId !== peerId));
+    setArchivedThreads((prev) => prev.filter((id) => id !== peerId));
+    setPinnedThreads((prev) => prev.filter((id) => id !== peerId));
+    clearThreadListing(peerId);
+  }, []);
+
+  const togglePinThread = useCallback((peerId: string) => {
+    let ok = true;
+    let added = false;
+    setPinnedThreads((prev) => {
+      if (prev.includes(peerId)) return prev.filter((id) => id !== peerId);
+      if (prev.length >= 3) {
+        ok = false;
+        return prev;
+      }
+      added = true;
+      return [peerId, ...prev];
+    });
+    if (added) {
+      setArchivedThreads((a) => a.filter((id) => id !== peerId));
+    }
+    return ok;
+  }, []);
+
+  const isThreadPinned = useCallback(
+    (peerId: string) => pinnedThreads.includes(peerId),
+    [pinnedThreads],
+  );
 
   const addPerson = useCallback((input: NewPersonInput) => {
     setPeople((prev) => {
@@ -1142,6 +1223,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       messages,
       events,
       saved,
+      archivedThreads,
+      pinnedThreads,
       invites,
       joinRequests,
       networkLinks,
@@ -1168,6 +1251,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addMessage,
       referListing,
       markThreadRead,
+      archiveThread,
+      unarchiveThread,
+      isThreadArchived,
+      togglePinThread,
+      isThreadPinned,
+      deleteThread,
       addPerson,
       createInvite,
       createWaveFromPending,
@@ -1207,6 +1296,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       messages,
       events,
       saved,
+      archivedThreads,
+      pinnedThreads,
       invites,
       joinRequests,
       networkLinks,
@@ -1233,6 +1324,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addMessage,
       referListing,
       markThreadRead,
+      archiveThread,
+      unarchiveThread,
+      isThreadArchived,
+      togglePinThread,
+      isThreadPinned,
+      deleteThread,
       addPerson,
       createInvite,
       createWaveFromPending,

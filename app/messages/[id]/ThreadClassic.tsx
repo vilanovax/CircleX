@@ -17,6 +17,13 @@ import {
   type BuyerPrompt,
 } from "@/lib/listing-prompts";
 import { canOpenThread } from "@/lib/messaging";
+import {
+  latestListingIdInThread,
+  recalledThreadListing,
+  rememberThreadListing,
+  resolveThreadListingId,
+  shouldAttachListingOnSend,
+} from "@/lib/thread-listing";
 import { chatPeerSubtitle, viaConnectorName } from "@/lib/trust";
 import type { Message } from "@/lib/types";
 
@@ -38,36 +45,60 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
     "idle" | "loading" | "ready" | "missing"
   >("idle");
   const draftApplied = useRef(false);
-  const listingAttached = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const peer = getPerson(peerId);
   const thread = getThread(peerId);
-  const listingId = searchParams.get("listing");
-  const contextListing = listingId ? getListing(listingId) : undefined;
+  const queryListingId = searchParams.get("listing");
+  const [sessionListingId, setSessionListingId] = useState<string | undefined>(
+    undefined,
+  );
+
+  useEffect(() => {
+    setSessionListingId(recalledThreadListing(peerId));
+  }, [peerId]);
+
+  const activeListingId = useMemo(() => {
+    const id = resolveThreadListingId({
+      peerId,
+      queryListingId,
+      thread,
+    });
+    // resolve prefers query → thread; fall back to post-mount session recall
+    return id ?? sessionListingId;
+  }, [peerId, queryListingId, thread, sessionListingId]);
+
+  useEffect(() => {
+    if (activeListingId) setSessionListingId(activeListingId);
+  }, [activeListingId]);
+
+  const contextListing = activeListingId
+    ? getListing(activeListingId)
+    : undefined;
   const isSellerOfContext = contextListing?.sellerId === "me";
   const dealStatus = contextListing?.dealStatus ?? "available";
 
   useEffect(() => {
-    if (!listingId) {
+    if (!activeListingId) {
       setListingLoadState("idle");
       return;
     }
+    rememberThreadListing(peerId, activeListingId);
     if (contextListing) {
       setListingLoadState("ready");
       return;
     }
     let cancelled = false;
     setListingLoadState("loading");
-    void ensureListing(listingId).then((row) => {
+    void ensureListing(activeListingId).then((row) => {
       if (cancelled) return;
       setListingLoadState(row ? "ready" : "missing");
     });
     return () => {
       cancelled = true;
     };
-  }, [listingId, contextListing, ensureListing]);
+  }, [activeListingId, contextListing, ensureListing, peerId]);
 
   const viaName = useMemo(
     () => viaConnectorName(peerId, getPerson, networkLinks, people),
@@ -126,7 +157,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
     );
   }
 
-  if (listingId && listingLoadState === "loading") {
+  if (activeListingId && listingLoadState === "loading") {
     return (
       <main className="min-h-[100dvh] flex items-center justify-center">
         <p className="text-sm text-ink-faint">در حال باز کردن گفتگو…</p>
@@ -145,7 +176,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
         />
         <LockedMessaging
           peer={peer}
-          listingContext={Boolean(listingId)}
+          listingContext={Boolean(activeListingId)}
         />
       </main>
     );
@@ -154,11 +185,10 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   function send() {
     const t = text.trim();
     if (!t) return;
-    const attachListing =
-      listingId && !listingAttached.current
-        ? listingId
-        : undefined;
-    if (attachListing) listingAttached.current = true;
+    const attachListing = shouldAttachListingOnSend(thread, activeListingId)
+      ? activeListingId
+      : undefined;
+    if (activeListingId) rememberThreadListing(peerId, activeListingId);
     addMessage(peerId, t, attachListing);
     setText("");
     inputRef.current?.focus();
