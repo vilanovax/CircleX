@@ -30,7 +30,7 @@ function endorsementsReceivedCount(personId: string, listings: Listing[]): numbe
   let n = 0;
   for (const listing of listings) {
     if (listing.sellerId !== personId) continue;
-    n += listing.endorsements.length;
+    n += listing.endorsements.filter((e) => !e.hidden).length;
   }
   return n;
 }
@@ -42,7 +42,10 @@ function uniqueEndorsersReceivedCount(
   const endorsers = new Set<string>();
   for (const listing of listings) {
     if (listing.sellerId !== personId) continue;
-    for (const e of listing.endorsements) endorsers.add(e.personId);
+    for (const e of listing.endorsements) {
+      if (e.hidden) continue;
+      endorsers.add(e.personId);
+    }
   }
   return endorsers.size;
 }

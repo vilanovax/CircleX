@@ -44,6 +44,7 @@ export type SessionUser = {
   avatar: string;
   city: string | null;
   profileCompletedAt: string | null;
+  showOwnListingsInFeed: boolean;
 };
 
 export function toSessionUser(user: User): SessionUser {
@@ -56,6 +57,7 @@ export function toSessionUser(user: User): SessionUser {
     profileCompletedAt: user.profileCompletedAt
       ? user.profileCompletedAt.toISOString()
       : null,
+    showOwnListingsInFeed: user.showOwnListingsInFeed,
   };
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Image from "next/image";
+import { withBasePath } from "@/lib/avatar";
 import { isListingPhoto, listingImageTint } from "@/lib/listing-image";
 import type { ListingType } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
@@ -70,22 +70,14 @@ export default function ListingGallery({
               aria-hidden={i !== index}
             >
               {photo ? (
-                <Image
-                  src={src}
+                <img
+                  src={withBasePath(src)}
                   alt={
                     i === 0
                       ? alt
                       : `${alt} — تصویر ${toPersianDigits(i + 1)}`
                   }
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 480px) 100vw, 480px"
-                  priority={i === 0}
-                  unoptimized={
-                    src.startsWith("data:") ||
-                    src.startsWith("http://") ||
-                    src.startsWith("https://")
-                  }
+                  className="absolute inset-0 h-full w-full object-cover"
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-7xl leading-none">

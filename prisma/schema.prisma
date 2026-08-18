@@ -46,7 +46,8 @@ model User {
   name               String    @default("")
   avatar             String    @default("")
   city               String?
-  profileCompletedAt DateTime?
+  profileCompletedAt     DateTime?
+  showOwnListingsInFeed  Boolean   @default(true)
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -58,12 +59,20 @@ model User {
   inviteExpected     InviteExpected[]
   edgesFrom          CircleEdge[]       @relation("EdgeFrom")
   edgesTo            CircleEdge[]       @relation("EdgeTo")
-  listings           MarketListing[]
-  listingReports     ListingReport[]
-  joinRequestsHost   CircleJoinRequest[] @relation("JoinHost")
-  joinRequestsGuest  CircleJoinRequest[] @relation("JoinGuest")
-  messagesSent       DirectMessage[]     @relation("MessageFrom")
-  messagesReceived   DirectMessage[]     @relation("MessageTo")
+  listings            MarketListing[]
+  listingReports      ListingReport[]
+  listingEndorsements ListingEndorsement[]
+  joinRequestsHost    CircleJoinRequest[]  @relation("JoinHost")
+  joinRequestsGuest   CircleJoinRequest[]  @relation("JoinGuest")
+  messagesSent        DirectMessage[]      @relation("MessageFrom")
+  messagesReceived    DirectMessage[]      @relation("MessageTo")
+  wantRequests        WantRequest[]        @relation("WantRequester")
+  wantOffers          WantOffer[]          @relation("WantOfferer")
+  gatheringsHosted    Gathering[]          @relation("GatheringHost")
+  gatheringRsvps      GatheringRsvp[]
+  savedListings       SavedListing[]
+  threadPrefs         ThreadPreference[]   @relation("ThreadOwner")
+  threadAsPeer        ThreadPreference[]   @relation("ThreadPeer")
 
   @@index([phoneNormalized])
 }
@@ -202,10 +211,29 @@ model MarketListing {
   dealStatus  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  reports     ListingReport[]
-  messages    DirectMessage[]
+  reports      ListingReport[]
+  messages     DirectMessage[]
+  endorsements ListingEndorsement[]
+  saves        SavedListing[]
 
   @@index([sellerId])
+}
+
+model ListingEndorsement {
+  id        String   @id @default(cuid())
+  listingId String
+  listing   MarketListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  personId  String
+  person    User          @relation(fields: [personId], references: [id], onDelete: Cascade)
+  types     String[]
+  note      String?
+  hidden    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([listingId, personId])
+  @@index([listingId])
+  @@index([personId])
 }
 
 enum ListingReportReason {
@@ -258,4 +286,101 @@ model DirectMessage {
   @@index([toUserId, fromUserId])
   @@index([toUserId, readAt])
   @@index([listingId])
+}
+
+model WantRequest {
+  id          String   @id @default(cuid())
+  requesterId String
+  requester   User     @relation("WantRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  category    String
+  image       String
+  budget      Int?
+  budgetUnit  String?
+  privacy     String   @default("ABC")
+  city        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  offers      WantOffer[]
+
+  @@index([requesterId])
+}
+
+model WantOffer {
+  id        String   @id @default(cuid())
+  requestId String
+  request   WantRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  fromId    String
+  from      User        @relation("WantOfferer", fields: [fromId], references: [id], onDelete: Cascade)
+  message   String
+  price     Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([requestId, fromId])
+  @@index([requestId])
+  @@index([fromId])
+}
+
+model Gathering {
+  id          String   @id @default(cuid())
+  hostId      String
+  host        User     @relation("GatheringHost", fields: [hostId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  kind        String
+  image       String
+  dateLabel   String
+  timeLabel   String?
+  location    String
+  capacity    Int?
+  privacy     String   @default("ABC")
+  city        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  rsvps       GatheringRsvp[]
+
+  @@index([hostId])
+}
+
+model GatheringRsvp {
+  id        String    @id @default(cuid())
+  eventId   String
+  event     Gathering @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  personId  String
+  person    User      @relation(fields: [personId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@unique([eventId, personId])
+  @@index([eventId])
+  @@index([personId])
+}
+
+model SavedListing {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listingId String
+  listing   MarketListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@unique([userId, listingId])
+  @@index([userId])
+}
+
+model ThreadPreference {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation("ThreadOwner", fields: [userId], references: [id], onDelete: Cascade)
+  peerId    String
+  peer      User      @relation("ThreadPeer", fields: [peerId], references: [id], onDelete: Cascade)
+  archived  Boolean   @default(false)
+  pinned    Boolean   @default(false)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([userId, peerId])
+  @@index([userId])
 }

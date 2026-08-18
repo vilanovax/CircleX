@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { CameraIcon } from "@/components/Icons";
-import { processListingPhoto } from "@/lib/listing-image";
+import { uploadListingPhoto } from "@/lib/listing-image";
 import { toPersianDigits } from "@/lib/persian";
 import ListingImage from "./ListingImage";
 
@@ -59,7 +59,7 @@ export default function ListingImagePicker({
     try {
       const next: string[] = [...photos];
       for (const file of files) {
-        next.push(await processListingPhoto(file));
+        next.push(await uploadListingPhoto(file));
       }
       onPhotosChange(next);
       setShowEmojis(false);
@@ -205,7 +205,7 @@ export default function ListingImagePicker({
             >
               <CameraIcon className="w-6 h-6 text-ink-muted dark:text-zinc-400" />
               <span className="text-[13px] font-bold text-ink dark:text-zinc-200">
-                {busy ? "در حال پردازش…" : "افزودن عکس"}
+                {busy ? "در حال آپلود…" : "افزودن عکس"}
               </span>
               <span className="text-[11px] text-ink-faint">
                 تا {toPersianDigits(MAX_PHOTOS)} عکس — اولین عکس، عکس اصلی است

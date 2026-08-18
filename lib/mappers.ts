@@ -2,31 +2,108 @@ import type {
   CircleEdge,
   CircleJoinRequest as DbJoinRequest,
   DirectMessage,
+  Gathering,
+  GatheringRsvp,
   Invite as DbInvite,
   InviteExpected,
   InviteStatus as DbInviteStatus,
+  ListingEndorsement,
   MarketListing,
   User,
+  WantOffer,
+  WantRequest,
 } from "@prisma/client";
 import { relationLabels } from "./labels";
+import { localListingSrc, localListingSrcs } from "./listing-photo";
 import { parseDealStatus, parseSpecs } from "./listing-payload";
 import { toPersianDigits } from "./persian";
 import { maskPhone } from "./phone";
 import type {
+  BadgeType,
+  BudgetUnit,
+  CircleEvent,
   CircleJoinRequest,
+  Endorsement,
+  EventKind,
   Invite,
   InviteExpectedPerson,
   Listing,
   ListingType,
   Message,
+  Offer,
   Person,
   Privacy,
+  Request,
   TrustHop,
 } from "./types";
 
 export const inviteExpectedInclude = {
   expected: { orderBy: { createdAt: "asc" as const } },
 };
+
+export const listingEndorsementsInclude = {
+  endorsements: {
+    select: { personId: true, types: true, note: true, hidden: true },
+    orderBy: { createdAt: "asc" as const },
+  },
+} as const;
+
+const ENDORSE_TYPE_SET = new Set<BadgeType>([
+  "verify_item",
+  "know_seller",
+  "verify_quality",
+  "dealt_before",
+  "word",
+]);
+
+type EndorsementRow = Pick<
+  ListingEndorsement,
+  "personId" | "types" | "note" | "hidden"
+>;
+
+function canSeeHiddenWord(
+  row: EndorsementRow,
+  viewerId?: string,
+  sellerId?: string,
+): boolean {
+  if (!row.hidden) return true;
+  if (!viewerId) return false;
+  if (sellerId && viewerId === sellerId) return true;
+  return row.personId === viewerId;
+}
+
+export function toClientEndorsements(
+  rows: EndorsementRow[] | undefined,
+  viewerId?: string,
+  sellerId?: string,
+): Endorsement[] {
+  if (!rows?.length) return [];
+  const out: Endorsement[] = [];
+  for (const row of rows) {
+    if (!canSeeHiddenWord(row, viewerId, sellerId)) continue;
+    const personId =
+      viewerId && row.personId === viewerId ? "me" : row.personId;
+    const note = row.note?.trim() || undefined;
+    const types = row.types.filter((t): t is BadgeType =>
+      ENDORSE_TYPE_SET.has(t as BadgeType),
+    );
+    const badges = types.filter((t) => t !== "word");
+    const hidden = row.hidden || undefined;
+    if (badges.length === 0) {
+      if (note) out.push({ personId, type: "word", note, hidden });
+      continue;
+    }
+    badges.forEach((type, i) => {
+      out.push({
+        personId,
+        type,
+        ...(i === 0 && note ? { note } : {}),
+        hidden,
+      });
+    });
+  }
+  return out;
+}
 
 export function toClientExpected(
   row: InviteExpected,
@@ -159,6 +236,10 @@ export function relativePostedAt(date: Date, now = Date.now()): string {
   return `${toPersianDigits(Math.floor(days / 30))} ماه پیش`;
 }
 
+type ListingEndorsementSource = {
+  endorsements?: EndorsementRow[];
+};
+
 export function toHomeListing(
   row: Pick<
     MarketListing,
@@ -174,7 +255,8 @@ export function toHomeListing(
     | "privacy"
     | "city"
     | "dealStatus"
-  >,
+  > &
+    ListingEndorsementSource,
   viewerId?: string,
   trustPath: TrustHop[] = [],
 ): Listing {
@@ -187,11 +269,11 @@ export function toHomeListing(
     type: row.type as ListingType,
     price: row.price ?? undefined,
     category: row.category,
-    image: row.image,
+    image: localListingSrc(row.image),
     sellerId: viewerId && row.sellerId === viewerId ? "me" : row.sellerId,
     postedAt: relativePostedAt(row.createdAt),
     privacy: (row.privacy as Privacy) || "ABC",
-    endorsements: [],
+    endorsements: toClientEndorsements(row.endorsements, viewerId, row.sellerId),
     trustPath,
     city: row.city ?? undefined,
     dealStatus: parseDealStatus(row.dealStatus),
@@ -200,11 +282,13 @@ export function toHomeListing(
 }
 
 export function toClientListing(
-  row: MarketListing,
+  row: MarketListing & ListingEndorsementSource,
   viewerId?: string,
   trustPath: TrustHop[] = [],
 ): Listing {
-  const images = row.images.length > 0 ? row.images : [row.image];
+  const images = localListingSrcs(
+    row.images.length > 0 ? row.images : [row.image],
+  );
   return {
     id: row.id,
     title: row.title,
@@ -212,13 +296,13 @@ export function toClientListing(
     type: row.type as ListingType,
     price: row.price ?? undefined,
     category: row.category,
-    image: row.image,
+    image: localListingSrc(row.image),
     images,
     sellerId: viewerId && row.sellerId === viewerId ? "me" : row.sellerId,
     postedAt: relativePostedAt(row.createdAt),
     condition: row.condition ?? undefined,
     privacy: (row.privacy as Privacy) || "ABC",
-    endorsements: [],
+    endorsements: toClientEndorsements(row.endorsements, viewerId, row.sellerId),
     trustPath,
     city: row.city ?? undefined,
     specs: parseSpecs(row.specs),
@@ -258,5 +342,70 @@ export function personFromUser(
     inviteStatus: "joined",
   };
 }
+
+export function toClientRequest(
+  row: WantRequest,
+  viewerId?: string,
+  trustPath: TrustHop[] = [],
+): Request {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    category: row.category,
+    image: row.image,
+    requesterId: viewerId && row.requesterId === viewerId ? "me" : row.requesterId,
+    postedAt: relativePostedAt(row.createdAt),
+    budget: row.budget ?? undefined,
+    budgetUnit: (row.budgetUnit as BudgetUnit | null) ?? undefined,
+    privacy: (row.privacy as Privacy) || "ABC",
+    trustPath,
+    endorsements: [],
+    city: row.city ?? undefined,
+  };
+}
+
+export function toClientOffer(row: WantOffer, viewerId?: string): Offer {
+  return {
+    id: row.id,
+    requestId: row.requestId,
+    fromId: viewerId && row.fromId === viewerId ? "me" : row.fromId,
+    message: row.message,
+    price: row.price ?? undefined,
+    postedAt: relativePostedAt(row.createdAt),
+  };
+}
+
+export function toClientEvent(
+  row: Gathering & { rsvps?: Pick<GatheringRsvp, "personId">[] },
+  viewerId?: string,
+  trustPath: TrustHop[] = [],
+): CircleEvent {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    kind: row.kind as EventKind,
+    image: row.image,
+    hostId: viewerId && row.hostId === viewerId ? "me" : row.hostId,
+    date: row.dateLabel,
+    time: row.timeLabel ?? undefined,
+    location: row.location,
+    capacity: row.capacity ?? undefined,
+    privacy: (row.privacy as Privacy) || "ABC",
+    attendees: (row.rsvps ?? []).map((r) =>
+      viewerId && r.personId === viewerId ? "me" : r.personId,
+    ),
+    trustPath,
+    endorsements: [],
+    city: row.city ?? undefined,
+  };
+}
+
+export type ViewerThreadPrefs = {
+  archivedThreads: string[];
+  pinnedThreads: string[];
+  deletedThreads: string[];
+};
 
 export type { PublicInvite as PublicInvitePayload } from "./types";

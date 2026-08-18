@@ -48,6 +48,10 @@ export function useOwnerListingFlow(
     setPanel("menu");
   }
 
+  function openStats() {
+    setPanel("stats");
+  }
+
   function openEdit() {
     if (listing.feedPreview) {
       void ensureListing(listing.id).then((found) => {
@@ -81,7 +85,7 @@ export function useOwnerListingFlow(
           conversationCount={conversationCount}
           onClose={close}
           onEdit={openEdit}
-          onStats={() => setPanel("stats")}
+          onStats={openStats}
           onMessages={() => {
             if (peers.length === 1) {
               setPanel(null);
@@ -135,6 +139,7 @@ export function useOwnerListingFlow(
     menuOpen: panel === "menu",
     openMenu,
     openEdit,
+    openStats,
     sheets,
   };
 }

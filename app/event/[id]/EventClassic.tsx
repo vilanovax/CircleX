@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
@@ -38,6 +39,8 @@ export default function EventClassic(_props: { params: { id: string } }) {
   const params = useParams();
   const id = String(params.id);
   const event = useStore((s) => s.events.find((e) => e.id === id));
+  const ensureEvent = useStore((s) => s.ensureEvent);
+  const hydrated = useStore((s) => s.hydrated);
   const getPerson = useStore((s) => s.getPerson);
   const people = useStore((s) => s.people);
   const toggleRsvp = useStore((s) => s.toggleRsvp);
@@ -46,12 +49,32 @@ export default function EventClassic(_props: { params: { id: string } }) {
       s.events.find((e) => e.id === id)?.attendees.includes("me") ?? false,
   );
   const { show } = useToast();
+  const [lookup, setLookup] = useState<"idle" | "loading" | "miss">("idle");
 
-  if (!event) {
+  useEffect(() => {
+    if (!hydrated) return;
+    if (event) {
+      setLookup("idle");
+      return;
+    }
+    let cancelled = false;
+    setLookup("loading");
+    void ensureEvent(id).then((row) => {
+      if (cancelled) return;
+      setLookup(row ? "idle" : "miss");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [ensureEvent, event, hydrated, id]);
+
+  if (!hydrated || !event) {
     return (
       <main className="min-h-[100dvh]">
         <Header title="رویداد" back />
-        <p className="text-center text-ink-faint py-20 text-sm">رویداد پیدا نشد.</p>
+        <p className="text-center text-ink-faint py-20 text-sm">
+          {hydrated && lookup === "miss" ? "رویداد پیدا نشد." : "در حال بارگذاری…"}
+        </p>
       </main>
     );
   }
@@ -317,8 +340,7 @@ export default function EventClassic(_props: { params: { id: string } }) {
                   <button
                     type="button"
                     onClick={() => {
-                      toggleRsvp(id);
-                      show("حضور لغو شد");
+                      void toggleRsvp(id).then(() => show("حضور لغو شد"));
                     }}
                     className="bg-stone-100 dark:bg-zinc-800 text-ink-muted font-medium rounded-xl px-4 active:scale-[0.97] transition-transform duration-150"
                   >
@@ -330,8 +352,9 @@ export default function EventClassic(_props: { params: { id: string } }) {
                   type="button"
                   onClick={() => {
                     if (full) return;
-                    toggleRsvp(id);
-                    show("حضور شما ثبت شد ✓ منتظر شما هستیم!");
+                    void toggleRsvp(id).then(() =>
+                      show("حضور شما ثبت شد ✓ منتظر شما هستیم!"),
+                    );
                   }}
                   disabled={full}
                   className="btn-primary w-full !py-3.5 text-base shadow-lg shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150"

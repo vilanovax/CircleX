@@ -10,7 +10,7 @@ import ListingSpecs from "@/components/ListingSpecs";
 import { lazyUi } from "@/lib/lazy-ui";
 import Avatar from "@/components/Avatar";
 import TrustPath from "@/components/TrustPath";
-import { EndorsementList } from "@/components/Endorsements";
+import { EndorsementList, visibleEndorsements } from "@/components/Endorsements";
 import {
   ChatIcon,
   CircleUsersIcon,
@@ -21,14 +21,13 @@ import {
   ShieldCheckIcon,
 } from "@/components/Icons";
 import {
-  badgeLabels,
   formatPrice,
   listingDisplayTitle,
   listingPrivacyAudienceLine,
   listingTypeChip,
   listingTypeLabels,
 } from "@/lib/labels";
-import type { BadgeType, Listing } from "@/lib/types";
+import type { Listing } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
 import LockedAccess from "@/components/LockedAccess";
 import { canView, listingSellerSubtitle } from "@/lib/trust";
@@ -39,11 +38,11 @@ import {
   type BuyerPrompt,
 } from "@/lib/listing-prompts";
 import { listingGalleryImages } from "@/lib/listing-image";
-import SheetShell from "@/components/SheetShell";
 import { useOwnerListingFlow } from "@/components/OwnerListingManager";
 
 const ReferSheet = lazyUi(() => import("@/components/ReferSheet"));
 const ReportListingSheet = lazyUi(() => import("@/components/ReportListingSheet"));
+const EndorseSheet = lazyUi(() => import("@/components/EndorseSheet"));
 
 const OWNER_PLACEHOLDER: Listing = {
   id: "",
@@ -66,7 +65,6 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const listing = useStore((s) => s.listings.find((row) => row.id === id));
   const ensureListing = useStore((s) => s.ensureListing);
   const getPerson = useStore((s) => s.getPerson);
-  const toggleEndorsement = useStore((s) => s.toggleEndorsement);
   const toggleSaved = useStore((s) => s.toggleSaved);
   const setListingDealStatus = useStore((s) => s.setListingDealStatus);
   const saved = useStore((s) => s.saved.includes(id));
@@ -79,14 +77,16 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const [promptsCollapsed, setPromptsCollapsed] = useState(false);
   const lastScrollY = useRef(0);
   const [lookup, setLookup] = useState<"idle" | "loading" | "miss">("idle");
+  const listingMissing = !listing;
+  const listingPreview = Boolean(listing?.feedPreview);
   useEffect(() => {
     if (!hydrated) return;
-    if (listing && !listing.feedPreview) {
+    if (!listingMissing && !listingPreview) {
       setLookup("idle");
       return;
     }
     let cancelled = false;
-    if (!listing) setLookup("loading");
+    if (listingMissing) setLookup("loading");
     void ensureListing(id).then((row) => {
       if (cancelled) return;
       setLookup(row ? "idle" : "miss");
@@ -94,7 +94,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
     return () => {
       cancelled = true;
     };
-  }, [ensureListing, hydrated, id, listing]);
+  }, [ensureListing, hydrated, id, listingMissing, listingPreview]);
 
   const isDirectTrust =
     !!listing &&
@@ -181,7 +181,8 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const sellerId = listing.sellerId;
   const listingId = listing.id;
   const negotiable = listing.specs?.find((s) => s.label === "قابل مذاکره");
-  const endorsementCount = listing.endorsements.length;
+  const visibleWords = visibleEndorsements(listing.endorsements);
+  const endorsementCount = new Set(visibleWords.map((e) => e.personId)).size;
   const myEndorsements = listing.endorsements.filter((e) => e.personId === "me");
   const footerPad = isMine
     ? "pb-[5.75rem]"
@@ -229,11 +230,12 @@ export default function ListingClassic(_props: { params: { id: string } }) {
                 <button
                   type="button"
                   onClick={() => {
-                    toggleSaved(id);
-                    show(
-                      saved
-                        ? "از نشان‌شده‌های پروفایل حذف شد"
-                        : "در پروفایل ذخیره شد ✓",
+                    void toggleSaved(id).then(() =>
+                      show(
+                        saved
+                          ? "از نشان‌شده‌های پروفایل حذف شد"
+                          : "در پروفایل ذخیره شد ✓",
+                      ),
                     );
                   }}
                   className={`inline-grid size-9 shrink-0 place-items-center appearance-none overflow-hidden rounded-xl p-0 leading-none transition-colors ${
@@ -414,18 +416,24 @@ export default function ListingClassic(_props: { params: { id: string } }) {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 className="font-bold text-[14px] text-ink dark:text-zinc-100">
-                تأیید حلقه
+                آشنایان چه می‌گویند
                 {endorsementCount > 0
                   ? ` · ${toPersianDigits(endorsementCount)}`
                   : ""}
               </h2>
-              {endorsementCount > 0 ? (
+              {listing.endorsements.length > 0 ? (
                 <div className="mt-2">
-                  <EndorsementList endorsements={listing.endorsements} />
+                  <EndorsementList
+                    endorsements={listing.endorsements}
+                    sellerName={seller?.name ?? "فروشنده"}
+                    listingId={isMine ? listing.id : undefined}
+                    canHide={isMine}
+                  />
                 </div>
               ) : (
                 <p className="text-[12px] text-ink-muted mt-1 leading-relaxed">
-                  هنوز کسی دربارهٔ این آگهی تأییدی ثبت نکرده.
+                  هنوز کسی چیزی نگفته. اگر این را دیده‌ای یا{" "}
+                  {seller?.name ?? "فروشنده"} را می‌شناسی، بنویس.
                 </p>
               )}
             </div>
@@ -435,7 +443,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
                 onClick={() => setShowEndorse(true)}
                 className="shrink-0 text-[12px] font-bold text-brand-600 dark:text-brand-400 py-0.5"
               >
-                {myEndorsements.length > 0 ? "ویرایش تأیید ‹" : "افزودن تأیید ‹"}
+                {myEndorsements.length > 0 ? "ویرایش ‹" : "اگر دیده‌ای، بگو ‹"}
               </button>
             ) : null}
           </div>
@@ -457,11 +465,11 @@ export default function ListingClassic(_props: { params: { id: string } }) {
                 کسی را می‌شناسی که این را بخواهد؟
               </span>
               <span className="block text-[11px] text-ink-muted mt-0.5">
-                فقط داخل حلقه برایش فرستاده می‌شود
+                فقط برای همان یک نفر فرستاده می‌شود
               </span>
             </span>
-            <span className="shrink-0 text-[12px] font-bold text-brand-600 dark:text-brand-400 text-center leading-tight max-w-[5.5rem]">
-              فرستادن برای حلقه ‹
+            <span className="shrink-0 text-[12px] font-bold text-brand-600 dark:text-brand-400 text-center leading-tight max-w-[6.25rem]">
+              برای یک آشنا بفرست ‹
             </span>
           </button>
         </section>
@@ -553,24 +561,10 @@ export default function ListingClassic(_props: { params: { id: string } }) {
 
       {showEndorse && (
         <EndorseSheet
+          listingId={listing.id}
+          listingTitle={listing.title}
           sellerName={seller?.name ?? "فروشنده"}
-          activeTypes={myEndorsements.map((e) => e.type)}
-          onToggle={(type) => {
-            const active = myEndorsements.some((e) => e.type === type);
-            if (active) {
-              toggleEndorsement(listing.id, type);
-              return;
-            }
-            const needsConfirm =
-              type === "verify_item" || type === "verify_quality";
-            if (
-              needsConfirm &&
-              !window.confirm("آیا این را از نزدیک دیده‌اید؟")
-            ) {
-              return;
-            }
-            toggleEndorsement(listing.id, type);
-          }}
+          myEndorsements={myEndorsements}
           onClose={() => setShowEndorse(false)}
         />
       )}
@@ -590,109 +584,5 @@ export default function ListingClassic(_props: { params: { id: string } }) {
       )}
       {isMine ? owner.sheets : null}
     </main>
-  );
-}
-
-const ITEM_BADGES: BadgeType[] = ["verify_item", "verify_quality"];
-const PERSON_BADGES: BadgeType[] = ["know_seller", "dealt_before"];
-
-function EndorseSheet({
-  sellerName,
-  activeTypes,
-  onToggle,
-  onClose,
-}: {
-  sellerName: string;
-  activeTypes: BadgeType[];
-  onToggle: (type: BadgeType) => void;
-  onClose: () => void;
-}) {
-  return (
-    <SheetShell
-      onClose={onClose}
-      labelledBy="endorse-sheet-title"
-      zClass="z-50"
-      footer={
-        <button type="button" onClick={onClose} className="btn-ghost w-full !py-3.5">
-          تمام
-        </button>
-      }
-    >
-      <h2
-        id="endorse-sheet-title"
-        className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50"
-      >
-        افزودن تأیید
-      </h2>
-      <p className="text-[12px] text-ink-muted mt-1 leading-relaxed">
-        حرف توست، نه مهر سیرکل. فقط حلقه می‌بیند.
-      </p>
-
-      <p className="mt-4 mb-1.5 text-[11px] font-bold text-ink-faint">
-        دربارهٔ کالا
-      </p>
-      <div className="rounded-2xl border border-stone-200/80 dark:border-zinc-800 overflow-hidden">
-        {ITEM_BADGES.map((type, i) => (
-          <EndorseOption
-            key={type}
-            type={type}
-            active={activeTypes.includes(type)}
-            onToggle={() => onToggle(type)}
-            divider={i < ITEM_BADGES.length - 1}
-          />
-        ))}
-      </div>
-
-      <p className="mt-3.5 mb-1.5 text-[11px] font-bold text-ink-faint">
-        دربارهٔ {sellerName}
-      </p>
-      <div className="rounded-2xl border border-stone-200/80 dark:border-zinc-800 overflow-hidden">
-        {PERSON_BADGES.map((type, i) => (
-          <EndorseOption
-            key={type}
-            type={type}
-            active={activeTypes.includes(type)}
-            onToggle={() => onToggle(type)}
-            divider={i < PERSON_BADGES.length - 1}
-          />
-        ))}
-      </div>
-    </SheetShell>
-  );
-}
-
-function EndorseOption({
-  type,
-  active,
-  onToggle,
-  divider,
-}: {
-  type: BadgeType;
-  active: boolean;
-  onToggle: () => void;
-  divider: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-pressed={active}
-      className={`w-full flex items-center gap-3 px-3.5 py-3 text-right active:bg-stone-50 dark:active:bg-zinc-800/80 ${
-        divider ? "border-b border-stone-100 dark:border-zinc-800" : ""
-      }`}
-    >
-      <span
-        className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${
-          active
-            ? "bg-[color:var(--circle-trust)] border-[color:var(--circle-trust)] text-white"
-            : "border-stone-300 dark:border-zinc-600"
-        }`}
-      >
-        {active ? "✓" : ""}
-      </span>
-      <span className="text-[13.5px] font-semibold text-ink dark:text-zinc-100">
-        {badgeLabels[type]}
-      </span>
-    </button>
   );
 }

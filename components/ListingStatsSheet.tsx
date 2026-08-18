@@ -1,13 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import SheetShell from "@/components/SheetShell";
 import ListingImage from "@/components/ListingImage";
 import Avatar from "@/components/Avatar";
 import { ChatIcon } from "@/components/Icons";
-import { EndorsementSummary } from "@/components/Endorsements";
+import { groupByPerson } from "@/components/Endorsements";
 import { useStore } from "@/lib/store";
+import { ApiError } from "@/lib/api";
+import { useToast } from "@/components/Toast";
 import {
   formatPrice,
   listingDisplayTitle,
@@ -34,6 +36,16 @@ export default function ListingStatsSheet({
   const getPerson = useStore((s) => s.getPerson);
   const getThread = useStore((s) => s.getThread);
   const unreadCount = useStore((s) => s.unreadCount);
+  const setListingEndorsementHidden = useStore(
+    (s) => s.setListingEndorsementHidden,
+  );
+  const { show } = useToast();
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const wordGroups = useMemo(
+    () => groupByPerson(listing.endorsements),
+    [listing.endorsements],
+  );
 
   const peers = useMemo(
     () => listingThreadPeers(messages, listing.id),
@@ -44,7 +56,9 @@ export default function ListingStatsSheet({
     [messages, listing.id],
   );
   const endorserCount = useMemo(() => {
-    const ids = new Set(listing.endorsements.map((e) => e.personId));
+    const ids = new Set(
+      listing.endorsements.filter((e) => !e.hidden).map((e) => e.personId),
+    );
     return ids.size;
   }, [listing.endorsements]);
 
@@ -76,6 +90,19 @@ export default function ListingStatsSheet({
     router.push(
       `/messages/${encodeURIComponent(peerId)}?listing=${encodeURIComponent(listing.id)}`,
     );
+  }
+
+  async function toggleWord(personId: string, hidden: boolean) {
+    if (busyId) return;
+    setBusyId(personId);
+    try {
+      await setListingEndorsementHidden(listing.id, personId, hidden);
+      show(hidden ? "این حرف روی آگهی نشان داده نمی‌شود" : "این حرف روی آگهی آمد");
+    } catch (err) {
+      show(err instanceof ApiError ? err.message : "تغییر نمایش نشد");
+    } finally {
+      setBusyId(null);
+    }
   }
 
   return (
@@ -175,12 +202,72 @@ export default function ListingStatsSheet({
         )}
       </div>
 
-      {endorserCount > 0 ? (
-        <div className="mt-4 px-0.5">
-          <p className="text-[11px] font-semibold text-ink-muted dark:text-zinc-400 mb-1.5">
-            تأیید حلقه
+      {wordGroups.length > 0 ? (
+        <div className="mt-4">
+          <p className="text-[11px] font-semibold text-ink-muted dark:text-zinc-400 px-0.5 mb-1.5">
+            حرف آشنایان روی آگهی
           </p>
-          <EndorsementSummary endorsements={listing.endorsements} />
+          <p className="text-[12px] text-ink-muted dark:text-zinc-400 px-0.5 mb-2 leading-relaxed">
+            کل همان نظر را نشان بده یا پنهان کن. متن را عوض نمی‌کنی.
+          </p>
+          <ul className="space-y-2">
+            {wordGroups.map((group) => {
+              const person = getPerson(group.personId);
+              const name = person?.name ?? "یک آشنا";
+              const hidden = Boolean(group.hidden);
+              const busy = busyId === group.personId;
+              return (
+                <li
+                  key={group.personId}
+                  className={`rounded-2xl px-3 py-3 ring-1 ${
+                    hidden
+                      ? "bg-stone-50/80 dark:bg-zinc-800/40 ring-stone-200/80 dark:ring-zinc-700/80"
+                      : "bg-white dark:bg-zinc-900 ring-stone-200/80 dark:ring-zinc-700"
+                  }`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <Avatar
+                      name={name}
+                      src={person?.avatar}
+                      size="sm"
+                      showLevel={false}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-bold text-ink dark:text-zinc-100">
+                        {name}
+                      </p>
+                      {group.note ? (
+                        <p className="mt-1 text-[12.5px] text-ink dark:text-zinc-200 leading-relaxed">
+                          «{group.note}»
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-[12px] text-ink-muted">
+                          بدون متن — فقط گزینه
+                        </p>
+                      )}
+                      <p className="mt-1 text-[11px] text-ink-faint">
+                        {hidden
+                          ? "الان روی آگهی نیست"
+                          : "روی آگهی دیده می‌شود"}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => toggleWord(group.personId, !hidden)}
+                    className="mt-2.5 w-full rounded-xl py-2 text-[12px] font-bold ring-1 ring-stone-200 dark:ring-zinc-700 text-ink dark:text-zinc-100 active:bg-stone-50 dark:active:bg-zinc-800 disabled:opacity-50"
+                  >
+                    {busy
+                      ? "…"
+                      : hidden
+                        ? "نمایش روی آگهی"
+                        : "پنهان از آگهی"}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       ) : null}
     </SheetShell>

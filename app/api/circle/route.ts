@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
-import { loadCircleNetwork } from "@/lib/circle-network";
-import { jsonError } from "@/lib/http";
+import { loadCircleNetwork, loadViewerPrefs } from "@/lib/circle-network";
+import { jsonError, withDb } from "@/lib/http";
 import {
   inviteExpectedInclude,
   pendingPersonFromInvite,
@@ -12,10 +12,11 @@ import { getSessionUser } from "@/lib/server-auth";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  return withDb(async () => {
   const session = await getSessionUser();
   if (!session) return jsonError("وارد نشده‌ای", 401, "unauthorized");
 
-  const [inviteRows, joinRows, network] = await Promise.all([
+  const [inviteRows, joinRows, network, prefs] = await Promise.all([
     prisma.invite.findMany({
       where: { inviterUserId: session.id, status: "pending" },
       orderBy: { createdAt: "desc" },
@@ -27,6 +28,7 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     }),
     loadCircleNetwork(session.id),
+    loadViewerPrefs(session.id),
   ]);
 
   const now = Date.now();
@@ -56,6 +58,15 @@ export async function GET() {
     pending,
     pendingPeople: pending.map(pendingPersonFromInvite),
     listings: network.listings,
+    requests: network.requests,
+    offers: network.offers,
+    events: network.events,
     joinRequests: joinRows.map(toClientJoinRequest),
+    saved: prefs.saved,
+    archivedThreads: prefs.archivedThreads,
+    pinnedThreads: prefs.pinnedThreads,
+    deletedThreads: prefs.deletedThreads,
+    showOwnListingsInFeed: prefs.showOwnListingsInFeed,
+  });
   });
 }

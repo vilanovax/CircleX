@@ -87,11 +87,15 @@ export default function CreateSheet({ onClose }: { onClose: () => void }) {
       <AddRequestSheet
         onClose={onClose}
         onBack={() => setStep("menu")}
-        onAdd={(input) => {
-          const id = addRequest(input);
-          onClose();
-          show("درخواست شما ثبت شد ✓");
-          router.push(`/request/${id}`);
+        onAdd={async (input) => {
+          try {
+            const id = await addRequest(input);
+            onClose();
+            show("درخواست شما ثبت شد ✓");
+            router.push(`/request/${id}`);
+          } catch (err) {
+            show(err instanceof ApiError ? err.message : "درخواست ذخیره نشد");
+          }
         }}
       />
     );
@@ -102,11 +106,15 @@ export default function CreateSheet({ onClose }: { onClose: () => void }) {
       <AddEventSheet
         onClose={onClose}
         onBack={() => setStep("menu")}
-        onAdd={(input) => {
-          const id = addEvent(input);
-          onClose();
-          show("رویداد شما ساخته شد ✓");
-          router.push(`/event/${id}`);
+        onAdd={async (input) => {
+          try {
+            const id = await addEvent(input);
+            onClose();
+            show("رویداد شما ساخته شد ✓");
+            router.push(`/event/${id}`);
+          } catch (err) {
+            show(err instanceof ApiError ? err.message : "رویداد ذخیره نشد");
+          }
         }}
       />
     );

@@ -17,15 +17,13 @@ const nextConfig = {
         permanent: false,
         basePath: false,
       },
+      {
+        source: "/listings/:path*",
+        destination: `${basePath}/listings/:path*`,
+        permanent: false,
+        basePath: false,
+      },
     ];
-  },
-  images: {
-    // Remote/data listing photos use `unoptimized` on the Image component.
-    // Local public paths stay eligible for the optimizer.
-    remotePatterns: [
-      { protocol: "https", hostname: "images.unsplash.com" },
-      { protocol: "https", hostname: "**.githubusercontent.com" },
-    ],
   },
 };
 

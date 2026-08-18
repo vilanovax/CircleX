@@ -98,15 +98,16 @@ export default function ClassicProfile() {
     [me, listings, myCircleCount],
   );
 
-  const myGivenBadges = useMemo(
-    () =>
-      listings.flatMap((l) =>
-        l.endorsements
-          .filter((e) => e.personId === "me")
-          .map((e) => ({ l, e })),
-      ),
-    [listings],
-  );
+  const myGivenBadges = useMemo(() => {
+    return listings.flatMap((l) => {
+      const mine = l.endorsements.filter((e) => e.personId === "me");
+      if (mine.length === 0) return [];
+      const note = mine.find((e) => e.note?.trim())?.note;
+      const types = mine.filter((e) => e.type !== "word");
+      const shown = types.length > 0 ? types : mine;
+      return shown.map((e) => ({ l, e, note }));
+    });
+  }, [listings]);
 
   const activityTabs = useMemo(
     () => [
@@ -379,24 +380,31 @@ export default function ClassicProfile() {
               myGivenBadges.length === 0 ? (
                 <EmptyCard
                   title="هنوز تأییدی نداده‌ای"
-                  text="از صفحهٔ آگهی تأیید ثبت کن."
+                  text="از صفحهٔ آگهی بگو که دیده‌ای یا می‌شناسی‌اش."
                   href="/"
                   cta="رفتن به آگهی‌ها"
                   icon="shield"
                 />
               ) : (
                 <div className="card divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
-                  {myGivenBadges.map(({ l, e }, i) => (
+                  {myGivenBadges.map(({ l, e, note }, i) => (
                     <Link
                       key={`${l.id}-${e.type}-${i}`}
                       href={`/listing/${l.id}`}
                       className="flex items-center gap-3 px-3.5 py-3 text-[13px] active:bg-stone-50/80"
                     >
                       <span className="text-[11px] font-semibold text-levelA shrink-0 rounded-md bg-levelA/10 px-1.5 py-0.5">
-                        {badgeLabels[e.type]}
+                        {e.type === "word" ? "حرف" : badgeLabels[e.type]}
                       </span>
-                      <span className="font-medium text-ink dark:text-zinc-100 truncate flex-1">
-                        {l.title}
+                      <span className="min-w-0 flex-1">
+                        <span className="font-medium text-ink dark:text-zinc-100 truncate block">
+                          {l.title}
+                        </span>
+                        {note ? (
+                          <span className="text-[11px] text-ink-muted truncate block mt-0.5">
+                            «{note}»
+                          </span>
+                        ) : null}
                       </span>
                       <span className="text-ink-faint" aria-hidden>
                         ‹

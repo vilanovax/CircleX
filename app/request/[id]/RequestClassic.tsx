@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import Avatar from "@/components/Avatar";
@@ -31,6 +31,8 @@ export default function RequestClassic(_props: { params: { id: string } }) {
   const router = useRouter();
   const id = String(params.id);
   const request = useStore((s) => s.requests.find((r) => r.id === id));
+  const ensureRequest = useStore((s) => s.ensureRequest);
+  const hydrated = useStore((s) => s.hydrated);
   const getPerson = useStore((s) => s.getPerson);
   const getThread = useStore((s) => s.getThread);
   const offersAll = useStore((s) => s.offers);
@@ -41,6 +43,24 @@ export default function RequestClassic(_props: { params: { id: string } }) {
   const [showOffer, setShowOffer] = useState(false);
   const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
   const [pathExpanded, setPathExpanded] = useState(false);
+  const [lookup, setLookup] = useState<"idle" | "loading" | "miss">("idle");
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (request) {
+      setLookup("idle");
+      return;
+    }
+    let cancelled = false;
+    setLookup("loading");
+    void ensureRequest(id).then((row) => {
+      if (cancelled) return;
+      setLookup(row ? "idle" : "miss");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [ensureRequest, hydrated, id, request]);
 
   const offers = useMemo(
     () => offersAll.filter((o) => o.requestId === id),
@@ -51,12 +71,12 @@ export default function RequestClassic(_props: { params: { id: string } }) {
     [offers],
   );
 
-  if (!request) {
+  if (!hydrated || !request) {
     return (
       <main className="min-h-[100dvh]">
         <Header title="درخواست" back />
         <p className="text-center text-ink-faint py-20 text-sm">
-          درخواست پیدا نشد.
+          {hydrated && lookup === "miss" ? "درخواست پیدا نشد." : "در حال بارگذاری…"}
         </p>
       </main>
     );
@@ -307,8 +327,8 @@ export default function RequestClassic(_props: { params: { id: string } }) {
           initialMessage={offers.find((o) => o.fromId === "me")?.message}
           initialPrice={offers.find((o) => o.fromId === "me")?.price}
           onClose={() => setShowOffer(false)}
-          onSubmit={(message, price) => {
-            addOffer({ requestId: id, message, price });
+          onSubmit={async (message, price) => {
+            await addOffer({ requestId: id, message, price });
             setShowOffer(false);
             show(offered ? "پیشنهادت به‌روز شد ✓" : "پیشنهادت فرستاده شد ✓");
           }}
@@ -319,8 +339,8 @@ export default function RequestClassic(_props: { params: { id: string } }) {
         <WithdrawOfferSheet
           requestTitle={request.title}
           onClose={() => setShowWithdrawConfirm(false)}
-          onConfirm={() => {
-            withdrawOffer(id);
+          onConfirm={async () => {
+            await withdrawOffer(id);
             setShowWithdrawConfirm(false);
             show("پیشنهادت حذف شد");
           }}

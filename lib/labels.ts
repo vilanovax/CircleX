@@ -161,10 +161,18 @@ export const eventKindChip: Record<EventKind, string> = {
 };
 
 export const badgeLabels: Record<BadgeType, string> = {
-  verify_item: "این را از نزدیک دیده‌ام",
-  know_seller: "این فرد را می‌شناسم",
-  verify_quality: "وضعیت گفته‌شده را بررسی کرده‌ام",
-  dealt_before: "قبلاً با این فرد معامله کرده‌ام",
+  verify_item: "از نزدیک دیده‌ام",
+  know_seller: "می‌شناسمش",
+  verify_quality: "وضعیتش را چک کرده‌ام",
+  dealt_before: "باهاش معامله کرده‌ام",
+  word: "حرف",
+};
+
+export const badgeHints: Record<Exclude<BadgeType, "word">, string> = {
+  verify_item: "یعنی عکس و توضیح با واقعیت جور است",
+  know_seller: "از آشنایان یا زندگی واقعی می‌شناسی‌اش",
+  verify_quality: "یعنی سالم بودن یا کارکردش را دیده‌ام، نه فقط عکس",
+  dealt_before: "قوی‌ترین حرف — قبلاً دادوستد کرده‌اید",
 };
 
 /** Past-tense / third-person lines for endorsement feed. */
@@ -173,7 +181,14 @@ export const badgeResultLabels: Record<BadgeType, string> = {
   know_seller: "این فرد را می‌شناسد",
   verify_quality: "وضعیت گفته‌شده را بررسی کرده است",
   dealt_before: "قبلاً با این فرد معامله کرده است",
+  word: "حرفی گذاشته است",
 };
+
+export const ENDORSE_NOTE_MAX = 160;
+
+/** Badges shown as checkboxes in the endorse sheet (not free-text). */
+export const ITEM_BADGES: BadgeType[] = ["verify_item", "verify_quality"];
+export const PERSON_BADGES: BadgeType[] = ["know_seller", "dealt_before"];
 
 /** Badges that speak about the seller/person, not a specific listing item. */
 export const personAboutBadges: BadgeType[] = ["know_seller", "dealt_before"];
@@ -192,27 +207,81 @@ export function formatEndorsementReport(
     endorserName: string;
     sellerName: string;
     listingTitle?: string;
+    note?: string;
   },
 ): string {
   const who = opts.endorserName;
   const seller = opts.sellerName;
   const item = opts.listingTitle?.trim();
+  let line: string;
   switch (type) {
     case "know_seller":
-      return `${who}، ${seller} را می‌شناسد.`;
+      line = `${who}، ${seller} را می‌شناسد.`;
+      break;
     case "dealt_before":
-      return `${who} قبلاً با ${seller} معامله کرده است.`;
+      line = `${who} قبلاً با ${seller} معامله کرده است.`;
+      break;
     case "verify_item":
-      return item
+      line = item
         ? `${who} «${item}» را از نزدیک دیده است.`
         : `${who} این را از نزدیک دیده است.`;
+      break;
     case "verify_quality":
-      return item
+      line = item
         ? `${who} وضعیت گفته‌شدهٔ «${item}» را بررسی کرده است.`
         : `${who} وضعیت گفته‌شده را بررسی کرده است.`;
+      break;
+    case "word":
+      line = `${who} حرفی گذاشته است.`;
+      break;
     default:
-      return `${who} — ${badgeResultLabels[type]}`;
+      line = `${who} — ${badgeResultLabels[type]}`;
   }
+  const note = opts.note?.trim();
+  if (note && type !== "word") return `${line} «${note}»`;
+  if (note && type === "word") return `${who}: «${note}»`;
+  return line;
+}
+
+export function formatEndorsementPreview(
+  types: BadgeType[],
+  opts: {
+    meName: string;
+    sellerName: string;
+    listingTitle?: string;
+    note?: string;
+  },
+): string {
+  const who = opts.meName.trim() || "تو";
+  const seller = opts.sellerName;
+  const item = opts.listingTitle?.trim();
+  const claims = types
+    .filter((t) => t !== "word")
+    .map((type) => {
+      switch (type) {
+        case "verify_item":
+          return item ? `«${item}» را از نزدیک دیده` : "این را از نزدیک دیده";
+        case "verify_quality":
+          return "وضعیتش را چک کرده";
+        case "know_seller":
+          return `${seller} را می‌شناسد`;
+        case "dealt_before":
+          return `قبلاً با ${seller} معامله کرده`;
+        default:
+          return "";
+      }
+    })
+    .filter(Boolean);
+  let head = "";
+  if (claims.length === 1) head = `${who} ${claims[0]}.`;
+  else if (claims.length === 2) head = `${who} ${claims[0]} و ${claims[1]}.`;
+  else if (claims.length > 2) {
+    head = `${who} ${claims.slice(0, -1).join("، ")} و ${claims[claims.length - 1]}.`;
+  }
+  const note = opts.note?.trim();
+  if (head && note) return `${head} «${note}»`;
+  if (note) return `${who}: «${note}»`;
+  return head;
 }
 
 export const badgeEmoji: Record<BadgeType, string> = {
@@ -220,6 +289,7 @@ export const badgeEmoji: Record<BadgeType, string> = {
   know_seller: "👤",
   verify_quality: "⭐",
   dealt_before: "🤝",
+  word: "💬",
 };
 
 /** Plain-language audience labels (detail / picker). Keep short — feed hides these. */

@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { withBasePath } from "@/lib/avatar";
 import { isListingPhoto, listingImageTint } from "@/lib/listing-image";
 import type { ListingType } from "@/lib/types";
 
@@ -52,30 +52,13 @@ export default function ListingImage({
     : defaultFrame;
 
   if (photo) {
-    const unoptimized =
-      image.startsWith("data:") ||
-      image.startsWith("blob:") ||
-      image.startsWith("http://") ||
-      image.startsWith("https://");
-
     return (
       <div className={`overflow-hidden shrink-0 ${frame} ${className}`}>
-        <Image
-          src={image}
+        <img
+          src={withBasePath(image)}
           alt={alt}
-          fill
-          className="object-cover"
-          sizes={
-            size === "hero"
-              ? "(max-width: 480px) 100vw, 480px"
-              : size === "sm"
-                ? "56px"
-                : size === "lg"
-                  ? "48px"
-                  : "96px"
-          }
-          priority={priority}
-          unoptimized={unoptimized}
+          className="absolute inset-0 h-full w-full object-cover"
+          fetchPriority={priority ? "high" : "auto"}
         />
       </div>
     );

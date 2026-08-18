@@ -211,8 +211,8 @@ export default function MessagesClassic() {
     show("گفتگو حذف شد");
   }
 
-  function handlePin(peerId: string, name: string, pinned: boolean) {
-    const ok = togglePinThread(peerId);
+  async function handlePin(peerId: string, name: string, pinned: boolean) {
+    const ok = await togglePinThread(peerId);
     if (!ok) {
       show("حداکثر ۳ گفتگو را می‌توانی سنجاق کنی");
       return;

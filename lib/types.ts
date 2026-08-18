@@ -35,7 +35,8 @@ export type BadgeType =
   | "verify_item" // I confirm this item / its quality
   | "know_seller" // I know the seller personally
   | "verify_quality" // I confirm the quality
-  | "dealt_before"; // I have dealt with this person before
+  | "dealt_before" // I have dealt with this person before
+  | "word"; // optional free-text from a circle member
 
 export interface Person {
   id: string;
@@ -76,6 +77,10 @@ export interface Person {
 export interface Endorsement {
   personId: string;
   type: BadgeType;
+  /** Optional first-person note shown next to the claims. */
+  note?: string;
+  /** Owner hid this whole word from the listing. */
+  hidden?: boolean;
 }
 
 /** A single hop in a trust path from the seller to the viewer. */
@@ -248,6 +253,7 @@ export type SessionUser = {
   avatar: string;
   city: string | null;
   profileCompletedAt: string | null;
+  showOwnListingsInFeed: boolean;
 };
 
 /** Public invite landing — never includes trust group or relation. */

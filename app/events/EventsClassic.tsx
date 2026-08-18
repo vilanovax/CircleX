@@ -99,8 +99,8 @@ function EventsContent() {
       {showAdd && (
         <AddEventSheet
           onClose={closeAddSheet}
-          onAdd={(input) => {
-            addEvent(input);
+          onAdd={async (input) => {
+            await addEvent(input);
             closeAddSheet();
             show("رویداد شما ساخته شد ✓");
           }}

@@ -1,8 +1,8 @@
 import { Prisma } from "@prisma/client";
 import { listingAccess } from "@/lib/circle-network";
 import { prisma } from "@/lib/db";
-import { jsonError, readJson } from "@/lib/http";
-import { toClientListing } from "@/lib/mappers";
+import { jsonError, readJson, withDb } from "@/lib/http";
+import { listingEndorsementsInclude, toClientListing } from "@/lib/mappers";
 import { parseDealStatus, parseListingWrite } from "@/lib/listing-payload";
 import { getSessionUser } from "@/lib/server-auth";
 
@@ -12,33 +12,36 @@ export async function GET(
   _req: Request,
   { params }: { params: { id: string } },
 ) {
-  const session = await getSessionUser();
-  if (!session) return jsonError("وارد نشده‌ای", 401, "unauthorized");
+  return withDb(async () => {
+    const session = await getSessionUser();
+    if (!session) return jsonError("وارد نشده‌ای", 401, "unauthorized");
 
-  const row = await prisma.marketListing.findUnique({
-    where: { id: params.id },
-  });
-  if (!row) return jsonError("آگهی پیدا نشد", 404);
-  if (row.dealStatus === "inactive" && row.sellerId !== session.id) {
-    return jsonError("آگهی پیدا نشد", 404);
-  }
-
-  const access = await listingAccess(session.id, row.sellerId);
-  if (!access.ok) {
-    const viaMessage = await prisma.directMessage.findFirst({
-      where: {
-        listingId: row.id,
-        OR: [{ toUserId: session.id }, { fromUserId: session.id }],
-      },
-      select: { id: true },
+    const row = await prisma.marketListing.findUnique({
+      where: { id: params.id },
+      include: listingEndorsementsInclude,
     });
-    if (!viaMessage) {
-      return jsonError("این آگهی در حلقه تو نیست", 403);
+    if (!row) return jsonError("آگهی پیدا نشد", 404);
+    if (row.dealStatus === "inactive" && row.sellerId !== session.id) {
+      return jsonError("آگهی پیدا نشد", 404);
     }
-  }
 
-  return Response.json({
-    listing: toClientListing(row, session.id, access.trustPath),
+    const access = await listingAccess(session.id, row.sellerId);
+    if (!access.ok) {
+      const viaMessage = await prisma.directMessage.findFirst({
+        where: {
+          listingId: row.id,
+          OR: [{ toUserId: session.id }, { fromUserId: session.id }],
+        },
+        select: { id: true },
+      });
+      if (!viaMessage) {
+        return jsonError("این آگهی در حلقه تو نیست", 403);
+      }
+    }
+
+    return Response.json({
+      listing: toClientListing(row, session.id, access.trustPath),
+    });
   });
 }
 
@@ -89,6 +92,7 @@ export async function PATCH(
           : Prisma.JsonNull,
         ...(dealStatus ? { dealStatus } : {}),
       },
+      include: listingEndorsementsInclude,
     });
     return Response.json({ listing: toClientListing(updated, session.id) });
   }
@@ -98,6 +102,7 @@ export async function PATCH(
   const updated = await prisma.marketListing.update({
     where: { id: row.id },
     data: { dealStatus },
+    include: listingEndorsementsInclude,
   });
 
   return Response.json({ listing: toClientListing(updated, session.id) });

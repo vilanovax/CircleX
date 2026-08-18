@@ -119,7 +119,7 @@ export default function ReferSheet({
           </div>
         </div>
         <p className="text-[11px] text-ink-muted mb-3 leading-snug">
-          فقط داخل حلقه، در گفتگوی همان نفر.
+          فقط در گفتگوی همان یک نفر.
         </p>
 
         <label className="block mb-3">

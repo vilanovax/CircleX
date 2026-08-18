@@ -158,12 +158,12 @@ export const LISTINGS: Listing[] = [
     price: 8500000,
     category: "لوازم خانه",
     image:
-      "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80",
+      "/listings/fabric-sofa.jpg",
     images: [
-      "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1567016432779-094069958ea5?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?auto=format&fit=crop&w=800&q=80",
+      "/listings/fabric-sofa.jpg",
+      "/listings/living-room-sofa.jpg",
+      "/listings/two-seat-sofa.jpg",
+      "/listings/armchair.jpg",
     ],
     specs: [
       { label: "ابعاد", value: "۲۱۰ × ۹۰ × ۸۵ سانتی‌متر" },
@@ -192,11 +192,11 @@ export const LISTINGS: Listing[] = [
     price: 600000,
     category: "آموزش",
     image:
-      "https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?auto=format&fit=crop&w=800&q=80",
+      "/listings/piano.jpg",
     images: [
-      "https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1513883049090-d0b7439799bf?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1507838153410-b1bf453d1f84?auto=format&fit=crop&w=800&q=80",
+      "/listings/piano.jpg",
+      "/listings/piano-keys.jpg",
+      "/listings/piano-side.jpg",
     ],
     specs: [
       { label: "گروه سنی", value: "۶ تا ۱۲ سال" },
@@ -224,11 +224,11 @@ export const LISTINGS: Listing[] = [
     type: "donation",
     category: "کودک",
     image:
-      "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=800&q=80",
+      "/listings/baby-stroller.jpg",
     images: [
-      "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1596461404969-9ae70f2830fc?auto=format&fit=crop&w=800&q=80",
+      "/listings/baby-stroller.jpg",
+      "/listings/wooden-toys.jpg",
+      "/listings/stuffed-toys.jpg",
     ],
     specs: [
       { label: "سن مناسب", value: "۰ تا ۳ سال" },
@@ -253,11 +253,11 @@ export const LISTINGS: Listing[] = [
     price: 28000000,
     category: "موبایل",
     image:
-      "https://images.unsplash.com/photo-1632661674596-df8be070a5c6?auto=format&fit=crop&w=800&q=80",
+      "/listings/iphone.jpg",
     images: [
-      "https://images.unsplash.com/photo-1632661674596-df8be070a5c6?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1591337676887-a217a6970a8a?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?auto=format&fit=crop&w=800&q=80",
+      "/listings/iphone.jpg",
+      "/listings/iphone-side.jpg",
+      "/listings/iphone-screen.jpg",
     ],
     specs: [
       { label: "مدل", value: "آیفون ۱۳ · ۱۲۸ گیگ · آبی" },
@@ -285,12 +285,12 @@ export const LISTINGS: Listing[] = [
     price: 165000000,
     category: "خودرو",
     image:
-      "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80",
+      "/listings/compact-car.jpg",
     images: [
-      "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1494976388531-d10584930316?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=800&q=80",
+      "/listings/compact-car.jpg",
+      "/listings/white-car.jpg",
+      "/listings/car-front.jpg",
+      "/listings/car-side.jpg",
     ],
     specs: [
       { label: "مدل / رنگ", value: "۱۳۹۵ · سفید" },
@@ -324,11 +324,11 @@ export const LISTINGS: Listing[] = [
     type: "service",
     category: "خدمات فنی",
     image:
-      "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80",
+      "/listings/washing-machine.jpg",
     images: [
-      "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1556911220-bff31c812dce?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=800&q=80",
+      "/listings/washing-machine.jpg",
+      "/listings/kitchen-counter.jpg",
+      "/listings/power-tools.jpg",
     ],
     specs: [
       { label: "دستگاه‌ها", value: "یخچال، فریزر، لباسشویی" },
@@ -353,11 +353,11 @@ export const LISTINGS: Listing[] = [
     type: "exchange",
     category: "ورزش",
     image:
-      "https://images.unsplash.com/photo-1576678927484-cc907957088c?auto=format&fit=crop&w=800&q=80",
+      "/listings/treadmill.jpg",
     images: [
-      "https://images.unsplash.com/photo-1576678927484-cc907957088c?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1483721310020-03333e577078?auto=format&fit=crop&w=800&q=80",
+      "/listings/treadmill.jpg",
+      "/listings/gym-weights.jpg",
+      "/listings/yoga-mat.jpg",
     ],
     specs: [
       { label: "دارم", value: "تردمیل خانگی تاشو" },
@@ -383,11 +383,11 @@ export const LISTINGS: Listing[] = [
     type: "loan",
     category: "سفر",
     image:
-      "https://images.unsplash.com/photo-1478131143081-80f7f84ca84d?auto=format&fit=crop&w=800&q=80",
+      "/listings/camping-tent.jpg",
     images: [
-      "https://images.unsplash.com/photo-1478131143081-80f7f84ca84d?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?auto=format&fit=crop&w=800&q=80",
+      "/listings/camping-tent.jpg",
+      "/listings/camping-gear.jpg",
+      "/listings/camper-van.jpg",
     ],
     specs: [
       { label: "ظرفیت", value: "۴ نفر" },
@@ -413,11 +413,11 @@ export const LISTINGS: Listing[] = [
     price: 900000,
     category: "مشاوره",
     image:
-      "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=800&q=80",
+      "/listings/calculator.jpg",
     images: [
-      "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&w=800&q=80",
+      "/listings/calculator.jpg",
+      "/listings/laptop-desk.jpg",
+      "/listings/coins-savings.jpg",
     ],
     specs: [
       { label: "جلسه اول", value: "رایگان · ۳۰ دقیقه" },
@@ -442,11 +442,11 @@ export const LISTINGS: Listing[] = [
     price: 450000,
     category: "خدمات خانگی",
     image:
-      "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=800&q=80",
+      "/listings/toddler.jpg",
     images: [
-      "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1476703993599-0035a21b17a9?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1516627145497-ae6968895b74?auto=format&fit=crop&w=800&q=80",
+      "/listings/toddler.jpg",
+      "/listings/parent-child.jpg",
+      "/listings/baby.jpg",
     ],
     specs: [
       { label: "ساعات", value: "بعدازظهر · انعطاف‌پذیر" },
@@ -471,11 +471,11 @@ export const LISTINGS: Listing[] = [
     price: 19000000,
     category: "دیجیتال",
     image:
-      "https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?auto=format&fit=crop&w=800&q=80",
+      "/listings/smartwatch.jpg",
     images: [
-      "https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1579586337278-3befd40fd17a?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1546868871-7041f2a55e12?auto=format&fit=crop&w=800&q=80",
+      "/listings/smartwatch.jpg",
+      "/listings/wristwatch.jpg",
+      "/listings/analog-watch.jpg",
     ],
     specs: [
       { label: "مدل", value: "Apple Watch Series 7 · ۴۵mm" },
@@ -500,11 +500,11 @@ export const LISTINGS: Listing[] = [
     price: 2500000,
     category: "طراحی",
     image:
-      "https://images.unsplash.com/photo-1561070791-2526d30994b5?auto=format&fit=crop&w=800&q=80",
+      "/listings/color-swatches.jpg",
     images: [
-      "https://images.unsplash.com/photo-1561070791-2526d30994b5?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1626785774573-4b7993143466?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1634942537034-2531766767d1?auto=format&fit=crop&w=800&q=80",
+      "/listings/color-swatches.jpg",
+      "/listings/graphic-design.jpg",
+      "/listings/sketch-markers.jpg",
     ],
     specs: [
       { label: "خروجی", value: "لوگو + فایل‌های منبع" },

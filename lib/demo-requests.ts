@@ -6,6 +6,7 @@ import {
 } from "@/lib/demo-circle-catalog";
 import { relationLabels, relationTowardName } from "@/lib/labels";
 import type {
+  CircleEvent,
   Listing,
   Message,
   Offer,
@@ -416,13 +417,34 @@ export function demoNetworkListingsMissing(listings: Listing[]): boolean {
   return hits < Math.min(3, expected.length);
 }
 
+export function demoSocialMissing(
+  requests: Request[],
+  events: CircleEvent[],
+): boolean {
+  const reqTitles = new Set(requests.map((r) => r.title));
+  const expectedReq = DEMO_REQUEST_DEFS.map((d) => d.title);
+  if (expectedReq.length > 0) {
+    const hits = expectedReq.filter((t) => reqTitles.has(t)).length;
+    if (hits < Math.min(2, expectedReq.length)) return true;
+  }
+  const eventTitles = new Set(events.map((e) => e.title));
+  if (!eventTitles.has("کلاس یوگای صبحگاهی") && !eventTitles.has("قرار بازی کودکان در پارک")) {
+    return true;
+  }
+  return false;
+}
+
 export function circleCatalogIncomplete(
   listings: Listing[],
   membersLength: number,
+  requests: Request[] = [],
+  events: CircleEvent[] = [],
 ): boolean {
   if (membersLength === 0 && listings.length === 0) return true;
   return (
-    viewerListingsMissing(listings) || demoNetworkListingsMissing(listings)
+    viewerListingsMissing(listings) ||
+    demoNetworkListingsMissing(listings) ||
+    demoSocialMissing(requests, events)
   );
 }
 

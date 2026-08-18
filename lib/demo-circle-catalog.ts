@@ -59,9 +59,9 @@ export const DEMO_DIRECT: DemoPersonDef[] = [
         price: 450_000,
         category: "آموزش",
         image:
-          "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80",
+          "/listings/laptop-desk.jpg",
         images: [
-          "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80",
+          "/listings/laptop-desk.jpg",
         ],
         privacy: "ABC",
       },
@@ -73,9 +73,9 @@ export const DEMO_DIRECT: DemoPersonDef[] = [
         price: 1_850_000,
         category: "پوشاک و اکسسوری",
         image:
-          "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=800&q=80",
+          "/listings/leather-bag.jpg",
         images: [
-          "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=800&q=80",
+          "/listings/leather-bag.jpg",
         ],
         condition: "در حد نو",
         privacy: "AB",
@@ -97,9 +97,9 @@ export const DEMO_DIRECT: DemoPersonDef[] = [
         type: "loan",
         category: "ابزار",
         image:
-          "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=800&q=80",
+          "/listings/cordless-drill.jpg",
         images: [
-          "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=800&q=80",
+          "/listings/cordless-drill.jpg",
         ],
         condition: "سالم",
         privacy: "AB",
@@ -111,9 +111,9 @@ export const DEMO_DIRECT: DemoPersonDef[] = [
         type: "donation",
         category: "لوازم خانه",
         image:
-          "https://images.unsplash.com/photo-1485955900006-10f4d324d411?auto=format&fit=crop&w=800&q=80",
+          "/listings/terracotta-pot.jpg",
         images: [
-          "https://images.unsplash.com/photo-1485955900006-10f4d324d411?auto=format&fit=crop&w=800&q=80",
+          "/listings/terracotta-pot.jpg",
         ],
         condition: "سالم",
         privacy: "ABC",
@@ -136,9 +136,9 @@ export const DEMO_DIRECT: DemoPersonDef[] = [
         price: 4_200_000,
         category: "ورزش",
         image:
-          "https://images.unsplash.com/photo-1485965120182-cf1713bcabf1?auto=format&fit=crop&w=800&q=80",
+          "/listings/city-bicycle.jpg",
         images: [
-          "https://images.unsplash.com/photo-1485965120182-cf1713bcabf1?auto=format&fit=crop&w=800&q=80",
+          "/listings/city-bicycle.jpg",
         ],
         condition: "کارکرده تمیز",
         privacy: "ABC",
@@ -151,9 +151,9 @@ export const DEMO_DIRECT: DemoPersonDef[] = [
         price: 2_100_000,
         category: "لوازم دیجیتال",
         image:
-          "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80",
+          "/listings/headphones.jpg",
         images: [
-          "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80",
+          "/listings/headphones.jpg",
         ],
         condition: "در حد نو",
         privacy: "A",
@@ -165,9 +165,9 @@ export const DEMO_DIRECT: DemoPersonDef[] = [
         type: "donation",
         category: "کتاب",
         image:
-          "https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=800&q=80",
+          "/listings/stacked-books.jpg",
         images: [
-          "https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=800&q=80",
+          "/listings/stacked-books.jpg",
         ],
         condition: "سالم",
         privacy: "ABC",
@@ -207,9 +207,9 @@ export const DEMO_FOF: {
         price: 700_000,
         category: "خدمات فنی",
         image:
-          "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?auto=format&fit=crop&w=800&q=80",
+          "/listings/open-laptop.jpg",
         images: [
-          "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?auto=format&fit=crop&w=800&q=80",
+          "/listings/open-laptop.jpg",
         ],
         privacy: "ABC",
       },
@@ -232,9 +232,9 @@ export const DEMO_FOF: {
         price: 3_500_000,
         category: "کودک",
         image:
-          "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=800&q=80",
+          "/listings/baby-stroller.jpg",
         images: [
-          "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=800&q=80",
+          "/listings/baby-stroller.jpg",
         ],
         condition: "کارکرده تمیز",
         privacy: "ABC",
@@ -258,9 +258,9 @@ export const DEMO_FOF: {
         price: 2_800_000,
         category: "لوازم خانه",
         image:
-          "https://images.unsplash.com/photo-1618220179428-22790b461013?auto=format&fit=crop&w=800&q=80",
+          "/listings/wooden-desk.jpg",
         images: [
-          "https://images.unsplash.com/photo-1618220179428-22790b461013?auto=format&fit=crop&w=800&q=80",
+          "/listings/wooden-desk.jpg",
         ],
         condition: "سالم با ایراد جزئی",
         privacy: "AB",
@@ -283,9 +283,9 @@ export const DEMO_FOF: {
         type: "donation",
         category: "کودک",
         image:
-          "https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?auto=format&fit=crop&w=800&q=80",
+          "/listings/child-clothes.jpg",
         images: [
-          "https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?auto=format&fit=crop&w=800&q=80",
+          "/listings/child-clothes.jpg",
         ],
         condition: "سالم",
         privacy: "ABC",
@@ -308,9 +308,9 @@ export const VIEWER_LISTING_DEFS: DemoListingDef[] = [
     price: 4_800_000,
     category: "لوازم خانه",
     image:
-      "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80",
+      "/listings/fabric-sofa.jpg",
     images: [
-      "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80",
+      "/listings/fabric-sofa.jpg",
     ],
     condition: "کارکرده تمیز",
     privacy: "ABC",
@@ -323,9 +323,9 @@ export const VIEWER_LISTING_DEFS: DemoListingDef[] = [
     price: 1_200_000,
     category: "خدمات",
     image:
-      "https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=800&q=80",
+      "/listings/cardboard-boxes.jpg",
     images: [
-      "https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=800&q=80",
+      "/listings/cardboard-boxes.jpg",
     ],
     privacy: "ABC",
   },
@@ -336,9 +336,9 @@ export const VIEWER_LISTING_DEFS: DemoListingDef[] = [
     type: "donation",
     category: "کتاب",
     image:
-      "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=800&q=80",
+      "/listings/children-books.jpg",
     images: [
-      "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=800&q=80",
+      "/listings/children-books.jpg",
     ],
     condition: "سالم",
     privacy: "ABC",

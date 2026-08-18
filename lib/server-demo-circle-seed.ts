@@ -9,6 +9,12 @@ import {
   type DemoListingDef,
   type DemoPersonKey,
 } from "@/lib/demo-circle-catalog";
+import {
+  DEMO_OFFER_DEFS,
+  DEMO_REQUEST_DEFS,
+  VIEWER_OFFER_DEFS,
+  VIEWER_REQUEST_DEFS,
+} from "@/lib/demo-requests";
 import { createInviteRecord } from "@/lib/server-invite";
 import type { RelationType, TrustGroup, User } from "@prisma/client";
 
@@ -267,6 +273,8 @@ async function ensureDemoRoster(viewerId: string) {
 
     await ensureListingsFor(user.id, fof.city, fof.listings);
   }
+
+  await ensureWantAndGatherings(viewerId, byKey);
 }
 
 async function ensureDemoInviteAndJoin(
@@ -318,6 +326,188 @@ async function ensureDemoInviteAndJoin(
           guestUserId: guest.id,
           status: "pending",
         },
+      });
+    }
+  }
+}
+
+const DEMO_GATHERINGS: {
+  id: string;
+  hostKey: DemoPersonKey;
+  title: string;
+  description: string;
+  kind: string;
+  image: string;
+  dateLabel: string;
+  timeLabel?: string;
+  location: string;
+  capacity?: number;
+  privacy: string;
+  attendeeKeys: DemoPersonKey[];
+}[] = [
+  {
+    id: "demo_evt_yoga",
+    hostKey: "leila",
+    title: "کلاس یوگای صبحگاهی",
+    description:
+      "یوگای ملایم صبحگاهی در فضای باز، مناسب همه‌ی سطح‌ها. زیراندازتان را بیاورید.",
+    kind: "class",
+    image: "🧘",
+    dateLabel: "شنبه ۲۳ خرداد",
+    timeLabel: "۰۷:۳۰",
+    location: "پارک ملت، ورودی شمالی",
+    capacity: 12,
+    privacy: "ABC",
+    attendeeKeys: ["ali", "reza"],
+  },
+  {
+    id: "demo_evt_charity",
+    hostKey: "maryam",
+    title: "بازارچه‌ی خیریه‌ی محله",
+    description:
+      "بازارچه‌ی خیریه با دست‌سازه‌ها و خوراکی خانگی؛ درآمد صرف کودکان بی‌سرپرست می‌شود.",
+    kind: "charity",
+    image: "🎗️",
+    dateLabel: "پنجشنبه ۲۸ خرداد",
+    timeLabel: "۱۶:۰۰",
+    location: "فرهنگسرای محله",
+    privacy: "ABC",
+    attendeeKeys: ["reza", "leila"],
+  },
+  {
+    id: "demo_evt_kids",
+    hostKey: "reza",
+    title: "قرار بازی کودکان در پارک",
+    description:
+      "بعدازظهر بازی برای کودکان ۳ تا ۷ سال، با چند بازی گروهی و میان‌وعده‌ی سالم.",
+    kind: "kids",
+    image: "🧒",
+    dateLabel: "یکشنبه ۲۴ خرداد",
+    timeLabel: "۱۷:۰۰",
+    location: "پارک قیطریه",
+    capacity: 8,
+    privacy: "AB",
+    attendeeKeys: ["ali"],
+  },
+  {
+    id: "demo_evt_trip",
+    hostKey: "hossein",
+    title: "سفر گروهی دو روزه به شمال",
+    description:
+      "سفر دسته‌جمعی به رامسر؛ اقامت ویلایی و برنامه‌ی طبیعت‌گردی. هزینه به‌صورت مشترک.",
+    kind: "trip",
+    image: "🏞️",
+    dateLabel: "۱ تا ۳ تیر",
+    location: "رامسر",
+    capacity: 20,
+    privacy: "AB",
+    attendeeKeys: ["ali", "leila", "maryam"],
+  },
+];
+
+async function ensureWantAndGatherings(
+  viewerId: string,
+  byKey: Map<DemoPersonKey, User>,
+) {
+  for (const def of DEMO_REQUEST_DEFS) {
+    const requester = byKey.get(def.requesterKey);
+    if (!requester || requester.id === viewerId) continue;
+    await prisma.wantRequest.upsert({
+      where: { id: def.id },
+      create: {
+        id: def.id,
+        requesterId: requester.id,
+        title: def.title,
+        description: def.description,
+        category: def.category,
+        image: def.image,
+        budget: def.budget ?? null,
+        budgetUnit: def.budgetUnit ?? null,
+        privacy: def.privacy,
+        city: def.city ?? requester.city,
+      },
+      update: {},
+    });
+  }
+
+  for (const def of VIEWER_REQUEST_DEFS) {
+    const id = `${def.id}__${viewerId}`;
+    await prisma.wantRequest.upsert({
+      where: { id },
+      create: {
+        id,
+        requesterId: viewerId,
+        title: def.title,
+        description: def.description,
+        category: def.category,
+        image: def.image,
+        budget: def.budget ?? null,
+        budgetUnit: def.budgetUnit ?? null,
+        privacy: def.privacy,
+        city: def.city ?? "تهران",
+      },
+      update: {},
+    });
+  }
+
+  for (const def of [...DEMO_OFFER_DEFS, ...VIEWER_OFFER_DEFS]) {
+    const from = byKey.get(def.fromKey);
+    if (!from || from.id === viewerId) continue;
+    const isViewerOffer = VIEWER_OFFER_DEFS.some((row) => row.id === def.id);
+    const requestId = isViewerOffer
+      ? `${def.requestId}__${viewerId}`
+      : def.requestId;
+    const request = await prisma.wantRequest.findUnique({
+      where: { id: requestId },
+      select: { id: true },
+    });
+    if (!request) continue;
+    const offerId = isViewerOffer ? `${def.id}__${viewerId}` : def.id;
+    await prisma.wantOffer.upsert({
+      where: {
+        requestId_fromId: { requestId, fromId: from.id },
+      },
+      create: {
+        id: offerId,
+        requestId,
+        fromId: from.id,
+        message: def.message,
+        price: def.price ?? null,
+      },
+      update: {},
+    });
+  }
+
+  for (const def of DEMO_GATHERINGS) {
+    const host = byKey.get(def.hostKey);
+    if (!host || host.id === viewerId) continue;
+    await prisma.gathering.upsert({
+      where: { id: def.id },
+      create: {
+        id: def.id,
+        hostId: host.id,
+        title: def.title,
+        description: def.description,
+        kind: def.kind,
+        image: def.image,
+        dateLabel: def.dateLabel,
+        timeLabel: def.timeLabel ?? null,
+        location: def.location,
+        capacity: def.capacity ?? null,
+        privacy: def.privacy,
+        city: host.city,
+      },
+      update: {},
+    });
+    for (const key of def.attendeeKeys) {
+      const person = byKey.get(key);
+      if (!person || person.id === host.id) continue;
+      await prisma.gatheringRsvp.upsert({
+        where: {
+          eventId_personId: { eventId: def.id, personId: person.id },
+        },
+        create: { eventId: def.id, personId: person.id },
+        update: {},
       });
     }
   }

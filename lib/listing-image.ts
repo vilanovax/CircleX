@@ -1,5 +1,10 @@
-/** Max encoded size we keep in localStorage (bytes). */
-export const LISTING_PHOTO_MAX_BYTES = 900_000;
+import { api } from "./api";
+import {
+  LISTING_PHOTO_MAX_BYTES,
+  localListingSrc,
+} from "./listing-photo";
+
+export { LISTING_PHOTO_MAX_BYTES };
 
 const PHOTO_PREFIXES = ["data:image/", "http://", "https://", "/"];
 
@@ -24,7 +29,7 @@ export function listingGalleryImages(listing: {
     const v = src?.trim();
     if (!v || seen.has(v)) continue;
     seen.add(v);
-    out.push(v);
+    out.push(localListingSrc(v));
   }
   return out.length > 0 ? out : [listing.image];
 }
@@ -66,17 +71,24 @@ function loadImage(file: File): Promise<HTMLImageElement> {
   });
 }
 
-function canvasToJpeg(canvas: HTMLCanvasElement, quality: number): string {
-  return canvas.toDataURL("image/jpeg", quality);
+function canvasToJpegBlob(
+  canvas: HTMLCanvasElement,
+  quality: number,
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) =>
+        blob
+          ? resolve(blob)
+          : reject(new Error("پردازش عکس ممکن نشد.")),
+      "image/jpeg",
+      quality,
+    );
+  });
 }
 
-function byteLength(dataUrl: string): number {
-  const base64 = dataUrl.split(",")[1] ?? "";
-  return Math.ceil((base64.length * 3) / 4);
-}
-
-/** Resize + compress a gallery photo for client-side storage. */
-export async function processListingPhoto(file: File): Promise<string> {
+/** Resize + compress a gallery photo to a JPEG blob for app storage. */
+export async function processListingPhotoBlob(file: File): Promise<Blob> {
   if (!file.type.startsWith("image/")) {
     throw new Error("فقط فایل تصویری مجاز است.");
   }
@@ -95,15 +107,32 @@ export async function processListingPhoto(file: File): Promise<string> {
   ctx.drawImage(img, 0, 0, w, h);
 
   let quality = 0.88;
-  let dataUrl = canvasToJpeg(canvas, quality);
-  while (byteLength(dataUrl) > LISTING_PHOTO_MAX_BYTES && quality > 0.45) {
+  let blob = await canvasToJpegBlob(canvas, quality);
+  while (blob.size > LISTING_PHOTO_MAX_BYTES && quality > 0.45) {
     quality -= 0.08;
-    dataUrl = canvasToJpeg(canvas, quality);
+    blob = await canvasToJpegBlob(canvas, quality);
   }
 
-  if (byteLength(dataUrl) > LISTING_PHOTO_MAX_BYTES) {
-    throw new Error("عکس بعد از فشرده‌سازی هنوز بزرگ است — عکس کوچک‌تری انتخاب کن.");
+  if (blob.size > LISTING_PHOTO_MAX_BYTES) {
+    throw new Error(
+      "عکس بعد از فشرده‌سازی هنوز بزرگ است — عکس کوچک‌تری انتخاب کن.",
+    );
   }
 
-  return dataUrl;
+  return blob;
+}
+
+/** Compress then store on the app — returns `/api/uploads/….jpg`. */
+export async function uploadListingPhoto(file: File): Promise<string> {
+  const blob = await processListingPhotoBlob(file);
+  const form = new FormData();
+  form.append("photo", blob, "photo.jpg");
+  const { url } = await api<{ url: string }>("/api/uploads", {
+    method: "POST",
+    body: form,
+  });
+  if (!url?.startsWith("/api/uploads/")) {
+    throw new Error("ذخیرهٔ عکس نشد.");
+  }
+  return url;
 }

@@ -99,8 +99,8 @@ function RequestsContent() {
       {showAdd && (
         <AddRequestSheet
           onClose={closeAddSheet}
-          onAdd={(input) => {
-            addRequest(input);
+          onAdd={async (input) => {
+            await addRequest(input);
             closeAddSheet();
             show("درخواست شما ثبت شد ✓");
           }}

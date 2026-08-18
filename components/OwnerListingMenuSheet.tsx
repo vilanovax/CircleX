@@ -119,7 +119,7 @@ export default function OwnerListingMenuSheet({
             </span>
           }
           label="آمار آگهی"
-          hint="گفتگو و تأیید حلقه"
+          hint="گفتگو و نمایش حرف آشنایان"
           onClick={onStats}
         />
         <ActionRow

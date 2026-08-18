@@ -24,10 +24,10 @@ export const HOUSEHOLD_ITEMS: HouseholdItem[] = [
     price: 6_800_000,
     category: HOUSE,
     image:
-      "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80",
+      "/listings/smartphone.jpg",
     images: [
-      "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?auto=format&fit=crop&w=800&q=80",
+      "/listings/smartphone.jpg",
+      "/listings/smartphone-back.jpg",
     ],
     condition: "در حد نو",
   },
@@ -40,9 +40,9 @@ export const HOUSEHOLD_ITEMS: HouseholdItem[] = [
     price: 4_200_000,
     category: HOUSE,
     image:
-      "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?auto=format&fit=crop&w=800&q=80",
+      "/listings/tablet.jpg",
     images: [
-      "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?auto=format&fit=crop&w=800&q=80",
+      "/listings/tablet.jpg",
     ],
     condition: "سالم با ایراد جزئی",
   },
@@ -55,10 +55,10 @@ export const HOUSEHOLD_ITEMS: HouseholdItem[] = [
     price: 8_500_000,
     category: HOUSE,
     image:
-      "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80",
+      "/listings/fabric-sofa.jpg",
     images: [
-      "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=800&q=80",
+      "/listings/fabric-sofa.jpg",
+      "/listings/living-room-sofa.jpg",
     ],
     condition: "سالم با ایراد جزئی",
   },
@@ -71,9 +71,9 @@ export const HOUSEHOLD_ITEMS: HouseholdItem[] = [
     price: 5_400_000,
     category: HOUSE,
     image:
-      "https://images.unsplash.com/photo-1567016432779-094069958ea5?auto=format&fit=crop&w=800&q=80",
+      "/listings/two-seat-sofa.jpg",
     images: [
-      "https://images.unsplash.com/photo-1567016432779-094069958ea5?auto=format&fit=crop&w=800&q=80",
+      "/listings/two-seat-sofa.jpg",
     ],
     condition: "کارکرده تمیز",
   },
@@ -86,9 +86,9 @@ export const HOUSEHOLD_ITEMS: HouseholdItem[] = [
     price: 12_500_000,
     category: HOUSE,
     image:
-      "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80",
+      "/listings/macbook.jpg",
     images: [
-      "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80",
+      "/listings/macbook.jpg",
     ],
     condition: "سالم",
   },
@@ -101,9 +101,9 @@ export const HOUSEHOLD_ITEMS: HouseholdItem[] = [
     price: 3_900_000,
     category: HOUSE,
     image:
-      "https://images.unsplash.com/photo-1530018607912-eff2daa1bac4?auto=format&fit=crop&w=800&q=80",
+      "/listings/dining-table.jpg",
     images: [
-      "https://images.unsplash.com/photo-1530018607912-eff2daa1bac4?auto=format&fit=crop&w=800&q=80",
+      "/listings/dining-table.jpg",
     ],
     condition: "کارکرده تمیز",
   },
@@ -116,9 +116,9 @@ export const HOUSEHOLD_ITEMS: HouseholdItem[] = [
     price: 1_200_000,
     category: HOUSE,
     image:
-      "https://images.unsplash.com/photo-1503602642458-232111445657?auto=format&fit=crop&w=800&q=80",
+      "/listings/wooden-chair.jpg",
     images: [
-      "https://images.unsplash.com/photo-1503602642458-232111445657?auto=format&fit=crop&w=800&q=80",
+      "/listings/wooden-chair.jpg",
     ],
     condition: "سالم",
   },
@@ -131,9 +131,9 @@ export const HOUSEHOLD_ITEMS: HouseholdItem[] = [
     price: 9_800_000,
     category: HOUSE,
     image:
-      "https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?auto=format&fit=crop&w=800&q=80",
+      "/listings/refrigerator.jpg",
     images: [
-      "https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?auto=format&fit=crop&w=800&q=80",
+      "/listings/refrigerator.jpg",
     ],
     condition: "سالم",
   },
@@ -146,9 +146,9 @@ export const HOUSEHOLD_ITEMS: HouseholdItem[] = [
     price: 7_200_000,
     category: HOUSE,
     image:
-      "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&w=800&q=80",
+      "/listings/flat-tv.jpg",
     images: [
-      "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&w=800&q=80",
+      "/listings/flat-tv.jpg",
     ],
     condition: "سالم",
   },
@@ -161,9 +161,9 @@ export const HOUSEHOLD_ITEMS: HouseholdItem[] = [
     price: 2_600_000,
     category: HOUSE,
     image:
-      "https://images.unsplash.com/photo-1594620302200-9a762244a156?auto=format&fit=crop&w=800&q=80",
+      "/listings/bookshelf.jpg",
     images: [
-      "https://images.unsplash.com/photo-1594620302200-9a762244a156?auto=format&fit=crop&w=800&q=80",
+      "/listings/bookshelf.jpg",
     ],
     condition: "کارکرده تمیز",
   },
@@ -175,9 +175,9 @@ export const HOUSEHOLD_ITEMS: HouseholdItem[] = [
     type: "donation",
     category: HOUSE,
     image:
-      "https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=800&q=80",
+      "/listings/stacked-books.jpg",
     images: [
-      "https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=800&q=80",
+      "/listings/stacked-books.jpg",
     ],
     condition: "سالم",
   },

@@ -13,6 +13,7 @@ import {
   toEnglishDigits,
   toPersianDigits,
 } from "@/lib/persian";
+import { useToast } from "@/components/Toast";
 import type { EventKind, Privacy } from "@/lib/types";
 
 const KINDS: EventKind[] = [
@@ -48,10 +49,11 @@ export default function AddEventSheet({
   onBack,
 }: {
   onClose: () => void;
-  onAdd: (input: EventInput) => void;
+  onAdd: (input: EventInput) => void | Promise<void>;
   onBack?: () => void;
 }) {
   const { people } = useStore();
+  const { show } = useToast();
   const circle = activeCircle(people);
   const [kind, setKind] = useState<EventKind>("social");
   const [title, setTitle] = useState("");
@@ -61,24 +63,31 @@ export default function AddEventSheet({
   const [location, setLocation] = useState("");
   const [capacity, setCapacity] = useState("");
   const [privacy, setPrivacy] = useState<Privacy>("ABC");
+  const [submitting, setSubmitting] = useState(false);
 
   const canSubmit = Boolean(title.trim() && date.trim() && location.trim());
 
-  function submit() {
-    if (!canSubmit) return;
-    onAdd({
-      title: title.trim(),
-      description: description.trim(),
-      kind,
-      image: eventKindEmoji[kind],
-      date: formatEventDateDisplay(date.trim()),
-      time: time.trim() || undefined,
-      location: location.trim(),
-      capacity: capacity
-        ? Number(toEnglishDigits(capacity).replace(/\D/g, "")) || undefined
-        : undefined,
-      privacy,
-    });
+  async function submit() {
+    if (!canSubmit || submitting) return;
+    setSubmitting(true);
+    try {
+      await onAdd({
+        title: title.trim(),
+        description: description.trim(),
+        kind,
+        image: eventKindEmoji[kind],
+        date: formatEventDateDisplay(date.trim()),
+        time: time.trim() || undefined,
+        location: location.trim(),
+        capacity: capacity
+          ? Number(toEnglishDigits(capacity).replace(/\D/g, "")) || undefined
+          : undefined,
+        privacy,
+      });
+    } catch (err) {
+      show(err instanceof Error ? err.message : "رویداد ذخیره نشد");
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -95,11 +104,11 @@ export default function AddEventSheet({
           )}
           <button
             type="button"
-            disabled={!canSubmit}
-            onClick={submit}
+            disabled={!canSubmit || submitting}
+            onClick={() => void submit()}
             className="btn-primary w-full !py-3 text-[15px] shadow-lg shadow-brand-600/20 active:scale-[0.99] transition-transform duration-150 disabled:opacity-60"
           >
-            انتشار رویداد
+            {submitting ? "در حال ثبت…" : "انتشار رویداد"}
           </button>
         </div>
       }

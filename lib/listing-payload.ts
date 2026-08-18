@@ -1,4 +1,6 @@
-import type { ListingSpec, ListingType, Privacy } from "./types";
+import { ENDORSE_NOTE_MAX, ITEM_BADGES, PERSON_BADGES } from "./labels";
+import { isAllowedListingImage } from "./listing-photo";
+import type { BadgeType, ListingSpec, ListingType, Privacy } from "./types";
 
 export const LISTING_TYPES: ListingType[] = [
   "sale",
@@ -45,6 +47,13 @@ function asTrimmed(value: unknown, max: number): string {
     .slice(0, max);
 }
 
+function parseListingImageValue(value: unknown): string {
+  if (typeof value !== "string") return "";
+  const raw = value.trim();
+  if (raw.startsWith("data:image/")) return raw.slice(0, 2_000_000);
+  return asTrimmed(raw, 240);
+}
+
 export function parseSpecs(value: unknown): ListingSpec[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const specs: ListingSpec[] = [];
@@ -89,14 +98,20 @@ export function parseListingWrite(
   }
 
   const category = asTrimmed(raw.category, 40) || "متفرقه";
-  const image = asTrimmed(raw.image, 2_000_000);
+  const image = parseListingImageValue(raw.image);
   if (!image) return { ok: false, error: "عکس یا تصویر آگهی لازم است" };
+  if (!isAllowedListingImage(image)) {
+    return { ok: false, error: "عکس آگهی باید روی همین اپ باشد" };
+  }
 
   const imagesRaw = Array.isArray(raw.images) ? raw.images : [];
   const images = imagesRaw
-    .map((item) => asTrimmed(item, 2_000_000))
+    .map((item) => parseListingImageValue(item))
     .filter(Boolean)
     .slice(0, 8);
+  if (images.some((src) => !isAllowedListingImage(src))) {
+    return { ok: false, error: "عکس آگهی باید روی همین اپ باشد" };
+  }
   if (images.length === 0) images.push(image);
 
   let price: number | undefined;
@@ -126,4 +141,56 @@ export function parseListingWrite(
       specs,
     },
   };
+}
+
+const ENDORSE_TYPES = [...ITEM_BADGES, ...PERSON_BADGES] as const;
+const ENDORSE_TYPE_SET = new Set<string>(ENDORSE_TYPES);
+
+export function parseEndorsementWrite(body: unknown):
+  | { ok: true; types: BadgeType[]; note?: string; clear: boolean }
+  | { ok: false; error: string } {
+  if (!body || typeof body !== "object") {
+    return { ok: false, error: "بدنه نامعتبر است" };
+  }
+  const raw = body as Record<string, unknown>;
+  const seen = new Set<BadgeType>();
+  const types: BadgeType[] = [];
+  if (Array.isArray(raw.types)) {
+    for (const item of raw.types) {
+      if (typeof item !== "string" || !ENDORSE_TYPE_SET.has(item)) {
+        return { ok: false, error: "گزینهٔ نامعتبر است" };
+      }
+      const type = item as BadgeType;
+      if (seen.has(type)) continue;
+      seen.add(type);
+      types.push(type);
+    }
+  }
+  types.sort(
+    (a, b) => ENDORSE_TYPES.indexOf(a) - ENDORSE_TYPES.indexOf(b),
+  );
+
+  const noteRaw = typeof raw.note === "string" ? raw.note.trim() : "";
+  const note = noteRaw ? noteRaw.slice(0, ENDORSE_NOTE_MAX) : undefined;
+  if (types.length === 0 && !note) {
+    return { ok: true, types: [], clear: true };
+  }
+  return { ok: true, types, note, clear: false };
+}
+
+export function parseEndorsementVisibility(body: unknown):
+  | { ok: true; personId: string; hidden: boolean }
+  | { ok: false; error: string } {
+  if (!body || typeof body !== "object") {
+    return { ok: false, error: "بدنه نامعتبر است" };
+  }
+  const raw = body as Record<string, unknown>;
+  const personId = asTrimmed(raw.personId, 64);
+  if (personId.length < 8) {
+    return { ok: false, error: "نظر نامعتبر است" };
+  }
+  if (typeof raw.hidden !== "boolean") {
+    return { ok: false, error: "وضعیت نمایش نامعتبر است" };
+  }
+  return { ok: true, personId, hidden: raw.hidden };
 }

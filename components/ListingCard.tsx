@@ -45,7 +45,7 @@ export default function ListingCard({
         <TrustHighlight
           posterId={listing.sellerId}
           trustPath={listing.trustPath}
-          endorsements={listing.endorsements}
+          endorsements={listing.endorsements.filter((e) => !e.hidden)}
           variant={compactTrust ? "compact" : "default"}
         />
       )}

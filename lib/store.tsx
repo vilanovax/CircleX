@@ -13,24 +13,22 @@ import { AVATAR_IMAGES } from "./avatar";
 import { api, ApiError } from "./api";
 import { newUuid } from "./invite";
 import {
-  EVENTS,
   ME,
-  MESSAGES,
   PEOPLE,
 } from "./mock-data";
 import {
   reconcileDemoMessages,
-  reconcileDemoOffers,
-  reconcileDemoRequests,
   circleCatalogIncomplete,
   mergeInboxMessages,
 } from "./demo-requests";
 import { clearThreadListing } from "./thread-listing";
+import { ENDORSE_NOTE_MAX } from "./labels";
 import type {
   BadgeType,
   BudgetUnit,
   CircleEvent,
   CircleJoinRequest,
+  Endorsement,
   EventKind,
   Invite,
   Listing,
@@ -121,15 +119,17 @@ export interface StoreValue {
   circleFull: boolean;
   /** When false, own listings stay on profile and out of the home feed. */
   showOwnListingsInFeed: boolean;
-  setShowOwnListingsInFeed: (value: boolean) => void;
+  setShowOwnListingsInFeed: (value: boolean) => Promise<void>;
   profileCompletedAt: string | null;
   getPerson: (id: string) => Person | undefined;
   getListing: (id: string) => Listing | undefined;
   ensureListing: (id: string) => Promise<Listing | undefined>;
   getRequest: (id: string) => Request | undefined;
+  ensureRequest: (id: string) => Promise<Request | undefined>;
   getEvent: (id: string) => CircleEvent | undefined;
-  addEvent: (input: NewEventInput) => string;
-  toggleRsvp: (eventId: string) => void;
+  ensureEvent: (id: string) => Promise<CircleEvent | undefined>;
+  addEvent: (input: NewEventInput) => Promise<string>;
+  toggleRsvp: (eventId: string) => Promise<void>;
   isAttending: (eventId: string) => boolean;
   getOffers: (requestId: string) => Offer[];
   hasOffered: (requestId: string) => boolean;
@@ -140,13 +140,12 @@ export interface StoreValue {
   addMessage: (peerId: string, text: string, listingId?: string) => Promise<void>;
   referListing: (peerId: string, listingId: string, note?: string) => Promise<void>;
   markThreadRead: (peerId: string) => void;
-  archiveThread: (peerId: string) => void;
-  unarchiveThread: (peerId: string) => void;
+  archiveThread: (peerId: string) => Promise<void>;
+  unarchiveThread: (peerId: string) => Promise<void>;
   isThreadArchived: (peerId: string) => boolean;
-  togglePinThread: (peerId: string) => boolean;
+  togglePinThread: (peerId: string) => Promise<boolean>;
   isThreadPinned: (peerId: string) => boolean;
-  /** Delete this conversation for the current user only. */
-  deleteThread: (peerId: string) => void;
+  deleteThread: (peerId: string) => Promise<void>;
   addPerson: (input: NewPersonInput) => void;
   createInvite: (input: {
     relationType: RelationType;
@@ -196,11 +195,20 @@ export interface StoreValue {
     status: NonNullable<Listing["dealStatus"]>,
   ) => Promise<void>;
   deleteListing: (listingId: string) => Promise<void>;
-  toggleEndorsement: (listingId: string, type: BadgeType) => void;
-  addRequest: (input: NewRequestInput) => string;
-  addOffer: (input: NewOfferInput) => void;
-  withdrawOffer: (requestId: string) => void;
-  toggleSaved: (listingId: string) => void;
+  setMyListingEndorsement: (
+    listingId: string,
+    types: BadgeType[],
+    note?: string,
+  ) => Promise<void>;
+  setListingEndorsementHidden: (
+    listingId: string,
+    personId: string,
+    hidden: boolean,
+  ) => Promise<void>;
+  addRequest: (input: NewRequestInput) => Promise<string>;
+  addOffer: (input: NewOfferInput) => Promise<void>;
+  withdrawOffer: (requestId: string) => Promise<void>;
+  toggleSaved: (listingId: string) => Promise<void>;
   isSaved: (listingId: string) => boolean;
   completeOnboarding: () => void;
   /** Apply the server user after OTP verify. */
@@ -246,8 +254,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [listings, setListings] = useState<Listing[]>([]);
   const [requests, setRequests] = useState<Request[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
-  const [messages, setMessages] = useState<Message[]>(MESSAGES);
-  const [events, setEvents] = useState<CircleEvent[]>(EVENTS);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [events, setEvents] = useState<CircleEvent[]>([]);
   const [saved, setSaved] = useState<string[]>([]);
   const [archivedThreads, setArchivedThreads] = useState<string[]>([]);
   const [pinnedThreads, setPinnedThreads] = useState<string[]>([]);
@@ -261,7 +269,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [circleReady, setCircleReady] = useState(false);
   const [circleFull, setCircleFull] = useState(false);
-  const [showOwnListingsInFeed, setShowOwnListingsInFeed] = useState(true);
+  const [showOwnListingsInFeed, setShowOwnFeedState] = useState(true);
   const [profileCompletedAt, setProfileCompletedAt] = useState<string | null>(
     null,
   );
@@ -270,6 +278,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setMeServerId(user.id);
     setSessionPhone(user.phoneNormalized);
     setProfileCompletedAt(user.profileCompletedAt);
+    setShowOwnFeedState(user.showOwnListingsInFeed);
     setMeProfile((prev) => ({
       ...prev,
       id: "me",
@@ -289,7 +298,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     pending: Invite[];
     pendingPeople: Person[];
     listings?: Listing[];
+    requests?: Request[];
+    offers?: Offer[];
+    events?: CircleEvent[];
     joinRequests?: CircleJoinRequest[];
+    saved?: string[];
+    archivedThreads?: string[];
+    pinnedThreads?: string[];
+    deletedThreads?: string[];
+    showOwnListingsInFeed?: boolean;
   };
 
   const peopleRef = useRef(people);
@@ -332,8 +349,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           })();
       setPeople(mergedPeople);
       setListings(data.listings ?? []);
-      setRequests((prev) => reconcileDemoRequests(prev, mergedPeople));
-      setOffers((prev) => reconcileDemoOffers(prev, mergedPeople));
+      setRequests(data.requests ?? []);
+      setOffers(data.offers ?? []);
+      setEvents(data.events ?? []);
+      if (Array.isArray(data.saved)) setSaved(data.saved);
+      if (Array.isArray(data.archivedThreads)) {
+        setArchivedThreads(data.archivedThreads);
+      }
+      if (Array.isArray(data.pinnedThreads)) {
+        setPinnedThreads(data.pinnedThreads);
+      }
+      if (Array.isArray(data.deletedThreads)) {
+        setDeletedThreads(data.deletedThreads);
+      }
+      if (typeof data.showOwnListingsInFeed === "boolean") {
+        setShowOwnFeedState(data.showOwnListingsInFeed);
+      }
       setMessages((prev) =>
         reconcileDemoMessages(prev, mergedPeople, data.listings ?? []),
       );
@@ -393,8 +424,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       ...(data.network ?? []),
     ]);
     setPeople(next);
-    setRequests((r) => reconcileDemoRequests(r, next));
-    setOffers((o) => reconcileDemoOffers(o, next));
     setMessages((m) => reconcileDemoMessages(m, next, listingsRef.current));
     setCircleFull(true);
   }, []);
@@ -421,6 +450,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           circleCatalogIncomplete(
             data.listings ?? [],
             data.members.length,
+            data.requests ?? [],
+            data.events ?? [],
           )
         ) {
           await api("/api/auth/seed-circle", { method: "POST" }).catch(
@@ -434,6 +465,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setJoinRequests([]);
         setNetworkLinks([]);
         setListings([]);
+        setRequests([]);
+        setOffers([]);
+        setEvents([]);
+        setSaved([]);
         setCircleReady(true);
         setCircleFull(false);
       }
@@ -450,78 +485,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
           const data = JSON.parse(raw);
-          if (Array.isArray(data.people)) {
-            const restored = (data.people as Person[])
-              .map((p) => {
-                const seed = PEOPLE.find((s) => s.id === p.id);
-                if (seed) {
-                  return {
-                    ...p,
-                    avatar: seed.avatar,
-                    name: seed.name,
-                    note: seed.note ?? p.note,
-                    inMyCircle: false,
-                    inviteStatus: undefined,
-                  };
-                }
-                if (p.inviteStatus === "pending") return null;
-                return p;
-              })
-              .filter((p): p is Person => Boolean(p));
-            if (!cancelled) setPeople(restored.length ? restored : networkSeed());
-          }
-          // Listings live on Postgres; local cache is ignored.
-          // Requests/offers: keep only user-authored until circle reconcile binds demo rows.
-          if (Array.isArray(data.requests)) {
-            setRequests(
-              (data.requests as Request[])
-                .filter((r) => r.requesterId === "me")
-                .map((r) => ({
-                  ...r,
-                  endorsements: r.endorsements ?? [],
-                })),
-            );
-          }
-          if (Array.isArray(data.offers)) {
-            setOffers(
-              (data.offers as Offer[]).filter((o) => o.fromId === "me"),
-            );
-          }
-          if (Array.isArray(data.messages)) setMessages(data.messages);
-          if (Array.isArray(data.archivedThreads)) {
-            setArchivedThreads(
-              (data.archivedThreads as unknown[]).filter(
-                (id): id is string => typeof id === "string",
-              ),
-            );
-          }
-          if (Array.isArray(data.deletedThreads)) {
-            setDeletedThreads(
-              (data.deletedThreads as unknown[]).filter(
-                (id): id is string => typeof id === "string",
-              ),
-            );
-          }
-          if (Array.isArray(data.pinnedThreads)) {
-            setPinnedThreads(
-              (data.pinnedThreads as unknown[])
-                .filter((id): id is string => typeof id === "string")
-                .slice(0, 3),
-            );
-          }
-          if (Array.isArray(data.events)) {
-            setEvents(
-              data.events.map((e: CircleEvent) => ({
-                ...e,
-                endorsements: e.endorsements ?? [],
-              })),
-            );
-          }
-          if (Array.isArray(data.saved)) setSaved(data.saved);
           if (typeof data.onboarded === "boolean") setOnboarded(data.onboarded);
-          if (typeof data.showOwnListingsInFeed === "boolean") {
-            setShowOwnListingsInFeed(data.showOwnListingsInFeed);
-          }
         }
       } catch {
         // ignore corrupt storage
@@ -541,6 +505,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             circleCatalogIncomplete(
               home.listings ?? [],
               home.members.length,
+              home.requests ?? [],
+              home.events ?? [],
             )
           ) {
             await api("/api/auth/seed-circle", { method: "POST" }).catch(
@@ -561,6 +527,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           setJoinRequests([]);
           setPeople(networkSeed());
           setListings([]);
+          setRequests([]);
+          setOffers([]);
+          setEvents([]);
+          setSaved([]);
           setCircleReady(true);
           setCircleFull(false);
         }
@@ -576,6 +546,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setNetworkLinks([]);
         setPeople(networkSeed());
         setListings([]);
+        setRequests([]);
+        setOffers([]);
+        setEvents([]);
+        setSaved([]);
         setCircleReady(true);
         setCircleFull(false);
       }
@@ -588,7 +562,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
   }, [applyUserLocal, applyCirclePayload, loadMessages]);
 
-  // Persist marketplace slices only — identity lives on the server cookie.
+  // Onboarding flag only — marketplace data lives on the server.
   useEffect(() => {
     if (!hydrated) return;
     try {
@@ -596,36 +570,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         STORAGE_KEY,
         JSON.stringify({
           schemaVersion: SCHEMA_VERSION,
-          people,
-          requests,
-          offers,
-          messages,
-          archivedThreads,
-          pinnedThreads,
-          deletedThreads,
-          events,
-          saved,
           onboarded,
-          showOwnListingsInFeed,
         }),
       );
     } catch {
       // ignore quota errors
     }
-  }, [
-    people,
-    requests,
-    offers,
-    messages,
-    archivedThreads,
-    pinnedThreads,
-    deletedThreads,
-    events,
-    saved,
-    onboarded,
-    showOwnListingsInFeed,
-    hydrated,
-  ]);
+  }, [onboarded, hydrated]);
 
   useEffect(() => {
     if (!hydrated || !sessionPhone) return;
@@ -685,12 +636,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const { listing } = await api<{ listing: Listing }>(
         `/api/listings/${encodeURIComponent(id)}`,
       );
+      const current = listingsRef.current.find((row) => row.id === listing.id);
+      const next = {
+        ...listing,
+        endorsements:
+          listing.endorsements.length > 0
+            ? listing.endorsements
+            : (current?.endorsements ?? []),
+      };
       setListings((prev) =>
-        prev.some((row) => row.id === listing.id)
-          ? prev.map((row) => (row.id === listing.id ? listing : row))
-          : [listing, ...prev],
+        prev.some((row) => row.id === next.id)
+          ? prev.map((row) => (row.id === next.id ? next : row))
+          : [next, ...prev],
       );
-      return listing;
+      return next;
     } catch {
       return existing;
     }
@@ -700,6 +659,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     (id: string) => requests.find((r) => r.id === id),
     [requests],
   );
+
+  const ensureRequest = useCallback(async (id: string) => {
+    const existing = requests.find((r) => r.id === id);
+    if (existing) return existing;
+    try {
+      const data = await api<{ request: Request; offers: Offer[] }>(
+        `/api/requests/${encodeURIComponent(id)}`,
+      );
+      setRequests((prev) =>
+        prev.some((row) => row.id === data.request.id)
+          ? prev.map((row) =>
+              row.id === data.request.id ? data.request : row,
+            )
+          : [data.request, ...prev],
+      );
+      setOffers((prev) => {
+        const others = prev.filter((o) => o.requestId !== data.request.id);
+        return [...data.offers, ...others];
+      });
+      return data.request;
+    } catch {
+      return existing;
+    }
+  }, [requests]);
 
   const getOffers = useCallback(
     (requestId: string) => offers.filter((o) => o.requestId === requestId),
@@ -803,49 +786,81 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }).catch(() => {});
   }, []);
 
-  const archiveThread = useCallback((peerId: string) => {
-    setArchivedThreads((prev) =>
-      prev.includes(peerId) ? prev : [...prev, peerId],
-    );
-    setPinnedThreads((prev) => prev.filter((id) => id !== peerId));
-  }, []);
+  const persistThread = useCallback(
+    async (
+      peerId: string,
+      patch: { archived?: boolean; pinned?: boolean; deleted?: boolean },
+    ) => {
+      await api("/api/messages/thread", {
+        method: "PUT",
+        body: JSON.stringify({ peerId, ...patch }),
+      });
+    },
+    [],
+  );
 
-  const unarchiveThread = useCallback((peerId: string) => {
-    setArchivedThreads((prev) => prev.filter((id) => id !== peerId));
-  }, []);
+  const archiveThread = useCallback(
+    async (peerId: string) => {
+      setArchivedThreads((prev) =>
+        prev.includes(peerId) ? prev : [...prev, peerId],
+      );
+      setPinnedThreads((prev) => prev.filter((id) => id !== peerId));
+      await persistThread(peerId, { archived: true });
+    },
+    [persistThread],
+  );
+
+  const unarchiveThread = useCallback(
+    async (peerId: string) => {
+      setArchivedThreads((prev) => prev.filter((id) => id !== peerId));
+      await persistThread(peerId, { archived: false });
+    },
+    [persistThread],
+  );
 
   const isThreadArchived = useCallback(
     (peerId: string) => archivedThreads.includes(peerId),
     [archivedThreads],
   );
 
-  const deleteThread = useCallback((peerId: string) => {
-    setMessages((prev) => prev.filter((msg) => msg.peerId !== peerId));
-    setArchivedThreads((prev) => prev.filter((id) => id !== peerId));
-    setPinnedThreads((prev) => prev.filter((id) => id !== peerId));
-    setDeletedThreads((prev) =>
-      prev.includes(peerId) ? prev : [...prev, peerId],
-    );
-    clearThreadListing(peerId);
-  }, []);
+  const deleteThread = useCallback(
+    async (peerId: string) => {
+      setMessages((prev) => prev.filter((msg) => msg.peerId !== peerId));
+      setArchivedThreads((prev) => prev.filter((id) => id !== peerId));
+      setPinnedThreads((prev) => prev.filter((id) => id !== peerId));
+      setDeletedThreads((prev) =>
+        prev.includes(peerId) ? prev : [...prev, peerId],
+      );
+      clearThreadListing(peerId);
+      await persistThread(peerId, { deleted: true });
+    },
+    [persistThread],
+  );
 
-  const togglePinThread = useCallback((peerId: string) => {
-    let ok = true;
-    let added = false;
-    setPinnedThreads((prev) => {
-      if (prev.includes(peerId)) return prev.filter((id) => id !== peerId);
-      if (prev.length >= 3) {
-        ok = false;
-        return prev;
+  const togglePinThread = useCallback(
+    async (peerId: string) => {
+      const pinned = pinnedThreads.includes(peerId);
+      if (!pinned && pinnedThreads.length >= 3) return false;
+      if (pinned) {
+        setPinnedThreads((prev) => prev.filter((id) => id !== peerId));
+      } else {
+        setPinnedThreads((prev) => [peerId, ...prev]);
+        setArchivedThreads((a) => a.filter((id) => id !== peerId));
       }
-      added = true;
-      return [peerId, ...prev];
-    });
-    if (added) {
-      setArchivedThreads((a) => a.filter((id) => id !== peerId));
-    }
-    return ok;
-  }, []);
+      try {
+        await persistThread(peerId, { pinned: !pinned });
+        return true;
+      } catch {
+        if (pinned) {
+          setPinnedThreads((prev) => [peerId, ...prev]);
+        } else {
+          setPinnedThreads((prev) => prev.filter((id) => id !== peerId));
+        }
+        return false;
+      }
+    },
+    [persistThread, pinnedThreads],
+  );
 
   const isThreadPinned = useCallback(
     (peerId: string) => pinnedThreads.includes(peerId),
@@ -1163,80 +1178,152 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setSaved((prev) => prev.filter((id) => id !== listingId));
   }, []);
 
-  // Toggle MY endorsement of a listing (acting as the current user).
-  const toggleEndorsement = useCallback(
-    (listingId: string, type: BadgeType) => {
+  // Persist MY word on a listing (badges + optional note). Empty clears it.
+  const setMyListingEndorsement = useCallback(
+    async (listingId: string, types: BadgeType[], note?: string) => {
+      const noteTrim = note?.trim()
+        ? note.trim().slice(0, ENDORSE_NOTE_MAX)
+        : undefined;
+      const badges = types.filter((t) => t !== "word");
+      const previous =
+        listingsRef.current.find((l) => l.id === listingId)?.endorsements ??
+        [];
+      const others = previous.filter((e) => e.personId !== "me");
+      const mineWasHidden = previous.some((e) => e.personId === "me" && e.hidden);
+      const mine =
+        badges.length === 0 && !noteTrim
+          ? []
+          : badges.length > 0
+            ? badges.map((type, i) => ({
+                personId: "me" as const,
+                type,
+                ...(i === 0 && noteTrim ? { note: noteTrim } : {}),
+                ...(mineWasHidden ? { hidden: true } : {}),
+              }))
+            : [
+                {
+                  personId: "me" as const,
+                  type: "word" as const,
+                  note: noteTrim,
+                  ...(mineWasHidden ? { hidden: true } : {}),
+                },
+              ];
+      const optimistic = [...others, ...mine];
       setListings((prev) =>
-        prev.map((l) => {
-          if (l.id !== listingId) return l;
-          const exists = l.endorsements.some(
-            (e) => e.personId === "me" && e.type === type,
-          );
-          return {
-            ...l,
-            endorsements: exists
-              ? l.endorsements.filter(
-                  (e) => !(e.personId === "me" && e.type === type),
-                )
-              : [...l.endorsements, { personId: "me", type }],
-          };
-        }),
+        prev.map((l) =>
+          l.id === listingId ? { ...l, endorsements: optimistic } : l,
+        ),
       );
+      try {
+        const { endorsements } = await api<{ endorsements: Endorsement[] }>(
+          `/api/listings/${encodeURIComponent(listingId)}/endorsements`,
+          {
+            method: "PUT",
+            body: JSON.stringify({ types: badges, note: noteTrim ?? "" }),
+          },
+        );
+        setListings((prev) =>
+          prev.map((l) =>
+            l.id === listingId ? { ...l, endorsements } : l,
+          ),
+        );
+      } catch (err) {
+        setListings((prev) =>
+          prev.map((l) =>
+            l.id === listingId ? { ...l, endorsements: previous } : l,
+          ),
+        );
+        throw err;
+      }
     },
     [],
   );
 
-  const addRequest = useCallback((input: NewRequestInput) => {
-    const id = `req_${Date.now()}`;
-    const request: Request = {
-      id,
-      title: input.title,
-      description: input.description,
-      category: input.category,
-      image: input.image,
-      requesterId: "me",
-      postedAt: "همین حالا",
-      budget: input.budget,
-      budgetUnit: input.budgetUnit,
-      privacy: input.privacy,
-      trustPath: [],
-      endorsements: [],
-      city: ME.city,
-    };
-    setRequests((prev) => [request, ...prev]);
-    return id;
-  }, []);
-
-  const addOffer = useCallback((input: NewOfferInput) => {
-    setOffers((prev) => {
-      // One offer per person per request — replace any existing "me" offer.
-      const without = prev.filter(
-        (o) => !(o.requestId === input.requestId && o.fromId === "me"),
+  const setListingEndorsementHidden = useCallback(
+    async (listingId: string, personId: string, hidden: boolean) => {
+      const previous =
+        listingsRef.current.find((l) => l.id === listingId)?.endorsements ??
+        [];
+      setListings((prev) =>
+        prev.map((l) =>
+          l.id === listingId
+            ? {
+                ...l,
+                endorsements: l.endorsements.map((e) =>
+                  e.personId === personId ? { ...e, hidden } : e,
+                ),
+              }
+            : l,
+        ),
       );
-      const offer: Offer = {
-        id: `offer_${Date.now()}`,
-        requestId: input.requestId,
-        fromId: "me",
-        message: input.message,
-        price: input.price,
-        postedAt: "همین حالا",
-      };
-      return [offer, ...without];
+      try {
+        const { endorsements } = await api<{ endorsements: Endorsement[] }>(
+          `/api/listings/${encodeURIComponent(listingId)}/endorsements`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({ personId, hidden }),
+          },
+        );
+        setListings((prev) =>
+          prev.map((l) =>
+            l.id === listingId ? { ...l, endorsements } : l,
+          ),
+        );
+      } catch (err) {
+        setListings((prev) =>
+          prev.map((l) =>
+            l.id === listingId ? { ...l, endorsements: previous } : l,
+          ),
+        );
+        throw err;
+      }
+    },
+    [],
+  );
+
+  const addRequest = useCallback(async (input: NewRequestInput) => {
+    const { request } = await api<{ request: Request }>("/api/requests", {
+      method: "POST",
+      body: JSON.stringify(input),
     });
+    setRequests((prev) => [request, ...prev.filter((r) => r.id !== request.id)]);
+    return request.id;
   }, []);
 
-  const withdrawOffer = useCallback((requestId: string) => {
+  const addOffer = useCallback(async (input: NewOfferInput) => {
+    const { offer } = await api<{ offer: Offer }>(
+      `/api/requests/${encodeURIComponent(input.requestId)}/offers`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          message: input.message,
+          price: input.price,
+        }),
+      },
+    );
+    setOffers((prev) => [
+      offer,
+      ...prev.filter(
+        (o) => !(o.requestId === input.requestId && o.fromId === "me"),
+      ),
+    ]);
+  }, []);
+
+  const withdrawOffer = useCallback(async (requestId: string) => {
+    await api(`/api/requests/${encodeURIComponent(requestId)}/offers`, {
+      method: "DELETE",
+    });
     setOffers((prev) =>
       prev.filter((o) => !(o.requestId === requestId && o.fromId === "me")),
     );
   }, []);
 
-  const toggleSaved = useCallback((listingId: string) => {
-    setSaved((prev) =>
-      prev.includes(listingId)
-        ? prev.filter((id) => id !== listingId)
-        : [listingId, ...prev],
-    );
+  const toggleSaved = useCallback(async (listingId: string) => {
+    const { saved: next } = await api<{ saved: string[] }>("/api/saved", {
+      method: "POST",
+      body: JSON.stringify({ listingId }),
+    });
+    setSaved(next);
   }, []);
 
   const isSaved = useCallback(
@@ -1249,41 +1336,40 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [events],
   );
 
-  const addEvent = useCallback((input: NewEventInput) => {
-    const id = `event_${Date.now()}`;
-    const event: CircleEvent = {
-      id,
-      title: input.title,
-      description: input.description,
-      kind: input.kind,
-      image: input.image,
-      hostId: "me",
-      date: input.date,
-      time: input.time,
-      location: input.location,
-      capacity: input.capacity,
-      privacy: input.privacy,
-      attendees: [],
-      trustPath: [],
-      endorsements: [],
-      city: ME.city,
-    };
-    setEvents((prev) => [event, ...prev]);
-    return id;
+  const ensureEvent = useCallback(async (id: string) => {
+    const existing = events.find((e) => e.id === id);
+    if (existing) return existing;
+    try {
+      const { event } = await api<{ event: CircleEvent }>(
+        `/api/events/${encodeURIComponent(id)}`,
+      );
+      setEvents((prev) =>
+        prev.some((row) => row.id === event.id)
+          ? prev.map((row) => (row.id === event.id ? event : row))
+          : [event, ...prev],
+      );
+      return event;
+    } catch {
+      return existing;
+    }
+  }, [events]);
+
+  const addEvent = useCallback(async (input: NewEventInput) => {
+    const { event } = await api<{ event: CircleEvent }>("/api/events", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    setEvents((prev) => [event, ...prev.filter((e) => e.id !== event.id)]);
+    return event.id;
   }, []);
 
-  const toggleRsvp = useCallback((eventId: string) => {
+  const toggleRsvp = useCallback(async (eventId: string) => {
+    const { event } = await api<{ event: CircleEvent }>(
+      `/api/events/${encodeURIComponent(eventId)}/rsvp`,
+      { method: "POST" },
+    );
     setEvents((prev) =>
-      prev.map((e) => {
-        if (e.id !== eventId) return e;
-        const going = e.attendees.includes("me");
-        return {
-          ...e,
-          attendees: going
-            ? e.attendees.filter((a) => a !== "me")
-            : [...e.attendees, "me"],
-        };
-      }),
+      prev.map((e) => (e.id === event.id ? event : e)),
     );
   }, []);
 
@@ -1294,6 +1380,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const completeOnboarding = useCallback(() => setOnboarded(true), []);
+
+  const setShowOwnListingsInFeed = useCallback(async (value: boolean) => {
+    setShowOwnFeedState(value);
+    try {
+      await api("/api/me", {
+        method: "PATCH",
+        body: JSON.stringify({ showOwnListingsInFeed: value }),
+      });
+    } catch (err) {
+      setShowOwnFeedState(!value);
+      throw err;
+    }
+  }, []);
 
   const completeLogin = useCallback(
     async (user: SessionUser, opts?: { needsSeed?: boolean }) => {
@@ -1322,10 +1421,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setNetworkLinks([]);
     setPeople(networkSeed());
     setListings([]);
+    setRequests([]);
+    setOffers([]);
+    setEvents([]);
+    setSaved([]);
     setMessages([]);
     setArchivedThreads([]);
     setPinnedThreads([]);
     setDeletedThreads([]);
+    setShowOwnFeedState(true);
     setCircleReady(true);
     setCircleFull(false);
   }, []);
@@ -1357,7 +1461,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       getListing,
       ensureListing,
       getRequest,
+      ensureRequest,
       getEvent,
+      ensureEvent,
       addEvent,
       toggleRsvp,
       isAttending,
@@ -1394,7 +1500,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateListing,
       setListingDealStatus,
       deleteListing,
-      toggleEndorsement,
+      setMyListingEndorsement,
+      setListingEndorsementHidden,
       addRequest,
       addOffer,
       withdrawOffer,
@@ -1428,12 +1535,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       circleReady,
       circleFull,
       showOwnListingsInFeed,
+      setShowOwnListingsInFeed,
       profileCompletedAt,
       getPerson,
       getListing,
       ensureListing,
       getRequest,
+      ensureRequest,
       getEvent,
+      ensureEvent,
       addEvent,
       toggleRsvp,
       isAttending,
@@ -1470,7 +1580,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateListing,
       setListingDealStatus,
       deleteListing,
-      toggleEndorsement,
+      setMyListingEndorsement,
+      setListingEndorsementHidden,
       addRequest,
       addOffer,
       withdrawOffer,

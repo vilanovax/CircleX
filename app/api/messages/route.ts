@@ -57,6 +57,13 @@ export async function POST(req: Request) {
       },
     });
 
+    await prisma.threadPreference
+      .updateMany({
+        where: { userId: session.id, peerId, deletedAt: { not: null } },
+        data: { deletedAt: null, archived: false },
+      })
+      .catch(() => {});
+
     const [peer] = await peopleForMessagePeers(session.id, [peerId]);
     return Response.json({
       message: toClientDirectMessage(row, session.id),

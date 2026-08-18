@@ -60,7 +60,7 @@ export default function AddRequestSheet({
   onBack,
 }: {
   onClose: () => void;
-  onAdd: (input: RequestInput) => void;
+  onAdd: (input: RequestInput) => void | Promise<void>;
   onBack?: () => void;
 }) {
   const { people } = useStore();
@@ -77,6 +77,7 @@ export default function AddRequestSheet({
   const [privacy, setPrivacy] = useState<Privacy>("ABC");
   const [voiceInterim, setVoiceInterim] = useState("");
   const [voiceListening, setVoiceListening] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const canSubmit = Boolean(title.trim());
   const amountMode = budgetUnit !== "negotiable";
@@ -91,26 +92,32 @@ export default function AddRequestSheet({
     setCategory(category === c ? "" : c);
   }
 
-  function submit() {
-    if (!canSubmit) return;
+  async function submit() {
+    if (!canSubmit || submitting) return;
     const amount =
       amountMode && budget
         ? Number(toEnglishDigits(budget).replace(/\D/g, "")) || undefined
         : undefined;
-    onAdd({
-      title: title.trim(),
-      description: description.trim(),
-      category: category.trim() || "عمومی",
-      image,
-      budget: amount,
-      budgetUnit:
-        budgetUnit === "negotiable"
-          ? "negotiable"
-          : amount != null
-            ? budgetUnit
-            : undefined,
-      privacy,
-    });
+    setSubmitting(true);
+    try {
+      await onAdd({
+        title: title.trim(),
+        description: description.trim(),
+        category: category.trim() || "عمومی",
+        image,
+        budget: amount,
+        budgetUnit:
+          budgetUnit === "negotiable"
+            ? "negotiable"
+            : amount != null
+              ? budgetUnit
+              : undefined,
+        privacy,
+      });
+    } catch (err) {
+      show(err instanceof Error ? err.message : "درخواست ذخیره نشد");
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -127,11 +134,11 @@ export default function AddRequestSheet({
           )}
           <button
             type="button"
-            disabled={!canSubmit}
-            onClick={submit}
+            disabled={!canSubmit || submitting}
+            onClick={() => void submit()}
             className="btn-primary w-full !py-3 text-[15px] shadow-lg shadow-brand-600/20 active:scale-[0.99] transition-transform duration-150 disabled:opacity-60"
           >
-            ثبت درخواست
+            {submitting ? "در حال ثبت…" : "ثبت درخواست"}
           </button>
         </div>
       }

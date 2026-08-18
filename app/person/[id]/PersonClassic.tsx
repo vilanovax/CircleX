@@ -108,7 +108,9 @@ export default function PersonClassic(_props: { params: { id: string } }) {
   const endorsementsReceived = useMemo(
     () =>
       theirListings.flatMap((l) =>
-        l.endorsements.map((e) => ({ listing: l, endorsement: e })),
+        l.endorsements
+          .filter((e) => !e.hidden)
+          .map((e) => ({ listing: l, endorsement: e })),
       ),
     [theirListings],
   );
@@ -566,6 +568,7 @@ function TrustDetailsSheet({
             return formatEndorsementReport(item.endorsement.type, {
               endorserName: endorser?.name ?? "یکی از اعضای حلقه",
               sellerName: person.name,
+              note: item.endorsement.note,
             });
           }}
           hideListingLink
@@ -583,6 +586,7 @@ function TrustDetailsSheet({
               endorserName: endorser?.name ?? "یکی از اعضای حلقه",
               sellerName: person.name,
               listingTitle: item.listing.title,
+              note: item.endorsement.note,
             });
           }}
         />
@@ -606,6 +610,7 @@ function TrustDetailsSheet({
                     sellerName:
                       getPerson(item.listing.sellerId)?.name ?? "فروشنده",
                     listingTitle: item.listing.title,
+                    note: item.endorsement.note,
                   })}
                 </p>
                 <Link
