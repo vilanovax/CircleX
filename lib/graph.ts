@@ -30,6 +30,13 @@ export interface GraphEdge {
   to: string;
 }
 
+/** BFS from «me» — enough for the list tab without packing rings. */
+export interface TrustWalk {
+  edges: GraphEdge[];
+  parent: Record<string, string>;
+  depth: Map<string, number>;
+}
+
 export interface TrustGraph {
   nodes: GraphNode[];
   edges: GraphEdge[];
@@ -55,41 +62,50 @@ function clamp(n: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, n));
 }
 
+function addEdge(
+  a: string,
+  b: string,
+  edges: GraphEdge[],
+  edgeKeys: Set<string>,
+  adj: Map<string, Set<string>>,
+) {
+  if (a === b) return;
+  const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+  if (!edgeKeys.has(key)) {
+    edgeKeys.add(key);
+    edges.push({ from: a, to: b });
+  }
+  if (!adj.has(a)) adj.set(a, new Set());
+  if (!adj.has(b)) adj.set(b, new Set());
+  adj.get(a)!.add(b);
+  adj.get(b)!.add(a);
+}
+
 /**
- * Build a radial trust graph centred on "me". Direct members sit on A→B→C
- * rings packed by circumference (never more faces than the ring can hold).
- * Friends-of-friends sit further out, near the person who connects them.
+ * Reachability from «me» via the circle and FoF links.
+ * Skips radial packing so the list tab can paint before the map layout.
  */
-export function buildTrustGraph(
+export function walkTrustNetwork(
   people: Person[],
-  listings: Listing[],
-  requests: Request[],
   getPerson: (id: string) => Person | undefined,
-  viewSize?: number,
   networkLinks: { fromId: string; toId: string }[] = [],
-): TrustGraph {
+  listings: Listing[] = [],
+  requests: Request[] = [],
+): TrustWalk {
   const edges: GraphEdge[] = [];
   const edgeKeys = new Set<string>();
   const adj = new Map<string, Set<string>>();
 
-  const link = (a: string, b: string) => {
-    if (a === b) return;
-    const key = a < b ? `${a}|${b}` : `${b}|${a}`;
-    if (!edgeKeys.has(key)) {
-      edgeKeys.add(key);
-      edges.push({ from: a, to: b });
-    }
-    if (!adj.has(a)) adj.set(a, new Set());
-    if (!adj.has(b)) adj.set(b, new Set());
-    adj.get(a)!.add(b);
-    adj.get(b)!.add(a);
-  };
+  const link = (a: string, b: string) => addEdge(a, b, edges, edgeKeys, adj);
 
-  people.filter(isActiveCircleMember).forEach((p) => link("me", p.id));
+  for (let i = 0; i < people.length; i++) {
+    const p = people[i];
+    if (isActiveCircleMember(p)) link("me", p.id);
+  }
 
-  // Only wire peers we can name — orphan link ids become «؟» in the list.
   const known = (id: string) => id === "me" || Boolean(getPerson(id));
-  for (const l of networkLinks) {
+  for (let i = 0; i < networkLinks.length; i++) {
+    const l = networkLinks[i];
     const a = l.fromId === "me" ? "me" : l.fromId;
     const b = l.toId === "me" ? "me" : l.toId;
     if (!known(a) || !known(b)) continue;
@@ -97,25 +113,37 @@ export function buildTrustGraph(
   }
 
   const chains: string[][] = [
-    ...listings.map((l) => ["me", ...l.trustPath.map((h) => h.personId), l.sellerId]),
-    ...requests.map((r) => ["me", ...r.trustPath.map((h) => h.personId), r.requesterId]),
+    ...listings.map((l) => [
+      "me",
+      ...l.trustPath.map((h) => h.personId),
+      l.sellerId,
+    ]),
+    ...requests.map((r) => [
+      "me",
+      ...r.trustPath.map((h) => h.personId),
+      r.requesterId,
+    ]),
   ];
-  chains.forEach((chain) => {
+  for (let c = 0; c < chains.length; c++) {
+    const chain = chains[c]!;
     for (let i = 0; i < chain.length - 1; i++) {
       const a = chain[i]!;
       const b = chain[i + 1]!;
       if (!known(a) || !known(b)) continue;
       link(a, b);
     }
-  });
+  }
 
   const depth = new Map<string, number>([["me", 0]]);
   const parent = new Map<string, string>();
   const queue = ["me"];
-  while (queue.length) {
-    const cur = queue.shift()!;
+  let q = 0;
+  while (q < queue.length) {
+    const cur = queue[q++]!;
     const d = depth.get(cur)!;
-    (adj.get(cur) ?? new Set<string>()).forEach((nb) => {
+    const nbs = adj.get(cur);
+    if (!nbs) continue;
+    nbs.forEach((nb) => {
       if (!depth.has(nb)) {
         depth.set(nb, d + 1);
         parent.set(nb, cur);
@@ -123,6 +151,24 @@ export function buildTrustGraph(
       }
     });
   }
+
+  return {
+    edges,
+    parent: Object.fromEntries(parent),
+    depth,
+  };
+}
+
+/**
+ * Pack a finished BFS walk onto concentric rings. Call this only when the
+ * map tab needs coordinates — the list tab can stop at `walkTrustNetwork`.
+ */
+export function layoutTrustGraph(
+  walk: TrustWalk,
+  getPerson: (id: string) => Person | undefined,
+  viewSize?: number,
+): TrustGraph {
+  const { edges, parent, depth } = walk;
 
   const byDepth = new Map<number, string[]>();
   depth.forEach((d, id) => {
@@ -229,7 +275,7 @@ export function buildTrustGraph(
     if (lane.via) {
       const groups = new Map<string, string[]>();
       lane.ids.forEach((id) => {
-        const par = parent.get(id) ?? "me";
+        const par = parent[id] ?? "me";
         if (!groups.has(par)) groups.set(par, []);
         groups.get(par)!.push(id);
       });
@@ -237,7 +283,7 @@ export function buildTrustGraph(
       const fallbackGap = 360 / Math.max(n, 1);
       let cursor = 0;
       groups.forEach((children) => {
-        const par = parent.get(children[0]!) ?? "me";
+        const par = parent[children[0]!] ?? "me";
         const base = angle.get(par) ?? -90 + cursor * fallbackGap;
         const spread = children.length === 1 ? 0 : 22;
         children.forEach((id, j) => {
@@ -271,7 +317,7 @@ export function buildTrustGraph(
       avatar: p?.avatar ?? resolveAvatarSrc(p?.name ?? id),
       level: id === "me" ? undefined : p?.level,
       depth: d,
-      parentId: parent.get(id),
+      parentId: parent[id],
       inCircle: id === "me" ? true : Boolean(p && isActiveCircleMember(p)),
       x: C + r * Math.cos(a),
       y: C + r * Math.sin(a),
@@ -283,7 +329,7 @@ export function buildTrustGraph(
   return {
     nodes,
     edges,
-    parent: Object.fromEntries(parent),
+    parent,
     maxDepth,
     size,
     rings,
@@ -291,6 +337,26 @@ export function buildTrustGraph(
     meR,
     legend,
   };
+}
+
+/**
+ * Build a radial trust graph centred on "me". Direct members sit on A→B→C
+ * rings packed by circumference (never more faces than the ring can hold).
+ * Friends-of-friends sit further out, near the person who connects them.
+ */
+export function buildTrustGraph(
+  people: Person[],
+  listings: Listing[],
+  requests: Request[],
+  getPerson: (id: string) => Person | undefined,
+  viewSize?: number,
+  networkLinks: { fromId: string; toId: string }[] = [],
+): TrustGraph {
+  return layoutTrustGraph(
+    walkTrustNetwork(people, getPerson, networkLinks, listings, requests),
+    getPerson,
+    viewSize,
+  );
 }
 
 /** The chain of node ids from a node up to "me" (inclusive of both). */
@@ -317,18 +383,49 @@ export interface GraphInsights {
   hub: { id: string; name: string; count: number } | null;
 }
 
-/** Headline numbers for the trust graph. */
+/** Headline numbers from a laid-out graph (map tab / tests). */
 export function graphInsights(graph: TrustGraph): GraphInsights {
-  const nameById: Record<string, string> = Object.fromEntries(
-    graph.nodes.map((n) => [n.id, n.name]),
-  );
+  const depth = new Map<string, number>();
+  const nodesById = new Map(graph.nodes.map((n) => [n.id, n]));
+  for (const n of graph.nodes) depth.set(n.id, n.depth);
+  return graphInsightsFromWalk({ parent: graph.parent, depth }, (id) => {
+    const n = nodesById.get(id);
+    if (!n || n.id === "me") return undefined;
+    return { id: n.id, name: n.name, level: n.level ?? "B" } as Person;
+  });
+}
+
+export function graphInsightsFromWalk(
+  walk: {
+    parent: Record<string, string>;
+    depth: Map<string, number>;
+  },
+  getPerson: (id: string) => Person | undefined,
+): GraphInsights {
+  const nameById: Record<string, string> = { me: "شما" };
   const through = new Map<string, number>();
-  graph.nodes.forEach((n) => {
-    if (n.id === "me") return;
-    const chain = pathToMe(n.id, graph.parent);
-    chain.slice(1, -1).forEach((id) => {
-      through.set(id, (through.get(id) ?? 0) + 1);
-    });
+  let direct = 0;
+  let viaOthers = 0;
+  let levelA = 0;
+  let reach = 0;
+
+  walk.depth.forEach((d, id) => {
+    if (id === "me") return;
+    const person = getPerson(id);
+    if (!person && d !== 0) return;
+    reach += 1;
+    if (d === 1) {
+      direct += 1;
+      if (person?.level === "A") levelA += 1;
+    } else if (d >= 2) {
+      viaOthers += 1;
+    }
+    nameById[id] = person?.name?.trim() || "؟";
+    const chain = pathToMe(id, walk.parent);
+    for (let i = 1; i < chain.length - 1; i++) {
+      const hop = chain[i]!;
+      through.set(hop, (through.get(hop) ?? 0) + 1);
+    }
   });
 
   let hub: GraphInsights["hub"] = null;
@@ -338,12 +435,9 @@ export function graphInsights(graph: TrustGraph): GraphInsights {
     }
   });
 
-  const direct = graph.nodes.filter((n) => n.id !== "me" && n.depth === 1).length;
-  const viaOthers = graph.nodes.filter((n) => n.depth >= 2).length;
-
   return {
-    reach: graph.nodes.length - 1,
-    levelA: graph.nodes.filter((n) => n.level === "A").length,
+    reach,
+    levelA,
     direct,
     viaOthers,
     hub,

@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import {
+  memo,
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
@@ -13,11 +20,12 @@ import { toPersianDigits } from "@/lib/persian";
 import { isActiveCircleMember } from "@/lib/circle-member";
 import { viewerRelationPhrase } from "@/lib/trust";
 import {
-  buildTrustGraph,
-  graphInsights,
+  graphInsightsFromWalk,
+  layoutTrustGraph,
   pathToMe,
+  walkTrustNetwork,
 } from "@/lib/graph";
-import type { Person, RelationType } from "@/lib/types";
+import type { NetworkLink, Person, RelationType } from "@/lib/types";
 
 const TrustGraph = lazyUi(() => import("@/components/TrustGraph"), {
   loading: () => (
@@ -40,11 +48,15 @@ const RELATION_ORDER: RelationType[] = [
   "acquaintance",
 ];
 
+function preloadTrustGraph() {
+  void import("@/components/TrustGraph");
+}
+
 function viaPathLabel(
   pathFromNodeToMe: string[],
   nameOf: (id: string) => string,
 ): string {
-  const chain = pathFromNodeToMe.slice().reverse(); // [me, …, selected]
+  const chain = pathFromNodeToMe.slice().reverse();
   const vias = chain.slice(1, -1).map(nameOf);
   if (vias.length === 0) return "مستقیم";
   if (vias.length === 1) return `از طریق ${vias[0]}`;
@@ -52,144 +64,217 @@ function viaPathLabel(
   return `از طریق ${vias[0]} و ${toPersianDigits(vias.length - 1)} نفر دیگر`;
 }
 
-function matchesRelationFilter(
+function indexPeerRelations(networkLinks: NetworkLink[]) {
+  const map = new Map<string, Set<RelationType>>();
+  for (let i = 0; i < networkLinks.length; i++) {
+    const link = networkLinks[i];
+    if (link.fromId === "me" || link.toId === "me") continue;
+    let from = map.get(link.fromId);
+    if (!from) {
+      from = new Set();
+      map.set(link.fromId, from);
+    }
+    from.add(link.relationType);
+    let to = map.get(link.toId);
+    if (!to) {
+      to = new Set();
+      map.set(link.toId, to);
+    }
+    to.add(link.relationType);
+  }
+  return map;
+}
+
+function relationsForId(
   id: string,
-  filter: RelationFilter,
   getPerson: (id: string) => Person | undefined,
   parent: Record<string, string>,
-  networkLinks: { fromId: string; toId: string; relationType: RelationType }[],
-): boolean {
-  if (filter === "all" || id === "me") return true;
-
+  peerRelations: Map<string, Set<RelationType>>,
+): Set<RelationType> {
+  const out = new Set<RelationType>();
   const person = getPerson(id);
-  if (person && isActiveCircleMember(person) && person.relation === filter) {
-    return true;
-  }
-
-  // FoF edge type (e.g. لیلا → حسین as colleague)
-  for (const link of networkLinks) {
-    if (link.relationType !== filter) continue;
-    if (link.fromId === "me" || link.toId === "me") continue;
-    if (link.fromId === id || link.toId === id) return true;
-  }
-
-  // Anyone reached through a direct member of this relation
+  if (person && isActiveCircleMember(person)) out.add(person.relation);
+  const linked = peerRelations.get(id);
+  if (linked) linked.forEach((rel) => out.add(rel));
   const bridgeId = parent[id];
   if (bridgeId && bridgeId !== "me") {
     const bridge = getPerson(bridgeId);
-    if (
-      bridge &&
-      isActiveCircleMember(bridge) &&
-      bridge.relation === filter
-    ) {
-      return true;
-    }
+    if (bridge && isActiveCircleMember(bridge)) out.add(bridge.relation);
   }
-
-  return false;
+  return out;
 }
 
 export default function GraphClassic() {
-  const people = useStore((s) => s.people);
-  const getPerson = useStore((s) => s.getPerson);
-  const networkLinks = useStore((s) => s.networkLinks);
   const circleReady = useStore((s) => s.circleReady);
-  const circleFull = useStore((s) => s.circleFull);
   const refreshGraph = useStore((s) => s.refreshGraph);
   const [view, setView] = useState<ViewMode>("list");
   const [mapFocus, setMapFocus] = useState<string | null>(null);
-  const [relationFilter, setRelationFilter] = useState<RelationFilter>("all");
+  const [wantLayout, setWantLayout] = useState(false);
 
   useEffect(() => {
     if (!circleReady) return;
     void refreshGraph();
   }, [circleReady, refreshGraph]);
 
-  const graph = useMemo(
-    () => buildTrustGraph(people, [], [], getPerson, undefined, networkLinks),
+  useEffect(() => {
+    const warm = () => {
+      startTransition(() => setWantLayout(true));
+      preloadTrustGraph();
+    };
+    const ric = (
+      window as Window & {
+        requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+        cancelIdleCallback?: (id: number) => void;
+      }
+    ).requestIdleCallback;
+    if (ric) {
+      const id = ric(warm, { timeout: 700 });
+      return () =>
+        (
+          window as Window & { cancelIdleCallback?: (id: number) => void }
+        ).cancelIdleCallback?.(id);
+    }
+    const t = window.setTimeout(warm, 280);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  const showMap = view === "map";
+
+  const onList = useCallback(
+    () => startTransition(() => setView("list")),
+    [],
+  );
+  const onMap = useCallback(() => {
+    preloadTrustGraph();
+    startTransition(() => setView("map"));
+  }, []);
+  const onShowHub = useCallback((id: string) => {
+    preloadTrustGraph();
+    setMapFocus(id);
+    startTransition(() => setView("map"));
+  }, []);
+
+  return (
+    <main className="pb-24 min-h-[100dvh]">
+      <GraphChrome
+        view={showMap ? "map" : "list"}
+        mapFocus={mapFocus}
+        wantLayout={wantLayout || showMap}
+        onList={onList}
+        onMap={onMap}
+        onShowHub={onShowHub}
+      />
+      <BottomNav />
+    </main>
+  );
+}
+
+const GraphChrome = memo(function GraphChrome({
+  view,
+  mapFocus,
+  wantLayout,
+  onList,
+  onMap,
+  onShowHub,
+}: {
+  view: ViewMode;
+  mapFocus: string | null;
+  wantLayout: boolean;
+  onList: () => void;
+  onMap: () => void;
+  onShowHub: (id: string) => void;
+}) {
+  const people = useStore((s) => s.people);
+  const getPerson = useStore((s) => s.getPerson);
+  const networkLinks = useStore((s) => s.networkLinks);
+  const circleFull = useStore((s) => s.circleFull);
+  const [relationFilter, setRelationFilter] = useState<RelationFilter>("all");
+
+  const walk = useMemo(
+    () => walkTrustNetwork(people, getPerson, networkLinks),
     [people, getPerson, networkLinks],
   );
-  const insights = useMemo(() => graphInsights(graph), [graph]);
+  const insights = useMemo(
+    () => graphInsightsFromWalk(walk, getPerson),
+    [walk, getPerson],
+  );
+  const nameById = useMemo(() => {
+    const map: Record<string, string> = { me: "شما" };
+    walk.depth.forEach((_, id) => {
+      if (id === "me") return;
+      map[id] = getPerson(id)?.name?.trim() || "؟";
+    });
+    return map;
+  }, [walk, getPerson]);
+  const nameOf = useCallback(
+    (id: string) => nameById[id] ?? "؟",
+    [nameById],
+  );
 
-  const nameOf = (id: string) =>
-    id === "me" ? "شما" : (graph.nodes.find((x) => x.id === id)?.name ?? "؟");
+  const peerRelations = useMemo(
+    () => indexPeerRelations(networkLinks),
+    [networkLinks],
+  );
+  const relationsById = useMemo(() => {
+    const map = new Map<string, Set<RelationType>>();
+    walk.depth.forEach((_, id) => {
+      if (id === "me") return;
+      map.set(id, relationsForId(id, getPerson, walk.parent, peerRelations));
+    });
+    return map;
+  }, [walk, getPerson, peerRelations]);
 
   const relationCounts = useMemo(() => {
     const counts: Partial<Record<RelationType, number>> = {};
-    for (const n of graph.nodes) {
-      if (n.id === "me") continue;
-      for (const rel of RELATION_ORDER) {
-        if (
-          matchesRelationFilter(
-            n.id,
-            rel,
-            getPerson,
-            graph.parent,
-            networkLinks,
-          )
-        ) {
-          counts[rel] = (counts[rel] ?? 0) + 1;
-        }
-      }
-    }
+    relationsById.forEach((rels) => {
+      rels.forEach((rel) => {
+        counts[rel] = (counts[rel] ?? 0) + 1;
+      });
+    });
     return counts;
-  }, [graph.nodes, graph.parent, getPerson, networkLinks]);
+  }, [relationsById]);
 
   const highlightIds = useMemo(() => {
     if (relationFilter === "all") return null;
     const ids = new Set<string>();
-    for (const n of graph.nodes) {
-      if (n.id === "me") continue;
-      if (
-        matchesRelationFilter(
-          n.id,
-          relationFilter,
-          getPerson,
-          graph.parent,
-          networkLinks,
-        )
-      ) {
-        ids.add(n.id);
-      }
-    }
+    relationsById.forEach((rels, id) => {
+      if (rels.has(relationFilter)) ids.add(id);
+    });
     return ids;
-  }, [relationFilter, graph.nodes, graph.parent, getPerson, networkLinks]);
+  }, [relationFilter, relationsById]);
 
-  const directNodes = useMemo(
-    () =>
-      graph.nodes
-        .filter((n) => n.depth === 1)
-        .filter(
-          (n) =>
-            relationFilter === "all" ||
-            matchesRelationFilter(
-              n.id,
-              relationFilter,
-              getPerson,
-              graph.parent,
-              networkLinks,
-            ),
-        )
-        .sort((a, b) => a.name.localeCompare(b.name, "fa")),
-    [graph.nodes, graph.parent, relationFilter, getPerson, networkLinks],
-  );
-  const viaNodes = useMemo(
-    () =>
-      graph.nodes
-        .filter((n) => n.depth >= 2)
-        .filter(
-          (n) =>
-            relationFilter === "all" ||
-            matchesRelationFilter(
-              n.id,
-              relationFilter,
-              getPerson,
-              graph.parent,
-              networkLinks,
-            ),
-        )
-        .sort((a, b) => a.depth - b.depth || a.name.localeCompare(b.name, "fa")),
-    [graph.nodes, graph.parent, relationFilter, getPerson, networkLinks],
+  const listNodes = useMemo(() => {
+    const direct: { id: string; name: string; avatar?: string; depth: number }[] =
+      [];
+    const via: { id: string; name: string; avatar?: string; depth: number }[] =
+      [];
+    walk.depth.forEach((d, id) => {
+      if (id === "me") return;
+      const person = getPerson(id);
+      if (!person) return;
+      if (relationFilter !== "all") {
+        const rels = relationsById.get(id);
+        if (!rels?.has(relationFilter)) return;
+      }
+      const row = {
+        id,
+        name: person.name,
+        avatar: person.avatar,
+        depth: d,
+      };
+      if (d === 1) direct.push(row);
+      else if (d >= 2) via.push(row);
+    });
+    direct.sort((a, b) => a.name.localeCompare(b.name, "fa"));
+    via.sort(
+      (a, b) => a.depth - b.depth || a.name.localeCompare(b.name, "fa"),
+    );
+    return { direct, via };
+  }, [walk, getPerson, relationFilter, relationsById]);
+
+  const graph = useMemo(
+    () => (wantLayout ? layoutTrustGraph(walk, getPerson) : null),
+    [wantLayout, walk, getPerson],
   );
 
   const chipRelations = useMemo(
@@ -202,29 +287,26 @@ export default function GraphClassic() {
     : `${toPersianDigits(insights.direct)} ارتباط مستقیم`;
 
   return (
-    <main className="pb-24 min-h-[100dvh]">
+    <>
       <Header title="نقشه ارتباط‌ها" subtitle={subtitle} back />
 
       <div className="px-4 pt-3 space-y-3 listing-detail-rise">
-        {/* RTL: فهرست (default) first = right side */}
         <div
           className="flex gap-1 bg-stone-100/80 dark:bg-zinc-800 rounded-xl p-1"
           role="tablist"
           aria-label="نحوه نمایش ارتباط‌ها"
         >
-          <ViewTab
-            selected={view === "list"}
-            onClick={() => setView("list")}
-            label="فهرست"
-          />
+          <ViewTab selected={view === "list"} onClick={onList} label="فهرست" />
           <ViewTab
             selected={view === "map"}
-            onClick={() => setView("map")}
+            onClick={onMap}
+            onPointerEnter={preloadTrustGraph}
+            onFocus={preloadTrustGraph}
             label="نقشه"
           />
         </div>
 
-        {chipRelations.length > 0 && (
+        {chipRelations.length > 0 ? (
           <div
             className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-0.5 px-0.5"
             role="group"
@@ -234,7 +316,9 @@ export default function GraphClassic() {
               active={relationFilter === "all"}
               label="همه"
               count={insights.reach}
-              onClick={() => setRelationFilter("all")}
+              onClick={() =>
+                startTransition(() => setRelationFilter("all"))
+              }
             />
             {chipRelations.map((rel) => (
               <RelationChip
@@ -242,19 +326,19 @@ export default function GraphClassic() {
                 active={relationFilter === rel}
                 label={relationLabels[rel]}
                 count={relationCounts[rel] ?? 0}
-                onClick={() => setRelationFilter(rel)}
+                onClick={() =>
+                  startTransition(() => setRelationFilter(rel))
+                }
               />
             ))}
           </div>
-        )}
+        ) : null}
 
-        {circleFull && insights.hub && insights.hub.count > 1 && (
+        {circleFull && insights.hub && insights.hub.count > 1 ? (
           <button
             type="button"
-            onClick={() => {
-              setMapFocus(insights.hub!.id);
-              setView("map");
-            }}
+            onClick={() => onShowHub(insights.hub!.id)}
+            onPointerEnter={preloadTrustGraph}
             className="w-full flex items-center gap-2.5 rounded-xl bg-brand-50/80 dark:bg-brand-500/10 px-3 py-2.5 text-start active:opacity-80 transition-opacity"
           >
             <span className="w-8 h-8 rounded-lg bg-[color:var(--circle-surface)] dark:bg-zinc-900 text-brand-600 flex items-center justify-center shrink-0 ring-1 ring-brand-100 dark:ring-brand-500/20">
@@ -273,7 +357,7 @@ export default function GraphClassic() {
               نمایش روی نقشه
             </span>
           </button>
-        )}
+        ) : null}
 
         {view === "map" ? (
           <div className="card p-2.5 overflow-hidden">
@@ -285,7 +369,7 @@ export default function GraphClassic() {
                 دو انگشت · بکش
               </span>
             </div>
-            {circleFull ? (
+            {circleFull && graph ? (
               <TrustGraph
                 graph={graph}
                 getPerson={getPerson}
@@ -303,14 +387,14 @@ export default function GraphClassic() {
           <div className="space-y-3">
             <PeopleGroup
               title="ارتباط‌های مستقیم"
-              count={directNodes.length}
+              count={listNodes.direct.length}
               empty={
                 relationFilter === "all"
                   ? "هنوز کسی را مستقیم اضافه نکرده‌ای."
                   : `در «${relationLabels[relationFilter]}» ارتباط مستقیمی نیست.`
               }
             >
-              {directNodes.map((n, idx) => {
+              {listNodes.direct.map((n, idx) => {
                 const person = getPerson(n.id);
                 return (
                   <PersonRow
@@ -353,20 +437,20 @@ export default function GraphClassic() {
               <PeopleGroup
                 title="از طریق آشنایان"
                 subtitle="افرادی که از طریق آشنایان به تو متصل‌اند"
-                count={viaNodes.length}
+                count={listNodes.via.length}
                 empty={
                   relationFilter === "all"
                     ? "هنوز کسی از مسیر دیگران به تو وصل نیست."
                     : `با فیلتر «${relationLabels[relationFilter]}» کسی از مسیر دیگران نیست.`
                 }
               >
-                {viaNodes.map((n) => (
+                {listNodes.via.map((n) => (
                   <PersonRow
                     key={n.id}
                     id={n.id}
                     name={n.name}
                     avatar={n.avatar}
-                    relation={viaPathLabel(pathToMe(n.id, graph.parent), nameOf)}
+                    relation={viaPathLabel(pathToMe(n.id, walk.parent), nameOf)}
                   />
                 ))}
               </PeopleGroup>
@@ -374,11 +458,9 @@ export default function GraphClassic() {
           </div>
         )}
       </div>
-
-      <BottomNav />
-    </main>
+    </>
   );
-}
+});
 
 function RelationChip({
   active,
@@ -414,10 +496,14 @@ function ViewTab({
   selected,
   onClick,
   label,
+  onPointerEnter,
+  onFocus,
 }: {
   selected: boolean;
   onClick: () => void;
   label: string;
+  onPointerEnter?: () => void;
+  onFocus?: () => void;
 }) {
   return (
     <button
@@ -425,6 +511,8 @@ function ViewTab({
       role="tab"
       aria-selected={selected}
       onClick={onClick}
+      onPointerEnter={onPointerEnter}
+      onFocus={onFocus}
       className={`flex-1 py-2 rounded-lg text-[13px] font-bold transition-colors ${
         selected
           ? "bg-brand-50 text-brand-700 shadow-sm ring-1 ring-brand-100/80 dark:bg-brand-500/15 dark:text-brand-300 dark:ring-brand-500/25"
@@ -460,22 +548,24 @@ function PeopleGroup({
             {toPersianDigits(count)}
           </span>
         </div>
-        {subtitle && (
+        {subtitle ? (
           <p className="text-[11px] text-ink-faint mt-1 leading-snug">
             {subtitle}
           </p>
-        )}
+        ) : null}
       </div>
       {count === 0 ? (
         <p className="px-3.5 py-4 text-[12px] text-ink-faint">{empty}</p>
       ) : (
-        <ul className="divide-y divide-stone-100 dark:divide-zinc-800">{children}</ul>
+        <ul className="divide-y divide-stone-100 dark:divide-zinc-800">
+          {children}
+        </ul>
       )}
     </section>
   );
 }
 
-function PersonRow({
+const PersonRow = memo(function PersonRow({
   id,
   name,
   avatar,
@@ -489,7 +579,7 @@ function PersonRow({
   eager?: boolean;
 }) {
   return (
-    <li>
+    <li className="cv-row">
       <Link
         href={`/person/${id}`}
         className="flex items-center gap-3 px-3.5 py-2.5 active:bg-stone-50 dark:active:bg-zinc-800/50"
@@ -515,4 +605,4 @@ function PersonRow({
       </Link>
     </li>
   );
-}
+});

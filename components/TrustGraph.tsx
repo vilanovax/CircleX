@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { resolveAvatarSrc } from "@/lib/avatar";
 import {
   connectionPathSentence,
@@ -24,7 +24,7 @@ function clamp(n: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, n));
 }
 
-export default function TrustGraph({
+function TrustGraph({
   graph,
   getPerson,
   focusId = null,
@@ -38,11 +38,21 @@ export default function TrustGraph({
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [zoomed, setZoomed] = useState(false);
+  const [showFaces, setShowFaces] = useState(false);
 
-  const nodeById = useMemo(
-    () => Object.fromEntries(graph.nodes.map((n) => [n.id, n])),
-    [graph],
-  );
+  useEffect(() => {
+    const id = window.requestAnimationFrame(() => setShowFaces(true));
+    return () => window.cancelAnimationFrame(id);
+  }, []);
+
+  const nodeById = useMemo(() => {
+    const map = new Map<string, (typeof graph.nodes)[number]>();
+    for (let i = 0; i < graph.nodes.length; i++) {
+      const n = graph.nodes[i];
+      map.set(n.id, n);
+    }
+    return map;
+  }, [graph]);
 
   const { pathNodes, pathEdges, pathChain } = useMemo(() => {
     if (!selected) {
@@ -75,13 +85,13 @@ export default function TrustGraph({
   };
   const size = graph.size;
 
-  const selectedNode = selected ? nodeById[selected] : null;
+  const selectedNode = selected ? nodeById.get(selected) ?? null : null;
   const selectedPerson = selected ? getPerson(selected) : null;
 
   const pathCopy = useMemo(() => {
     if (!selected || pathChain.length === 0) return null;
     return connectionPathSentence(pathChain, (id) =>
-      id === "me" ? "شما" : (nodeById[id]?.name ?? "؟"),
+      id === "me" ? "شما" : (nodeById.get(id)?.name ?? "؟"),
     );
   }, [selected, pathChain, nodeById]);
 
@@ -111,7 +121,8 @@ export default function TrustGraph({
     const { cx, cy, k } = viewRef.current;
     const w = size / k;
     svg.setAttribute("viewBox", `${cx - w / 2} ${cy - w / 2} ${w} ${w}`);
-    setZoomed(k > 1.02);
+    const next = k > 1.02;
+    setZoomed((z) => (z === next ? z : next));
   };
 
   const resetView = () => {
@@ -312,13 +323,11 @@ export default function TrustGraph({
               <stop offset="70%" stopColor={BRAND} stopOpacity="0.04" />
               <stop offset="100%" stopColor={BRAND} stopOpacity="0" />
             </radialGradient>
-            <filter id="tg-soft" x="-40%" y="-40%" width="180%" height="180%">
-              <feGaussianBlur stdDeviation="2.2" result="b" />
-              <feMerge>
-                <feMergeNode in="b" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
+            {graph.nodes.map((n) => (
+              <clipPath key={n.id} id={`tg-clip-${n.id}`}>
+                <circle r={n.id === "me" ? graph.meR : graph.nodeR} />
+              </clipPath>
+            ))}
           </defs>
 
           <circle
@@ -341,10 +350,10 @@ export default function TrustGraph({
             />
           ))}
 
-          <g className="animate-appear">
+          <g>
             {graph.edges.map((e, i) => {
-              const a = nodeById[e.from];
-              const b = nodeById[e.to];
+              const a = nodeById.get(e.from);
+              const b = nodeById.get(e.to);
               if (!a || !b) return null;
               const hot = pathEdges.has(ekey(e.from, e.to));
               const faint = !hot && edgeFaint(e.from, e.to);
@@ -374,7 +383,7 @@ export default function TrustGraph({
             })}
           </g>
 
-          {graph.nodes.map((n, i) => {
+          {graph.nodes.map((n) => {
             const isMe = n.id === "me";
             const r = isMe ? graph.meR : graph.nodeR;
             const onPath = pathNodes.has(n.id);
@@ -404,30 +413,19 @@ export default function TrustGraph({
                 aria-label={isMe ? undefined : n.name}
               >
                 <g
-                  className="animate-appear"
-                  style={{
-                    animationDelay: `${n.depth * 140 + (i % 7) * 36}ms`,
-                  }}
+                  className={`transition-opacity duration-200 ${
+                    dim(n.id) ? "opacity-25" : "opacity-100"
+                  }`}
                 >
-                  <g
-                    className={`transition-opacity duration-200 ${
-                      dim(n.id) ? "opacity-25" : "opacity-100"
-                    }`}
-                  >
-                    {(isMe || onPath || isSelected) && (
-                      <circle
-                        r={r + (isSelected ? 7 : 5)}
-                        fill={BRAND}
-                        opacity={isSelected ? 0.28 : isMe ? 0.16 : 0.12}
-                        filter={isMe ? "url(#tg-soft)" : undefined}
-                      />
-                    )}
-                    <defs>
-                      <clipPath id={`tg-clip-${n.id}`}>
-                        <circle r={r} />
-                      </clipPath>
-                    </defs>
-                    <circle r={r} className="fill-white dark:fill-zinc-800" />
+                  {(isMe || onPath || isSelected) && (
+                    <circle
+                      r={r + (isSelected ? 7 : 5)}
+                      fill={BRAND}
+                      opacity={isSelected ? 0.28 : isMe ? 0.16 : 0.12}
+                    />
+                  )}
+                  <circle r={r} className="fill-white dark:fill-zinc-800" />
+                  {showFaces ? (
                     <image
                       href={resolveAvatarSrc(n.name, n.avatar)}
                       x={-r}
@@ -437,26 +435,26 @@ export default function TrustGraph({
                       clipPath={`url(#tg-clip-${n.id})`}
                       preserveAspectRatio="xMidYMid slice"
                     />
-                    <circle
-                      r={r}
-                      fill="none"
-                      stroke={isMe || isSelected || onPath ? BRAND : RING}
-                      strokeWidth={
-                        isMe ? 2.4 : isSelected ? 3.1 : onPath ? 2.4 : 2
-                      }
-                    />
-                    {showName ? (
-                      <text
-                        y={r + 12}
-                        textAnchor="middle"
-                        fontSize={isMe ? 10 : 8.5}
-                        fontWeight={onPath || isMe || isSelected ? 700 : 600}
-                        className="fill-zinc-700 dark:fill-zinc-300"
-                      >
-                        {n.name.length > 7 ? `${n.name.slice(0, 6)}…` : n.name}
-                      </text>
-                    ) : null}
-                  </g>
+                  ) : null}
+                  <circle
+                    r={r}
+                    fill="none"
+                    stroke={isMe || isSelected || onPath ? BRAND : RING}
+                    strokeWidth={
+                      isMe ? 2.4 : isSelected ? 3.1 : onPath ? 2.4 : 2
+                    }
+                  />
+                  {showName ? (
+                    <text
+                      y={r + 12}
+                      textAnchor="middle"
+                      fontSize={isMe ? 10 : 8.5}
+                      fontWeight={onPath || isMe || isSelected ? 700 : 600}
+                      className="fill-zinc-700 dark:fill-zinc-300"
+                    >
+                      {n.name.length > 7 ? `${n.name.slice(0, 6)}…` : n.name}
+                    </text>
+                  ) : null}
                 </g>
               </g>
             );
@@ -544,3 +542,5 @@ export default function TrustGraph({
     </div>
   );
 }
+
+export default memo(TrustGraph);
