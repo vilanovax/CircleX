@@ -10,22 +10,28 @@ const OPTIONS: { key: Theme; label: string; Icon: typeof SunIcon }[] = [
 ];
 
 /** Three-state segmented control (light / dark / system). */
-export function ThemeSegmented() {
+export function ThemeSegmented({ compact = false }: { compact?: boolean }) {
   const { theme, setTheme } = useTheme();
   return (
-    <div className="flex gap-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-2xl p-1.5">
+    <div
+      className={`flex gap-1 bg-stone-100 dark:bg-zinc-800 rounded-xl ${
+        compact ? "p-1" : "p-1.5 rounded-2xl gap-1.5"
+      }`}
+    >
       {OPTIONS.map(({ key, label, Icon }) => (
         <button
           key={key}
           onClick={() => setTheme(key)}
           aria-pressed={theme === key}
-          className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 rounded-xl text-[13px] font-bold transition-colors ${
+          className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg text-[12px] font-bold transition-colors ${
+            compact ? "py-2" : "flex-col py-3 rounded-xl text-[13px] gap-1"
+          } ${
             theme === key
-              ? "bg-brand-600 text-white shadow-md shadow-brand-600/25"
-              : "text-zinc-500 dark:text-zinc-300 active:bg-zinc-200/60 dark:active:bg-zinc-700/60"
+              ? "bg-brand-600 text-white shadow-sm shadow-brand-600/20"
+              : "text-ink-muted dark:text-zinc-300 active:bg-stone-200/70 dark:active:bg-zinc-700/60"
           }`}
         >
-          <Icon className="w-5 h-5" />
+          <Icon className={compact ? "w-4 h-4" : "w-5 h-5"} />
           {label}
         </button>
       ))}

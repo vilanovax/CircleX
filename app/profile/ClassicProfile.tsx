@@ -18,9 +18,11 @@ import Avatar from "@/components/Avatar";
 import ListingImage from "@/components/ListingImage";
 import OwnerListingManager from "@/components/OwnerListingManager";
 import SocialCreditCard from "@/components/SocialCreditCard";
+import SheetShell from "@/components/SheetShell";
 import {
   CalendarIcon,
   ClockIcon,
+  GearIcon,
   HeartIcon,
   MapPinIcon,
   PencilIcon,
@@ -49,6 +51,7 @@ type ActivityTab = "listings" | "events" | "saved" | "endorsements";
 
 export default function ClassicProfile() {
   const hydrated = useStore((s) => s.hydrated);
+  const [showAccount, setShowAccount] = useState(false);
 
   if (!hydrated) {
     return (
@@ -62,12 +65,27 @@ export default function ClassicProfile() {
 
   return (
     <main className="pb-24 min-h-[100dvh]">
-      <Header title="پروفایل" />
+      <Header
+        title="پروفایل"
+        action={
+          <button
+            type="button"
+            onClick={() => setShowAccount(true)}
+            aria-label="حساب"
+            title="حساب"
+            className="inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none text-ink-muted dark:text-zinc-300 active:bg-stone-100 dark:active:bg-zinc-800"
+          >
+            <GearIcon className="w-5 h-5" />
+          </button>
+        }
+      />
       <div className="px-4 pt-3 space-y-3.5 listing-detail-rise">
         <ProfileHero />
         <ProfileActivity />
-        <ProfileAccount />
       </div>
+      {showAccount ? (
+        <AccountSheet onClose={() => setShowAccount(false)} />
+      ) : null}
       <BottomNav />
     </main>
   );
@@ -139,11 +157,8 @@ function ProfileHero() {
 
       <SocialCreditCard
         stats={socialCredit}
-        title="سابقهٔ تو در حلقه"
-        subtitle="اعضای حلقه این را روی پروفایلت می‌بینند — امتیاز رسمی نیست"
+        title="سابقه در حلقه"
         hideVerified
-        collapsible
-        defaultCollapsed
         forSelf
       />
 
@@ -224,7 +239,7 @@ function ProfileActivity() {
       { id: "saved" as const, label: "نشان‌ها", count: savedListings.length },
       {
         id: "endorsements" as const,
-        label: "تأییدهایی که داده‌ام",
+        label: "تأییدهای من",
         count: myGivenBadges.length,
       },
     ],
@@ -504,25 +519,51 @@ function ProfileListingsPanel({
   );
 }
 
-function ProfileAccount() {
+function AccountSheet({ onClose }: { onClose: () => void }) {
   const sessionPhone = useStore((s) => s.sessionPhone);
   const signOut = useStore((s) => s.signOut);
   const router = useRouter();
   const { show } = useToast();
 
   return (
-    <section>
-      <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-200 mb-2.5 px-0.5">
+    <SheetShell
+      onClose={onClose}
+      labelledBy="account-sheet-title"
+      zClass="z-[60]"
+      hugContent
+      footer={
+        sessionPhone ? (
+          <button
+            type="button"
+            onClick={() => {
+              void signOut().then(() => {
+                show("خارج شدید — دوباره وارد شوید");
+                router.replace("/");
+              });
+            }}
+            className="w-full text-[13px] font-bold text-red-600 dark:text-red-400 py-2.5 active:opacity-70"
+          >
+            خروج از حساب
+          </button>
+        ) : undefined
+      }
+    >
+      <h2
+        id="account-sheet-title"
+        className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 leading-tight"
+      >
         حساب
       </h2>
-      <div className="card p-3.5 space-y-3">
-        <div>
-          <p className="text-[11px] font-semibold text-ink-muted dark:text-zinc-400 mb-2">
-            حالت روشن / تیره
-          </p>
-          <ThemeSegmented />
+
+      <p className="mt-4 text-[11px] font-semibold text-ink-muted dark:text-zinc-400 mb-1.5">
+        ظاهر
+      </p>
+      <ThemeSegmented compact />
+
+      <div className="mt-4 rounded-2xl border border-stone-200/80 dark:border-zinc-700 overflow-hidden divide-y divide-stone-100 dark:divide-zinc-800">
+        <div className="px-3 py-2.5">
+          <OwnListingsFeedSwitch />
         </div>
-        <OwnListingsFeedSwitch />
         <button
           type="button"
           onClick={() => {
@@ -531,41 +572,31 @@ function ProfileAccount() {
             } catch {
               /* ignore */
             }
+            onClose();
             router.push("/");
           }}
-          className="w-full text-[13px] font-bold text-ink dark:text-zinc-100 bg-stone-50 dark:bg-zinc-800/60 rounded-xl py-3 active:scale-[0.99] transition-transform"
+          className="w-full flex items-center justify-between gap-3 px-3 py-3 text-right active:bg-stone-50 dark:active:bg-zinc-800/80"
         >
-          سیرکل چطور کار می‌کند؟
+          <span className="text-[13px] font-bold text-ink dark:text-zinc-100">
+            سیرکل چطور کار می‌کند؟
+          </span>
+          <span className="text-ink-faint" aria-hidden>
+            ‹
+          </span>
         </button>
         {sessionPhone ? (
-          <>
-            <div className="flex items-center justify-between gap-3 rounded-xl bg-stone-50/80 dark:bg-zinc-800/50 px-3 py-2.5">
-              <span className="text-[12px] font-medium text-ink-muted">
-                موبایل
-              </span>
-              <span
-                className="text-[13px] font-extrabold nums text-ink dark:text-zinc-100 tracking-wide"
-                dir="ltr"
-              >
-                {formatPhoneDisplay(sessionPhone)}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                void signOut().then(() => {
-                  show("خارج شدید — دوباره وارد شوید");
-                  router.replace("/");
-                });
-              }}
-              className="w-full text-[13px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 rounded-xl py-3.5 active:scale-[0.99] transition-transform"
+          <div className="flex items-center justify-between gap-3 px-3 py-3">
+            <span className="text-[13px] font-medium text-ink-muted">موبایل</span>
+            <span
+              className="text-[13px] font-bold nums text-ink dark:text-zinc-100 tracking-wide"
+              dir="ltr"
             >
-              خروج از حساب
-            </button>
-          </>
+              {formatPhoneDisplay(sessionPhone)}
+            </span>
+          </div>
         ) : null}
       </div>
-    </section>
+    </SheetShell>
   );
 }
 
@@ -575,7 +606,7 @@ function OwnListingsFeedSwitch() {
   const switchId = useId();
 
   return (
-    <div className="flex items-center gap-3 rounded-xl bg-stone-50/80 dark:bg-zinc-800/50 px-3 py-2.5">
+    <div className="flex items-center gap-3">
       <div className="min-w-0 flex-1">
         <p
           id={switchId}
@@ -584,7 +615,7 @@ function OwnListingsFeedSwitch() {
           آگهی‌های من در خانه
         </p>
         <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-snug">
-          خاموش باشد، آگهی‌هایت فقط در پروفایل دیده می‌شوند.
+          خاموش باشد فقط در پروفایل دیده می‌شوند.
         </p>
       </div>
       <button
