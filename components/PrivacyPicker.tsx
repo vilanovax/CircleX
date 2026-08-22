@@ -1,28 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { privacyEmoji, privacyLabels } from "@/lib/labels";
+import { activeCircle } from "@/lib/circle-member";
+import { useStore } from "@/lib/store";
 import { privacyAudience } from "@/lib/trust";
-import type { Person, Privacy } from "@/lib/types";
+import type { Privacy } from "@/lib/types";
 
 const PRIMARY: Privacy[] = ["A", "AB", "ABC"];
 const ADVANCED: Privacy[] = ["referral", "approved"];
 
-export default function PrivacyPicker({
+function PrivacyPicker({
   value,
   onChange,
-  circle,
   showCircleLink = false,
   compact = false,
 }: {
   value: Privacy;
   onChange: (p: Privacy) => void;
-  circle: Person[];
   showCircleLink?: boolean;
   /** Tighter rows + advanced options collapsed by default. */
   compact?: boolean;
 }) {
+  const people = useStore((s) => s.people);
+  const circle = useMemo(() => activeCircle(people), [people]);
   const advancedSelected = ADVANCED.includes(value);
   const [showAdvanced, setShowAdvanced] = useState(advancedSelected);
 
@@ -36,14 +38,14 @@ export default function PrivacyPicker({
         <label className="block text-[13px] font-bold text-ink dark:text-zinc-200">
           چه کسانی ببینند؟
         </label>
-        {showCircleLink && (
+        {showCircleLink ? (
           <Link
             href="/circle"
             className="text-[12px] text-brand-600 dark:text-brand-400 font-semibold shrink-0"
           >
             حلقه‌ی من ‹
           </Link>
-        )}
+        ) : null}
       </div>
       <div
         className={compact ? "space-y-1" : "space-y-1.5"}
@@ -107,15 +109,15 @@ export default function PrivacyPicker({
                 }`}
                 aria-hidden
               >
-                {active && (
+                {active ? (
                   <span className="w-1.5 h-1.5 rounded-full bg-white" />
-                )}
+                ) : null}
               </span>
             </button>
           );
         })}
       </div>
-      {compact && !showAdvanced && !advancedSelected && (
+      {compact && !showAdvanced && !advancedSelected ? (
         <button
           type="button"
           onClick={() => setShowAdvanced(true)}
@@ -123,7 +125,9 @@ export default function PrivacyPicker({
         >
           تنظیمات بیشتر
         </button>
-      )}
+      ) : null}
     </div>
   );
 }
+
+export default memo(PrivacyPicker);

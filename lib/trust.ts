@@ -321,9 +321,15 @@ export function filterByAccess(
  * Do not prefix «حدود» — A/AB/ABC counts are the people already in the circle.
  */
 export function privacyAudience(privacy: Privacy, circle: Person[]): string {
-  const a = circle.filter((p) => p.level === "A").length;
-  const b = circle.filter((p) => p.level === "B").length;
-  const c = circle.filter((p) => p.level === "C").length;
+  let a = 0;
+  let b = 0;
+  let c = 0;
+  for (let i = 0; i < circle.length; i++) {
+    const level = circle[i].level;
+    if (level === "A") a += 1;
+    else if (level === "B") b += 1;
+    else if (level === "C") c += 1;
+  }
   const fa = (n: number) => toPersianDigits(n);
   switch (privacy) {
     case "A":

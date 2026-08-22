@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import * as jalaali from "jalaali-js";
 import { CalendarIcon } from "@/components/Icons";
 import { toPersianDigits } from "@/lib/persian";
@@ -45,7 +45,7 @@ function formatJalaliLabel(iso: string): string {
 }
 
 /** Compact Jalali (Shamsi) date picker — stores Gregorian ISO `YYYY-MM-DD`. */
-export default function JalaliDateField({
+function JalaliDateField({
   value,
   onChange,
 }: {
@@ -189,3 +189,5 @@ export default function JalaliDateField({
     </div>
   );
 }
+
+export default memo(JalaliDateField);

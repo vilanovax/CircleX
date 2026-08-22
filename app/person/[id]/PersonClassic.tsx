@@ -17,9 +17,10 @@ import EmptyState from "@/components/EmptyState";
 import { ProfileSkeleton } from "@/components/Skeleton";
 import { ChatIcon, MoreIcon, UserPlusIcon } from "@/components/Icons";
 import {
-  formatEndorsementReport,
+  endorsementClaimAfterName,
   levelLabels,
   levelShort,
+  listingDisplayTitle,
   relationLabels,
 } from "@/lib/labels";
 import {
@@ -504,45 +505,109 @@ function TrustDetailsSheet({
   onClose: () => void;
 }) {
   const titleId = useId();
+  const hintId = useId();
   const rows = groupWords(words);
+  const uniqueCount = new Set(rows.map((r) => r.endorsement.personId)).size;
 
   return (
-    <SheetShell onClose={onClose} labelledBy={titleId} maxHeight="88dvh">
+    <SheetShell
+      onClose={onClose}
+      labelledBy={titleId}
+      maxHeight="88dvh"
+      hugContent={rows.length <= 2}
+    >
       <h2
         id={titleId}
         className="text-[16px] font-extrabold text-ink dark:text-zinc-100 mb-1"
       >
         چه گفته‌اند
+        {uniqueCount > 0 ? (
+          <span className="ms-1.5 text-[12px] font-bold text-ink-muted nums">
+            {toPersianDigits(uniqueCount)} آشنا
+          </span>
+        ) : null}
       </h2>
-      <p className="text-[12px] text-ink-muted mb-4 leading-relaxed">
-        حرف آشنایان است، نه احراز هویت سیرکل.
+      <p
+        id={hintId}
+        className="text-[12px] text-ink-muted dark:text-zinc-400 mb-4 leading-relaxed"
+      >
+        آشنایان این حرف‌ها را گفته‌اند. سیرکل هویت کسی را تأیید نمی‌کند.
       </p>
 
       {rows.length === 0 ? (
-        <p className="text-[13px] text-ink-faint py-6 text-center">
-          هنوز کسی چیزی نگفته.
+        <p className="text-[13px] text-ink-faint py-6 text-center leading-relaxed">
+          هنوز کسی روی آگهی‌های {person.name} حرفی نگذاشته.
         </p>
       ) : (
-        <ul className="rounded-xl border border-stone-100 dark:border-zinc-800 divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
+        <ul
+          className="divide-y divide-stone-100 dark:divide-zinc-800"
+          aria-describedby={hintId}
+        >
           {rows.map((item, i) => {
             const endorser = getPerson(item.endorsement.personId);
+            const isMe = item.endorsement.personId === "me";
+            const name = isMe ? "تو" : (endorser?.name ?? "یک آشنا");
+            const note = item.endorsement.note?.trim();
+            const claim = endorsementClaimAfterName(item.endorsement.type, {
+              sellerName: person.name,
+            });
+            const profileHref = isMe
+              ? "/profile"
+              : endorser
+                ? `/person/${endorser.id}`
+                : undefined;
+            const listingTitle = listingDisplayTitle(
+              item.listing.title,
+              item.listing.type,
+            );
+
             return (
-              <li key={`${item.listing.id}-${item.endorsement.personId}-${i}`}>
-                <p className="px-3.5 pt-3 text-[13px] text-ink dark:text-zinc-100 leading-snug">
-                  {formatEndorsementReport(item.endorsement.type, {
-                    endorserName: endorser?.name ?? "یک آشنا",
-                    sellerName: person.name,
-                    listingTitle: item.listing.title,
-                    note: item.endorsement.note,
-                  })}
-                </p>
-                <Link
-                  href={`/listing/${item.listing.id}`}
-                  className="block px-3.5 pb-3 pt-1 text-[12px] text-brand-600 font-medium truncate"
-                  onClick={onClose}
-                >
-                  {item.listing.title} ‹
-                </Link>
+              <li
+                key={`${item.listing.id}-${item.endorsement.personId}-${i}`}
+                className="flex items-start gap-2.5 py-3.5 first:pt-1"
+              >
+                {endorser ? (
+                  <Avatar
+                    name={endorser.name}
+                    src={endorser.avatar}
+                    showLevel={false}
+                    size="sm"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-stone-100 dark:bg-zinc-800 shrink-0" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] text-ink dark:text-zinc-100 leading-snug">
+                    {profileHref ? (
+                      <Link
+                        href={profileHref}
+                        onClick={onClose}
+                        className="font-extrabold text-ink dark:text-zinc-50"
+                      >
+                        {name}
+                      </Link>
+                    ) : (
+                      <span className="font-extrabold">{name}</span>
+                    )}{" "}
+                    {claim}.
+                  </p>
+                  {note ? (
+                    <p className="mt-1.5 text-[13px] text-ink-muted dark:text-zinc-300 leading-relaxed">
+                      «{note}»
+                    </p>
+                  ) : null}
+                  <Link
+                    href={`/listing/${item.listing.id}`}
+                    className="mt-2 inline-flex min-h-10 max-w-full items-center text-[12px] font-bold text-brand-600 dark:text-brand-400"
+                    onClick={onClose}
+                  >
+                    <span className="truncate">{listingTitle}</span>
+                    <span className="shrink-0" aria-hidden>
+                      {" "}
+                      ‹
+                    </span>
+                  </Link>
+                </div>
               </li>
             );
           })}

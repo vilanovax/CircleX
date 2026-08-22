@@ -1,5 +1,7 @@
 import { withBasePath } from "./avatar";
-import { normalizePhone } from "./phone";
+import { relationLabels } from "./labels";
+import { toPersianDigits } from "./persian";
+import { formatPhoneDisplay, normalizePhone } from "./phone";
 import type { Invite, PublicInvite } from "./types";
 
 export const PHONE_PRIVACY_LINE =
@@ -203,4 +205,36 @@ export function resolvePublicInviteView(
   if (invite.alreadyRequested) return "requested";
   if (opts.loggedIn && invite.isOwn && !opts.resumeAccept) return "own";
   return "pending";
+}
+
+/** Compact title + subtitle for a pending invite row or more-sheet. */
+export function inviteRowCopy(invite: Invite): {
+  title: string;
+  sub: string;
+  isWave: boolean;
+} {
+  const isWave = invite.kind === "wave";
+  const rawName = invite.invitedName?.trim() ?? "";
+  const name = rawName
+    .replace(/[0-9۰-۹+]/g, "")
+    .replace(/[،,]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (isWave) {
+    return {
+      title: `لینک ${relationLabels[invite.relationType]}`,
+      sub: `${toPersianDigits(inviteRosterJoined(invite))} از ${toPersianDigits(inviteRosterTotal(invite))} پیوسته‌اند`,
+      isWave: true,
+    };
+  }
+  return {
+    title:
+      name ||
+      (invite.invitedPhone ? formatPhoneDisplay(invite.invitedPhone) : "لینک"),
+    sub:
+      name && invite.invitedPhone
+        ? formatPhoneDisplay(invite.invitedPhone)
+        : "هنوز نپیوسته",
+    isWave: false,
+  };
 }

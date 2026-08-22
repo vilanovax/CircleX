@@ -2,73 +2,102 @@
 
 import Link from "next/link";
 import { ThreadListSkeleton } from "@/components/Skeleton";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { activeCircle } from "@/lib/circle-member";
+import {
+  memo,
+  startTransition,
+  useCallback,
+  useDeferredValue,
+  useMemo,
+  useState,
+} from "react";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import Avatar from "@/components/Avatar";
-import SheetShell from "@/components/SheetShell";
 import SwipeThreadRow from "@/components/SwipeThreadRow";
 import { useToast } from "@/components/Toast";
-import {
-  ArchiveIcon,
-  ChatIcon,
-  MoreIcon,
-  PencilIcon,
-  PinIcon,
-  SearchIcon,
-  TrashIcon,
-} from "@/components/Icons";
+import { ChatIcon, MoreIcon, PencilIcon, PinIcon, SearchIcon } from "@/components/Icons";
+import { lazyUi } from "@/lib/lazy-ui";
 import { threadPreview } from "@/lib/message-preview";
 import { toPersianDigits } from "@/lib/persian";
 import { listingSubject } from "@/lib/listing-prompts";
-import {
-  latestListingIdInThread,
-  recalledThreadListing,
-} from "@/lib/thread-listing";
-import {
-  chatPeerSubtitle,
-  viaConnectorName,
-  viewerRelationPhrase,
-} from "@/lib/trust";
+import { recalledThreadListing } from "@/lib/thread-listing";
+import { chatPeerSubtitle, viaConnectorName } from "@/lib/trust";
 import type { Listing, Message, Person } from "@/lib/types";
 
 type Filter = "all" | "unread" | "archive";
 
+type ThreadMenu = {
+  peerId: string;
+  name: string;
+  avatar: string;
+  pinned: boolean;
+  archived: boolean;
+};
+
+const ABOVE_FOLD = 4;
+
+const ComposeSheet = lazyUi(
+  () =>
+    import("./message-sheets").then((mod) => ({
+      default: mod.ComposeSheet,
+    })) as Promise<{
+      default: typeof import("./message-sheets").ComposeSheet;
+    }>,
+);
+const ThreadActionsSheet = lazyUi(
+  () =>
+    import("./message-sheets").then((mod) => ({
+      default: mod.ThreadActionsSheet,
+    })) as Promise<{
+      default: typeof import("./message-sheets").ThreadActionsSheet;
+    }>,
+);
+
+function preloadMessageSheets() {
+  void import("./message-sheets");
+}
+
 export default function MessagesClassic() {
+  const [showCompose, setShowCompose] = useState(false);
+  const onCompose = useCallback(() => setShowCompose(true), []);
+
+  return (
+    <main className="pb-24 min-h-[100dvh]">
+      <MessagesBody onCompose={onCompose} />
+      {showCompose ? (
+        <ComposeSheet onClose={() => setShowCompose(false)} />
+      ) : null}
+      <BottomNav />
+    </main>
+  );
+}
+
+const MessagesBody = memo(function MessagesBody({
+  onCompose,
+}: {
+  onCompose: () => void;
+}) {
+  const hydrated = useStore((s) => s.hydrated);
+  const threadIndex = useStore((s) => s.threadIndex);
   const people = useStore((s) => s.people);
   const networkLinks = useStore((s) => s.networkLinks);
   const getPerson = useStore((s) => s.getPerson);
   const getListing = useStore((s) => s.getListing);
-  const getThread = useStore((s) => s.getThread);
-  const threadPeers = useStore((s) => s.threadPeers);
-  const unreadCount = useStore((s) => s.unreadCount);
   const archivedThreads = useStore((s) => s.archivedThreads);
   const pinnedThreads = useStore((s) => s.pinnedThreads);
   const archiveThread = useStore((s) => s.archiveThread);
   const unarchiveThread = useStore((s) => s.unarchiveThread);
   const togglePinThread = useStore((s) => s.togglePinThread);
   const deleteThread = useStore((s) => s.deleteThread);
-  const hydrated = useStore((s) => s.hydrated);
   const { show } = useToast();
-  const peers = threadPeers();
-  const [showCompose, setShowCompose] = useState(false);
+
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
-  const [menu, setMenu] = useState<{
-    peerId: string;
-    name: string;
-    avatar: string;
-    pinned: boolean;
-    archived: boolean;
-  } | null>(null);
-  const [sessionTick, setSessionTick] = useState(0);
-  useEffect(() => {
-    setSessionTick(1);
-  }, []);
+  const [menu, setMenu] = useState<ThreadMenu | null>(null);
+  const deferredQuery = useDeferredValue(query);
 
+  const peers = threadIndex.peerIds;
   const archivedSet = useMemo(
     () => new Set(archivedThreads),
     [archivedThreads],
@@ -83,81 +112,59 @@ export default function MessagesClassic() {
     () => peers.filter((id) => archivedSet.has(id)),
     [peers, archivedSet],
   );
-  const inboxUnread = useMemo(
-    () => inboxPeers.reduce((n, id) => n + unreadCount(id), 0),
-    [inboxPeers, unreadCount],
-  );
+  const inboxUnread = useMemo(() => {
+    let n = 0;
+    for (const id of inboxPeers) n += threadIndex.unreadByPeer.get(id) ?? 0;
+    return n;
+  }, [inboxPeers, threadIndex]);
 
-  const subtitle = useMemo(() => {
-    if (!hydrated || peers.length === 0) return undefined;
-    if (filter === "archive") {
-      return `${toPersianDigits(archivedPeers.length)} آرشیو`;
-    }
-    if (inboxUnread > 0) {
-      return `${toPersianDigits(inboxUnread)} خوانده‌نشده`;
-    }
-    return `${toPersianDigits(inboxPeers.length)} گفتگو`;
-  }, [
-    hydrated,
-    peers.length,
-    filter,
-    archivedPeers.length,
-    inboxUnread,
-    inboxPeers.length,
-  ]);
-
-  const viaById = useMemo(() => {
-    const map: Record<string, string> = {};
-    for (const peerId of peers) {
-      const via = viaConnectorName(
-        peerId,
-        getPerson,
-        networkLinks,
-        people,
-      );
-      if (via) map[peerId] = via;
-    }
-    return map;
-  }, [peers, getPerson, networkLinks, people]);
+  const subtitle = !hydrated || peers.length === 0
+    ? undefined
+    : filter === "archive"
+      ? `${toPersianDigits(archivedPeers.length)} آرشیو`
+      : inboxUnread > 0
+        ? `${toPersianDigits(inboxUnread)} خوانده‌نشده`
+        : `${toPersianDigits(inboxPeers.length)} گفتگو`;
 
   const rows = useMemo(() => {
-    const q = query.trim();
+    const q = deferredQuery.trim();
     const source =
       filter === "archive"
         ? archivedPeers
         : filter === "unread"
-          ? inboxPeers.filter((id) => unreadCount(id) > 0)
+          ? inboxPeers.filter(
+              (id) => (threadIndex.unreadByPeer.get(id) ?? 0) > 0,
+            )
           : inboxPeers;
 
-    const mapped = source
-      .map((peerId) => {
-        const peer = getPerson(peerId);
-        if (!peer) return null;
-        const thread = getThread(peerId);
-        const last = thread[thread.length - 1];
-        const unread = unreadCount(peerId);
-        const topicListingId =
-          latestListingIdInThread(thread) ?? recalledThreadListing(peerId);
-        const topicListing = topicListingId
-          ? getListing(topicListingId)
-          : undefined;
-        return {
-          peerId,
+    const mapped = [];
+    for (const peerId of source) {
+      const peer = getPerson(peerId);
+      if (!peer) continue;
+      if (q && !peer.name.includes(q)) continue;
+      const last = threadIndex.lastByPeer.get(peerId);
+      const topicListingId =
+        threadIndex.listingIdByPeer.get(peerId) ??
+        recalledThreadListing(peerId);
+      const topicListing = topicListingId
+        ? getListing(topicListingId)
+        : undefined;
+      mapped.push({
+        peerId,
+        peer,
+        last,
+        unread: threadIndex.unreadByPeer.get(peerId) ?? 0,
+        preview: threadPreview(last, getListing),
+        topicListingId,
+        topicListing,
+        relationLine: chatPeerSubtitle(
           peer,
-          last,
-          unread,
-          preview: threadPreview(last, getListing),
-          topicListingId,
-          topicListing,
-          pinned: pinnedSet.has(peerId),
-          archived: archivedSet.has(peerId),
-        };
-      })
-      .filter((row): row is NonNullable<typeof row> => {
-        if (!row) return false;
-        if (q && !row.peer.name.includes(q)) return false;
-        return true;
+          viaConnectorName(peerId, getPerson, networkLinks, people),
+        ),
+        pinned: pinnedSet.has(peerId),
+        archived: archivedSet.has(peerId),
       });
+    }
 
     if (filter === "archive") return mapped;
 
@@ -170,65 +177,81 @@ export default function MessagesClassic() {
     const rest = mapped.filter((r) => !r.pinned);
     return [...pinnedRows, ...rest];
   }, [
-    query,
+    deferredQuery,
     filter,
     archivedPeers,
     inboxPeers,
     getPerson,
-    getThread,
     getListing,
-    unreadCount,
+    threadIndex,
     pinnedSet,
     archivedSet,
     pinnedThreads,
-    sessionTick,
+    networkLinks,
+    people,
   ]);
 
-  function handleArchive(peerId: string, name: string) {
-    archiveThread(peerId);
-    show(`گفتگو با ${name} آرشیو شد`, {
-      action: {
-        label: "برگرداندن",
-        onClick: () => unarchiveThread(peerId),
-      },
-    });
-  }
+  const handleArchive = useCallback(
+    (peerId: string, name: string) => {
+      archiveThread(peerId);
+      show(`گفتگو با ${name} آرشیو شد`, {
+        action: {
+          label: "برگرداندن",
+          onClick: () => unarchiveThread(peerId),
+        },
+      });
+    },
+    [archiveThread, unarchiveThread, show],
+  );
 
-  function handleUnarchive(peerId: string, name: string) {
-    unarchiveThread(peerId);
-    show(`گفتگو با ${name} برگشت`);
-    if (filter === "archive") setFilter("all");
-  }
+  const handleUnarchive = useCallback(
+    (peerId: string, name: string) => {
+      unarchiveThread(peerId);
+      show(`گفتگو با ${name} برگشت`);
+      if (filter === "archive") setFilter("all");
+    },
+    [unarchiveThread, show, filter],
+  );
 
-  function handleDelete(peerId: string, name: string) {
-    if (
-      typeof window !== "undefined" &&
-      !window.confirm(`گفتگو با ${name} فقط برای تو حذف شود؟`)
-    ) {
-      return;
-    }
-    deleteThread(peerId);
-    show("گفتگو حذف شد");
-  }
+  const handleDelete = useCallback(
+    (peerId: string, name: string) => {
+      if (
+        typeof window !== "undefined" &&
+        !window.confirm(`گفتگو با ${name} فقط برای تو حذف شود؟`)
+      ) {
+        return;
+      }
+      deleteThread(peerId);
+      show("گفتگو حذف شد");
+    },
+    [deleteThread, show],
+  );
 
-  async function handlePin(peerId: string, name: string, pinned: boolean) {
-    const ok = await togglePinThread(peerId);
-    if (!ok) {
-      show("حداکثر ۳ گفتگو را می‌توانی سنجاق کنی");
-      return;
-    }
-    show(pinned ? `سنجاق ${name} برداشته شد` : `${name} سنجاق شد`);
-  }
+  const handlePin = useCallback(
+    async (peerId: string, name: string, pinned: boolean) => {
+      const ok = await togglePinThread(peerId);
+      if (!ok) {
+        show("حداکثر ۳ گفتگو را می‌توانی سنجاق کنی");
+        return;
+      }
+      show(pinned ? `سنجاق ${name} برداشته شد` : `${name} سنجاق شد`);
+    },
+    [togglePinThread, show],
+  );
+
+  const onMore = useCallback((next: ThreadMenu) => setMenu(next), []);
 
   return (
-    <main className="pb-24 min-h-[100dvh]">
+    <>
       <Header
         title="پیام‌ها"
         subtitle={subtitle}
         action={
           <button
             type="button"
-            onClick={() => setShowCompose(true)}
+            onClick={onCompose}
+            onPointerEnter={preloadMessageSheets}
+            onFocus={preloadMessageSheets}
             aria-label="گفتگوی جدید"
             className="w-9 h-9 rounded-xl bg-brand-600 text-white flex items-center justify-center active:scale-95 shadow-sm shadow-brand-600/20 transition-transform duration-150"
           >
@@ -238,29 +261,29 @@ export default function MessagesClassic() {
       />
 
       <div className="px-4 pt-3 space-y-3 listing-detail-rise">
-        {hydrated && peers.length > 0 && (
+        {hydrated && peers.length > 0 ? (
           <div className="space-y-2">
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
               <FilterChip
                 active={filter === "all"}
-                onClick={() => setFilter("all")}
+                onClick={() => startTransition(() => setFilter("all"))}
                 label="همه"
                 count={inboxPeers.length}
               />
               <FilterChip
                 active={filter === "unread"}
-                onClick={() => setFilter("unread")}
+                onClick={() => startTransition(() => setFilter("unread"))}
                 label="خوانده‌نشده"
                 count={inboxUnread}
               />
               <FilterChip
                 active={filter === "archive"}
-                onClick={() => setFilter("archive")}
+                onClick={() => startTransition(() => setFilter("archive"))}
                 label="آرشیو"
                 count={archivedPeers.length}
               />
             </div>
-            {(peers.length >= 8 || query) && (
+            {peers.length >= 8 || query ? (
               <label className="relative block">
                 <SearchIcon className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" />
                 <input
@@ -271,14 +294,14 @@ export default function MessagesClassic() {
                   autoComplete="off"
                 />
               </label>
-            )}
+            ) : null}
           </div>
-        )}
+        ) : null}
 
         {!hydrated ? (
           <ThreadListSkeleton count={5} />
         ) : peers.length === 0 ? (
-          <EmptyState onStart={() => setShowCompose(true)} />
+          <EmptyState onStart={onCompose} />
         ) : rows.length === 0 ? (
           <div className="card p-5 text-center">
             <p className="text-sm font-bold text-ink dark:text-zinc-100">
@@ -305,45 +328,31 @@ export default function MessagesClassic() {
         ) : (
           <div className="card overflow-hidden divide-y divide-stone-100 dark:divide-zinc-800">
             {rows.map((row, idx) => (
-              <SwipeThreadRow
+              <InboxThreadRow
                 key={row.peerId}
-                archived={row.archived}
+                peer={row.peer}
+                peerId={row.peerId}
+                last={row.last}
+                unread={row.unread}
+                preview={row.preview}
+                topicListingId={row.topicListingId}
+                topicListing={row.topicListing}
+                relationLine={row.relationLine}
                 pinned={row.pinned}
-                onArchive={() => handleArchive(row.peerId, row.peer.name)}
-                onUnarchive={() => handleUnarchive(row.peerId, row.peer.name)}
-                onDelete={() => handleDelete(row.peerId, row.peer.name)}
-                onTogglePin={() =>
-                  handlePin(row.peerId, row.peer.name, row.pinned)
-                }
-              >
-                <ThreadRow
-                  peer={row.peer}
-                  peerId={row.peerId}
-                  last={row.last}
-                  unread={row.unread}
-                  preview={row.preview}
-                  topicListingId={row.topicListingId}
-                  topicListing={row.topicListing}
-                  relationLine={chatPeerSubtitle(row.peer, viaById[row.peerId])}
-                  pinned={row.pinned}
-                  eager={idx < 4}
-                  onMore={() =>
-                    setMenu({
-                      peerId: row.peerId,
-                      name: row.peer.name,
-                      avatar: row.peer.avatar,
-                      pinned: row.pinned,
-                      archived: row.archived,
-                    })
-                  }
-                />
-              </SwipeThreadRow>
+                archived={row.archived}
+                eager={idx < ABOVE_FOLD}
+                onMore={onMore}
+                onArchive={handleArchive}
+                onUnarchive={handleUnarchive}
+                onDelete={handleDelete}
+                onPin={handlePin}
+              />
             ))}
           </div>
         )}
       </div>
 
-      {menu && (
+      {menu ? (
         <ThreadActionsSheet
           name={menu.name}
           avatar={menu.avatar}
@@ -351,7 +360,7 @@ export default function MessagesClassic() {
           archived={menu.archived}
           onClose={() => setMenu(null)}
           onPin={() => {
-            handlePin(menu.peerId, menu.name, menu.pinned);
+            void handlePin(menu.peerId, menu.name, menu.pinned);
             setMenu(null);
           }}
           onArchive={() => {
@@ -360,20 +369,88 @@ export default function MessagesClassic() {
             setMenu(null);
           }}
           onDelete={() => {
-            const id = menu.peerId;
-            const name = menu.name;
+            const { peerId, name } = menu;
             setMenu(null);
-            handleDelete(id, name);
+            handleDelete(peerId, name);
           }}
         />
-      )}
-      {showCompose && <ComposeSheet onClose={() => setShowCompose(false)} />}
-      <BottomNav />
-    </main>
+      ) : null}
+    </>
   );
-}
+});
 
-function ThreadRow({
+const InboxThreadRow = memo(function InboxThreadRow({
+  peer,
+  peerId,
+  last,
+  unread,
+  preview,
+  topicListingId,
+  topicListing,
+  relationLine,
+  pinned,
+  archived,
+  eager,
+  onMore,
+  onArchive,
+  onUnarchive,
+  onDelete,
+  onPin,
+}: {
+  peer: Person;
+  peerId: string;
+  last: Message | undefined;
+  unread: number;
+  preview: string;
+  topicListingId?: string;
+  topicListing?: Listing;
+  relationLine: string;
+  pinned: boolean;
+  archived: boolean;
+  eager: boolean;
+  onMore: (menu: ThreadMenu) => void;
+  onArchive: (peerId: string, name: string) => void;
+  onUnarchive: (peerId: string, name: string) => void;
+  onDelete: (peerId: string, name: string) => void;
+  onPin: (peerId: string, name: string, pinned: boolean) => void;
+}) {
+  return (
+    <div className="cv-card">
+      <SwipeThreadRow
+        archived={archived}
+        pinned={pinned}
+        onArchive={() => onArchive(peerId, peer.name)}
+        onUnarchive={() => onUnarchive(peerId, peer.name)}
+        onDelete={() => onDelete(peerId, peer.name)}
+        onTogglePin={() => onPin(peerId, peer.name, pinned)}
+      >
+        <ThreadRow
+          peer={peer}
+          peerId={peerId}
+          last={last}
+          unread={unread}
+          preview={preview}
+          topicListingId={topicListingId}
+          topicListing={topicListing}
+          relationLine={relationLine}
+          pinned={pinned}
+          eager={eager}
+          onMore={() =>
+            onMore({
+              peerId,
+              name: peer.name,
+              avatar: peer.avatar,
+              pinned,
+              archived,
+            })
+          }
+        />
+      </SwipeThreadRow>
+    </div>
+  );
+});
+
+const ThreadRow = memo(function ThreadRow({
   peer,
   peerId,
   last,
@@ -478,6 +555,8 @@ function ThreadRow({
       <button
         type="button"
         onClick={onMore}
+        onPointerEnter={preloadMessageSheets}
+        onFocus={preloadMessageSheets}
         aria-label={`گزینه‌های گفتگو با ${peer.name}`}
         className="shrink-0 w-11 flex items-center justify-center text-ink-muted hover:text-ink dark:hover:text-zinc-200 active:bg-stone-100/80 dark:active:bg-zinc-800"
       >
@@ -485,143 +564,7 @@ function ThreadRow({
       </button>
     </div>
   );
-}
-
-function ThreadActionsSheet({
-  name,
-  avatar,
-  pinned,
-  archived,
-  onClose,
-  onPin,
-  onArchive,
-  onDelete,
-}: {
-  name: string;
-  avatar: string;
-  pinned: boolean;
-  archived: boolean;
-  onClose: () => void;
-  onPin: () => void;
-  onArchive: () => void;
-  onDelete: () => void;
-}) {
-  return (
-    <SheetShell
-      onClose={onClose}
-      labelledBy="thread-actions-title"
-      zClass="z-50"
-      footer={
-        <button
-          type="button"
-          onClick={onClose}
-          className="btn-ghost w-full !py-3.5"
-        >
-          انصراف
-        </button>
-      }
-    >
-      <div className="flex items-center gap-3 mb-4">
-        <Avatar name={name} src={avatar} size="md" showLevel={false} />
-        <div className="min-w-0">
-          <h2
-            id="thread-actions-title"
-            className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 leading-tight truncate"
-          >
-            {name}
-          </h2>
-          <p className="text-[12px] text-ink-muted mt-0.5">
-            این کارها فقط در لیست پیام‌های تو دیده می‌شود
-          </p>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-stone-200/80 dark:border-zinc-800 overflow-hidden">
-        <ActionRow
-          icon={<PinIcon className="w-[18px] h-[18px]" />}
-          iconClass={
-            pinned
-              ? "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200"
-              : "bg-stone-100 text-stone-600 dark:bg-zinc-800 dark:text-zinc-300"
-          }
-          title={pinned ? "برداشتن سنجاق" : "سنجاق بالای لیست"}
-          hint={
-            pinned
-              ? "از بالای پیام‌ها پایین می‌آید"
-              : "همیشه بالای بقیه گفتگوها می‌ماند"
-          }
-          onClick={onPin}
-        />
-        <div className="h-px bg-stone-100 dark:bg-zinc-800" />
-        <ActionRow
-          icon={<ArchiveIcon className="w-[18px] h-[18px]" />}
-          iconClass="bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300"
-          title={archived ? "بازگرداندن به پیام‌ها" : "آرشیو کردن"}
-          hint={
-            archived
-              ? "دوباره در تب «همه» دیده می‌شود"
-              : "از لیست اصلی می‌رود؛ از تب آرشیو برمی‌گردد"
-          }
-          onClick={onArchive}
-        />
-      </div>
-
-      <button
-        type="button"
-        onClick={onDelete}
-        className="mt-3 w-full rounded-2xl border border-red-200/80 dark:border-red-500/25 bg-red-50/70 dark:bg-red-500/10 px-3.5 py-3 flex items-center gap-3 text-right active:scale-[0.99] transition-transform"
-      >
-        <span className="w-9 h-9 rounded-xl bg-red-100 dark:bg-red-500/20 text-red-600 flex items-center justify-center shrink-0">
-          <TrashIcon className="w-[18px] h-[18px]" />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-[14px] font-bold text-red-700 dark:text-red-300">
-            حذف برای من
-          </span>
-          <span className="block text-[11.5px] text-red-700/70 dark:text-red-300/70 mt-0.5 leading-snug">
-            از دستگاه تو پاک می‌شود — برای {name} باقی می‌ماند
-          </span>
-        </span>
-      </button>
-    </SheetShell>
-  );
-}
-
-function ActionRow({
-  icon,
-  iconClass,
-  title,
-  hint,
-  onClick,
-}: {
-  icon: ReactNode;
-  iconClass: string;
-  title: string;
-  hint: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="w-full flex items-center gap-3 px-3.5 py-3 text-right active:bg-stone-50 dark:active:bg-zinc-800/80 transition-colors"
-    >
-      <span
-        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconClass}`}
-      >
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[14px] font-bold text-ink dark:text-zinc-100">
-          {title}
-        </span>
-        <span className="block text-[11.5px] text-ink-muted mt-0.5 leading-snug">
-          {hint}
-        </span>
-      </span>
-    </button>
-  );
-}
+});
 
 function FilterChip({
   active,
@@ -656,7 +599,11 @@ function FilterChip({
   );
 }
 
-function EmptyState({ onStart }: { onStart: () => void }) {
+const EmptyState = memo(function EmptyState({
+  onStart,
+}: {
+  onStart: () => void;
+}) {
   return (
     <div className="card p-6 text-center mt-2">
       <div className="w-14 h-14 rounded-2xl bg-brand-50 dark:bg-brand-500/15 text-brand-600 flex items-center justify-center mx-auto mb-3">
@@ -666,104 +613,21 @@ function EmptyState({ onStart }: { onStart: () => void }) {
       <p className="text-sm text-ink-muted dark:text-zinc-400 mt-1.5 leading-relaxed max-w-xs mx-auto">
         از یک آگهی پیام بده، یا همین‌جا با کسی از حلقه شروع کن.
       </p>
-      <button type="button" onClick={onStart} className="btn-primary inline-block mt-4">
+      <button
+        type="button"
+        onClick={onStart}
+        onPointerEnter={preloadMessageSheets}
+        onFocus={preloadMessageSheets}
+        className="btn-primary inline-block mt-4"
+      >
         پیام دادن
       </button>
-      <Link href="/circle" className="block text-xs text-brand-600 font-medium mt-3">
+      <Link
+        href="/circle"
+        className="block text-xs text-brand-600 font-medium mt-3"
+      >
         یا اول حلقه‌ات را بساز ‹
       </Link>
     </div>
   );
-}
-
-function ComposeSheet({ onClose }: { onClose: () => void }) {
-  const router = useRouter();
-  const people = useStore((s) => s.people);
-  const circle = useMemo(() => activeCircle(people), [people]);
-  const [q, setQ] = useState("");
-
-  const filtered = useMemo(() => {
-    const needle = q.trim();
-    if (!needle) return circle;
-    return circle.filter((p) => p.name.includes(needle));
-  }, [circle, q]);
-
-  return (
-    <SheetShell
-      onClose={onClose}
-      labelledBy="compose-title"
-      zClass="z-50"
-      footer={
-        <button type="button" onClick={onClose} className="btn-ghost w-full !py-3">
-          انصراف
-        </button>
-      }
-    >
-      <div className="flex items-start justify-between gap-3 mb-3 px-0.5">
-        <div>
-          <h2
-            id="compose-title"
-            className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50"
-          >
-            گفتگوی جدید
-          </h2>
-          <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1">
-            فقط حلقه‌ات اینجاست
-          </p>
-        </div>
-      </div>
-
-      {circle.length > 0 && (
-        <label className="relative block mb-3">
-          <SearchIcon className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="جستجوی نام…"
-            className="input !pr-9 !py-2.5 !text-[13px]"
-            autoComplete="off"
-            autoFocus
-          />
-        </label>
-      )}
-
-      <div className="card overflow-hidden divide-y divide-stone-100 dark:divide-zinc-800 mb-2">
-        {circle.length === 0 ? (
-          <div className="text-center py-8 px-4">
-            <p className="text-sm text-ink-muted">هنوز کسی در حلقه‌ات نیست.</p>
-            <Link href="/circle" className="btn-primary inline-block mt-4 text-sm">
-              ساخت حلقه
-            </Link>
-          </div>
-        ) : filtered.length === 0 ? (
-          <p className="text-center py-8 px-4 text-sm text-ink-muted">کسی با این نام نیست.</p>
-        ) : (
-          filtered.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => {
-                onClose();
-                router.push(`/messages/${p.id}`);
-              }}
-              className="w-full flex items-center gap-3 px-3.5 py-3 text-right active:bg-stone-50/90 dark:active:bg-zinc-800/70 transition-colors"
-            >
-              <Avatar name={p.name} src={p.avatar} size="sm" showLevel={false} />
-              <div className="flex-1 min-w-0 text-right">
-                <p className="text-[13px] font-bold text-ink dark:text-zinc-100">
-                  {p.name}
-                </p>
-                <p className="text-[11px] text-ink-muted mt-0.5">
-                  {viewerRelationPhrase(p)}
-                </p>
-              </div>
-              <span className="text-brand-600" aria-hidden>
-                <ChatIcon className="w-4 h-4" />
-              </span>
-            </button>
-          ))
-        )}
-      </div>
-    </SheetShell>
-  );
-}
+});

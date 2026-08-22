@@ -60,24 +60,59 @@ export default function CreateSheet({ onClose }: { onClose: () => void }) {
   }, [step]);
   useSheetA11y(panelRef, onClose, { onEscape: handleEscape });
 
+  const onAddListing = useCallback(
+    async (input: Parameters<typeof addListing>[0]) => {
+      if (publishingRef.current) return;
+      publishingRef.current = true;
+      try {
+        const id = await addListing(input);
+        onClose();
+        show("آگهی شما در حلقه منتشر شد ✓");
+        router.push(`/listing/${id}`);
+      } catch (err) {
+        show(err instanceof ApiError ? err.message : "آگهی ذخیره نشد");
+        publishingRef.current = false;
+      }
+    },
+    [addListing, onClose, router, show],
+  );
+
+  const onAddRequest = useCallback(
+    async (input: Parameters<typeof addRequest>[0]) => {
+      try {
+        const id = await addRequest(input);
+        onClose();
+        show("درخواست شما ثبت شد ✓");
+        router.push(`/request/${id}`);
+      } catch (err) {
+        show(err instanceof ApiError ? err.message : "درخواست ذخیره نشد");
+      }
+    },
+    [addRequest, onClose, router, show],
+  );
+
+  const onAddEvent = useCallback(
+    async (input: Parameters<typeof addEvent>[0]) => {
+      try {
+        const id = await addEvent(input);
+        onClose();
+        show("رویداد شما ساخته شد ✓");
+        router.push(`/event/${id}`);
+      } catch (err) {
+        show(err instanceof ApiError ? err.message : "رویداد ذخیره نشد");
+      }
+    },
+    [addEvent, onClose, router, show],
+  );
+
+  const goMenu = useCallback(() => setStep("menu"), []);
+
   if (step === "listing") {
     return (
       <AddListingSheet
         onClose={onClose}
-        onBack={() => setStep("menu")}
-        onAdd={async (input) => {
-          if (publishingRef.current) return;
-          publishingRef.current = true;
-          try {
-            const id = await addListing(input);
-            onClose();
-            show("آگهی شما در حلقه منتشر شد ✓");
-            router.push(`/listing/${id}`);
-          } catch (err) {
-            show(err instanceof ApiError ? err.message : "آگهی ذخیره نشد");
-            publishingRef.current = false;
-          }
-        }}
+        onBack={goMenu}
+        onAdd={onAddListing}
       />
     );
   }
@@ -86,37 +121,15 @@ export default function CreateSheet({ onClose }: { onClose: () => void }) {
     return (
       <AddRequestSheet
         onClose={onClose}
-        onBack={() => setStep("menu")}
-        onAdd={async (input) => {
-          try {
-            const id = await addRequest(input);
-            onClose();
-            show("درخواست شما ثبت شد ✓");
-            router.push(`/request/${id}`);
-          } catch (err) {
-            show(err instanceof ApiError ? err.message : "درخواست ذخیره نشد");
-          }
-        }}
+        onBack={goMenu}
+        onAdd={onAddRequest}
       />
     );
   }
 
   if (step === "event") {
     return (
-      <AddEventSheet
-        onClose={onClose}
-        onBack={() => setStep("menu")}
-        onAdd={async (input) => {
-          try {
-            const id = await addEvent(input);
-            onClose();
-            show("رویداد شما ساخته شد ✓");
-            router.push(`/event/${id}`);
-          } catch (err) {
-            show(err instanceof ApiError ? err.message : "رویداد ذخیره نشد");
-          }
-        }}
-      />
+      <AddEventSheet onClose={onClose} onBack={goMenu} onAdd={onAddEvent} />
     );
   }
 
@@ -160,6 +173,11 @@ export default function CreateSheet({ onClose }: { onClose: () => void }) {
                 key={o.id}
                 type="button"
                 onClick={() => setStep(o.id)}
+                onPointerEnter={() => {
+                  if (o.id === "listing") void import("./AddListingSheet");
+                  else if (o.id === "request") void import("./AddRequestSheet");
+                  else void import("./AddEventSheet");
+                }}
                 className="w-full flex items-center gap-3 px-3.5 py-3.5 text-right active:bg-stone-50/90 dark:active:bg-zinc-800/70 transition-colors"
               >
                 <div

@@ -5,6 +5,11 @@ import {
   useImperativeHandle,
   forwardRef,
   useState,
+  useRef,
+  useCallback,
+  useMemo,
+  memo,
+  startTransition,
   type ComponentType,
 } from "react";
 import ListingImagePicker from "@/components/ListingImagePicker";
@@ -38,8 +43,6 @@ import {
   suggestListingPrices,
   type PriceHint,
 } from "@/lib/price-suggest";
-import { activeCircle } from "@/lib/circle-member";
-import { useStore } from "@/lib/store";
 import { formatTomanInput, toEnglishDigits } from "@/lib/persian";
 import { isListingPhoto } from "@/lib/listing-image";
 import type { ListingSpec, ListingType, Privacy } from "@/lib/types";
@@ -215,9 +218,7 @@ const ListingComposeForm = forwardRef<
   },
   ref,
 ) {
-  const { people } = useStore();
   const { show } = useToast();
-  const circle = activeCircle(people);
   const editMode = Boolean(initial);
   const seed = initial ? seedFromListing(initial) : null;
 
@@ -225,7 +226,9 @@ const ListingComposeForm = forwardRef<
     editMode ? "review" : "compose",
   );
   const [type, setType] = useState<ListingType>(seed?.type ?? "sale");
-  const [rawText, setRawText] = useState("");
+  const rawTextRef = useRef(editMode ? seed?.description ?? "" : "");
+  const [rawLongEnough, setRawLongEnough] = useState(false);
+  const [deferredRaw, setDeferredRaw] = useState("");
   const [price, setPrice] = useState(seed?.price ?? "");
   const [photos, setPhotos] = useState<string[]>(seed?.photos ?? []);
   const [emoji, setEmoji] = useState(seed?.emoji ?? "📦");
@@ -251,8 +254,6 @@ const ListingComposeForm = forwardRef<
   const [editingLabel, setEditingLabel] = useState<string | null>(null);
   const [priceHints, setPriceHints] = useState<PriceHint[]>([]);
   const [polishing, setPolishing] = useState(false);
-  const [voiceInterim, setVoiceInterim] = useState("");
-  const [voiceListening, setVoiceListening] = useState(false);
   const [attemptedCompose, setAttemptedCompose] = useState(false);
 
   const [titleSource, setTitleSource] = useState<FieldSource>(
@@ -269,6 +270,14 @@ const ListingComposeForm = forwardRef<
   );
   const [priceSource, setPriceSource] = useState<FieldSource>("user");
 
+  const onImageError = useCallback((msg: string) => show(msg), [show]);
+  const onRawChange = useCallback((text: string) => {
+    rawTextRef.current = text;
+    const ok = text.trim().length >= 12;
+    setRawLongEnough((prev) => (prev === ok ? prev : ok));
+    startTransition(() => setDeferredRaw(text));
+  }, []);
+
   const coverImage = photos[0] ?? emoji;
   const needsPrice = (type === "sale" || type === "service") && !priceAgreed;
   const parsedPrice =
@@ -283,8 +292,6 @@ const ListingComposeForm = forwardRef<
         ? loanDuration.trim().length >= 1
         : true;
 
-  const composeReady =
-    rawText.trim().length >= 12 && extrasReady && !polishing;
   const canReview = Boolean(title.trim() && description.trim()) && !polishing;
   const canSubmit = step === "compose" ? !polishing : canReview;
   const primaryLabel =
@@ -297,7 +304,7 @@ const ListingComposeForm = forwardRef<
     step === "compose"
       ? polishing
         ? "متن را ساخت‌یافته می‌کنیم…"
-        : attemptedCompose && rawText.trim().length < 12
+        : attemptedCompose && !rawLongEnough
           ? "برای ادامه، یک جمله درباره آگهی بنویس."
           : attemptedCompose && type === "exchange" && !exchangeFor.trim()
             ? "بنویس با چه چیزی تعویض می‌کنی."
@@ -308,19 +315,18 @@ const ListingComposeForm = forwardRef<
         ? undefined
         : "عنوان و توضیح کوتاه را چک کن";
 
-  const livePriceHints =
-    priceHints.length > 0
-      ? priceHints
-      : needsPrice && rawText.trim().length >= 12
-        ? suggestListingPrices({
-            category:
-              category ||
-              draftListingFromText({ text: rawText, type }).category,
-            type,
-            text: rawText,
-            condition: condition || undefined,
-          })
-        : [];
+  const livePriceHints = useMemo(() => {
+    if (priceHints.length > 0) return priceHints;
+    if (!needsPrice || deferredRaw.trim().length < 12) return [];
+    return suggestListingPrices({
+      category:
+        category ||
+        draftListingFromText({ text: deferredRaw, type }).category,
+      type,
+      text: deferredRaw,
+      condition: condition || undefined,
+    });
+  }, [priceHints, needsPrice, deferredRaw, category, type, condition]);
 
   useEffect(() => {
     onCanSubmitChange?.(canSubmit);
@@ -425,16 +431,16 @@ const ListingComposeForm = forwardRef<
     );
     setEditingLabel(null);
     setPriceHints(hints);
-    setTitleSource(sourceFromDraft(next.title, rawText, aiRewritten));
+    setTitleSource(sourceFromDraft(next.title, rawTextRef.current, aiRewritten));
     setDescriptionSource(
-      sourceFromDraft(next.description, rawText, aiRewritten),
+      sourceFromDraft(next.description, rawTextRef.current, aiRewritten),
     );
     setCategorySource(
       GENERIC_CATEGORIES.has(next.category) ? "suggested" : "text",
     );
     setConditionSource(
       next.condition
-        ? sourceFromDraft(next.condition, rawText, false)
+        ? sourceFromDraft(next.condition, rawTextRef.current, false)
         : "suggested",
     );
     if (!price && needsPrice && hints[1]) {
@@ -448,7 +454,7 @@ const ListingComposeForm = forwardRef<
 
   async function goToReview() {
     if (polishing) return;
-    if (rawText.trim().length < 12 || !extrasReady) {
+    if (rawTextRef.current.trim().length < 12 || !extrasReady) {
       setAttemptedCompose(true);
       return;
     }
@@ -458,7 +464,7 @@ const ListingComposeForm = forwardRef<
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          text: rawText,
+          text: rawTextRef.current,
           type,
           price: parsedPrice,
         }),
@@ -479,14 +485,14 @@ const ListingComposeForm = forwardRef<
     }
 
     const next = createPolishedListingDraft({
-      text: rawText,
+      text: rawTextRef.current,
       type,
       price: parsedPrice,
     });
     const hints = suggestListingPrices({
       category: next.category,
       type,
-      text: rawText,
+      text: rawTextRef.current,
       condition: next.condition,
     });
     applyDraftToForm(next, hints, false);
@@ -550,7 +556,6 @@ const ListingComposeForm = forwardRef<
       hint,
       step,
       editMode,
-      rawText,
       type,
       price,
       photos,
@@ -644,40 +649,6 @@ const ListingComposeForm = forwardRef<
         </div>
       </div>
     ) : null;
-
-  const typePicker = (
-    <section className="mb-4">
-      <label className="block text-[13px] font-bold mb-1.5 text-ink dark:text-zinc-200">
-        می‌خواهی چه کاری انجام دهی؟
-      </label>
-      <div className="grid grid-cols-6 gap-2">
-        {TYPES.map((t, i) => {
-          const active = type === t;
-          const Icon = TYPE_ICONS[t];
-          return (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setType(t)}
-              aria-pressed={active}
-              className={`${i < 3 ? "col-span-2" : "col-span-3"} rounded-xl px-2.5 py-2.5 text-[12px] font-bold border flex items-center justify-center gap-1.5 transition-[transform,colors] duration-150 active:scale-[0.97] ${
-                active
-                  ? "bg-brand-600 text-white border-brand-600"
-                  : "bg-[color:var(--circle-surface)] dark:bg-zinc-900 text-ink-muted border-stone-200/80 dark:border-zinc-700"
-              }`}
-            >
-              <Icon
-                className={`w-4 h-4 shrink-0 ${
-                  active ? "text-white" : "text-ink-muted"
-                }`}
-              />
-              {listingTypeIntentLabels[t]}
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
 
   const typeFields = (
     <>
@@ -839,63 +810,21 @@ const ListingComposeForm = forwardRef<
     <div className="flex flex-col">
       {step === "compose" ? (
         <>
-          {typePicker}
+          <ListingTypePicker type={type} onChange={setType} />
 
           <ListingImagePicker
             photos={photos}
             onPhotosChange={setPhotos}
             emoji={emoji}
             onEmojiChange={setEmoji}
-            onError={(msg) => show(msg)}
+            onError={onImageError}
             category={listingTypeLabels[type]}
           />
 
-          <section className="mb-3">
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <label
-                htmlFor="listing-raw"
-                className="block text-[13px] font-bold text-ink dark:text-zinc-200"
-              >
-                یک جمله درباره آگهی
-              </label>
-              <VoiceDictateButton
-                disabled={polishing}
-                onError={(msg) => show(msg)}
-                onListeningChange={setVoiceListening}
-                onInterim={setVoiceInterim}
-                onFinal={(phrase) => {
-                  const piece = phrase.trim();
-                  if (!piece) return;
-                  setRawText((prev) =>
-                    prev.trim() ? `${prev.trim()} ${piece}` : piece,
-                  );
-                  setVoiceInterim("");
-                }}
-              />
-            </div>
-            <textarea
-              id="listing-raw"
-              value={rawText}
-              onChange={(e) => setRawText(e.target.value)}
-              placeholder="مثلاً: مبل سبز سه‌نفره، کمی رد استفاده، بازدید اوکی."
-              rows={3}
-              className="field resize-none min-h-[5rem] leading-relaxed"
-            />
-            {voiceListening && (
-              <div className="mt-2 rounded-xl border border-rose-200/80 dark:border-rose-500/30 bg-rose-50/80 dark:bg-rose-500/10 px-3 py-2">
-                <p className="text-[10px] font-bold text-rose-700 dark:text-rose-300 mb-0.5">
-                  در حال شنیدن…
-                </p>
-                <p className="text-[12px] text-ink dark:text-zinc-100 leading-relaxed min-h-[1.25rem]">
-                  {voiceInterim || "حرف بزن — متن موقت اینجا می‌آید"}
-                </p>
-              </div>
-            )}
-            <p className="text-[11px] text-ink-faint mt-1.5 leading-relaxed">
-              وضعیت، مدت استفاده یا دلیل واگذاری را بنویس. جزئیات را در
-              پیش‌نمایش کامل می‌کنیم.
-            </p>
-          </section>
+          <ListingRawTextBlock
+            polishing={polishing}
+            onChange={onRawChange}
+          />
 
           {typeFields}
 
@@ -903,7 +832,6 @@ const ListingComposeForm = forwardRef<
             <PrivacyPicker
               value={privacy}
               onChange={setPrivacy}
-              circle={circle}
               compact
             />
           </div>
@@ -912,13 +840,13 @@ const ListingComposeForm = forwardRef<
         <>
           {editMode ? (
             <>
-              {typePicker}
+              <ListingTypePicker type={type} onChange={setType} />
               <ListingImagePicker
                 photos={photos}
                 onPhotosChange={setPhotos}
                 emoji={emoji}
                 onEmojiChange={setEmoji}
-                onError={(msg) => show(msg)}
+                onError={onImageError}
                 category={listingTypeLabels[type]}
               />
             </>
@@ -1036,7 +964,6 @@ const ListingComposeForm = forwardRef<
               <PrivacyPicker
                 value={privacy}
                 onChange={setPrivacy}
-                circle={circle}
                 compact
               />
             </div>
@@ -1184,3 +1111,111 @@ const ListingComposeForm = forwardRef<
 });
 
 export default ListingComposeForm;
+
+const ListingTypePicker = memo(function ListingTypePicker({
+  type,
+  onChange,
+}: {
+  type: ListingType;
+  onChange: (type: ListingType) => void;
+}) {
+  return (
+    <section className="mb-4">
+      <label className="block text-[13px] font-bold mb-1.5 text-ink dark:text-zinc-200">
+        می‌خواهی چه کاری انجام دهی؟
+      </label>
+      <div className="grid grid-cols-6 gap-2">
+        {TYPES.map((t, i) => {
+          const active = type === t;
+          const Icon = TYPE_ICONS[t];
+          return (
+            <button
+              key={t}
+              type="button"
+              onClick={() => onChange(t)}
+              aria-pressed={active}
+              className={`${i < 3 ? "col-span-2" : "col-span-3"} rounded-xl px-2.5 py-2.5 text-[12px] font-bold border flex items-center justify-center gap-1.5 transition-[transform,colors] duration-150 active:scale-[0.97] ${
+                active
+                  ? "bg-brand-600 text-white border-brand-600"
+                  : "bg-[color:var(--circle-surface)] dark:bg-zinc-900 text-ink-muted border-stone-200/80 dark:border-zinc-700"
+              }`}
+            >
+              <Icon
+                className={`w-4 h-4 shrink-0 ${
+                  active ? "text-white" : "text-ink-muted"
+                }`}
+              />
+              {listingTypeIntentLabels[t]}
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+});
+
+const ListingRawTextBlock = memo(function ListingRawTextBlock({
+  polishing,
+  onChange,
+}: {
+  polishing: boolean;
+  onChange: (text: string) => void;
+}) {
+  const { show } = useToast();
+  const [text, setText] = useState("");
+  const [voiceInterim, setVoiceInterim] = useState("");
+  const [voiceListening, setVoiceListening] = useState(false);
+
+  function commit(next: string) {
+    setText(next);
+    onChange(next);
+  }
+
+  return (
+    <section className="mb-3">
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <label
+          htmlFor="listing-raw"
+          className="block text-[13px] font-bold text-ink dark:text-zinc-200"
+        >
+          یک جمله درباره آگهی
+        </label>
+        <VoiceDictateButton
+          disabled={polishing}
+          onError={(msg) => show(msg)}
+          onListeningChange={setVoiceListening}
+          onInterim={setVoiceInterim}
+          onFinal={(phrase) => {
+            const piece = phrase.trim();
+            if (!piece) return;
+            commit(text.trim() ? `${text.trim()} ${piece}` : piece);
+            setVoiceInterim("");
+          }}
+        />
+      </div>
+      <textarea
+        id="listing-raw"
+        value={text}
+        onChange={(e) => commit(e.target.value)}
+        placeholder="مثلاً: مبل سبز سه‌نفره، کمی رد استفاده، بازدید اوکی."
+        rows={3}
+        className="field resize-none min-h-[5rem] leading-relaxed"
+      />
+      {voiceListening ? (
+        <div className="mt-2 rounded-xl border border-rose-200/80 dark:border-rose-500/30 bg-rose-50/80 dark:bg-rose-500/10 px-3 py-2">
+          <p className="text-[10px] font-bold text-rose-700 dark:text-rose-300 mb-0.5">
+            در حال شنیدن…
+          </p>
+          <p className="text-[12px] text-ink dark:text-zinc-100 leading-relaxed min-h-[1.25rem]">
+            {voiceInterim || "حرف بزن — متن موقت اینجا می‌آید"}
+          </p>
+        </div>
+      ) : null}
+      <p className="text-[11px] text-ink-faint mt-1.5 leading-relaxed">
+        وضعیت، مدت استفاده یا دلیل واگذاری را بنویس. جزئیات را در پیش‌نمایش کامل
+        می‌کنیم.
+      </p>
+    </section>
+  );
+});
+

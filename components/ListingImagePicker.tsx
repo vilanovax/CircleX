@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { CameraIcon } from "@/components/Icons";
 import { uploadListingPhoto } from "@/lib/listing-image";
 import { toPersianDigits } from "@/lib/persian";
@@ -27,7 +27,7 @@ const EMOJIS = [
 
 const MAX_PHOTOS = 5;
 
-export default function ListingImagePicker({
+function ListingImagePicker({
   photos,
   onPhotosChange,
   emoji,
@@ -265,3 +265,5 @@ export default function ListingImagePicker({
     </section>
   );
 }
+
+export default memo(ListingImagePicker);

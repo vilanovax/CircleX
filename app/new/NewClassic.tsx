@@ -12,7 +12,7 @@ import { useToast } from "@/components/Toast";
 /** Full-page route for deep links; primary flow is + → CreateSheet. */
 export default function NewClassic() {
   const router = useRouter();
-  const { addListing } = useStore();
+  const addListing = useStore((s) => s.addListing);
   const { show } = useToast();
   const [publishing, setPublishing] = useState(false);
 

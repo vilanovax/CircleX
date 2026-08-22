@@ -211,36 +211,36 @@ export function formatEndorsementReport(
   },
 ): string {
   const who = opts.endorserName;
+  const claim = endorsementClaimAfterName(type, {
+    sellerName: opts.sellerName,
+  });
+  const note = opts.note?.trim();
+  if (note && type === "word") return `${who}: «${note}»`;
+  const line = `${who} ${claim}.`;
+  if (note) return `${line} «${note}»`;
+  return line;
+}
+
+/** Predicate after the endorser’s name — so the name can be typeset separately. */
+export function endorsementClaimAfterName(
+  type: BadgeType,
+  opts: { sellerName: string },
+): string {
   const seller = opts.sellerName;
-  const item = opts.listingTitle?.trim();
-  let line: string;
   switch (type) {
     case "know_seller":
-      line = `${who}، ${seller} را می‌شناسد.`;
-      break;
+      return `${seller} را می‌شناسد`;
     case "dealt_before":
-      line = `${who} قبلاً با ${seller} معامله کرده است.`;
-      break;
+      return `قبلاً با ${seller} معامله کرده است`;
     case "verify_item":
-      line = item
-        ? `${who} «${item}» را از نزدیک دیده است.`
-        : `${who} این را از نزدیک دیده است.`;
-      break;
+      return "این آگهی را از نزدیک دیده است";
     case "verify_quality":
-      line = item
-        ? `${who} وضعیت گفته‌شدهٔ «${item}» را بررسی کرده است.`
-        : `${who} وضعیت گفته‌شده را بررسی کرده است.`;
-      break;
+      return "وضعیت این آگهی را بررسی کرده است";
     case "word":
-      line = `${who} حرفی گذاشته است.`;
-      break;
+      return "حرفی گذاشته است";
     default:
-      line = `${who} — ${badgeResultLabels[type]}`;
+      return badgeResultLabels[type];
   }
-  const note = opts.note?.trim();
-  if (note && type !== "word") return `${line} «${note}»`;
-  if (note && type === "word") return `${who}: «${note}»`;
-  return line;
 }
 
 export function formatEndorsementPreview(

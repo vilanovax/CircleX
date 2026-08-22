@@ -22,6 +22,11 @@ import {
   mergeInboxMessages,
 } from "./demo-requests";
 import { clearThreadListing } from "./thread-listing";
+import {
+  buildThreadIndex,
+  EMPTY_THREAD,
+  type ThreadIndex,
+} from "./thread-index";
 import { ENDORSE_NOTE_MAX } from "./labels";
 import type {
   BadgeType,
@@ -134,6 +139,7 @@ export interface StoreValue {
   getOffers: (requestId: string) => Offer[];
   hasOffered: (requestId: string) => boolean;
   getThread: (peerId: string) => Message[];
+  threadIndex: ThreadIndex;
   threadPeers: () => string[];
   unreadCount: (peerId: string) => number;
   totalUnread: () => number;
@@ -624,9 +630,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [applyUserLocal, meProfile.name],
   );
 
+  const listingById = useMemo(() => {
+    const map = new Map<string, Listing>();
+    for (const listing of listings) map.set(listing.id, listing);
+    return map;
+  }, [listings]);
+
   const getListing = useCallback(
-    (id: string) => listings.find((l) => l.id === id),
-    [listings],
+    (id: string) => listingById.get(id),
+    [listingById],
   );
 
   const ensureListing = useCallback(async (id: string) => {
@@ -695,30 +707,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [offers],
   );
 
+  const threadIndex = useMemo(() => buildThreadIndex(messages), [messages]);
+
   const getThread = useCallback(
-    (peerId: string) => messages.filter((msg) => msg.peerId === peerId),
-    [messages],
+    (peerId: string) => threadIndex.threadByPeer.get(peerId) ?? EMPTY_THREAD,
+    [threadIndex],
   );
 
-  // Peers ordered most-recently-active first (by last message index).
-  const threadPeers = useCallback(() => {
-    const lastIndex = new Map<string, number>();
-    messages.forEach((msg, i) => lastIndex.set(msg.peerId, i));
-    return Array.from(lastIndex.keys()).sort(
-      (a, b) => (lastIndex.get(b) ?? 0) - (lastIndex.get(a) ?? 0),
-    );
-  }, [messages]);
+  const threadPeers = useCallback(
+    () => threadIndex.peerIds,
+    [threadIndex],
+  );
 
   const unreadCount = useCallback(
-    (peerId: string) =>
-      messages.filter((msg) => msg.peerId === peerId && !msg.fromMe && !msg.read)
-        .length,
-    [messages],
+    (peerId: string) => threadIndex.unreadByPeer.get(peerId) ?? 0,
+    [threadIndex],
   );
 
   const totalUnread = useCallback(
-    () => messages.filter((msg) => !msg.fromMe && !msg.read).length,
-    [messages],
+    () => threadIndex.totalUnread,
+    [threadIndex],
   );
 
   const addMessage = useCallback(
@@ -1467,6 +1475,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       getOffers,
       hasOffered,
       getThread,
+      threadIndex,
       threadPeers,
       unreadCount,
       totalUnread,
@@ -1547,6 +1556,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       getOffers,
       hasOffered,
       getThread,
+      threadIndex,
       threadPeers,
       unreadCount,
       totalUnread,
