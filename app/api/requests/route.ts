@@ -25,6 +25,7 @@ export async function POST(req: Request) {
         budgetUnit: parsed.data.budgetUnit ?? null,
         privacy: parsed.data.privacy,
         city: session.city || "تهران",
+        area: parsed.data.area ?? null,
       },
     });
 

@@ -1,5 +1,6 @@
 import { ENDORSE_NOTE_MAX, ITEM_BADGES, PERSON_BADGES } from "./labels";
 import { isAllowedListingImage } from "./listing-photo";
+import { parseArea } from "./place";
 import type { BadgeType, ListingSpec, ListingType, Privacy } from "./types";
 
 export const LISTING_TYPES: ListingType[] = [
@@ -38,6 +39,7 @@ export type ListingWriteInput = {
   privacy: Privacy;
   condition?: string;
   specs?: ListingSpec[];
+  area?: string;
 };
 
 function asTrimmed(value: unknown, max: number): string {
@@ -125,6 +127,7 @@ export function parseListingWrite(
 
   const condition = asTrimmed(raw.condition, 40) || undefined;
   const specs = parseSpecs(raw.specs);
+  const area = parseArea(raw.area);
 
   return {
     ok: true,
@@ -139,6 +142,7 @@ export function parseListingWrite(
       privacy,
       condition,
       specs,
+      area,
     },
   };
 }

@@ -60,6 +60,7 @@ interface NewListingInput {
   privacy: Privacy;
   condition?: string;
   specs?: Listing["specs"];
+  area?: string;
 }
 
 interface NewPersonInput {
@@ -77,6 +78,7 @@ interface NewRequestInput {
   budget?: number;
   budgetUnit?: BudgetUnit;
   privacy: Privacy;
+  area?: string;
 }
 
 interface NewOfferInput {

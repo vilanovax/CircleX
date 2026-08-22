@@ -6,6 +6,7 @@ import type { Listing } from "@/lib/types";
 import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import { formatPrice, listingDisplayTitle, privacyLabels } from "@/lib/labels";
+import { placeCardLabel } from "@/lib/place";
 import { privacyAudience } from "@/lib/trust";
 import ListingImage from "./ListingImage";
 import TrustHighlight from "./TrustHighlight";
@@ -35,6 +36,7 @@ function ListingCard({
   );
   const circle = people ? activeCircle(people) : [];
   const isService = listing.type === "service";
+  const place = placeCardLabel(listing.city, listing.area);
 
   return (
     <article
@@ -86,7 +88,7 @@ function ListingCard({
             </div>
             {compactTrust && (
               <p className="mt-1 text-[11px] font-medium text-ink-muted dark:text-zinc-400 truncate">
-                <span>{listing.city}</span>
+                <span>{place || listing.city}</span>
                 <span className="text-stone-400 dark:text-zinc-600" aria-hidden>
                   {" · "}
                 </span>
@@ -112,7 +114,7 @@ function ListingCard({
 
         {!compactTrust && (
           <div className="flex items-center gap-1.5 text-[11px] text-ink-muted dark:text-zinc-400 mt-2.5 pt-2 border-t border-stone-200/50 dark:border-zinc-800">
-            <span className="truncate">{listing.city}</span>
+            <span className="truncate">{place || listing.city}</span>
             <span className="text-stone-400 dark:text-zinc-600" aria-hidden>
               ·
             </span>

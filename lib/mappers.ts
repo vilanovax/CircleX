@@ -257,6 +257,7 @@ export function toHomeListing(
     | "createdAt"
     | "privacy"
     | "city"
+    | "area"
     | "dealStatus"
   > &
     ListingEndorsementSource,
@@ -279,6 +280,7 @@ export function toHomeListing(
     endorsements: toClientEndorsements(row.endorsements, viewerId, row.sellerId),
     trustPath,
     city: row.city ?? undefined,
+    area: row.area ?? undefined,
     dealStatus: parseDealStatus(row.dealStatus),
     feedPreview: true,
   };
@@ -308,6 +310,7 @@ export function toClientListing(
     endorsements: toClientEndorsements(row.endorsements, viewerId, row.sellerId),
     trustPath,
     city: row.city ?? undefined,
+    area: row.area ?? undefined,
     specs: parseSpecs(row.specs),
     dealStatus: parseDealStatus(row.dealStatus),
   };
@@ -365,6 +368,7 @@ export function toClientRequest(
     trustPath,
     endorsements: [],
     city: row.city ?? undefined,
+    area: row.area ?? undefined,
   };
 }
 

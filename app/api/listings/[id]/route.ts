@@ -90,6 +90,7 @@ export async function PATCH(
         specs: parsed.data.specs
           ? (parsed.data.specs as unknown as Prisma.InputJsonValue)
           : Prisma.JsonNull,
+        area: parsed.data.area ?? null,
         ...(dealStatus ? { dealStatus } : {}),
       },
       include: listingEndorsementsInclude,

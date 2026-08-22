@@ -23,6 +23,7 @@ import {
 } from "@/lib/persian";
 import LockedAccess from "@/components/LockedAccess";
 import { canView, listingSellerSubtitle, viewerRelationPhrase } from "@/lib/trust";
+import { placeDetailLabel } from "@/lib/place";
 import { useToast } from "@/components/Toast";
 import type { Person, Request as CircleRequest } from "@/lib/types";
 
@@ -162,7 +163,9 @@ export default function RequestClassic(_props: { params: { id: string } }) {
             ) : null}
 
             <p className="mt-3 text-[11px] text-ink-faint dark:text-zinc-500 nums leading-relaxed">
-              {[request.city, request.postedAt].filter(Boolean).join(" · ")}
+              {[placeDetailLabel(request.city, request.area), request.postedAt]
+                .filter(Boolean)
+                .join(" · ")}
             </p>
           </div>
 

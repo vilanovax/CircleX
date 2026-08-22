@@ -1,44 +1,51 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 import type { Request } from "@/lib/types";
 import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import { formatRequestBudget, privacyLabels } from "@/lib/labels";
+import { listingImageTint } from "@/lib/listing-image";
+import { placeCardLabel } from "@/lib/place";
 import { privacyAudience } from "@/lib/trust";
 import { toPersianDigits } from "@/lib/persian";
 import TrustHighlight from "./TrustHighlight";
 
-export default function RequestCard({
+function RequestCard({
   request,
-  compactTrust = true,
+  compactTrust = false,
   hideTrust = false,
-  /** Home feed: stronger “want” chrome so it never reads like a sale listing. */
+  /** Requests-only feed: no extra «درخواست» chip — the tab already says it. */
   feedStyle = false,
 }: {
   request: Request;
   compactTrust?: boolean;
-  /** Hide trust banner — e.g. on the requester's own profile page. */
   hideTrust?: boolean;
   feedStyle?: boolean;
 }) {
-  /** On profile / compact feed: keep meta short (privacy lives on detail). */
-  const slimMeta = compactTrust || hideTrust;
+  const showKind = !feedStyle && !hideTrust;
   const offerCount = useStore(
     (s) => s.offers.filter((o) => o.requestId === request.id).length,
   );
   const offered = useStore((s) =>
     s.offers.some((o) => o.requestId === request.id && o.fromId === "me"),
   );
-  const people = useStore((s) => (slimMeta ? null : s.people));
+  const people = useStore((s) =>
+    compactTrust || hideTrust ? null : s.people,
+  );
   const circle = people ? activeCircle(people) : [];
+  const budgetLine =
+    request.budget != null || request.budgetUnit === "negotiable"
+      ? formatRequestBudget(request.budget, request.budgetUnit)
+      : null;
+  const tint = listingImageTint(request.category);
+  const place = placeCardLabel(request.city, request.area);
 
   return (
     <article
-      className={`overflow-hidden active:scale-[0.99] transition-transform ${
-        feedStyle
-          ? "rounded-2xl border border-amber-200/80 dark:border-amber-500/25 bg-gradient-to-l from-amber-50/90 to-[color:var(--circle-surface)] dark:from-amber-500/10 dark:to-zinc-900 shadow-sm"
-          : "card"
+      className={`card active:scale-[0.99] transition-transform duration-150 ${
+        compactTrust ? "p-2.5" : "p-3"
       }`}
     >
       {!hideTrust && (
@@ -52,97 +59,122 @@ export default function RequestCard({
         />
       )}
 
-      <Link href={`/request/${request.id}`} className="block px-3.5 py-3">
-        <div className="flex gap-3 items-start">
+      <Link href={`/request/${request.id}`} className="block group">
+        <div
+          className={`flex items-start ${compactTrust ? "gap-2.5" : "gap-3"}`}
+        >
           <div
-            className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl shrink-0 ${
-              feedStyle
-                ? "bg-amber-100/90 dark:bg-amber-500/20 ring-1 ring-amber-200/70 dark:ring-amber-500/30"
-                : "bg-stone-50 dark:bg-zinc-800/80 ring-1 ring-stone-100 dark:ring-zinc-700/60"
-            }`}
+            className={`relative w-14 h-14 rounded-xl bg-gradient-to-br ${tint} flex items-center justify-center text-[1.65rem] shrink-0`}
+            aria-hidden
           >
             {request.image}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-              <span
-                className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-extrabold tracking-wide ${
-                  feedStyle
-                    ? "bg-amber-600 text-white"
-                    : "bg-stone-200/80 dark:bg-zinc-700 text-ink-muted dark:text-zinc-300"
-                }`}
-              >
+            {showKind && (
+              <p className="text-[11px] font-bold text-ink-faint dark:text-zinc-500 mb-0.5">
                 درخواست
-              </span>
-              <span className="text-[11px] font-semibold text-ink-faint dark:text-zinc-500">
-                {request.category}
-              </span>
-            </div>
-            <h3 className="font-bold text-[15px] text-ink dark:text-zinc-100 leading-snug line-clamp-2">
+                {request.category ? ` · ${request.category}` : ""}
+              </p>
+            )}
+            <h3
+              className={`font-bold text-ink dark:text-zinc-50 leading-snug line-clamp-2 group-active:opacity-80 ${
+                compactTrust ? "text-[14px]" : "text-[15px]"
+              }`}
+            >
               {request.title}
             </h3>
-            {request.budget != null || request.budgetUnit === "negotiable" ? (
-              <p className="mt-1 text-[14px] font-extrabold text-ink dark:text-zinc-100 nums tracking-tight">
-                {formatRequestBudget(request.budget, request.budgetUnit)}
+            <div className={compactTrust ? "mt-0.5" : "mt-1"}>
+              {budgetLine ? (
+                <span className="text-ink dark:text-zinc-100 font-extrabold text-[14px] nums tracking-tight">
+                  {budgetLine}
+                </span>
+              ) : (
+                <span className="text-ink-muted dark:text-zinc-400 font-bold text-[13px]">
+                  مبلغ مشخص نشده
+                </span>
+              )}
+            </div>
+            {compactTrust && (
+              <p className="mt-1 text-[11px] font-medium text-ink-muted dark:text-zinc-400 truncate">
+                {!showKind && request.category ? (
+                  <>
+                    <span>{request.category}</span>
+                    <span
+                      className="text-stone-400 dark:text-zinc-600"
+                      aria-hidden
+                    >
+                      {" · "}
+                    </span>
+                  </>
+                ) : null}
+                <span>{place || request.city}</span>
+                <span
+                  className="text-stone-400 dark:text-zinc-600"
+                  aria-hidden
+                >
+                  {" · "}
+                </span>
+                <span>{request.postedAt}</span>
+                {offerCount > 0 ? (
+                  <>
+                    <span
+                      className="text-stone-400 dark:text-zinc-600"
+                      aria-hidden
+                    >
+                      {" · "}
+                    </span>
+                    <span className="nums">
+                      {toPersianDigits(offerCount)} پیشنهاد
+                    </span>
+                  </>
+                ) : null}
               </p>
-            ) : feedStyle ? (
-              <p className="mt-1 text-[12px] font-semibold text-amber-800/80 dark:text-amber-200/80">
-                توافقی یا رایگان هم خوبه
+            )}
+            {compactTrust && offered && (
+              <p className="text-[11px] text-levelA font-medium mt-1">
+                پیشنهادت ثبت شده
               </p>
-            ) : null}
+            )}
           </div>
         </div>
 
-        {request.description.trim() ? (
-          <p
-            className={`text-[13px] text-ink-muted dark:text-zinc-300 leading-relaxed mt-1.5 ${
-              slimMeta ? "line-clamp-1" : "line-clamp-2"
-            }`}
-          >
-            {request.description}
-          </p>
-        ) : null}
-
-        <div className="mt-2.5 pt-2 border-t border-stone-100/80 dark:border-zinc-800 flex items-center gap-1.5 text-[11px] text-ink-muted dark:text-zinc-400 flex-wrap">
-          <span>{request.city}</span>
-          <span className="text-stone-300" aria-hidden>
-            ·
-          </span>
-          <span>{request.postedAt}</span>
-          {offerCount > 0 && (
-            <>
-              <span className="text-stone-300" aria-hidden>
+        {!compactTrust && (
+          <>
+            {request.description.trim() ? (
+              <p className="text-[13px] text-ink-muted dark:text-zinc-300 leading-relaxed mt-2 line-clamp-2">
+                {request.description}
+              </p>
+            ) : null}
+            <div className="flex items-center gap-1.5 text-[11px] text-ink-muted dark:text-zinc-400 mt-2.5 pt-2 border-t border-stone-200/50 dark:border-zinc-800">
+              <span className="truncate">{place || request.city}</span>
+              <span className="text-stone-400 dark:text-zinc-600" aria-hidden>
                 ·
               </span>
-              <span className="text-ink font-medium nums">
-                {toPersianDigits(offerCount)} پیشنهاد
-              </span>
-            </>
-          )}
-          {!slimMeta && people && (
-            <>
-              <span className="text-stone-300" aria-hidden>
-                ·
-              </span>
-              <span title={privacyAudience(request.privacy, circle)}>
-                {privacyLabels[request.privacy]}
-              </span>
-            </>
-          )}
-        </div>
-
-        {feedStyle && !offered && (
-          <p className="mt-2.5 text-[12px] font-bold text-amber-800 dark:text-amber-200">
-            پیشنهاد بده ←
-          </p>
-        )}
-
-        {offered && (
-          <p className="text-[11px] text-levelA font-medium mt-2">
-            ✓ شما پیشنهاد داده‌اید
-          </p>
+              <span className="shrink-0">{request.postedAt}</span>
+              {offerCount > 0 && (
+                <span className="nums shrink-0">
+                  · {toPersianDigits(offerCount)} پیشنهاد
+                </span>
+              )}
+              {!hideTrust && people && (
+                <span
+                  className="mr-auto max-w-[9.5rem] truncate text-[10px] text-ink-muted dark:text-zinc-500"
+                  title={privacyAudience(request.privacy, circle)}
+                >
+                  {privacyLabels[request.privacy]}
+                </span>
+              )}
+            </div>
+            {offered && (
+              <p className="text-[11px] text-levelA font-medium mt-2">
+                پیشنهادت ثبت شده
+              </p>
+            )}
+          </>
         )}
       </Link>
     </article>
   );
 }
+
+export default memo(RequestCard);

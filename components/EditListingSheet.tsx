@@ -58,6 +58,7 @@ export default function EditListingSheet({
     privacy: listing.privacy,
     condition: listing.condition,
     specs: listing.specs,
+    area: listing.area,
   };
 
   async function save(input: ListingInput) {

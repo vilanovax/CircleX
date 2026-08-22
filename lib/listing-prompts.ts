@@ -41,6 +41,7 @@ function listingCorpus(listing: Listing): string {
     listing.category,
     listing.condition ?? "",
     listing.city ?? "",
+    listing.area ?? "",
     specs,
   ]
     .join(" ")

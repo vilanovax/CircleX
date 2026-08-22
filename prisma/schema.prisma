@@ -207,6 +207,7 @@ model MarketListing {
   condition   String?
   privacy     String   @default("ABC")
   city        String?
+  area        String?
   specs       Json?
   dealStatus  String?
   createdAt   DateTime @default(now())
@@ -300,6 +301,7 @@ model WantRequest {
   budgetUnit  String?
   privacy     String   @default("ABC")
   city        String?
+  area        String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   offers      WantOffer[]

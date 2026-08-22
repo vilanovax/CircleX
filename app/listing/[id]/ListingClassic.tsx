@@ -37,6 +37,7 @@ import {
   type BuyerPrompt,
 } from "@/lib/listing-prompts";
 import { listingGalleryImages } from "@/lib/listing-image";
+import { placeDetailLabel } from "@/lib/place";
 import { useOwnerListingFlow } from "@/components/OwnerListingManager";
 import { ListingDetailSkeleton } from "@/components/Skeleton";
 
@@ -245,7 +246,9 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         ) : null}
 
         <p className="mt-3.5 text-[12px] text-ink-muted dark:text-zinc-400 leading-relaxed px-0.5">
-          {[listing.city, listing.postedAt].filter(Boolean).join(" · ")}
+          {[placeDetailLabel(listing.city, listing.area), listing.postedAt]
+            .filter(Boolean)
+            .join(" · ")}
         </p>
         <p className="mt-1 text-[11.5px] text-ink-faint dark:text-zinc-500 leading-relaxed px-0.5">
           {listingPrivacyAudienceLine(

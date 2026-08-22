@@ -1,4 +1,5 @@
 import { LISTING_PRIVACY } from "./listing-payload";
+import { parseArea } from "./place";
 import type {
   BudgetUnit,
   EventKind,
@@ -36,6 +37,7 @@ export type RequestWriteInput = {
   budget?: number;
   budgetUnit?: BudgetUnit;
   privacy: Privacy;
+  area?: string;
 };
 
 export type EventWriteInput = {
@@ -89,9 +91,10 @@ export function parseRequestWrite(
     }
     budgetUnit = raw.budgetUnit as BudgetUnit;
   }
+  const area = parseArea(raw.area);
   return {
     ok: true,
-    data: { title, description, category, image, budget, budgetUnit, privacy },
+    data: { title, description, category, image, budget, budgetUnit, privacy, area },
   };
 }
 

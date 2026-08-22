@@ -26,6 +26,7 @@ export type DemoListingDef = {
   condition?: string;
   privacy: Privacy;
   dealStatus?: "available" | "reserved" | "agreed" | "inactive";
+  area?: string;
 };
 
 export type DemoPersonDef = {
@@ -64,6 +65,7 @@ export const DEMO_DIRECT: DemoPersonDef[] = [
           "/listings/laptop-desk.jpg",
         ],
         privacy: "ABC",
+        area: "آنلاین",
       },
       {
         title: "کیف چرمی اداری — تقریباً نو",
@@ -79,6 +81,7 @@ export const DEMO_DIRECT: DemoPersonDef[] = [
         ],
         condition: "در حد نو",
         privacy: "AB",
+        area: "ونک",
       },
     ],
   },
@@ -103,6 +106,7 @@ export const DEMO_DIRECT: DemoPersonDef[] = [
         ],
         condition: "سالم",
         privacy: "AB",
+        area: "ستارخان",
       },
       {
         title: "گلدان سفالی بزرگ — رایگان",
@@ -117,6 +121,7 @@ export const DEMO_DIRECT: DemoPersonDef[] = [
         ],
         condition: "سالم",
         privacy: "ABC",
+        area: "ستارخان",
       },
     ],
   },
@@ -142,6 +147,7 @@ export const DEMO_DIRECT: DemoPersonDef[] = [
         ],
         condition: "کارکرده تمیز",
         privacy: "ABC",
+        area: "پونک",
       },
       {
         title: "هدفون بی‌سیم سالم",
@@ -157,6 +163,7 @@ export const DEMO_DIRECT: DemoPersonDef[] = [
         ],
         condition: "در حد نو",
         privacy: "A",
+        area: "ارسال",
       },
       {
         title: "کتاب‌های برنامه‌نویسی — چند جلد",
@@ -172,6 +179,7 @@ export const DEMO_DIRECT: DemoPersonDef[] = [
         condition: "سالم",
         privacy: "ABC",
         dealStatus: "available",
+        area: "پونک",
       },
     ],
   },
@@ -212,6 +220,7 @@ export const DEMO_FOF: {
           "/listings/open-laptop.jpg",
         ],
         privacy: "ABC",
+        area: "سراسر شهر",
       },
     ],
   },
@@ -238,6 +247,7 @@ export const DEMO_FOF: {
         ],
         condition: "کارکرده تمیز",
         privacy: "ABC",
+        area: "یوسف‌آباد",
       },
     ],
   },
@@ -264,6 +274,7 @@ export const DEMO_FOF: {
         ],
         condition: "سالم با ایراد جزئی",
         privacy: "AB",
+        area: "گوهردشت",
       },
     ],
   },
@@ -289,6 +300,7 @@ export const DEMO_FOF: {
         ],
         condition: "سالم",
         privacy: "ABC",
+        area: "تجریش",
       },
     ],
   },
@@ -314,6 +326,7 @@ export const VIEWER_LISTING_DEFS: DemoListingDef[] = [
     ],
     condition: "کارکرده تمیز",
     privacy: "ABC",
+    area: "سعادت‌آباد",
   },
   {
     title: "کمک در جابه‌جایی خانه — یک روز",
@@ -328,6 +341,7 @@ export const VIEWER_LISTING_DEFS: DemoListingDef[] = [
       "/listings/cardboard-boxes.jpg",
     ],
     privacy: "ABC",
+    area: "سراسر شهر",
   },
   {
     title: "کتاب‌های کودک ۷–۹ سال — رایگان",
@@ -342,6 +356,7 @@ export const VIEWER_LISTING_DEFS: DemoListingDef[] = [
     ],
     condition: "سالم",
     privacy: "ABC",
+    area: "ارسال",
   },
 ];
 

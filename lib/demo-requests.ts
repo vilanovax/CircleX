@@ -30,6 +30,7 @@ export type DemoRequestDef = {
   privacy: Privacy;
   postedAt: string;
   city?: string;
+  area?: string;
 };
 
 export type DemoOfferDef = {
@@ -56,6 +57,7 @@ export const DEMO_REQUEST_DEFS: DemoRequestDef[] = [
     privacy: "ABC",
     postedAt: "۲ ساعت پیش",
     city: "تهران",
+    area: "ونک",
   },
   {
     id: "demo_req_android",
@@ -69,6 +71,7 @@ export const DEMO_REQUEST_DEFS: DemoRequestDef[] = [
     privacy: "ABC",
     postedAt: "۵ ساعت پیش",
     city: "تهران",
+    area: "ستارخان",
   },
   {
     id: "demo_req_bike",
@@ -83,6 +86,7 @@ export const DEMO_REQUEST_DEFS: DemoRequestDef[] = [
     privacy: "AB",
     postedAt: "دیروز",
     city: "تهران",
+    area: "پونک",
   },
   {
     id: "demo_req_math",
@@ -98,6 +102,7 @@ export const DEMO_REQUEST_DEFS: DemoRequestDef[] = [
     privacy: "ABC",
     postedAt: "دیروز",
     city: "تهران",
+    area: "یوسف‌آباد",
   },
   {
     id: "demo_req_stroller",
@@ -113,6 +118,7 @@ export const DEMO_REQUEST_DEFS: DemoRequestDef[] = [
     privacy: "AB",
     postedAt: "۳ روز پیش",
     city: "تهران",
+    area: "یوسف‌آباد",
   },
 ];
 
@@ -158,6 +164,7 @@ export const VIEWER_REQUEST_DEFS: Omit<DemoRequestDef, "requesterKey">[] = [
     privacy: "ABC",
     postedAt: "دیروز",
     city: "تهران",
+    area: "سعادت‌آباد",
   },
   {
     id: "demo_req_me_english",
@@ -171,6 +178,7 @@ export const VIEWER_REQUEST_DEFS: Omit<DemoRequestDef, "requesterKey">[] = [
     privacy: "AB",
     postedAt: "۳ ساعت پیش",
     city: "تهران",
+    area: "آنلاین",
   },
 ];
 
@@ -347,6 +355,7 @@ export function bindDemoRequests(people: Person[]): {
       trustPath,
       endorsements: [],
       city: def.city ?? requester.city,
+      area: def.area,
     });
   }
 
@@ -365,6 +374,7 @@ export function bindDemoRequests(people: Person[]): {
       trustPath: [],
       endorsements: [],
       city: def.city,
+      area: def.area,
     });
   }
 

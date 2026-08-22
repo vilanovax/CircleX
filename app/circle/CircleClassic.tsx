@@ -392,8 +392,11 @@ const CircleUnplacedBanner = memo(function CircleUnplacedBanner({
 
   return (
     <div className="card px-3.5 py-3">
-      <p className="text-[13px] font-bold text-ink dark:text-zinc-100 nums">
-        {toPersianDigits(unplaced.length)} نفر تازه پیوسته‌اند
+      <p className="text-[13px] font-bold text-ink dark:text-zinc-100">
+        <span className="nums" dir="ltr">
+          {toPersianDigits(unplaced.length)}
+        </span>{" "}
+        نفر تازه پیوسته‌اند
       </p>
       <p className="text-[12px] text-ink-muted mt-1 leading-relaxed">
         الان آگهی‌ات را می‌بینند. اگر خواستی جایگاهشان را عوض کن — اجباری نیست.
@@ -403,7 +406,7 @@ const CircleUnplacedBanner = memo(function CircleUnplacedBanner({
         onClick={onPlace}
         onPointerEnter={preloadCircleSheets}
         onFocus={preloadCircleSheets}
-        className="mt-2.5 text-[13px] font-semibold text-brand-700 dark:text-brand-400"
+        className="mt-2.5 block text-[13px] font-semibold text-brand-700 dark:text-brand-400"
       >
         جایگاه‌ها را مشخص کن
       </button>
@@ -478,11 +481,13 @@ const CircleMembersPanel = memo(function CircleMembersPanel({
       ) : null}
 
       <div className="card overflow-hidden">
-        <h2 className="px-3.5 pt-3 pb-1 text-[13px] font-bold text-ink dark:text-zinc-100 nums">
+        <h2 className="px-3.5 pt-3 pb-1 text-[13px] font-bold text-ink dark:text-zinc-100">
           اعضای حلقه
           <span className="text-ink-muted font-semibold">
             {" · "}
-            {toPersianDigits(mine.length)}
+            <span className="nums" dir="ltr">
+              {toPersianDigits(mine.length)}
+            </span>
           </span>
         </h2>
         {visibleGroups.map(({ relation, members }, i) => {
@@ -518,11 +523,13 @@ const CircleMembersPanel = memo(function CircleMembersPanel({
                 className="w-full flex items-center justify-between gap-2 px-3.5 pt-2.5 pb-1.5 text-right"
                 aria-expanded={open}
               >
-                <h3 className="text-[13px] font-bold text-ink dark:text-zinc-100 nums">
+                <h3 className="text-[13px] font-bold text-ink dark:text-zinc-100">
                   {relationLabels[relation]}
                   <span className="text-ink-muted font-semibold">
                     {" · "}
-                    {toPersianDigits(members.length)}
+                    <span className="nums" dir="ltr">
+                      {toPersianDigits(members.length)}
+                    </span>
                   </span>
                 </h3>
                 <span
@@ -857,15 +864,17 @@ function RelationChip({
     <button
       type="button"
       onClick={onClick}
-      className={`chip whitespace-nowrap !px-2.5 !py-1.5 border text-[12px] nums ${
+      className={`chip whitespace-nowrap !px-2.5 !py-1.5 border text-[12px] inline-flex items-center gap-1.5 ${
         active
           ? "bg-brand-600 text-white border-brand-600 shadow-sm shadow-brand-600/20"
           : "bg-[color:var(--circle-surface)] text-ink-muted dark:text-zinc-300 border-stone-200/70 dark:border-zinc-700"
       }`}
     >
       {label}
-      <span className={active ? "text-white/80" : "text-ink-faint"}>
-        {" "}
+      <span
+        dir="ltr"
+        className={`nums ${active ? "text-white/80" : "text-ink-faint"}`}
+      >
         {toPersianDigits(count)}
       </span>
     </button>
@@ -909,9 +918,12 @@ const CircleMemberRow = memo(function CircleMemberRow({
         onPointerEnter={preloadCircleSheets}
         onFocus={preloadCircleSheets}
         aria-label={`تغییر گروه ${person.name}`}
-        className="shrink-0 text-[11px] font-semibold text-ink-muted dark:text-zinc-400 px-2 py-1.5 rounded-lg active:bg-stone-100 dark:active:bg-zinc-800"
+        className="shrink-0 max-w-[7.5rem] inline-flex items-center gap-1 text-[11px] font-semibold text-ink-muted dark:text-zinc-400 px-2 py-1.5 rounded-lg active:bg-stone-100 dark:active:bg-zinc-800"
       >
-        گروه ▾
+        <span className="truncate">{levelLabels[person.level]}</span>
+        <span className="text-[9px] leading-none shrink-0" aria-hidden>
+          ▾
+        </span>
       </button>
     </li>
   );

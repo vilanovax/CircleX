@@ -14,8 +14,11 @@ import {
 } from "react";
 import ListingImagePicker from "@/components/ListingImagePicker";
 import PrivacyPicker from "@/components/PrivacyPicker";
+import AreaPicker from "@/components/AreaPicker";
 import VoiceDictateButton from "@/components/VoiceDictateButton";
 import { useToast } from "@/components/Toast";
+import { useStore } from "@/lib/store";
+import { AREA_CITYWIDE } from "@/lib/place";
 import { withBasePath } from "@/lib/avatar";
 import {
   applyDraftAnswers,
@@ -93,6 +96,7 @@ function seedFromListing(input: ListingInput) {
     category: input.category,
     condition: input.condition ?? "",
     privacy: input.privacy,
+    area: input.area ?? AREA_CITYWIDE,
     photos,
     emoji,
     price:
@@ -135,6 +139,7 @@ export type ListingInput = {
   privacy: Privacy;
   condition?: string;
   specs?: ListingSpec[];
+  area?: string;
 };
 
 export type ListingComposeHandle = {
@@ -221,6 +226,7 @@ const ListingComposeForm = forwardRef<
   const { show } = useToast();
   const editMode = Boolean(initial);
   const seed = initial ? seedFromListing(initial) : null;
+  const meCity = useStore((s) => s.me.city);
 
   const [step, setStep] = useState<"compose" | "review">(
     editMode ? "review" : "compose",
@@ -233,6 +239,7 @@ const ListingComposeForm = forwardRef<
   const [photos, setPhotos] = useState<string[]>(seed?.photos ?? []);
   const [emoji, setEmoji] = useState(seed?.emoji ?? "📦");
   const [privacy, setPrivacy] = useState<Privacy>(seed?.privacy ?? "AB");
+  const [area, setArea] = useState(seed?.area ?? AREA_CITYWIDE);
 
   const [exchangeFor, setExchangeFor] = useState(seed?.exchangeFor ?? "");
   const [loanDuration, setLoanDuration] = useState(seed?.loanDuration ?? "");
@@ -525,6 +532,7 @@ const ListingComposeForm = forwardRef<
       image: coverImage,
       images,
       privacy,
+      area,
       condition: condition.trim() || undefined,
       specs: specs.length ? specs : undefined,
     });
@@ -561,6 +569,7 @@ const ListingComposeForm = forwardRef<
       photos,
       emoji,
       privacy,
+      area,
       title,
       description,
       category,
@@ -828,6 +837,8 @@ const ListingComposeForm = forwardRef<
 
           {typeFields}
 
+          <AreaPicker city={meCity} value={area} onChange={setArea} />
+
           <div className={hideActions ? "mb-2" : "mb-5"}>
             <PrivacyPicker
               value={privacy}
@@ -872,6 +883,9 @@ const ListingComposeForm = forwardRef<
                 </p>
                 <p className="inline-flex text-[12px] text-ink-muted dark:text-zinc-400 leading-relaxed rounded-lg bg-stone-50 dark:bg-zinc-800/60 px-2.5 py-1">
                   مخاطب: {privacyLabels[privacy]}
+                </p>
+                <p className="inline-flex text-[12px] text-ink-muted dark:text-zinc-400 leading-relaxed rounded-lg bg-stone-50 dark:bg-zinc-800/60 px-2.5 py-1">
+                  {area}
                 </p>
               </div>
             </>
@@ -960,13 +974,16 @@ const ListingComposeForm = forwardRef<
           {typeFields}
 
           {editMode && (
-            <div className={hideActions ? "mb-2" : "mb-5"}>
-              <PrivacyPicker
-                value={privacy}
-                onChange={setPrivacy}
-                compact
-              />
-            </div>
+            <>
+              <AreaPicker city={meCity} value={area} onChange={setArea} />
+              <div className={hideActions ? "mb-2" : "mb-5"}>
+                <PrivacyPicker
+                  value={privacy}
+                  onChange={setPrivacy}
+                  compact
+                />
+              </div>
+            </>
           )}
 
           {draft && draft.questions.length > 0 && (

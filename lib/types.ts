@@ -125,6 +125,8 @@ export interface Request {
   /** Social-trust badges from people in the viewer's network. */
   endorsements: Endorsement[];
   city?: string;
+  /** Neighborhood or fulfillment mode (آنلاین / ارسال / سراسر شهر). */
+  area?: string;
 }
 
 /** Kind of community event/gathering. */
@@ -222,6 +224,8 @@ export interface Listing {
    */
   trustPath: TrustHop[];
   city?: string;
+  /** Neighborhood or fulfillment mode (آنلاین / ارسال / سراسر شهر). */
+  area?: string;
   /**
    * Deal / publish state.
    * `reserved` / `agreed` are chat-only holds. `inactive` means the owner

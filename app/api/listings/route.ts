@@ -27,6 +27,7 @@ export async function POST(req: Request) {
       condition: parsed.data.condition ?? null,
       privacy: parsed.data.privacy,
       city: session.city || "تهران",
+      area: parsed.data.area ?? null,
       dealStatus: "available",
       specs: parsed.data.specs
         ? (parsed.data.specs as unknown as Prisma.InputJsonValue)

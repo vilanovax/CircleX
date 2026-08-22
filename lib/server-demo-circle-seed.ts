@@ -108,11 +108,16 @@ async function ensureListings(sellerId: string, items: DemoListingDef[]) {
       where: { sellerId, title: item.title },
     });
     if (existing) {
-      // Heal broken seed image URLs without recreating the listing.
+      const data: { image?: string; images?: string[]; area?: string } = {};
       if (existing.image !== item.image) {
+        data.image = item.image;
+        data.images = item.images;
+      }
+      if (!existing.area && item.area) data.area = item.area;
+      if (Object.keys(data).length > 0) {
         await prisma.marketListing.update({
           where: { id: existing.id },
-          data: { image: item.image, images: item.images },
+          data,
         });
       }
       continue;
@@ -130,6 +135,7 @@ async function ensureListings(sellerId: string, items: DemoListingDef[]) {
         condition: item.condition ?? null,
         privacy: item.privacy,
         city: null,
+        area: item.area ?? null,
         dealStatus: item.dealStatus ?? "available",
       },
     });
@@ -425,8 +431,9 @@ async function ensureWantAndGatherings(
         budgetUnit: def.budgetUnit ?? null,
         privacy: def.privacy,
         city: def.city ?? requester.city,
+        area: def.area ?? null,
       },
-      update: {},
+      update: { area: def.area ?? undefined },
     });
   }
 
@@ -445,8 +452,9 @@ async function ensureWantAndGatherings(
         budgetUnit: def.budgetUnit ?? null,
         privacy: def.privacy,
         city: def.city ?? "تهران",
+        area: def.area ?? null,
       },
-      update: {},
+      update: { area: def.area ?? undefined },
     });
   }
 

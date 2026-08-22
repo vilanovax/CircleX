@@ -19,7 +19,6 @@ import FeedFilterBar, { type FeedFilter } from "@/components/FeedFilterBar";
 import RequestCard from "@/components/RequestCard";
 import { FeedSkeleton } from "@/components/Skeleton";
 import { CircleUsersIcon, LockIcon, SearchIcon, ShieldCheckIcon } from "@/components/Icons";
-import { formatRequestBudget } from "@/lib/labels";
 import type { CircleEvent, Listing, Person, Request } from "@/lib/types";
 import { formatEventDateDisplay, normalizeFa, toPersianDigits } from "@/lib/persian";
 import { CONCEPT_TIP_KEY } from "@/lib/home-tip";
@@ -290,7 +289,6 @@ export default function ClassicFeed() {
                   : visible.length
                 : undefined
             }
-            href={requestsMode ? "/requests" : undefined}
             scopeControl={
               circleCount > 0 ? (
                 <CircleScopeControl
@@ -333,7 +331,7 @@ export default function ClassicFeed() {
                     <button
                       type="button"
                       onClick={() => setFeedPage((page) => page + 1)}
-                      className="w-full rounded-xl border border-amber-200/80 dark:border-amber-500/30 bg-amber-50/50 dark:bg-amber-500/10 py-2.5 text-[13px] font-bold text-amber-900 dark:text-amber-200 active:opacity-80"
+                      className="w-full rounded-xl border border-stone-200/80 dark:border-zinc-700 bg-[color:var(--circle-surface)] dark:bg-zinc-900 py-2.5 text-[13px] font-bold text-brand-700 dark:text-brand-300 active:opacity-80"
                     >
                       درخواست‌های بیشتر
                     </button>
@@ -416,9 +414,13 @@ export default function ClassicFeed() {
                   همه
                 </button>
               </div>
-              <div className="rounded-2xl border border-amber-200/70 dark:border-amber-500/25 overflow-hidden divide-y divide-amber-100/80 dark:divide-amber-500/15 bg-amber-50/40 dark:bg-amber-500/5">
+              <div className="space-y-2.5">
                 {previewRequests.slice(0, 2).map((r) => (
-                  <RequestDenseRow key={r.id} request={r} />
+                  <RequestCard
+                    key={r.id}
+                    request={r}
+                    compactTrust
+                  />
                 ))}
               </div>
             </section>
@@ -588,11 +590,7 @@ function FeedEmptyState({
   return (
     <div className="card p-6 text-center">
       <div
-        className={`w-12 h-12 rounded-full flex items-center justify-center text-xl mx-auto mb-3 ${
-          requestsMode
-            ? "bg-amber-100 dark:bg-amber-500/20"
-            : "bg-zinc-100 dark:bg-zinc-800"
-        }`}
+        className="w-12 h-12 rounded-full flex items-center justify-center text-xl mx-auto mb-3 bg-zinc-100 dark:bg-zinc-800"
       >
         {requestsMode ? "🙋" : "🔍"}
       </div>
@@ -660,50 +658,6 @@ function EventStripCard({ event }: { event: CircleEvent }) {
         {event.capacity ? `/${toPersianDigits(event.capacity)}` : ""} نفر ·{" "}
         <span className="truncate">{event.location}</span>
       </p>
-    </Link>
-  );
-}
-
-function RequestDenseRow({ request }: { request: Request }) {
-  const getPerson = useStore((s) => s.getPerson);
-  const getOffers = useStore((s) => s.getOffers);
-  const requester = getPerson(request.requesterId);
-  const offers = getOffers(request.id);
-
-  return (
-    <Link
-      href={`/request/${request.id}`}
-      className="flex items-center gap-3 px-3.5 py-3 active:bg-amber-100/50 dark:active:bg-amber-500/10 transition-colors"
-    >
-      <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center text-lg shrink-0 ring-1 ring-amber-200/60 dark:ring-amber-500/25">
-        {request.image}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5 mb-0.5">
-          <span className="text-[10px] font-extrabold text-amber-800 dark:text-amber-200">
-            می‌خوام
-          </span>
-          {requester ? (
-            <span className="text-[10px] text-ink-faint truncate">
-              {requester.name}
-            </span>
-          ) : null}
-        </div>
-        <p className="text-[13px] font-semibold text-ink dark:text-zinc-100 line-clamp-1">
-          {request.title}
-        </p>
-        <p className="text-[11px] text-ink-faint mt-0.5 line-clamp-1">
-          {request.category}
-          {request.budget != null || request.budgetUnit === "negotiable"
-            ? ` · ${formatRequestBudget(request.budget, request.budgetUnit)}`
-            : ""}
-        </p>
-      </div>
-      {offers.length > 0 && (
-        <span className="text-[11px] font-bold text-amber-800 dark:text-amber-200 shrink-0 nums">
-          {toPersianDigits(offers.length)} پیشنهاد
-        </span>
-      )}
     </Link>
   );
 }

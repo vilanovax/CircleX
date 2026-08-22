@@ -90,7 +90,7 @@ function RequestsContent() {
         ) : (
           <div className="space-y-2.5">
             {visible.map((r) => (
-              <RequestCard key={r.id} request={r} feedStyle />
+              <RequestCard key={r.id} request={r} feedStyle compactTrust />
             ))}
           </div>
         )}

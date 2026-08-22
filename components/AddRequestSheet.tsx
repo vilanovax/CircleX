@@ -7,12 +7,15 @@ import {
   useState,
 } from "react";
 import PrivacyPicker from "@/components/PrivacyPicker";
+import AreaPicker from "@/components/AreaPicker";
 import SheetShell from "@/components/SheetShell";
 import VoiceDictateButton from "@/components/VoiceDictateButton";
 import { BackIcon, CloseIcon } from "@/components/Icons";
 import { useToast } from "@/components/Toast";
 import type { BudgetUnit, Privacy } from "@/lib/types";
 import { formatTomanInput, toEnglishDigits } from "@/lib/persian";
+import { AREA_CITYWIDE } from "@/lib/place";
+import { useStore } from "@/lib/store";
 
 const EMOJIS = [
   "🔎",
@@ -55,6 +58,7 @@ export type RequestInput = {
   budget?: number;
   budgetUnit?: BudgetUnit;
   privacy: Privacy;
+  area?: string;
 };
 
 type Draft = {
@@ -73,6 +77,7 @@ export default function AddRequestSheet({
   onBack?: () => void;
 }) {
   const { show } = useToast();
+  const meCity = useStore((s) => s.me.city);
   const draftRef = useRef<Draft>({ title: "", description: "", budget: "" });
   const [hasTitle, setHasTitle] = useState(false);
   const [category, setCategory] = useState("");
@@ -81,6 +86,7 @@ export default function AddRequestSheet({
   const [showEmojis, setShowEmojis] = useState(false);
   const [budgetUnit, setBudgetUnit] = useState<BudgetUnit>("total");
   const [privacy, setPrivacy] = useState<Privacy>("ABC");
+  const [area, setArea] = useState(AREA_CITYWIDE);
   const [submitting, setSubmitting] = useState(false);
 
   const canSubmit = hasTitle;
@@ -132,6 +138,7 @@ export default function AddRequestSheet({
               ? budgetUnit
               : undefined,
         privacy,
+        area,
       });
     } catch (err) {
       show(err instanceof Error ? err.message : "درخواست ذخیره نشد");
@@ -244,6 +251,8 @@ export default function AddRequestSheet({
         onImageChange={setImage}
         onToggle={setShowEmojis}
       />
+
+      <AreaPicker city={meCity} value={area} onChange={setArea} />
 
       <div className="mb-2">
         <PrivacyPicker

@@ -237,6 +237,7 @@ const HOME_LISTING_SELECT = {
   createdAt: true,
   privacy: true,
   city: true,
+  area: true,
   dealStatus: true,
   endorsements: {
     select: { personId: true, types: true, note: true, hidden: true },
