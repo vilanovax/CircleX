@@ -8,8 +8,11 @@ import { ApiError } from "@/lib/api";
 import { useStore } from "@/lib/store";
 import { useToast } from "@/components/Toast";
 import { listingThreadPeers } from "@/lib/thread-listing";
-import type { Listing } from "@/lib/types";
+import type { Listing, Message } from "@/lib/types";
 import OwnerListingMenuSheet from "@/components/OwnerListingMenuSheet";
+
+/** Stable empty slice so closed menus don't subscribe to inbox updates. */
+const IDLE_MESSAGES: Message[] = [];
 
 const EditListingSheet = lazyUi(() => import("@/components/EditListingSheet"));
 const DeactivateListingSheet = lazyUi(
@@ -26,16 +29,16 @@ export function useOwnerListingFlow(
 ) {
   const router = useRouter();
   const { show } = useToast();
-  const messages = useStore((s) => s.messages);
+  const [panel, setPanel] = useState<Panel | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const messages = useStore((s) => (panel ? s.messages : IDLE_MESSAGES));
   const ensureListing = useStore((s) => s.ensureListing);
   const setListingDealStatus = useStore((s) => s.setListingDealStatus);
   const deleteListing = useStore((s) => s.deleteListing);
-  const [panel, setPanel] = useState<Panel | null>(null);
-  const [deleting, setDeleting] = useState(false);
 
   const peers = useMemo(
-    () => listingThreadPeers(messages, listing.id),
-    [messages, listing.id],
+    () => (panel ? listingThreadPeers(messages, listing.id) : []),
+    [panel, messages, listing.id],
   );
   const conversationCount = peers.length;
 

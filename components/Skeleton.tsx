@@ -88,6 +88,24 @@ export function ThreadListSkeleton({ count = 4 }: { count?: number }) {
   );
 }
 
+export function ListingDetailSkeleton() {
+  return (
+    <div role="status" aria-live="polite" aria-busy="true">
+      <div className="h-[17.5rem] w-full bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+      <div className="px-4 pt-4 space-y-3 animate-pulse">
+        <div className="flex gap-1.5">
+          <div className={`h-6 w-14 ${bone} rounded-full`} />
+          <div className={`h-6 w-12 ${bone} rounded-full`} />
+        </div>
+        <div className={`h-7 w-3/4 ${bone} rounded`} />
+        <div className={`h-6 w-20 ${bone} rounded`} />
+        <div className={`h-16 w-full ${bone} rounded-xl`} />
+        <div className={`h-24 w-full ${bone} rounded-2xl`} />
+      </div>
+    </div>
+  );
+}
+
 export function ProfileSkeleton() {
   return (
     <div className="px-4 pt-4 space-y-4 animate-pulse">

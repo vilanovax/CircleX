@@ -24,20 +24,12 @@ function filterLabel(key: FeedFilter): string {
   return listingTypeLabels[key];
 }
 
-function filterEmoji(key: FeedFilter): string {
-  if (key === "all") return "✨";
-  if (key === "requests") return "🙋";
-  return listingTypeEmoji[key];
-}
-
 export default function FeedFilterBar({
   filter,
   onFilter,
-  compact,
 }: {
   filter: FeedFilter;
   onFilter: (key: FeedFilter) => void;
-  compact: boolean;
 }) {
   const [showMore, setShowMore] = useState(false);
   const morePanelRef = useRef<HTMLDivElement>(null);
@@ -54,54 +46,28 @@ export default function FeedFilterBar({
 
   return (
     <>
-      <div
-        className={`overflow-hidden transition-all duration-200 ease-out ${
-          compact ? "max-h-0 opacity-0" : "max-h-16 opacity-100"
-        }`}
-      >
-        <div className="flex gap-2 overflow-x-auto no-scrollbar px-4 pb-2.5">
-          {PRIMARY.map((f) => (
-            <button
-              key={f.key}
-              type="button"
-              onClick={() => onFilter(f.key)}
-              aria-pressed={filter === f.key}
-              className={chipClass(filter === f.key)}
-            >
-              {f.label}
-            </button>
-          ))}
+      <div className="flex gap-2 overflow-x-auto no-scrollbar px-4 pb-2.5">
+        {PRIMARY.map((f) => (
           <button
+            key={f.key}
             type="button"
-            onClick={() => setShowMore(true)}
-            aria-pressed={moreActive}
-            aria-haspopup="dialog"
-            className={chipClass(moreActive)}
+            onClick={() => onFilter(f.key)}
+            aria-pressed={filter === f.key}
+            className={chipClass(filter === f.key)}
           >
-            {moreActive ? filterLabel(filter) : "بیشتر"}
+            {f.label}
           </button>
-        </div>
+        ))}
+        <button
+          type="button"
+          onClick={() => setShowMore(true)}
+          aria-pressed={moreActive}
+          aria-haspopup="dialog"
+          className={chipClass(moreActive)}
+        >
+          {moreActive ? filterLabel(filter) : "بیشتر"}
+        </button>
       </div>
-
-      {compact && filter !== "all" && (
-        <div className="px-4 pb-2 flex items-center gap-2">
-          <span className="text-[11px] text-zinc-400 shrink-0">فیلتر فعال</span>
-          <button
-            type="button"
-            onClick={() => onFilter("all")}
-            className="chip !text-xs !py-1 !px-2.5 bg-brand-50 text-brand-700 border-brand-200 dark:bg-brand-500/15 dark:text-brand-300 dark:border-brand-500/30"
-          >
-            {filterEmoji(filter)} {filterLabel(filter)} ×
-          </button>
-          <button
-            type="button"
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            className="text-[11px] text-brand-600 font-medium mr-auto"
-          >
-            تغییر فیلتر
-          </button>
-        </div>
-      )}
 
       {showMore && (
         <div className="fixed inset-0 z-40 flex justify-center">

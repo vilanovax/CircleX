@@ -630,7 +630,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const ensureListing = useCallback(async (id: string) => {
-    const existing = listings.find((l) => l.id === id);
+    const existing = listingsRef.current.find((l) => l.id === id);
     if (existing && !existing.feedPreview) return existing;
     try {
       const { listing } = await api<{ listing: Listing }>(
@@ -651,9 +651,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       );
       return next;
     } catch {
-      return existing;
+      return listingsRef.current.find((l) => l.id === id) ?? existing;
     }
-  }, [listings]);
+  }, []);
 
   const getRequest = useCallback(
     (id: string) => requests.find((r) => r.id === id),
@@ -1189,7 +1189,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         listingsRef.current.find((l) => l.id === listingId)?.endorsements ??
         [];
       const others = previous.filter((e) => e.personId !== "me");
-      const mineWasHidden = previous.some((e) => e.personId === "me" && e.hidden);
       const mine =
         badges.length === 0 && !noteTrim
           ? []
@@ -1198,14 +1197,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                 personId: "me" as const,
                 type,
                 ...(i === 0 && noteTrim ? { note: noteTrim } : {}),
-                ...(mineWasHidden ? { hidden: true } : {}),
               }))
             : [
                 {
                   personId: "me" as const,
                   type: "word" as const,
                   note: noteTrim,
-                  ...(mineWasHidden ? { hidden: true } : {}),
                 },
               ];
       const optimistic = [...others, ...mine];

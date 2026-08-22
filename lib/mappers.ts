@@ -88,7 +88,10 @@ export function toClientEndorsements(
       ENDORSE_TYPE_SET.has(t as BadgeType),
     );
     const badges = types.filter((t) => t !== "word");
-    const hidden = row.hidden || undefined;
+    // Owner keeps archive state. Author still gets the row so it does not
+    // vanish, but without `hidden` — they should not learn it was tucked.
+    const ownerView = Boolean(sellerId && viewerId === sellerId);
+    const hidden = row.hidden && ownerView ? true : undefined;
     if (badges.length === 0) {
       if (note) out.push({ personId, type: "word", note, hidden });
       continue;

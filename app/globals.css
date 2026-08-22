@@ -193,11 +193,23 @@ body {
     transform: translateY(0);
   }
 }
-.listing-detail-hero {
-  animation: listing-rise 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
+/* No transform on the hero — it sits under the sticky header and jitters on iOS. */
 .listing-detail-rise {
   animation: listing-rise 480ms cubic-bezier(0.22, 1, 0.36, 1) 60ms both;
+}
+
+/* Skip layout/paint for off-screen profile / feed rows. */
+.cv-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 4.75rem;
+}
+.cv-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 7.5rem;
+}
+.cv-block {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 8.5rem;
 }
 
 /* Login gate — error nudge */

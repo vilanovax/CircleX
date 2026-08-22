@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useId, useMemo, useState } from "react";
+import { startTransition, useId, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { lazyUi } from "@/lib/lazy-ui";
 import { isActiveCircleMember } from "@/lib/circle-member";
@@ -18,7 +18,6 @@ import { ProfileSkeleton } from "@/components/Skeleton";
 import { ChatIcon, MoreIcon, UserPlusIcon } from "@/components/Icons";
 import {
   formatEndorsementReport,
-  isPersonAboutBadge,
   levelLabels,
   levelShort,
   relationLabels,
@@ -29,6 +28,7 @@ import {
 } from "@/lib/social-credit";
 import { canView, listingSellerSubtitle, viewerRelationPhrase } from "@/lib/trust";
 import { toPersianDigits } from "@/lib/persian";
+import { hasPeerThread } from "@/lib/thread-listing";
 import { useToast } from "@/components/Toast";
 import type {
   Listing,
@@ -49,6 +49,8 @@ type EndorsementItem = {
   endorsement: Listing["endorsements"][number];
 };
 
+const EMPTY_ENDORSEMENTS: EndorsementItem[] = [];
+
 export default function PersonClassic(_props: { params: { id: string } }) {
   const params = useParams();
   const router = useRouter();
@@ -65,9 +67,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
   const setLevel = useStore((s) => s.setLevel);
   const setRelation = useStore((s) => s.setRelation);
   const addToCircle = useStore((s) => s.addToCircle);
-  const threadLen = useStore(
-    (s) => s.messages.filter((m) => m.peerId === id).length,
-  );
+  const hasThread = useStore((s) => hasPeerThread(s.messages, id));
   const hydrated = useStore((s) => s.hydrated);
   const { show } = useToast();
   const [showIntro, setShowIntro] = useState(false);
@@ -100,50 +100,32 @@ export default function PersonClassic(_props: { params: { id: string } }) {
     if (!person) return null;
     return buildSocialCredit(
       person,
-      listings,
+      theirListings,
       theirListings.length + theirRequests.length,
     );
-  }, [person, listings, theirListings.length, theirRequests.length]);
+  }, [person, theirListings, theirRequests.length]);
 
-  const endorsementsReceived = useMemo(
-    () =>
-      theirListings.flatMap((l) =>
-        l.endorsements
-          .filter((e) => !e.hidden)
-          .map((e) => ({ listing: l, endorsement: e })),
-      ),
-    [theirListings],
-  );
-  const endorsementsGiven = useMemo(
-    () =>
-      listings.flatMap((l) =>
-        l.endorsements
-          .filter((e) => e.personId === id)
-          .map((e) => ({ listing: l, endorsement: e })),
-      ),
-    [listings, id],
-  );
+  const uniqueEndorserCount = useMemo(() => {
+    const ids = new Set<string>();
+    for (const listing of theirListings) {
+      for (const e of listing.endorsements) {
+        if (!e.hidden) ids.add(e.personId);
+      }
+    }
+    return ids.size;
+  }, [theirListings]);
 
-  const uniqueEndorserCount = useMemo(
-    () =>
-      new Set(endorsementsReceived.map((x) => x.endorsement.personId)).size,
-    [endorsementsReceived],
-  );
-
-  const aboutPersonEndorsements = useMemo(
-    () =>
-      endorsementsReceived.filter((x) =>
-        isPersonAboutBadge(x.endorsement.type),
-      ),
-    [endorsementsReceived],
-  );
-  const aboutListingEndorsements = useMemo(
-    () =>
-      endorsementsReceived.filter(
-        (x) => !isPersonAboutBadge(x.endorsement.type),
-      ),
-    [endorsementsReceived],
-  );
+  const endorsementsReceived = useMemo(() => {
+    if (!showTrustDetails) return EMPTY_ENDORSEMENTS;
+    const out: EndorsementItem[] = [];
+    for (const listing of theirListings) {
+      for (const e of listing.endorsements) {
+        if (e.hidden) continue;
+        out.push({ listing, endorsement: e });
+      }
+    }
+    return out;
+  }, [showTrustDetails, theirListings]);
 
   if (!hydrated) {
     return (
@@ -163,7 +145,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
     );
   }
 
-  const canMessage = canDirectMessage(person, threadLen > 0);
+  const canMessage = canDirectMessage(person, hasThread);
   const relationPhrase = viewerRelationPhrase(person);
   const evidenceLine = evidenceSummaryLine(socialCredit, {
     uniqueEndorsers: uniqueEndorserCount || undefined,
@@ -224,6 +206,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
               level={person.level}
               size="profile"
               showLevel={false}
+              eager
             />
             <div className="flex-1 min-w-0">
               <h2 className="text-[16px] font-extrabold text-ink dark:text-zinc-100 leading-tight">
@@ -257,13 +240,13 @@ export default function PersonClassic(_props: { params: { id: string } }) {
             >
               <TabButton
                 selected={activeTab === "listings"}
-                onClick={() => setContentTab("listings")}
+                onClick={() => startTransition(() => setContentTab("listings"))}
                 label="آگهی‌ها"
                 count={theirListings.length}
               />
               <TabButton
                 selected={activeTab === "requests"}
-                onClick={() => setContentTab("requests")}
+                onClick={() => startTransition(() => setContentTab("requests"))}
                 label="درخواست‌ها"
                 count={theirRequests.length}
               />
@@ -286,11 +269,15 @@ export default function PersonClassic(_props: { params: { id: string } }) {
           <div className="space-y-2" role="tabpanel">
             {activeTab === "listings" &&
               theirListings.map((l) => (
-                <ListingCard key={l.id} listing={l} hideTrust />
+                <div key={l.id} className="cv-card">
+                  <ListingCard listing={l} hideTrust />
+                </div>
               ))}
             {activeTab === "requests" &&
               theirRequests.map((r) => (
-                <RequestCard key={r.id} request={r} hideTrust />
+                <div key={r.id} className="cv-card">
+                  <RequestCard request={r} hideTrust />
+                </div>
               ))}
           </div>
         </section>
@@ -337,38 +324,25 @@ export default function PersonClassic(_props: { params: { id: string } }) {
       )}
 
       <section className="px-4 pt-3 pb-2">
-        <div className="card px-3.5 py-3">
-          <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-100">
-            سابقه
-          </h2>
-          {evidenceLine ? (
-            <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 nums leading-snug">
-              {evidenceLine}
-            </p>
-          ) : (
-            <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-snug">
-              هنوز معامله یا تأییدی ثبت نشده.
-            </p>
-          )}
-          <div className="flex items-center gap-3 mt-2.5">
-            <button
-              type="button"
-              onClick={() => setShowTrustDetails(true)}
-              className="text-[12px] font-bold text-brand-600 dark:text-brand-400"
-            >
-              سابقه و تأییدها ‹
-            </button>
-            {!isActiveCircleMember(person) ? (
-              <button
-                type="button"
-                onClick={() => setShowAddToCircle(true)}
-                className="text-[12px] font-bold text-brand-600 dark:text-brand-400"
-              >
-                به حلقه‌ات اضافه کن ‹
-              </button>
-            ) : null}
+        <button
+          type="button"
+          onClick={() => setShowTrustDetails(true)}
+          className="card w-full px-3.5 py-3 text-right active:bg-stone-50/80 dark:active:bg-zinc-800/50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-extrabold text-ink dark:text-zinc-100">
+                چه گفته‌اند
+              </p>
+              <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-snug">
+                {evidenceLine || "هنوز کسی چیزی نگفته"}
+              </p>
+            </div>
+            <span className="text-ink-faint text-sm shrink-0" aria-hidden>
+              ‹
+            </span>
           </div>
-        </div>
+        </button>
       </section>
 
       <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
@@ -408,12 +382,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
       {showTrustDetails && (
         <TrustDetailsSheet
           person={person}
-          socialCredit={socialCredit}
-          evidenceLine={evidenceLine}
-          uniqueEndorserCount={uniqueEndorserCount}
-          aboutPerson={aboutPersonEndorsements}
-          aboutListings={aboutListingEndorsements}
-          given={endorsementsGiven}
+          words={endorsementsReceived}
           getPerson={getPerson}
           onClose={() => setShowTrustDetails(false)}
         />
@@ -501,28 +470,41 @@ function TabButton({
   );
 }
 
+function groupWords(items: EndorsementItem[]): EndorsementItem[] {
+  const seen = new Set<string>();
+  const out: EndorsementItem[] = [];
+  for (const item of items) {
+    const key = `${item.listing.id}:${item.endorsement.personId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const note =
+      items.find(
+        (x) =>
+          x.listing.id === item.listing.id &&
+          x.endorsement.personId === item.endorsement.personId &&
+          x.endorsement.note?.trim(),
+      )?.endorsement.note ?? item.endorsement.note;
+    out.push({
+      listing: item.listing,
+      endorsement: { ...item.endorsement, note },
+    });
+  }
+  return out;
+}
+
 function TrustDetailsSheet({
   person,
-  socialCredit,
-  evidenceLine,
-  uniqueEndorserCount,
-  aboutPerson,
-  aboutListings,
-  given,
+  words,
   getPerson,
   onClose,
 }: {
   person: Person;
-  socialCredit: ReturnType<typeof buildSocialCredit>;
-  evidenceLine: string;
-  uniqueEndorserCount: number;
-  aboutPerson: EndorsementItem[];
-  aboutListings: EndorsementItem[];
-  given: EndorsementItem[];
+  words: EndorsementItem[];
   getPerson: (id: string) => Person | undefined;
   onClose: () => void;
 }) {
   const titleId = useId();
+  const rows = groupWords(words);
 
   return (
     <SheetShell onClose={onClose} labelledBy={titleId} maxHeight="88dvh">
@@ -530,152 +512,43 @@ function TrustDetailsSheet({
         id={titleId}
         className="text-[16px] font-extrabold text-ink dark:text-zinc-100 mb-1"
       >
-        سابقه و تأییدها
+        چه گفته‌اند
       </h2>
-      <p className="text-[12px] text-ink-muted mb-4">
-        سابقه و تأییدهای مربوط به {person.name} — نه احراز هویت رسمی سیرکل
+      <p className="text-[12px] text-ink-muted mb-4 leading-relaxed">
+        حرف آشنایان است، نه احراز هویت سیرکل.
       </p>
 
-      <section className="mb-4">
-        <h3 className="text-[12px] font-bold text-ink-faint mb-2">سابقه</h3>
-        <div className="rounded-xl bg-stone-50 dark:bg-zinc-800/60 px-3 py-2.5 text-[13px] leading-relaxed">
-          <p className="font-semibold text-ink dark:text-zinc-100 nums">
-            {evidenceLine || "هنوز سابقه‌ای ثبت نشده"}
-          </p>
-          <p className="text-[12px] text-ink-muted mt-1">
-            عضو سیرکل از {socialCredit.memberSince}
-            {uniqueEndorserCount > 0 && (
-              <>
-                {" "}
-            · {toPersianDigits(uniqueEndorserCount)} عضو حلقه تأیید
-                ثبت کرده‌اند
-              </>
-            )}
-          </p>
-          <p className="text-[12px] text-ink-faint mt-1">
-            پاسخ‌گویی به پیام‌ها {toPersianDigits(socialCredit.responseRate)}٪
-          </p>
-        </div>
-      </section>
-
-      {aboutPerson.length > 0 && (
-        <EndorsementBlock
-          title={`درباره ${person.name}`}
-          count={aboutPerson.length}
-          items={aboutPerson}
-          render={(item) => {
+      {rows.length === 0 ? (
+        <p className="text-[13px] text-ink-faint py-6 text-center">
+          هنوز کسی چیزی نگفته.
+        </p>
+      ) : (
+        <ul className="rounded-xl border border-stone-100 dark:border-zinc-800 divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
+          {rows.map((item, i) => {
             const endorser = getPerson(item.endorsement.personId);
-            return formatEndorsementReport(item.endorsement.type, {
-              endorserName: endorser?.name ?? "یکی از اعضای حلقه",
-              sellerName: person.name,
-              note: item.endorsement.note,
-            });
-          }}
-          hideListingLink
-        />
-      )}
-
-      {aboutListings.length > 0 && (
-        <EndorsementBlock
-          title={`درباره آگهی‌های ${person.name}`}
-          count={aboutListings.length}
-          items={aboutListings}
-          render={(item) => {
-            const endorser = getPerson(item.endorsement.personId);
-            return formatEndorsementReport(item.endorsement.type, {
-              endorserName: endorser?.name ?? "یکی از اعضای حلقه",
-              sellerName: person.name,
-              listingTitle: item.listing.title,
-              note: item.endorsement.note,
-            });
-          }}
-        />
-      )}
-
-      {given.length > 0 && (
-        <section className="mb-2">
-          <h3 className="text-[12px] font-bold text-ink-faint mb-1">
-            مشارکت {person.name}
-          </h3>
-          <p className="text-[11px] text-ink-faint mb-2 leading-relaxed">
-            {toPersianDigits(given.length)} تأیید ثبت‌شده برای دیگران — در سابقهٔ{" "}
-            {person.name} حساب نمی‌شود.
-          </p>
-          <div className="rounded-xl border border-stone-100 dark:border-zinc-800 divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
-            {given.map((item, i) => (
-              <div key={`g-${i}`} className="px-3 py-2.5">
-                <p className="text-[13px] text-ink-muted leading-snug">
+            return (
+              <li key={`${item.listing.id}-${item.endorsement.personId}-${i}`}>
+                <p className="px-3.5 pt-3 text-[13px] text-ink dark:text-zinc-100 leading-snug">
                   {formatEndorsementReport(item.endorsement.type, {
-                    endorserName: person.name,
-                    sellerName:
-                      getPerson(item.listing.sellerId)?.name ?? "فروشنده",
+                    endorserName: endorser?.name ?? "یک آشنا",
+                    sellerName: person.name,
                     listingTitle: item.listing.title,
                     note: item.endorsement.note,
                   })}
                 </p>
                 <Link
                   href={`/listing/${item.listing.id}`}
-                  className="text-[12px] text-brand-600 font-medium mt-1 block truncate"
+                  className="block px-3.5 pb-3 pt-1 text-[12px] text-brand-600 font-medium truncate"
                   onClick={onClose}
                 >
-                  آگهی: {item.listing.title} ‹
+                  {item.listing.title} ‹
                 </Link>
-              </div>
-            ))}
-          </div>
-        </section>
+              </li>
+            );
+          })}
+        </ul>
       )}
-
-      {aboutPerson.length === 0 &&
-        aboutListings.length === 0 &&
-        given.length === 0 && (
-          <p className="text-[13px] text-ink-faint py-4 text-center">
-            هنوز تأییدی برای نمایش نیست.
-          </p>
-        )}
     </SheetShell>
-  );
-}
-
-function EndorsementBlock({
-  title,
-  count,
-  items,
-  render,
-  hideListingLink = false,
-}: {
-  title: string;
-  count: number;
-  items: EndorsementItem[];
-  render: (item: EndorsementItem) => string;
-  hideListingLink?: boolean;
-}) {
-  return (
-    <section className="mb-4">
-      <div className="flex items-center gap-2 mb-2">
-        <h3 className="text-[12px] font-bold text-ink-faint">{title}</h3>
-        <span className="inline-flex min-w-[1.2rem] h-5 px-1.5 items-center justify-center rounded-full bg-stone-100 dark:bg-zinc-800 text-[10px] font-extrabold text-ink-muted nums">
-          {toPersianDigits(count)}
-        </span>
-      </div>
-      <div className="rounded-xl border border-stone-100 dark:border-zinc-800 divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
-        {items.map((item, i) => (
-          <div key={`${title}-${i}`} className="px-3 py-2.5">
-            <p className="text-[13px] text-ink dark:text-zinc-100 leading-snug">
-              {render(item)}
-            </p>
-            {!hideListingLink && (
-              <Link
-                href={`/listing/${item.listing.id}`}
-                className="text-[12px] text-brand-600 font-medium mt-1 block truncate"
-              >
-                آگهی: {item.listing.title} ‹
-              </Link>
-            )}
-          </div>
-        ))}
-      </div>
-    </section>
   );
 }
 

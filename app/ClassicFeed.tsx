@@ -34,7 +34,6 @@ const HomeEmptyCircle = lazyUi(() => import("@/components/HomeEmptyCircle"), {
   ),
 });
 
-const SCROLL_COLLAPSE_THRESHOLD = 48;
 const PREVIEW_LIMIT = 8;
 const FEED_PAGE = 12;
 
@@ -127,16 +126,8 @@ export default function ClassicFeed() {
   const [circleScope, setCircleScope] = useState<CircleScope>("network");
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
-  const [headerCompact, setHeaderCompact] = useState(false);
   const [showConceptTip, setShowConceptTip] = useState(readShowConceptTip);
   const [feedPage, setFeedPage] = useState(1);
-
-  useEffect(() => {
-    const onScroll = () => setHeaderCompact(window.scrollY > SCROLL_COLLAPSE_THRESHOLD);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   function dismissConceptTip() {
     try {
@@ -226,13 +217,7 @@ export default function ClassicFeed() {
 
   return (
     <main className="pb-24 min-h-[100dvh]">
-      <header
-        className={`sticky top-0 z-20 border-b transition-[box-shadow,background-color] duration-200 ${
-          headerCompact
-            ? "bg-[color:var(--circle-surface)] border-stone-200/70 shadow-sm dark:bg-zinc-950 dark:border-zinc-800"
-            : "bg-[color:var(--circle-canvas)] border-transparent dark:bg-zinc-950"
-        }`}
-      >
+      <header className="relative sticky top-0 z-20 border-b border-stone-200/70 bg-[color:var(--circle-surface)] before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-[50vh] before:bg-[color:var(--circle-surface)] dark:border-zinc-800 dark:bg-zinc-950 dark:before:bg-zinc-950">
         <div className="px-4 pt-[max(0.85rem,env(safe-area-inset-top))] pb-1.5">
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5 shrink-0">
@@ -264,7 +249,6 @@ export default function ClassicFeed() {
           <FeedFilterBar
             filter={filter}
             onFilter={(next) => startTransition(() => setFilter(next))}
-            compact={headerCompact}
           />
         )}
       </header>

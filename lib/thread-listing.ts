@@ -84,6 +84,36 @@ export function listingThreadPeers(
   return order;
 }
 
+/** One pass over inbox: listing id → unique peer count. */
+export function listingConversationCountMap(
+  messages: Message[],
+): Map<string, number> {
+  const peersByListing = new Map<string, Set<string>>();
+  for (let i = 0; i < messages.length; i++) {
+    const listingId = messages[i].listingId;
+    if (!listingId) continue;
+    let peers = peersByListing.get(listingId);
+    if (!peers) {
+      peers = new Set();
+      peersByListing.set(listingId, peers);
+    }
+    peers.add(messages[i].peerId);
+  }
+  const counts = new Map<string, number>();
+  peersByListing.forEach((peers, listingId) => {
+    counts.set(listingId, peers.size);
+  });
+  return counts;
+}
+
+/** True if any inbox message is with this peer (short-circuits). */
+export function hasPeerThread(messages: Message[], peerId: string): boolean {
+  for (let i = 0; i < messages.length; i++) {
+    if (messages[i].peerId === peerId) return true;
+  }
+  return false;
+}
+
 export function listingMessageCount(
   messages: Message[],
   listingId: string,

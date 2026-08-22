@@ -1,21 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useMemo, useState } from "react";
+import {
+  memo,
+  startTransition,
+  useEffect,
+  useId,
+  useMemo,
+  useState,
+} from "react";
 import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
 import Avatar from "@/components/Avatar";
-import ListingCard from "@/components/ListingCard";
 import ListingImage from "@/components/ListingImage";
 import OwnerListingManager from "@/components/OwnerListingManager";
 import SocialCreditCard from "@/components/SocialCreditCard";
-import SheetShell from "@/components/SheetShell";
 import {
   CalendarIcon,
-  CameraIcon,
   ClockIcon,
   HeartIcon,
   MapPinIcon,
@@ -23,11 +27,6 @@ import {
   PlusIcon,
   ShieldCheckIcon,
 } from "@/components/Icons";
-import {
-  isAvatarImage,
-  PICKER_AVATARS,
-  withBasePath,
-} from "@/lib/avatar";
 import { badgeLabels, eventKindEmoji, formatPrice } from "@/lib/labels";
 import { buildSocialCredit } from "@/lib/social-credit";
 import { formatEventDateDisplay, toPersianDigits } from "@/lib/persian";
@@ -35,28 +34,142 @@ import { CONCEPT_TIP_KEY } from "@/lib/home-tip";
 import { ThemeSegmented } from "@/components/ThemeToggle";
 import { useToast } from "@/components/Toast";
 import { ProfileSkeleton } from "@/components/Skeleton";
-import { listingThreadPeers } from "@/lib/thread-listing";
+import { lazyUi } from "@/lib/lazy-ui";
+import { listingConversationCountMap } from "@/lib/thread-listing";
 import type { CircleEvent, Listing } from "@/lib/types";
+
+const EditProfileSheet = lazyUi(() => import("@/components/EditProfileSheet"));
+const SavedListingCard = lazyUi(() => import("@/components/ListingCard"), {
+  loading: () => (
+    <div className="card h-[4.75rem] animate-pulse bg-stone-100 dark:bg-zinc-800" />
+  ),
+});
 
 type ActivityTab = "listings" | "events" | "saved" | "endorsements";
 
 export default function ClassicProfile() {
+  const hydrated = useStore((s) => s.hydrated);
+
+  if (!hydrated) {
+    return (
+      <main className="pb-24 min-h-[100dvh]">
+        <Header title="پروفایل" />
+        <ProfileSkeleton />
+        <BottomNav />
+      </main>
+    );
+  }
+
+  return (
+    <main className="pb-24 min-h-[100dvh]">
+      <Header title="پروفایل" />
+      <div className="px-4 pt-3 space-y-3.5 listing-detail-rise">
+        <ProfileHero />
+        <ProfileActivity />
+        <ProfileAccount />
+      </div>
+      <BottomNav />
+    </main>
+  );
+}
+
+function ProfileHero() {
   const me = useStore((s) => s.me);
-  const people = useStore((s) => s.people);
+  const myCircleCount = useStore((s) => activeCircle(s.people).length);
+  const listings = useStore((s) => s.listings);
+  const updateProfile = useStore((s) => s.updateProfile);
+  const { show } = useToast();
+  const [showEdit, setShowEdit] = useState(false);
+
+  const socialCredit = useMemo(
+    () => buildSocialCredit(me, listings, myCircleCount),
+    [me, listings, myCircleCount],
+  );
+
+  const metaLine = [
+    me.city,
+    socialCredit.lastActive ? `فعال ${socialCredit.lastActive}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <div className="space-y-3.5">
+      <section className="card p-3.5">
+        <div className="flex items-start gap-3">
+          <Avatar
+            name={me.name}
+            src={me.avatar}
+            size="lg"
+            showLevel={false}
+            eager
+          />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              <h2 className="text-[1.15rem] font-extrabold text-ink dark:text-zinc-50 tracking-tight truncate leading-tight">
+                {me.name}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowEdit(true)}
+                onPointerEnter={() => {
+                  void import("@/components/EditProfileSheet");
+                }}
+                aria-label="ویرایش پروفایل"
+                className="shrink-0 flex items-center gap-1.5 text-[12px] font-bold text-brand-700 dark:text-brand-300 bg-[color:var(--circle-surface)] dark:bg-zinc-900/80 ring-1 ring-brand-200/80 dark:ring-brand-500/30 rounded-xl px-3 py-2 shadow-sm active:scale-95 transition-transform"
+              >
+                <PencilIcon className="w-3.5 h-3.5" />
+                ویرایش
+              </button>
+            </div>
+            {metaLine ? (
+              <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-snug">
+                {metaLine}
+              </p>
+            ) : null}
+            <Link
+              href="/circle"
+              className="inline-block text-[12px] font-bold text-brand-700 dark:text-brand-300 mt-1.5"
+            >
+              {toPersianDigits(myCircleCount)} نفر در حلقه ‹
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <SocialCreditCard
+        stats={socialCredit}
+        title="سابقهٔ تو در حلقه"
+        subtitle="اعضای حلقه این را روی پروفایلت می‌بینند — امتیاز رسمی نیست"
+        hideVerified
+        collapsible
+        defaultCollapsed
+        forSelf
+      />
+
+      {showEdit ? (
+        <EditProfileSheet
+          name={me.name}
+          city={me.city ?? ""}
+          avatar={me.avatar}
+          onClose={() => setShowEdit(false)}
+          onSave={async (input) => {
+            await updateProfile(input);
+            setShowEdit(false);
+            show("پروفایل به‌روزرسانی شد ✓");
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function ProfileActivity() {
   const listings = useStore((s) => s.listings);
   const events = useStore((s) => s.events);
   const saved = useStore((s) => s.saved);
-  const sessionPhone = useStore((s) => s.sessionPhone);
-  const updateProfile = useStore((s) => s.updateProfile);
-  const signOut = useStore((s) => s.signOut);
-  const hydrated = useStore((s) => s.hydrated);
-  const router = useRouter();
-  const { show } = useToast();
-  const [showEdit, setShowEdit] = useState(false);
   const [tab, setTab] = useState<ActivityTab>("listings");
   const [hashSaved, setHashSaved] = useState(false);
-
-  const myCircleCount = useMemo(() => activeCircle(people).length, [people]);
 
   const myListings = useMemo(
     () => listings.filter((l) => l.sellerId === "me"),
@@ -73,46 +186,41 @@ export default function ClassicProfile() {
   const listingsSplit =
     liveListings.length > 0 && inactiveListings.length > 0;
 
-  const savedListings = useMemo(
-    () =>
-      saved
-        .map((id) => listings.find((l) => l.id === id))
-        .filter((l): l is NonNullable<typeof l> => Boolean(l)),
-    [saved, listings],
-  );
+  const listingById = useMemo(() => {
+    const map = new Map<string, Listing>();
+    for (const listing of listings) map.set(listing.id, listing);
+    return map;
+  }, [listings]);
+
+  const savedListings = useMemo(() => {
+    const out: Listing[] = [];
+    for (const id of saved) {
+      const listing = listingById.get(id);
+      if (listing) out.push(listing);
+    }
+    return out;
+  }, [saved, listingById]);
 
   const { hostedEvents, attendingEvents, allMyEvents } = useMemo(() => {
-    const hosted = events.filter((e) => e.hostId === "me");
-    const attending = events.filter(
-      (e) => e.hostId !== "me" && e.attendees.includes("me"),
-    );
+    const hosted: CircleEvent[] = [];
+    const attending: CircleEvent[] = [];
+    for (const event of events) {
+      if (event.hostId === "me") hosted.push(event);
+      else if (event.attendees.includes("me")) attending.push(event);
+    }
     return {
       hostedEvents: hosted,
       attendingEvents: attending,
-      allMyEvents: [...hosted, ...attending],
+      allMyEvents: hosted.length + attending.length,
     };
   }, [events]);
 
-  const socialCredit = useMemo(
-    () => buildSocialCredit(me, listings, myCircleCount),
-    [me, listings, myCircleCount],
-  );
-
-  const myGivenBadges = useMemo(() => {
-    return listings.flatMap((l) => {
-      const mine = l.endorsements.filter((e) => e.personId === "me");
-      if (mine.length === 0) return [];
-      const note = mine.find((e) => e.note?.trim())?.note;
-      const types = mine.filter((e) => e.type !== "word");
-      const shown = types.length > 0 ? types : mine;
-      return shown.map((e) => ({ l, e, note }));
-    });
-  }, [listings]);
+  const myGivenBadges = useMemo(() => givenEndorsements(listings), [listings]);
 
   const activityTabs = useMemo(
     () => [
       { id: "listings" as const, label: "آگهی‌ها", count: myListings.length },
-      { id: "events" as const, label: "رویدادها", count: allMyEvents.length },
+      { id: "events" as const, label: "رویدادها", count: allMyEvents },
       { id: "saved" as const, label: "نشان‌ها", count: savedListings.length },
       {
         id: "endorsements" as const,
@@ -122,7 +230,7 @@ export default function ClassicProfile() {
     ],
     [
       myListings.length,
-      allMyEvents.length,
+      allMyEvents,
       savedListings.length,
       myGivenBadges.length,
     ],
@@ -140,13 +248,7 @@ export default function ClassicProfile() {
     ? tab
     : (visibleTabs[0]?.id ?? "listings");
 
-  const metaLine = [me.city, socialCredit.lastActive ? `فعال ${socialCredit.lastActive}` : null]
-    .filter(Boolean)
-    .join(" · ");
-
   useEffect(() => {
-    if (!hydrated) return;
-
     if (window.location.hash === "#saved") {
       setHashSaved(true);
       setTab("saved");
@@ -159,337 +261,311 @@ export default function ClassicProfile() {
     }
 
     if (myListings.length > 0) return;
-    if (allMyEvents.length > 0) setTab("events");
+    if (allMyEvents > 0) setTab("events");
     else if (savedListings.length > 0) setTab("saved");
     else if (myGivenBadges.length > 0) setTab("endorsements");
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once after hydrate
-  }, [hydrated]);
+  }, []);
 
-  if (!hydrated) {
+  return (
+    <section id="activity" className="scroll-mt-24">
+      {showTabBar ? (
+        <div
+          className="flex gap-1 p-1 rounded-2xl bg-stone-100/90 dark:bg-zinc-800/80 overflow-x-auto no-scrollbar mb-2.5"
+          role="tablist"
+          aria-label="نوع فعالیت"
+        >
+          {visibleTabs.map((t) => {
+            const active = activeTab === t.id;
+            const listingsTab = t.id === "listings";
+            return (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => startTransition(() => setTab(t.id))}
+                className={`shrink-0 flex-1 min-w-[4.5rem] rounded-xl px-2.5 py-2 text-[12px] font-bold transition-all duration-200 ${
+                  active
+                    ? "bg-brand-600 text-white shadow-md shadow-brand-600/25"
+                    : "text-ink-muted dark:text-zinc-400 active:bg-white/60 dark:active:bg-zinc-700/50"
+                }`}
+              >
+                {t.label}
+                {listingsTab && listingsSplit ? (
+                  <span
+                    className={`ms-1 nums text-[11px] font-semibold ${
+                      active ? "text-white/85" : "text-ink-faint"
+                    }`}
+                  >
+                    {toPersianDigits(liveListings.length)}
+                    <span
+                      className={
+                        active ? "text-white/55" : "text-ink-faint/80"
+                      }
+                    >
+                      {" "}
+                      · {toPersianDigits(inactiveListings.length)}
+                    </span>
+                  </span>
+                ) : (
+                  <span
+                    className={`ms-1 nums text-[11px] font-semibold ${
+                      active ? "text-white/85" : "text-ink-faint"
+                    }`}
+                  >
+                    {toPersianDigits(t.count)}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      ) : visibleTabs.length === 1 &&
+        activeTab === "listings" &&
+        listingsSplit ? (
+        <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-200 mb-2.5 px-0.5">
+          آگهی‌ها
+        </h2>
+      ) : visibleTabs.length === 1 ? (
+        <div className="flex items-center gap-2 mb-2.5 px-0.5">
+          <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-200">
+            {visibleTabs[0].label}
+          </h2>
+          <span className="inline-flex min-w-[1.25rem] h-5 px-1.5 items-center justify-center rounded-full bg-stone-100 dark:bg-zinc-800 text-[11px] font-bold text-ink-muted nums">
+            {toPersianDigits(visibleTabs[0].count)}
+          </span>
+        </div>
+      ) : visibleTabs.length === 0 ? (
+        <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-200 mb-2.5 px-0.5">
+          فعالیت من
+        </h2>
+      ) : null}
+
+      <div
+        className="mt-0"
+        id={activeTab === "saved" ? "saved" : undefined}
+        role="tabpanel"
+      >
+        {activeTab === "listings" ? (
+          myListings.length === 0 ? (
+            <EmptyCard
+              title="هنوز آگهی‌ای نداری"
+              text="چیزی برای فروش، امانت یا هدیه ثبت کن تا حلقه ببیند."
+              href="/new"
+              cta="آگهی جدید"
+              icon="plus"
+            />
+          ) : (
+            <ProfileListingsPanel
+              listingsSplit={listingsSplit}
+              liveListings={liveListings}
+              inactiveListings={inactiveListings}
+            />
+          )
+        ) : null}
+
+        {activeTab === "events" ? (
+          allMyEvents === 0 ? (
+            <EmptyCard
+              title="رویدادی در تقویمت نیست"
+              text="به یک رویداد بپیوند یا خودت یکی بساز."
+              href="/events"
+              cta="دیدن رویدادها"
+              icon="calendar"
+            />
+          ) : (
+            <div className="space-y-2.5">
+              {hostedEvents.length > 0 && (
+                <EventGroup label="میزبانی من" events={hostedEvents} />
+              )}
+              {attendingEvents.length > 0 && (
+                <EventGroup label="شرکت می‌کنم" events={attendingEvents} />
+              )}
+            </div>
+          )
+        ) : null}
+
+        {activeTab === "saved" ? (
+          savedListings.length === 0 ? (
+            <EmptyCard
+              title="هنوز چیزی نشان نکرده‌ای"
+              text="روی ❤ هر آگهی بزن تا اینجا جمع شود."
+              href="/"
+              cta="دیدن آگهی‌ها"
+              icon="heart"
+            />
+          ) : (
+            <div className="space-y-2.5">
+              {savedListings.map((l) => (
+                <div key={l.id} className="cv-card">
+                  <SavedListingCard listing={l} compactTrust />
+                </div>
+              ))}
+            </div>
+          )
+        ) : null}
+
+        {activeTab === "endorsements" ? (
+          myGivenBadges.length === 0 ? (
+            <EmptyCard
+              title="هنوز تأییدی نداده‌ای"
+              text="از صفحهٔ آگهی بگو که دیده‌ای یا می‌شناسی‌اش."
+              href="/"
+              cta="رفتن به آگهی‌ها"
+              icon="shield"
+            />
+          ) : (
+            <div className="card divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
+              {myGivenBadges.map(({ l, e, note }, i) => (
+                <Link
+                  key={`${l.id}-${e.type}-${i}`}
+                  href={`/listing/${l.id}`}
+                  className="cv-row flex items-center gap-3 px-3.5 py-3 text-[13px] active:bg-stone-50/80"
+                >
+                  <span className="text-[11px] font-semibold text-levelA shrink-0 rounded-md bg-levelA/10 px-1.5 py-0.5">
+                    {e.type === "word" ? "حرف" : badgeLabels[e.type]}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="font-medium text-ink dark:text-zinc-100 truncate block">
+                      {l.title}
+                    </span>
+                    {note ? (
+                      <span className="text-[11px] text-ink-muted truncate block mt-0.5">
+                        «{note}»
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="text-ink-faint" aria-hidden>
+                    ‹
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function ProfileListingsPanel({
+  listingsSplit,
+  liveListings,
+  inactiveListings,
+}: {
+  listingsSplit: boolean;
+  liveListings: Listing[];
+  inactiveListings: Listing[];
+}) {
+  const messages = useStore((s) => s.messages);
+  const conversationCounts = useMemo(
+    () => listingConversationCountMap(messages),
+    [messages],
+  );
+
+  if (listingsSplit) {
     return (
-      <main className="pb-24 min-h-[100dvh]">
-        <Header title="پروفایل" />
-        <ProfileSkeleton />
-        <BottomNav />
-      </main>
+      <div className="space-y-3">
+        <ListingGroup
+          label="فعال"
+          hint="در فید حلقه دیده می‌شود"
+          listings={liveListings}
+          conversationCounts={conversationCounts}
+        />
+        <ListingGroup
+          label="غیرفعال"
+          hint="از فید برداشته شده؛ در پروفایل می‌ماند"
+          listings={inactiveListings}
+          conversationCounts={conversationCounts}
+          inactive
+        />
+      </div>
+    );
+  }
+
+  if (inactiveListings.length > 0) {
+    return (
+      <ListingGroup
+        label="غیرفعال"
+        hint="از فید برداشته شده؛ در پروفایل می‌ماند"
+        listings={inactiveListings}
+        conversationCounts={conversationCounts}
+        inactive
+      />
     );
   }
 
   return (
-    <main className="pb-24 min-h-[100dvh]">
-      <Header title="پروفایل" />
+    <ListingGroup
+      listings={liveListings}
+      conversationCounts={conversationCounts}
+    />
+  );
+}
 
-      <div className="px-4 pt-3 space-y-3.5 listing-detail-rise">
-        <section className="card p-3.5">
-          <div className="flex items-start gap-3">
-            <Avatar name={me.name} src={me.avatar} size="lg" showLevel={false} />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between gap-2">
-                <h2 className="text-[1.15rem] font-extrabold text-ink dark:text-zinc-50 tracking-tight truncate leading-tight">
-                  {me.name}
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => setShowEdit(true)}
-                  aria-label="ویرایش پروفایل"
-                  className="shrink-0 flex items-center gap-1.5 text-[12px] font-bold text-brand-700 dark:text-brand-300 bg-[color:var(--circle-surface)] dark:bg-zinc-900/80 ring-1 ring-brand-200/80 dark:ring-brand-500/30 rounded-xl px-3 py-2 shadow-sm active:scale-95 transition-transform"
-                >
-                  <PencilIcon className="w-3.5 h-3.5" />
-                  ویرایش
-                </button>
-              </div>
-              {metaLine ? (
-                <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-snug">
-                  {metaLine}
-                </p>
-              ) : null}
-              <Link
-                href="/circle"
-                className="inline-block text-[12px] font-bold text-brand-700 dark:text-brand-300 mt-1.5"
+function ProfileAccount() {
+  const sessionPhone = useStore((s) => s.sessionPhone);
+  const signOut = useStore((s) => s.signOut);
+  const router = useRouter();
+  const { show } = useToast();
+
+  return (
+    <section>
+      <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-200 mb-2.5 px-0.5">
+        حساب
+      </h2>
+      <div className="card p-3.5 space-y-3">
+        <div>
+          <p className="text-[11px] font-semibold text-ink-muted dark:text-zinc-400 mb-2">
+            حالت روشن / تیره
+          </p>
+          <ThemeSegmented />
+        </div>
+        <OwnListingsFeedSwitch />
+        <button
+          type="button"
+          onClick={() => {
+            try {
+              localStorage.removeItem(CONCEPT_TIP_KEY);
+            } catch {
+              /* ignore */
+            }
+            router.push("/");
+          }}
+          className="w-full text-[13px] font-bold text-ink dark:text-zinc-100 bg-stone-50 dark:bg-zinc-800/60 rounded-xl py-3 active:scale-[0.99] transition-transform"
+        >
+          سیرکل چطور کار می‌کند؟
+        </button>
+        {sessionPhone ? (
+          <>
+            <div className="flex items-center justify-between gap-3 rounded-xl bg-stone-50/80 dark:bg-zinc-800/50 px-3 py-2.5">
+              <span className="text-[12px] font-medium text-ink-muted">
+                موبایل
+              </span>
+              <span
+                className="text-[13px] font-extrabold nums text-ink dark:text-zinc-100 tracking-wide"
+                dir="ltr"
               >
-                {toPersianDigits(myCircleCount)} نفر در حلقه ‹
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        <SocialCreditCard
-          stats={socialCredit}
-          title="سابقهٔ تو در حلقه"
-          subtitle="اعضای حلقه این را روی پروفایلت می‌بینند — امتیاز رسمی نیست"
-          hideVerified
-          collapsible
-          defaultCollapsed
-          forSelf
-        />
-
-        <section id="activity" className="scroll-mt-24">
-          {showTabBar ? (
-            <div
-              className="flex gap-1 p-1 rounded-2xl bg-stone-100/90 dark:bg-zinc-800/80 overflow-x-auto no-scrollbar mb-2.5"
-              role="tablist"
-              aria-label="نوع فعالیت"
-            >
-              {visibleTabs.map((t) => {
-                const active = activeTab === t.id;
-                const listingsTab = t.id === "listings";
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={active}
-                    onClick={() => setTab(t.id)}
-                    className={`shrink-0 flex-1 min-w-[4.5rem] rounded-xl px-2.5 py-2 text-[12px] font-bold transition-all duration-200 ${
-                      active
-                        ? "bg-brand-600 text-white shadow-md shadow-brand-600/25"
-                        : "text-ink-muted dark:text-zinc-400 active:bg-white/60 dark:active:bg-zinc-700/50"
-                    }`}
-                  >
-                    {t.label}
-                    {listingsTab && listingsSplit ? (
-                      <span
-                        className={`ms-1 nums text-[11px] font-semibold ${
-                          active ? "text-white/85" : "text-ink-faint"
-                        }`}
-                      >
-                        {toPersianDigits(liveListings.length)}
-                        <span
-                          className={
-                            active ? "text-white/55" : "text-ink-faint/80"
-                          }
-                        >
-                          {" "}
-                          · {toPersianDigits(inactiveListings.length)}
-                        </span>
-                      </span>
-                    ) : (
-                      <span
-                        className={`ms-1 nums text-[11px] font-semibold ${
-                          active ? "text-white/85" : "text-ink-faint"
-                        }`}
-                      >
-                        {toPersianDigits(t.count)}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          ) : visibleTabs.length === 1 &&
-            activeTab === "listings" &&
-            listingsSplit ? (
-            <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-200 mb-2.5 px-0.5">
-              آگهی‌ها
-            </h2>
-          ) : visibleTabs.length === 1 ? (
-            <div className="flex items-center gap-2 mb-2.5 px-0.5">
-              <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-200">
-                {visibleTabs[0].label}
-              </h2>
-              <span className="inline-flex min-w-[1.25rem] h-5 px-1.5 items-center justify-center rounded-full bg-stone-100 dark:bg-zinc-800 text-[11px] font-bold text-ink-muted nums">
-                {toPersianDigits(visibleTabs[0].count)}
+                {formatPhoneDisplay(sessionPhone)}
               </span>
             </div>
-          ) : visibleTabs.length === 0 ? (
-            <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-200 mb-2.5 px-0.5">
-              فعالیت من
-            </h2>
-          ) : null}
-
-          <div
-            className="mt-0"
-            id={activeTab === "saved" ? "saved" : undefined}
-            role="tabpanel"
-          >
-            {activeTab === "listings" ? (
-              myListings.length === 0 ? (
-                <EmptyCard
-                  title="هنوز آگهی‌ای نداری"
-                  text="چیزی برای فروش، امانت یا هدیه ثبت کن تا حلقه ببیند."
-                  href="/new"
-                  cta="آگهی جدید"
-                  icon="plus"
-                />
-              ) : listingsSplit ? (
-                <div className="space-y-3">
-                  <ListingGroup
-                    label="فعال"
-                    hint="در فید حلقه دیده می‌شود"
-                    listings={liveListings}
-                  />
-                  <ListingGroup
-                    label="غیرفعال"
-                    hint="از فید برداشته شده؛ در پروفایل می‌ماند"
-                    listings={inactiveListings}
-                    inactive
-                  />
-                </div>
-              ) : inactiveListings.length > 0 ? (
-                <ListingGroup
-                  label="غیرفعال"
-                  hint="از فید برداشته شده؛ در پروفایل می‌ماند"
-                  listings={inactiveListings}
-                  inactive
-                />
-              ) : (
-                <ListingGroup listings={liveListings} />
-              )
-            ) : null}
-
-            {activeTab === "events" ? (
-              allMyEvents.length === 0 ? (
-                <EmptyCard
-                  title="رویدادی در تقویمت نیست"
-                  text="به یک رویداد بپیوند یا خودت یکی بساز."
-                  href="/events"
-                  cta="دیدن رویدادها"
-                  icon="calendar"
-                />
-              ) : (
-                <div className="space-y-2.5">
-                  {hostedEvents.length > 0 && (
-                    <EventGroup label="میزبانی من" events={hostedEvents} />
-                  )}
-                  {attendingEvents.length > 0 && (
-                    <EventGroup label="شرکت می‌کنم" events={attendingEvents} />
-                  )}
-                </div>
-              )
-            ) : null}
-
-            {activeTab === "saved" ? (
-              savedListings.length === 0 ? (
-                <EmptyCard
-                  title="هنوز چیزی نشان نکرده‌ای"
-                  text="روی ❤ هر آگهی بزن تا اینجا جمع شود."
-                  href="/"
-                  cta="دیدن آگهی‌ها"
-                  icon="heart"
-                />
-              ) : (
-                <div className="space-y-2.5">
-                  {savedListings.map((l) => (
-                    <ListingCard key={l.id} listing={l} compactTrust />
-                  ))}
-                </div>
-              )
-            ) : null}
-
-            {activeTab === "endorsements" ? (
-              myGivenBadges.length === 0 ? (
-                <EmptyCard
-                  title="هنوز تأییدی نداده‌ای"
-                  text="از صفحهٔ آگهی بگو که دیده‌ای یا می‌شناسی‌اش."
-                  href="/"
-                  cta="رفتن به آگهی‌ها"
-                  icon="shield"
-                />
-              ) : (
-                <div className="card divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
-                  {myGivenBadges.map(({ l, e, note }, i) => (
-                    <Link
-                      key={`${l.id}-${e.type}-${i}`}
-                      href={`/listing/${l.id}`}
-                      className="flex items-center gap-3 px-3.5 py-3 text-[13px] active:bg-stone-50/80"
-                    >
-                      <span className="text-[11px] font-semibold text-levelA shrink-0 rounded-md bg-levelA/10 px-1.5 py-0.5">
-                        {e.type === "word" ? "حرف" : badgeLabels[e.type]}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="font-medium text-ink dark:text-zinc-100 truncate block">
-                          {l.title}
-                        </span>
-                        {note ? (
-                          <span className="text-[11px] text-ink-muted truncate block mt-0.5">
-                            «{note}»
-                          </span>
-                        ) : null}
-                      </span>
-                      <span className="text-ink-faint" aria-hidden>
-                        ‹
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              )
-            ) : null}
-          </div>
-        </section>
-
-        <section>
-          <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-200 mb-2.5 px-0.5">
-            حساب
-          </h2>
-          <div className="card p-3.5 space-y-3">
-            <div>
-              <p className="text-[11px] font-semibold text-ink-muted dark:text-zinc-400 mb-2">
-                حالت روشن / تیره
-              </p>
-              <ThemeSegmented />
-            </div>
-            <OwnListingsFeedSwitch />
             <button
               type="button"
               onClick={() => {
-                try {
-                  localStorage.removeItem(CONCEPT_TIP_KEY);
-                } catch {
-                  /* ignore */
-                }
-                router.push("/");
+                void signOut().then(() => {
+                  show("خارج شدید — دوباره وارد شوید");
+                  router.replace("/");
+                });
               }}
-              className="w-full text-[13px] font-bold text-ink dark:text-zinc-100 bg-stone-50 dark:bg-zinc-800/60 rounded-xl py-3 active:scale-[0.99] transition-transform"
+              className="w-full text-[13px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 rounded-xl py-3.5 active:scale-[0.99] transition-transform"
             >
-              سیرکل چطور کار می‌کند؟
+              خروج از حساب
             </button>
-            {sessionPhone && (
-              <>
-                <div className="flex items-center justify-between gap-3 rounded-xl bg-stone-50/80 dark:bg-zinc-800/50 px-3 py-2.5">
-                  <span className="text-[12px] font-medium text-ink-muted">
-                    موبایل
-                  </span>
-                  <span
-                    className="text-[13px] font-extrabold nums text-ink dark:text-zinc-100 tracking-wide"
-                    dir="ltr"
-                  >
-                    {formatPhoneDisplay(sessionPhone)}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void signOut().then(() => {
-                      show("خارج شدید — دوباره وارد شوید");
-                      router.replace("/");
-                    });
-                  }}
-                  className="w-full text-[13px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 rounded-xl py-3.5 active:scale-[0.99] transition-transform"
-                >
-                  خروج از حساب
-                </button>
-              </>
-            )}
-          </div>
-        </section>
+          </>
+        ) : null}
       </div>
-
-      {showEdit && (
-        <EditProfileSheet
-          name={me.name}
-          city={me.city ?? ""}
-          avatar={me.avatar}
-          onClose={() => setShowEdit(false)}
-          onSave={async (input) => {
-            await updateProfile(input);
-            setShowEdit(false);
-            show("پروفایل به‌روزرسانی شد ✓");
-          }}
-        />
-      )}
-
-      <BottomNav />
-    </main>
+    </section>
   );
 }
 
@@ -540,6 +616,17 @@ function formatPhoneDisplay(phone: string): string {
   return toPersianDigits(phone);
 }
 
+function givenEndorsements(listings: Listing[]) {
+  return listings.flatMap((l) => {
+    const mine = l.endorsements.filter((e) => e.personId === "me");
+    if (mine.length === 0) return [];
+    const note = mine.find((e) => e.note?.trim())?.note;
+    const types = mine.filter((e) => e.type !== "word");
+    const shown = types.length > 0 ? types : mine;
+    return shown.map((e) => ({ l, e, note }));
+  });
+}
+
 function EventGroup({
   label,
   events,
@@ -568,11 +655,13 @@ function ListingGroup({
   label,
   hint,
   listings,
+  conversationCounts,
   inactive = false,
 }: {
   label?: string;
   hint?: string;
   listings: Listing[];
+  conversationCounts: Map<string, number>;
   inactive?: boolean;
 }) {
   return (
@@ -598,25 +687,27 @@ function ListingGroup({
         }`}
       >
         {listings.map((l) => (
-          <ProfileListingRow key={l.id} listing={l} inactive={inactive} />
+          <ProfileListingRow
+            key={l.id}
+            listing={l}
+            inactive={inactive}
+            conversationCount={conversationCounts.get(l.id) ?? 0}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-function ProfileListingRow({
+const ProfileListingRow = memo(function ProfileListingRow({
   listing,
   inactive,
+  conversationCount,
 }: {
   listing: Listing;
   inactive?: boolean;
+  conversationCount: number;
 }) {
-  const messages = useStore((s) => s.messages);
-  const conversationCount = useMemo(
-    () => listingThreadPeers(messages, listing.id).length,
-    [messages, listing.id],
-  );
   const price =
     listing.price != null ? (
       <span className="nums">{formatPrice(listing.price)}</span>
@@ -625,7 +716,7 @@ function ProfileListingRow({
     );
 
   return (
-    <div className="flex items-stretch">
+    <div className="cv-row flex items-stretch">
       <Link
         href={`/listing/${listing.id}`}
         aria-label={inactive ? `${listing.title}، غیرفعال` : listing.title}
@@ -672,217 +763,13 @@ function ProfileListingRow({
       </div>
     </div>
   );
-}
-
-function editAvatarChoices(current?: string): string[] {
-  const list: string[] = [...PICKER_AVATARS];
-  if (
-    current &&
-    isAvatarImage(current) &&
-    !current.startsWith("data:") &&
-    !list.includes(current)
-  ) {
-    list.unshift(current);
-  }
-  return list;
-}
-
-function EditProfileSheet({
-  name: initialName,
-  city: initialCity,
-  avatar: initialAvatar,
-  onClose,
-  onSave,
-}: {
-  name: string;
-  city: string;
-  avatar?: string;
-  onClose: () => void;
-  onSave: (input: {
-    name: string;
-    city: string;
-    avatar: string;
-  }) => Promise<void>;
-}) {
-  const [name, setName] = useState(initialName);
-  const [city, setCity] = useState(initialCity);
-  const [avatar, setAvatar] = useState(
-    () =>
-      initialAvatar && isAvatarImage(initialAvatar)
-        ? initialAvatar
-        : PICKER_AVATARS[0],
-  );
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const avatarGroupId = useId();
-  const choices = useMemo(() => editAvatarChoices(initialAvatar), [initialAvatar]);
-  const canSave = name.trim().length >= 2 && !busy;
-
-  async function save() {
-    const trimmed = name.trim();
-    if (trimmed.length < 2) {
-      setError("نام را حداقل با دو حرف بنویس");
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      await onSave({ name: trimmed, city: city.trim(), avatar });
-    } catch {
-      setError("ذخیره نشد. دوباره امتحان کن.");
-      setBusy(false);
-    }
-  }
-
-  return (
-    <SheetShell
-      onClose={onClose}
-      labelledBy="edit-profile-title"
-      zClass="z-50"
-      maxHeight="92dvh"
-      footer={
-        <div className="flex gap-2 pb-0.5">
-          <button
-            type="button"
-            disabled={!canSave}
-            onClick={() => void save()}
-            className="btn-primary flex-1 !py-3.5 !font-bold active:scale-[0.98] disabled:opacity-40"
-          >
-            {busy ? "در حال ذخیره…" : "ذخیره"}
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onClose}
-            className="btn-ghost flex-1 !py-3.5 active:scale-[0.98]"
-          >
-            انصراف
-          </button>
-        </div>
-      }
-    >
-      <h2
-        id="edit-profile-title"
-        className="font-extrabold text-[1.2rem] text-ink dark:text-zinc-50 tracking-tight"
-      >
-        ویرایش پروفایل
-      </h2>
-      <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
-        نام و تصویر را حلقه‌ات می‌بیند — نه غریبه‌ها.
-      </p>
-
-      <div className="flex flex-col items-center mt-5 mb-1">
-        <div className="relative">
-          <div className="rounded-full ring-[3px] ring-brand-100 dark:ring-brand-500/30 shadow-md shadow-brand-600/10">
-            <Avatar
-              name={name.trim() || initialName}
-              src={avatar}
-              size="lg"
-              showLevel={false}
-            />
-          </div>
-          <span
-            className="absolute -bottom-0.5 -start-0.5 w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center shadow-sm ring-2 ring-[color:var(--circle-surface)] dark:ring-zinc-900 pointer-events-none"
-            aria-hidden
-          >
-            <CameraIcon className="w-4 h-4" />
-          </span>
-        </div>
-      </div>
-
-      <p
-        id={avatarGroupId}
-        className="text-[12px] font-bold text-ink dark:text-zinc-200 mt-4 mb-1"
-      >
-        تصویر
-      </p>
-      <p className="text-[11px] text-ink-muted mb-2.5 leading-snug">
-        یکی را بزن تا عوض شود
-      </p>
-      <div
-        role="radiogroup"
-        aria-labelledby={avatarGroupId}
-        className="grid grid-cols-5 gap-2.5"
-      >
-        {choices.map((src, i) => {
-          const selected = avatar === src;
-          return (
-            <button
-              key={src}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              aria-label={`تصویر ${i + 1}`}
-              disabled={busy}
-              onClick={() => setAvatar(src)}
-              className={`relative aspect-square rounded-full overflow-hidden bg-zinc-100 dark:bg-zinc-800 transition-transform active:scale-95 ${
-                selected
-                  ? "ring-[2.5px] ring-brand-600 ring-offset-2 ring-offset-[color:var(--circle-surface)] dark:ring-offset-zinc-900"
-                  : "ring-1 ring-black/10 dark:ring-white/10"
-              }`}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={withBasePath(src)}
-                alt=""
-                width={64}
-                height={64}
-                className="w-full h-full object-cover"
-                draggable={false}
-              />
-            </button>
-          );
-        })}
-      </div>
-
-      <label className="block text-[12px] font-bold mt-5 mb-1.5 text-ink dark:text-zinc-200">
-        نام
-      </label>
-      <input
-        value={name}
-        onChange={(e) => {
-          setError(null);
-          setName(e.target.value);
-        }}
-        placeholder="نام تو"
-        autoComplete="name"
-        spellCheck={false}
-        disabled={busy}
-        className="field !min-h-12 !font-semibold"
-        aria-invalid={!!error}
-        aria-describedby={error ? "edit-profile-error" : undefined}
-      />
-
-      <label className="block text-[12px] font-bold mt-4 mb-1.5 text-ink dark:text-zinc-200">
-        شهر
-      </label>
-      <input
-        value={city}
-        onChange={(e) => setCity(e.target.value)}
-        placeholder="مثلاً تهران"
-        autoComplete="address-level2"
-        spellCheck={false}
-        disabled={busy}
-        className="field !min-h-12"
-      />
-      {error ? (
-        <p
-          id="edit-profile-error"
-          role="alert"
-          className="text-[12px] text-red-600 mt-2.5"
-        >
-          {error}
-        </p>
-      ) : null}
-    </SheetShell>
-  );
-}
+});
 
 function EventRow({ event }: { event: CircleEvent }) {
   return (
     <Link
       href={`/event/${event.id}`}
-      className="flex items-center gap-3 px-3 py-2.5 active:bg-stone-50/80 dark:active:bg-zinc-800/60"
+      className="cv-row flex items-center gap-3 px-3 py-2.5 active:bg-stone-50/80 dark:active:bg-zinc-800/60"
     >
       <div className="w-11 h-11 rounded-xl bg-stone-50 dark:bg-zinc-800 flex items-center justify-center text-xl shrink-0 ring-1 ring-stone-200/50 dark:ring-zinc-700">
         {event.image}

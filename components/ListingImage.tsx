@@ -4,6 +4,13 @@ import { withBasePath } from "@/lib/avatar";
 import { isListingPhoto, listingImageTint } from "@/lib/listing-image";
 import type { ListingType } from "@/lib/types";
 
+const photoPx = {
+  sm: 56,
+  md: 96,
+  lg: 48,
+  hero: 480,
+} as const;
+
 /** Emoji glyph size — keep large relative to a tight frame so it doesn't look empty. */
 const emojiSizeClass = {
   sm: "text-[1.65rem]",
@@ -57,8 +64,12 @@ export default function ListingImage({
         <img
           src={withBasePath(image)}
           alt={alt}
+          width={photoPx[size]}
+          height={size === "hero" ? 176 : photoPx[size]}
           className="absolute inset-0 h-full w-full object-cover"
           fetchPriority={priority ? "high" : "auto"}
+          loading={priority ? "eager" : "lazy"}
+          decoding={priority ? "sync" : "async"}
         />
       </div>
     );

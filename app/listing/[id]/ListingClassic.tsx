@@ -1,15 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import ListingGallery from "@/components/ListingGallery";
 import ListingSpecs from "@/components/ListingSpecs";
 import { lazyUi } from "@/lib/lazy-ui";
 import Avatar from "@/components/Avatar";
-import TrustPath from "@/components/TrustPath";
 import { EndorsementList, visibleEndorsements } from "@/components/Endorsements";
 import {
   ChatIcon,
@@ -29,7 +29,6 @@ import {
 } from "@/lib/labels";
 import type { Listing } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
-import LockedAccess from "@/components/LockedAccess";
 import { canView, listingSellerSubtitle } from "@/lib/trust";
 import { useToast } from "@/components/Toast";
 import ListingAskPrompts from "@/components/ListingAskPrompts";
@@ -39,46 +38,36 @@ import {
 } from "@/lib/listing-prompts";
 import { listingGalleryImages } from "@/lib/listing-image";
 import { useOwnerListingFlow } from "@/components/OwnerListingManager";
+import { ListingDetailSkeleton } from "@/components/Skeleton";
 
 const ReferSheet = lazyUi(() => import("@/components/ReferSheet"));
 const ReportListingSheet = lazyUi(() => import("@/components/ReportListingSheet"));
 const EndorseSheet = lazyUi(() => import("@/components/EndorseSheet"));
-
-const OWNER_PLACEHOLDER: Listing = {
-  id: "",
-  title: "",
-  description: "",
-  type: "sale",
-  category: "",
-  image: "",
-  sellerId: "me",
-  postedAt: "",
-  privacy: "ABC",
-  endorsements: [],
-  trustPath: [],
-};
+const TrustPath = lazyUi(() => import("@/components/TrustPath"), {
+  loading: () => (
+    <div className="h-16 rounded-xl bg-stone-100 dark:bg-zinc-800 animate-pulse" />
+  ),
+});
+const LockedAccess = lazyUi(() => import("@/components/LockedAccess"));
 
 export default function ListingClassic(_props: { params: { id: string } }) {
   const params = useParams();
-  const router = useRouter();
   const id = String(params.id);
   const listing = useStore((s) => s.listings.find((row) => row.id === id));
   const ensureListing = useStore((s) => s.ensureListing);
   const getPerson = useStore((s) => s.getPerson);
-  const toggleSaved = useStore((s) => s.toggleSaved);
-  const setListingDealStatus = useStore((s) => s.setListingDealStatus);
-  const saved = useStore((s) => s.saved.includes(id));
   const hydrated = useStore((s) => s.hydrated);
-  const { show } = useToast();
   const [showRefer, setShowRefer] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [showEndorse, setShowEndorse] = useState(false);
   const [pathExpanded, setPathExpanded] = useState(false);
-  const [promptsCollapsed, setPromptsCollapsed] = useState(false);
-  const lastScrollY = useRef(0);
   const [lookup, setLookup] = useState<"idle" | "loading" | "miss">("idle");
+  const [ownerMenuSlot, setOwnerMenuSlot] = useState<HTMLSpanElement | null>(
+    null,
+  );
   const listingMissing = !listing;
   const listingPreview = Boolean(listing?.feedPreview);
+
   useEffect(() => {
     if (!hydrated) return;
     if (!listingMissing && !listingPreview) {
@@ -96,43 +85,36 @@ export default function ListingClassic(_props: { params: { id: string } }) {
     };
   }, [ensureListing, hydrated, id, listingMissing, listingPreview]);
 
-  const isDirectTrust =
-    !!listing &&
-    listing.sellerId !== "me" &&
-    listing.trustPath.length === 0;
-
   useEffect(() => {
     setPathExpanded(false);
   }, [id]);
 
-  useEffect(() => {
-    const onScroll = () => {
-      const y = window.scrollY;
-      const delta = y - lastScrollY.current;
-      if (y < 48) {
-        setPromptsCollapsed(false);
-      } else if (delta > 8) {
-        setPromptsCollapsed(true);
-      } else if (delta < -8) {
-        setPromptsCollapsed(false);
-      }
-      lastScrollY.current = y;
+  const gallery = useMemo(
+    () => (listing ? listingGalleryImages(listing) : []),
+    [listing],
+  );
+  const endorsementMeta = useMemo(() => {
+    if (!listing) {
+      return { count: 0, mine: [] as Listing["endorsements"] };
+    }
+    const visible = visibleEndorsements(listing.endorsements);
+    return {
+      count: new Set(visible.map((e) => e.personId)).size,
+      mine: listing.endorsements.filter((e) => e.personId === "me"),
     };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  const owner = useOwnerListingFlow(listing ?? OWNER_PLACEHOLDER, {
-    onDeleted: () => router.replace("/profile"),
-  });
+  }, [listing]);
 
   if (!hydrated || !listing) {
     return (
       <main className="min-h-[100dvh]">
-        <Header title="آگهی" back />
-        <p className="text-center text-ink-faint py-20 text-sm">
-          {hydrated && lookup === "miss" ? "آگهی پیدا نشد." : "در حال بارگذاری…"}
-        </p>
+        <Header title="جزئیات آگهی" back />
+        {hydrated && lookup === "miss" ? (
+          <p className="text-center text-ink-faint py-20 text-sm">
+            آگهی پیدا نشد.
+          </p>
+        ) : (
+          <ListingDetailSkeleton />
+        )}
       </main>
     );
   }
@@ -140,9 +122,15 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const seller = getPerson(listing.sellerId);
   const isMine = listing.sellerId === "me";
   const inactive = listing.dealStatus === "inactive";
-  const isDirect = isDirectTrust;
-  const gallery = listingGalleryImages(listing);
+  const isDirect =
+    listing.sellerId !== "me" && listing.trustPath.length === 0;
   const displayTitle = listingDisplayTitle(listing.title, listing.type);
+  const negotiable = listing.specs?.find((s) => s.label === "قابل مذاکره");
+  const endorsementCount = endorsementMeta.count;
+  const myEndorsements = endorsementMeta.mine;
+  const buyerPrompts = listingBuyerPrompts(listing);
+  const footerPad =
+    isMine || buyerPrompts.length === 0 ? "pb-[5.75rem]" : "pb-[8.25rem]";
 
   const ctaLabel = (() => {
     if (listing.type === "donation") return "برای دریافت پیام بده";
@@ -177,25 +165,6 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const relationLine = seller
     ? listingSellerSubtitle(seller, listing.trustPath, getPerson)
     : "";
-  const buyerPrompts = listingBuyerPrompts(listing);
-  const sellerId = listing.sellerId;
-  const listingId = listing.id;
-  const negotiable = listing.specs?.find((s) => s.label === "قابل مذاکره");
-  const visibleWords = visibleEndorsements(listing.endorsements);
-  const endorsementCount = new Set(visibleWords.map((e) => e.personId)).size;
-  const myEndorsements = listing.endorsements.filter((e) => e.personId === "me");
-  const footerPad = isMine
-    ? "pb-[5.75rem]"
-    : promptsCollapsed || buyerPrompts.length === 0
-      ? "pb-[5.75rem]"
-      : "pb-[8.25rem]";
-
-  function goAsk(prompt: BuyerPrompt) {
-    const q = encodeURIComponent(prompt.draft);
-    router.push(
-      `/messages/${sellerId}?draft=${q}&listing=${encodeURIComponent(listingId)}`,
-    );
-  }
 
   return (
     <main className={`${footerPad} min-h-[100dvh]`}>
@@ -203,54 +172,17 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         title="جزئیات آگهی"
         back
         action={
-          <div className="flex items-center gap-0.5">
-            {isMine ? (
-              <button
-                type="button"
-                onClick={owner.openMenu}
-                className="inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none text-ink-faint hover:bg-stone-200/50 dark:hover:bg-zinc-800 transition-colors"
-                aria-label="گزینه‌های آگهی"
-                aria-haspopup="dialog"
-                aria-expanded={owner.menuOpen}
-                title="گزینه‌های آگهی"
-              >
-                <MoreIcon className="w-5 h-5" />
-              </button>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setShowReport(true)}
-                  className="inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none text-ink-faint hover:bg-stone-200/50 dark:hover:bg-zinc-800 transition-colors"
-                  aria-label="گزارش آگهی"
-                  title="گزارش آگهی"
-                >
-                  <FlagIcon className="w-5 h-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void toggleSaved(id).then(() =>
-                      show(
-                        saved
-                          ? "از نشان‌شده‌های پروفایل حذف شد"
-                          : "در پروفایل ذخیره شد ✓",
-                      ),
-                    );
-                  }}
-                  className={`inline-grid size-9 shrink-0 place-items-center appearance-none overflow-hidden rounded-xl p-0 leading-none transition-colors ${
-                    saved
-                      ? "text-pink-500 bg-pink-50 dark:bg-pink-500/10"
-                      : "text-ink-faint hover:bg-stone-200/50 dark:hover:bg-zinc-800"
-                  }`}
-                  aria-label={saved ? "حذف از نشان‌شده‌ها" : "نشان کردن"}
-                  aria-pressed={saved}
-                >
-                  <HeartIcon className="w-5 h-5" filled={saved} />
-                </button>
-              </>
-            )}
-          </div>
+          isMine ? (
+            <span ref={setOwnerMenuSlot} className="contents" />
+          ) : (
+            <ListingHeaderActions
+              listingId={listing.id}
+              onReport={() => setShowReport(true)}
+              onReportIntent={() => {
+                void import("@/components/ReportListingSheet");
+              }}
+            />
+          )
         }
       />
 
@@ -266,21 +198,21 @@ export default function ListingClassic(_props: { params: { id: string } }) {
           <span className={`chip ${listingTypeChip[listing.type]}`}>
             {listingTypeLabels[listing.type]}
           </span>
-          {listing.category && (
+          {listing.category ? (
             <span className="chip !text-[11px] !py-0.5 bg-transparent text-ink-muted ring-1 ring-stone-200/60 dark:ring-zinc-700">
               {listing.category}
             </span>
-          )}
-          {listing.condition && (
+          ) : null}
+          {listing.condition ? (
             <span className="chip !text-[11px] !py-0.5 bg-transparent text-ink-muted ring-1 ring-stone-200/60 dark:ring-zinc-700">
               {listing.condition}
             </span>
-          )}
-          {inactive && (
+          ) : null}
+          {inactive ? (
             <span className="chip !text-[11px] !py-0.5 bg-stone-100 text-ink-muted dark:bg-zinc-800 dark:text-zinc-300">
               غیرفعال
             </span>
-          )}
+          ) : null}
         </div>
 
         <h1 className="text-[1.4rem] font-extrabold text-ink dark:text-zinc-50 leading-[1.35] tracking-tight">
@@ -297,11 +229,11 @@ export default function ListingClassic(_props: { params: { id: string } }) {
               {listing.type === "service" ? "توافقی" : "رایگان"}
             </span>
           )}
-          {negotiable?.value && /بله|کمی/.test(negotiable.value) && (
+          {negotiable?.value && /بله|کمی/.test(negotiable.value) ? (
             <span className="text-[12px] font-bold text-ink-muted dark:text-zinc-400">
               · قابل مذاکره
             </span>
-          )}
+          ) : null}
         </div>
 
         <p className="text-[13.5px] text-ink-muted dark:text-zinc-300 leading-[1.8] mt-3.5 whitespace-pre-line">
@@ -321,17 +253,16 @@ export default function ListingClassic(_props: { params: { id: string } }) {
             isMine ? "تو" : seller?.name,
           )}
         </p>
-        {isMine && inactive && (
+        {isMine && inactive ? (
           <p className="mt-3 rounded-2xl bg-stone-100/80 dark:bg-zinc-800/70 px-3.5 py-2.5 text-[12.5px] text-ink-muted dark:text-zinc-300 leading-relaxed">
             این آگهی غیرفعال است — حلقه آن را در فید نمی‌بیند. در پروفایل تو
             می‌ماند.
           </p>
-        )}
+        ) : null}
       </div>
 
-      {/* Combined seller + relation for direct; separate path card for FoF */}
-      {seller && !isMine && (
-        <section className="px-4 pt-3.5">
+      {seller && !isMine ? (
+        <section className="px-4 pt-3.5 cv-block">
           <p className="text-[11px] font-semibold text-ink-faint mb-2 px-0.5">
             فروشنده
           </p>
@@ -369,11 +300,10 @@ export default function ListingClassic(_props: { params: { id: string } }) {
             </Link>
           </div>
         </section>
-      )}
+      ) : null}
 
-      {/* FoF only: trust path card */}
-      {!isMine && !isDirect && (
-        <section className="px-4 pt-3">
+      {!isMine && !isDirect ? (
+        <section className="px-4 pt-3 cv-block">
           <div className="card p-4">
             <div className="flex items-center gap-2 mb-3">
               <span className="w-8 h-8 rounded-xl bg-[color:var(--circle-trust)]/12 text-[color:var(--circle-trust)] flex items-center justify-center shrink-0">
@@ -401,17 +331,17 @@ export default function ListingClassic(_props: { params: { id: string } }) {
             >
               {pathExpanded ? "بستن جزئیات مسیر" : "جزئیات بیشتر مسیر ‹"}
             </button>
-            {pathExpanded && (
+            {pathExpanded ? (
               <p className="mt-2 text-[12px] text-ink-muted leading-relaxed">
                 زیر هر نفر نوشته شده چه نسبتی با نفر بعدی مسیر دارد — تا بدانی
                 چرا این آگهی به تو رسیده.
               </p>
-            )}
+            ) : null}
           </div>
         </section>
-      )}
+      ) : null}
 
-      <section className="px-4 pt-3">
+      <section className="px-4 pt-3 cv-block">
         <div className="card px-3.5 py-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -441,6 +371,9 @@ export default function ListingClassic(_props: { params: { id: string } }) {
               <button
                 type="button"
                 onClick={() => setShowEndorse(true)}
+                onPointerEnter={() => {
+                  void import("@/components/EndorseSheet");
+                }}
                 className="shrink-0 text-[12px] font-bold text-brand-600 dark:text-brand-400 py-0.5"
               >
                 {myEndorsements.length > 0 ? "ویرایش ‹" : "اگر دیده‌ای، بگو ‹"}
@@ -450,11 +383,14 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         </div>
       </section>
 
-      {!isMine && (
-        <section className="px-4 pt-2 pb-4">
+      {!isMine ? (
+        <section className="px-4 pt-2 pb-4 cv-block">
           <button
             type="button"
             onClick={() => setShowRefer(true)}
+            onPointerEnter={() => {
+              void import("@/components/ReferSheet");
+            }}
             className="w-full flex items-center gap-3 px-1 py-2 rounded-xl text-start active:opacity-80 transition-opacity"
           >
             <span className="w-9 h-9 rounded-xl bg-brand-50 dark:bg-brand-500/15 text-brand-600 dark:text-brand-400 flex items-center justify-center shrink-0">
@@ -473,93 +409,19 @@ export default function ListingClassic(_props: { params: { id: string } }) {
             </span>
           </button>
         </section>
+      ) : null}
+
+      {isMine ? (
+        <ListingOwnerChrome listing={listing} menuSlot={ownerMenuSlot} />
+      ) : (
+        <ListingBuyerFooter
+          listing={listing}
+          ctaLabel={ctaLabel}
+          prompts={buyerPrompts}
+        />
       )}
 
-      {isMine && (
-        <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
-          <div className="app-shell !min-h-0 !shadow-none bg-transparent">
-            <div className="pointer-events-auto border-t border-stone-200/60 dark:border-zinc-800 bg-[color:var(--circle-surface)]/92 dark:bg-zinc-900/92 backdrop-blur-xl px-3 pt-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))]">
-              {inactive ? (
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void setListingDealStatus(listing.id, "available");
-                      show("آگهی دوباره در حلقه دیده می‌شود");
-                    }}
-                    className="btn-primary flex-1 !py-3.5"
-                  >
-                    دوباره فعال کن
-                  </button>
-                  <button
-                    type="button"
-                    onClick={owner.openEdit}
-                    className="btn-ghost flex-1 !py-3.5"
-                  >
-                    ویرایش آگهی
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={owner.openEdit}
-                  className="btn-primary w-full !py-3.5 flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20"
-                >
-                  <PencilIcon className="w-5 h-5" />
-                  ویرایش آگهی
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {!isMine && (
-        <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
-          <div className="app-shell !min-h-0 !shadow-none bg-transparent">
-            <div className="pointer-events-auto border-t border-stone-200/60 dark:border-zinc-800 bg-[color:var(--circle-surface)]/92 dark:bg-zinc-900/92 backdrop-blur-xl px-3 pt-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))]">
-              {buyerPrompts.length > 0 && (
-                <div
-                  className={`overflow-hidden transition-[max-height,opacity,margin] duration-200 ease-out ${
-                    promptsCollapsed
-                      ? "max-h-0 opacity-0 mb-0"
-                      : "max-h-14 opacity-100 mb-2"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="shrink-0 text-[10px] font-bold text-ink-faint tracking-wide">
-                      بپرس
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <ListingAskPrompts
-                        title="سؤال آماده"
-                        compact
-                        hideTitle
-                        prompts={buyerPrompts}
-                        onPick={goAsk}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={() =>
-                  router.push(
-                    `/messages/${listing.sellerId}?listing=${encodeURIComponent(listing.id)}`,
-                  )
-                }
-                className="btn-primary w-full !py-3.5 flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20"
-              >
-                <ChatIcon className="w-5 h-5" />
-                {ctaLabel}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showEndorse && (
+      {showEndorse ? (
         <EndorseSheet
           listingId={listing.id}
           listingTitle={listing.title}
@@ -567,22 +429,233 @@ export default function ListingClassic(_props: { params: { id: string } }) {
           myEndorsements={myEndorsements}
           onClose={() => setShowEndorse(false)}
         />
-      )}
-      {showRefer && (
+      ) : null}
+      {showRefer ? (
         <ReferSheet
           listingId={listing.id}
           listingTitle={listing.title}
           onClose={() => setShowRefer(false)}
         />
-      )}
-      {showReport && (
+      ) : null}
+      {showReport ? (
         <ReportListingSheet
           listingId={listing.id}
           listingTitle={listing.title}
           onClose={() => setShowReport(false)}
         />
-      )}
-      {isMine ? owner.sheets : null}
+      ) : null}
     </main>
+  );
+}
+
+function ListingHeaderActions({
+  listingId,
+  onReport,
+  onReportIntent,
+}: {
+  listingId: string;
+  onReport: () => void;
+  onReportIntent: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-0.5">
+      <button
+        type="button"
+        onClick={onReport}
+        onPointerEnter={onReportIntent}
+        className="inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none text-ink-faint hover:bg-stone-200/50 dark:hover:bg-zinc-800 transition-colors"
+        aria-label="گزارش آگهی"
+        title="گزارش آگهی"
+      >
+        <FlagIcon className="w-5 h-5" />
+      </button>
+      <ListingSaveButton id={listingId} />
+    </div>
+  );
+}
+
+function ListingSaveButton({ id }: { id: string }) {
+  const saved = useStore((s) => s.saved.includes(id));
+  const toggleSaved = useStore((s) => s.toggleSaved);
+  const { show } = useToast();
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void toggleSaved(id).then(() =>
+          show(saved ? "از نشان‌شده‌های پروفایل حذف شد" : "در پروفایل ذخیره شد ✓"),
+        );
+      }}
+      className={`inline-grid size-9 shrink-0 place-items-center appearance-none overflow-hidden rounded-xl p-0 leading-none transition-colors ${
+        saved
+          ? "text-pink-500 bg-pink-50 dark:bg-pink-500/10"
+          : "text-ink-faint hover:bg-stone-200/50 dark:hover:bg-zinc-800"
+      }`}
+      aria-label={saved ? "حذف از نشان‌شده‌ها" : "نشان کردن"}
+      aria-pressed={saved}
+    >
+      <HeartIcon className="w-5 h-5" filled={saved} />
+    </button>
+  );
+}
+
+function ListingOwnerChrome({
+  listing,
+  menuSlot,
+}: {
+  listing: Listing;
+  menuSlot: HTMLElement | null;
+}) {
+  const router = useRouter();
+  const { show } = useToast();
+  const setListingDealStatus = useStore((s) => s.setListingDealStatus);
+  const owner = useOwnerListingFlow(listing, {
+    onDeleted: () => router.replace("/profile"),
+  });
+  const inactive = listing.dealStatus === "inactive";
+
+  const menu = (
+    <button
+      type="button"
+      onClick={owner.openMenu}
+      className="inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none text-ink-faint hover:bg-stone-200/50 dark:hover:bg-zinc-800 transition-colors"
+      aria-label="گزینه‌های آگهی"
+      aria-haspopup="dialog"
+      aria-expanded={owner.menuOpen}
+      title="گزینه‌های آگهی"
+    >
+      <MoreIcon className="w-5 h-5" />
+    </button>
+  );
+
+  return (
+    <>
+      {menuSlot ? createPortal(menu, menuSlot) : null}
+      <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
+        <div className="app-shell !min-h-0 !shadow-none bg-transparent">
+          <div className="pointer-events-auto border-t border-stone-200/60 dark:border-zinc-800 bg-[color:var(--circle-surface)]/92 dark:bg-zinc-900/92 backdrop-blur-md px-3 pt-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))]">
+            {inactive ? (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    void setListingDealStatus(listing.id, "available");
+                    show("آگهی دوباره در حلقه دیده می‌شود");
+                  }}
+                  className="btn-primary flex-1 !py-3.5"
+                >
+                  دوباره فعال کن
+                </button>
+                <button
+                  type="button"
+                  onClick={owner.openEdit}
+                  className="btn-ghost flex-1 !py-3.5"
+                >
+                  ویرایش آگهی
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={owner.openEdit}
+                className="btn-primary w-full !py-3.5 flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20"
+              >
+                <PencilIcon className="w-5 h-5" />
+                ویرایش آگهی
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+      {owner.sheets}
+    </>
+  );
+}
+
+function ListingBuyerFooter({
+  listing,
+  ctaLabel,
+  prompts,
+}: {
+  listing: Listing;
+  ctaLabel: string;
+  prompts: BuyerPrompt[];
+}) {
+  const router = useRouter();
+  const [collapsed, setCollapsed] = useState(false);
+  const lastScrollY = useRef(0);
+  const rafRef = useRef(0);
+
+  useEffect(() => {
+    const onScroll = () => {
+      if (rafRef.current) return;
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = 0;
+        const y = window.scrollY;
+        const delta = y - lastScrollY.current;
+        if (y < 48) setCollapsed(false);
+        else if (delta > 8) setCollapsed(true);
+        else if (delta < -8) setCollapsed(false);
+        lastScrollY.current = y;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
+  function goAsk(prompt: BuyerPrompt) {
+    const q = encodeURIComponent(prompt.draft);
+    router.push(
+      `/messages/${listing.sellerId}?draft=${q}&listing=${encodeURIComponent(listing.id)}`,
+    );
+  }
+
+  return (
+    <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
+      <div className="app-shell !min-h-0 !shadow-none bg-transparent">
+        <div className="pointer-events-auto border-t border-stone-200/60 dark:border-zinc-800 bg-[color:var(--circle-surface)]/92 dark:bg-zinc-900/92 backdrop-blur-md px-3 pt-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))]">
+          {prompts.length > 0 ? (
+            <div
+              className={`overflow-hidden transition-[max-height,opacity,margin] duration-200 ease-out ${
+                collapsed
+                  ? "max-h-0 opacity-0 mb-0"
+                  : "max-h-14 opacity-100 mb-2"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="shrink-0 text-[10px] font-bold text-ink-faint tracking-wide">
+                  بپرس
+                </span>
+                <div className="min-w-0 flex-1">
+                  <ListingAskPrompts
+                    title="سؤال آماده"
+                    compact
+                    hideTitle
+                    prompts={prompts}
+                    onPick={goAsk}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : null}
+          <button
+            type="button"
+            onClick={() =>
+              router.push(
+                `/messages/${listing.sellerId}?listing=${encodeURIComponent(listing.id)}`,
+              )
+            }
+            className="btn-primary w-full !py-3.5 flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20"
+          >
+            <ChatIcon className="w-5 h-5" />
+            {ctaLabel}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

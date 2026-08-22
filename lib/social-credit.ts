@@ -143,26 +143,23 @@ export function formatPercent(value: number): string {
   return `${toPersianDigits(value)}٪`;
 }
 
-/** Human-readable evidence line for profile heroes (no opaque score). */
+/** One human line for another member’s profile — not a score. */
 export function evidenceSummaryLine(
   stats: SocialCreditStats,
   opts?: { uniqueEndorsers?: number },
 ): string {
+  const unique = opts?.uniqueEndorsers ?? 0;
+  const deals = stats.successfulDeals;
   const parts: string[] = [];
-  if (stats.successfulDeals > 0) {
-    parts.push(`${toPersianDigits(stats.successfulDeals)} معامله تکمیل‌شده`);
+  if (deals === 1) parts.push("یک معامله در حلقه");
+  else if (deals > 1) {
+    parts.push(`${toPersianDigits(deals)} معامله در حلقه`);
   }
-  if (stats.endorsementsReceived > 0) {
-    const unique = opts?.uniqueEndorsers;
-    if (unique != null && unique > 0) {
-      parts.push(
-        `${toPersianDigits(stats.endorsementsReceived)} تأیید از ${toPersianDigits(unique)} عضو حلقه`,
-      );
-    } else {
-      parts.push(
-        `${toPersianDigits(stats.endorsementsReceived)} تأیید از اعضای حلقه`,
-      );
-    }
+  if (unique === 1) parts.push("یک آشنا روی آگهی‌اش حرف گذاشته");
+  else if (unique > 1) {
+    parts.push(`${toPersianDigits(unique)} آشنا حرف گذاشته‌اند`);
+  } else if (stats.endorsementsReceived > 0) {
+    parts.push("آشنایان روی آگهی‌اش حرف گذاشته‌اند");
   }
   return parts.join(" · ");
 }

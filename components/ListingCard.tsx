@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 import type { Listing } from "@/lib/types";
 import { activeCircle } from "@/lib/circle-member";
@@ -9,7 +10,7 @@ import { privacyAudience } from "@/lib/trust";
 import ListingImage from "./ListingImage";
 import TrustHighlight from "./TrustHighlight";
 
-export default function ListingCard({
+function ListingCard({
   listing,
   compactTrust = false,
   hideTrust = false,
@@ -45,7 +46,9 @@ export default function ListingCard({
         <TrustHighlight
           posterId={listing.sellerId}
           trustPath={listing.trustPath}
-          endorsements={listing.endorsements.filter((e) => !e.hidden)}
+          endorsements={listing.endorsements.filter(
+            (e) => !e.hidden || e.personId === "me",
+          )}
           variant={compactTrust ? "compact" : "default"}
         />
       )}
@@ -133,3 +136,5 @@ export default function ListingCard({
     </article>
   );
 }
+
+export default memo(ListingCard);

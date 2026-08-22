@@ -1,17 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { preload } from "react-dom";
 import { withBasePath } from "@/lib/avatar";
 import { isListingPhoto, listingImageTint } from "@/lib/listing-image";
 import type { ListingType } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
 
+const HERO_W = 480;
+const HERO_H = 280;
+
 function slideIndex(el: HTMLElement, total: number): number {
   const w = el.clientWidth;
   if (!w || total <= 0) return 0;
-  // Some RTL engines report negative scrollLeft even on dir=ltr children.
   const left = Math.abs(el.scrollLeft);
   return Math.max(0, Math.min(total - 1, Math.round(left / w)));
+}
+
+function photoSrc(src: string): string {
+  return withBasePath(src);
 }
 
 export default function ListingGallery({
@@ -27,20 +34,42 @@ export default function ListingGallery({
 }) {
   const tint = listingImageTint(category, type);
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef(0);
   const [index, setIndex] = useState(0);
   const slides = images.length > 0 ? images : ["📦"];
   const total = slides.length;
   const multi = total > 1;
+  const first = slides[0] ?? "";
+  const firstPhoto = isListingPhoto(first);
+
+  if (firstPhoto && !first.startsWith("data:")) {
+    preload(photoSrc(first), { as: "image", fetchPriority: "high" });
+  }
 
   const syncIndex = useCallback(() => {
     const el = scrollerRef.current;
     if (!el) return;
-    setIndex(slideIndex(el, total));
+    const next = slideIndex(el, total);
+    setIndex((prev) => (prev === next ? prev : next));
   }, [total]);
 
   useEffect(() => {
     syncIndex();
   }, [slides, syncIndex]);
+
+  useEffect(() => {
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
+  const onScroll = () => {
+    if (rafRef.current) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = 0;
+      syncIndex();
+    });
+  };
 
   const goTo = (i: number) => {
     const el = scrollerRef.current;
@@ -51,35 +80,45 @@ export default function ListingGallery({
   };
 
   return (
-    <div className="relative z-0 listing-detail-hero">
+    <div className="relative z-0 overflow-hidden listing-detail-hero">
       <div
         ref={scrollerRef}
-        onScroll={syncIndex}
+        onScroll={multi ? onScroll : undefined}
         dir="ltr"
-        className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar h-[17.5rem] w-full"
+        className="flex overflow-x-auto overscroll-x-contain snap-x snap-mandatory no-scrollbar h-[17.5rem] w-full"
         role="region"
         aria-roledescription="carousel"
         aria-label={`گالری تصاویر ${alt}`}
       >
         {slides.map((src, i) => {
           const photo = isListingPhoto(src);
+          const eager = i === 0;
+          const nearby = Math.abs(i - index) <= 1;
+          const load = eager || nearby;
           return (
             <div
               key={`${i}-${src.slice(0, 48)}`}
               className={`relative h-[17.5rem] w-full shrink-0 snap-center overflow-hidden bg-gradient-to-br ${tint}`}
               aria-hidden={i !== index}
             >
-              {photo ? (
+              {photo && load ? (
                 <img
-                  src={withBasePath(src)}
+                  src={photoSrc(src)}
                   alt={
                     i === 0
                       ? alt
                       : `${alt} — تصویر ${toPersianDigits(i + 1)}`
                   }
+                  width={HERO_W}
+                  height={HERO_H}
                   className="absolute inset-0 h-full w-full object-cover"
+                  fetchPriority={eager ? "high" : "auto"}
+                  loading={eager ? "eager" : "lazy"}
+                  decoding={eager ? "sync" : "async"}
+                  sizes="(max-width: 480px) 100vw, 480px"
+                  draggable={false}
                 />
-              ) : (
+              ) : photo ? null : (
                 <div className="flex h-full w-full items-center justify-center text-7xl leading-none">
                   <span className="select-none" aria-hidden>
                     {src}
@@ -96,7 +135,7 @@ export default function ListingGallery({
         aria-hidden
       />
 
-      {multi && (
+      {multi ? (
         <>
           <div className="absolute top-3 start-3 z-10 rounded-full bg-black/50 text-white text-[11px] font-bold px-2.5 py-1 nums backdrop-blur-md tracking-wide">
             {toPersianDigits(index + 1)}
@@ -125,7 +164,7 @@ export default function ListingGallery({
             ))}
           </div>
         </>
-      )}
+      ) : null}
     </div>
   );
 }

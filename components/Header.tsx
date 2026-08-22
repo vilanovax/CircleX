@@ -32,12 +32,7 @@ export default function Header({
   }
 
   return (
-    <header className="sticky top-0 z-30 isolate pt-[env(safe-area-inset-top,0px)]">
-      {/* Blur on a sibling layer so Safari doesn't clip header actions */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[color:var(--circle-surface)]/92 dark:bg-zinc-900/90 backdrop-blur-xl border-b border-stone-200/60 dark:border-zinc-800"
-      />
+    <header className="relative sticky top-0 z-30 border-b border-stone-200/60 bg-[color:var(--circle-surface)] pt-[env(safe-area-inset-top,0px)] before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-[50vh] before:bg-[color:var(--circle-surface)] dark:border-zinc-800 dark:bg-zinc-900 dark:before:bg-zinc-900">
       <div className="relative flex min-h-14 items-center gap-2 px-4 py-2">
         {back && (
           <button

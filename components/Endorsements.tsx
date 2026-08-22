@@ -17,7 +17,7 @@ type PersonWord = {
 };
 
 export function visibleEndorsements(endorsements: Endorsement[]): Endorsement[] {
-  return endorsements.filter((e) => !e.hidden);
+  return endorsements.filter((e) => !e.hidden || e.personId === "me");
 }
 
 export function groupByPerson(endorsements: Endorsement[]): PersonWord[] {
@@ -51,7 +51,9 @@ export function EndorsementSummary({
   endorsements: Endorsement[];
 }) {
   const getPerson = useStore((s) => s.getPerson);
-  const groups = groupByPerson(endorsements);
+  const groups = groupByPerson(endorsements).filter(
+    (g) => !g.hidden || g.personId === "me",
+  );
   if (groups.length === 0) return null;
 
   if (groups.length === 1) {
@@ -112,6 +114,7 @@ export function EndorsementList({
   );
   const { show } = useToast();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const groups = groupByPerson(endorsements);
   if (groups.length === 0) {
     return (
@@ -134,12 +137,20 @@ export function EndorsementList({
     }
   }
 
-  const visibleGroups = groups.filter((g) => !g.hidden);
-  const hiddenGroups = groups.filter((g) => g.hidden);
+  const liveGroups = groups.filter((g) => !g.hidden || g.personId === "me");
+  const hiddenGroups = canHide
+    ? groups.filter((g) => g.hidden && g.personId !== "me")
+    : [];
+  const preview = 3;
+  const shownLive =
+    showAll || liveGroups.length <= preview
+      ? liveGroups
+      : liveGroups.slice(0, preview);
+  const moreCount = liveGroups.length - shownLive.length;
 
   return (
     <ul className="space-y-3">
-      {visibleGroups.map((group) => (
+      {shownLive.map((group) => (
         <VisibleWordRow
           key={group.personId}
           group={group}
@@ -152,15 +163,24 @@ export function EndorsementList({
           }
         />
       ))}
+      {moreCount > 0 ? (
+        <li>
+          <button
+            type="button"
+            onClick={() => setShowAll(true)}
+            className="text-[12px] font-bold text-brand-600 dark:text-brand-400"
+          >
+            {toPersianDigits(moreCount)} حرف دیگر ‹
+          </button>
+        </li>
+      ) : null}
       {hiddenGroups.map((group) => (
         <HiddenWordRow
           key={group.personId}
           group={group}
           busy={busyId === group.personId}
           onShow={
-            canHide && listingId && group.personId !== "me"
-              ? () => toggle(group.personId, false)
-              : undefined
+            listingId ? () => toggle(group.personId, false) : undefined
           }
         />
       ))}
@@ -239,8 +259,7 @@ function HiddenWordRow({
 }) {
   const getPerson = useStore((s) => s.getPerson);
   const p = getPerson(group.personId);
-  const name = group.personId === "me" ? "تو" : (p?.name ?? "یک آشنا");
-  const isOwn = group.personId === "me";
+  const name = p?.name ?? "یک آشنا";
   return (
     <li className="flex items-center gap-2.5 rounded-xl bg-stone-50 dark:bg-zinc-800/55 px-2.5 py-2 ring-1 ring-stone-200/70 dark:ring-zinc-700/80">
       <span className="opacity-45 shrink-0">
@@ -254,11 +273,6 @@ function HiddenWordRow({
         <p className="text-[13px] font-semibold text-ink-muted dark:text-zinc-400 truncate">
           {name}
         </p>
-        {isOwn ? (
-          <p className="text-[11px] text-ink-faint mt-0.5 leading-snug">
-            صاحب آگهی این حرف را نشان نمی‌دهد
-          </p>
-        ) : null}
       </div>
       <span className="shrink-0 rounded-full bg-stone-200/90 dark:bg-zinc-700 px-2 py-0.5 text-[10px] font-bold text-ink-muted dark:text-zinc-400">
         پنهان از آگهی
