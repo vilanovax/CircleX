@@ -38,6 +38,29 @@ export async function peopleForMessagePeers(
   return [...fromCircle, ...extras];
 }
 
+async function peerHasVisibleOffering(
+  viewerId: string,
+  peerId: string,
+): Promise<boolean> {
+  const access = await listingAccess(viewerId, peerId);
+  if (!access.ok) return false;
+
+  const [listing, request] = await Promise.all([
+    prisma.marketListing.findFirst({
+      where: {
+        sellerId: peerId,
+        NOT: { dealStatus: "inactive" },
+      },
+      select: { id: true },
+    }),
+    prisma.wantRequest.findFirst({
+      where: { requesterId: peerId },
+      select: { id: true },
+    }),
+  ]);
+  return Boolean(listing || request);
+}
+
 export async function assertCanSendDm(
   viewerId: string,
   peerId: string,
@@ -102,8 +125,18 @@ export async function assertCanSendDm(
     };
   }
 
-  if (related) return { ok: true };
-  return { ok: false, error: "این نفر در حلقه تو نیست", status: 403 };
+  if (prior) return { ok: true };
+  if (!outEdge) {
+    return { ok: false, error: "این نفر در حلقه تو نیست", status: 403 };
+  }
+
+  const hasOffering = await peerHasVisibleOffering(viewerId, peerId);
+  if (hasOffering) return { ok: true };
+  return {
+    ok: false,
+    error: "این نفر آگهی یا درخواست فعالی ندارد",
+    status: 403,
+  };
 }
 
 export async function loadInbox(viewerId: string): Promise<{

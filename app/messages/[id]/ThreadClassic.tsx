@@ -17,6 +17,7 @@ import {
   type BuyerPrompt,
 } from "@/lib/listing-prompts";
 import { canOpenThread } from "@/lib/messaging";
+import { canView } from "@/lib/trust";
 import {
   latestListingIdInThread,
   recalledThreadListing,
@@ -34,6 +35,8 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   const searchParams = useSearchParams();
   const peerId = String(params.id);
   const people = useStore((s) => s.people);
+  const listings = useStore((s) => s.listings);
+  const requests = useStore((s) => s.requests);
   const networkLinks = useStore((s) => s.networkLinks);
   const getPerson = useStore((s) => s.getPerson);
   const getThread = useStore((s) => s.getThread);
@@ -121,11 +124,19 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
     [contextListing, isSellerOfContext, thread.length],
   );
 
+  const hasVisibleOfferings = useMemo(
+    () =>
+      listings.some((l) => l.sellerId === peerId && canView(l, getPerson)) ||
+      requests.some((r) => r.requesterId === peerId && canView(r, getPerson)),
+    [listings, requests, peerId, getPerson],
+  );
+
   const canChat = peer
     ? canOpenThread(peer, {
         hasThread: thread.length > 0,
         listing: contextListing,
         getPerson,
+        hasVisibleOfferings,
       })
     : false;
 

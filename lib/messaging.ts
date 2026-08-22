@@ -9,6 +9,24 @@ export function canDirectMessage(peer: Person, hasThread: boolean): boolean {
 }
 
 /**
+ * Profile CTA: continue a thread, or message someone who currently has a
+ * visible listing/request. No cold DM on an empty profile.
+ */
+export function canMessageFromProfile(
+  peer: Person,
+  opts: {
+    hasThread: boolean;
+    hasVisibleListings: boolean;
+    hasVisibleRequests: boolean;
+  },
+): boolean {
+  if (!canDirectMessage(peer, opts.hasThread)) return false;
+  return (
+    opts.hasThread || opts.hasVisibleListings || opts.hasVisibleRequests
+  );
+}
+
+/**
  * Message tied to a listing the viewer can see (including FoF sellers).
  * Seller may also reply in that listing context.
  */
@@ -32,18 +50,21 @@ export function canMessageAboutListing(
   return false;
 }
 
-/** Open a thread: circle chat, existing thread, or listing-context follow-up. */
+/** Open a thread: existing thread, listing follow-up, or circle + live offering. */
 export function canOpenThread(
   peer: Person,
   opts: {
     hasThread: boolean;
     listing?: Listing | null;
     getPerson: (id: string) => Person | undefined;
+    hasVisibleOfferings?: boolean;
   },
 ): boolean {
-  if (canDirectMessage(peer, opts.hasThread)) return true;
+  if (peer.id === "me") return false;
+  if (opts.hasThread) return true;
   if (opts.listing) {
     return canMessageAboutListing(peer, opts.listing, opts.getPerson);
   }
+  if (opts.hasVisibleOfferings && isActiveCircleMember(peer)) return true;
   return false;
 }

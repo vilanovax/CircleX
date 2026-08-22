@@ -6,7 +6,7 @@ import { startTransition, useId, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { lazyUi } from "@/lib/lazy-ui";
 import { isActiveCircleMember } from "@/lib/circle-member";
-import { canDirectMessage } from "@/lib/messaging";
+import { canMessageFromProfile } from "@/lib/messaging";
 import Header from "@/components/Header";
 import Avatar from "@/components/Avatar";
 import SheetShell from "@/components/SheetShell";
@@ -18,6 +18,7 @@ import { ProfileSkeleton } from "@/components/Skeleton";
 import { ChatIcon, MoreIcon, UserPlusIcon } from "@/components/Icons";
 import {
   endorsementClaimAfterName,
+  levelHint,
   levelLabels,
   levelShort,
   listingDisplayTitle,
@@ -29,6 +30,7 @@ import {
 } from "@/lib/social-credit";
 import { canView, listingSellerSubtitle, viewerRelationPhrase } from "@/lib/trust";
 import { toPersianDigits } from "@/lib/persian";
+import { GROUP_PRIVATE_LINE } from "@/lib/invite";
 import { hasPeerThread } from "@/lib/thread-listing";
 import { useToast } from "@/components/Toast";
 import type {
@@ -146,7 +148,11 @@ export default function PersonClassic(_props: { params: { id: string } }) {
     );
   }
 
-  const canMessage = canDirectMessage(person, hasThread);
+  const canMessage = canMessageFromProfile(person, {
+    hasThread,
+    hasVisibleListings: theirListings.length > 0,
+    hasVisibleRequests: theirRequests.length > 0,
+  });
   const relationPhrase = viewerRelationPhrase(person);
   const evidenceLine = evidenceSummaryLine(socialCredit, {
     uniqueEndorsers: uniqueEndorserCount || undefined,
@@ -290,35 +296,27 @@ export default function PersonClassic(_props: { params: { id: string } }) {
             icon="📭"
             title={`${person.name} آگهی یا درخواست فعالی ندارد`}
             description={
-              canMessage
-                ? "مستقیم پیام بده و بپرس آیا چیزی برای فروش یا نیاز دارد."
+              isActiveCircleMember(person)
+                ? "وقتی آگهی یا درخواست بگذارد، اینجا دیده می‌شود."
                 : "با اضافه کردن به حلقه‌ات یا درخواست معرفی، ارتباط نزدیک‌تر برقرار کن."
             }
             actionLabel={
-              canMessage
-                ? `پیام به ${person.name}`
-                : isActiveCircleMember(person)
-                  ? "درخواست معرفی"
-                  : "به حلقه‌ات اضافه کن"
+              isActiveCircleMember(person)
+                ? undefined
+                : "به حلقه‌ات اضافه کن"
             }
-            onAction={() => {
-              if (canMessage) {
-                router.push(`/messages/${id}`);
-                return;
-              }
-              if (isActiveCircleMember(person)) {
-                setShowIntro(true);
-                return;
-              }
-              setShowAddToCircle(true);
-            }}
+            onAction={
+              isActiveCircleMember(person)
+                ? undefined
+                : () => setShowAddToCircle(true)
+            }
             secondaryActionLabel={
-              canMessage && !isActiveCircleMember(person) ? "به حلقه‌ات اضافه کن" : undefined
+              isActiveCircleMember(person) ? undefined : "درخواست معرفی"
             }
             onSecondaryAction={
-              canMessage && !isActiveCircleMember(person)
-                ? () => setShowAddToCircle(true)
-                : undefined
+              isActiveCircleMember(person)
+                ? undefined
+                : () => setShowIntro(true)
             }
           />
         </section>
@@ -346,39 +344,43 @@ export default function PersonClassic(_props: { params: { id: string } }) {
         </button>
       </section>
 
-      <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
-        <div className="app-shell !min-h-0 !shadow-none bg-transparent">
-          <div className="pointer-events-auto px-4 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-[color:var(--circle-bg)] via-[color:var(--circle-bg)]/95 to-transparent">
-            {canMessage ? (
-              <Link
-                href={`/messages/${id}`}
-                className="btn-primary w-full !py-2.5 !text-[14px] font-bold flex items-center justify-center gap-2 shadow-md shadow-brand-600/15"
-              >
-                <ChatIcon className="w-[18px] h-[18px]" />
-                پیام به {person.name}
-              </Link>
-            ) : (
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddToCircle(true)}
-                  className="btn-primary flex-1 !py-2.5 text-[15px] flex items-center justify-center gap-2"
+      {(canMessage || !isActiveCircleMember(person)) && (
+        <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
+          <div className="app-shell !min-h-0 !shadow-none bg-transparent">
+            <div className="pointer-events-auto px-4 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-[color:var(--circle-bg)] via-[color:var(--circle-bg)]/95 to-transparent">
+              {canMessage ? (
+                <Link
+                  href={`/messages/${id}`}
+                  className="btn-primary w-full !py-2.5 !text-[14px] font-bold flex items-center justify-center gap-2 shadow-md shadow-brand-600/15"
                 >
-                  <UserPlusIcon className="w-[18px] h-[18px]" />
-                  به حلقه‌ات اضافه کن
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowIntro(true)}
-                  className="btn-ghost flex-1 !py-2.5 text-sm"
-                >
-                  درخواست معرفی
-                </button>
-              </div>
-            )}
+                  <ChatIcon className="w-[18px] h-[18px]" />
+                  {hasThread && !hasListings && !hasRequests
+                    ? `ادامه گفتگو با ${person.name}`
+                    : `پیام به ${person.name}`}
+                </Link>
+              ) : (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddToCircle(true)}
+                    className="btn-primary flex-1 !py-2.5 text-[15px] flex items-center justify-center gap-2"
+                  >
+                    <UserPlusIcon className="w-[18px] h-[18px]" />
+                    به حلقه‌ات اضافه کن
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowIntro(true)}
+                    className="btn-ghost flex-1 !py-2.5 text-sm"
+                  >
+                    درخواست معرفی
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {showTrustDetails && (
         <TrustDetailsSheet
@@ -505,7 +507,6 @@ function TrustDetailsSheet({
   onClose: () => void;
 }) {
   const titleId = useId();
-  const hintId = useId();
   const rows = groupWords(words);
   const uniqueCount = new Set(rows.map((r) => r.endorsement.personId)).size;
 
@@ -518,7 +519,7 @@ function TrustDetailsSheet({
     >
       <h2
         id={titleId}
-        className="text-[16px] font-extrabold text-ink dark:text-zinc-100 mb-1"
+        className="text-[16px] font-extrabold text-ink dark:text-zinc-100 mb-3"
       >
         چه گفته‌اند
         {uniqueCount > 0 ? (
@@ -527,12 +528,6 @@ function TrustDetailsSheet({
           </span>
         ) : null}
       </h2>
-      <p
-        id={hintId}
-        className="text-[12px] text-ink-muted dark:text-zinc-400 mb-4 leading-relaxed"
-      >
-        آشنایان این حرف‌ها را گفته‌اند. سیرکل هویت کسی را تأیید نمی‌کند.
-      </p>
 
       {rows.length === 0 ? (
         <p className="text-[13px] text-ink-faint py-6 text-center leading-relaxed">
@@ -541,7 +536,6 @@ function TrustDetailsSheet({
       ) : (
         <ul
           className="divide-y divide-stone-100 dark:divide-zinc-800"
-          aria-describedby={hintId}
         >
           {rows.map((item, i) => {
             const endorser = getPerson(item.endorsement.personId);
@@ -647,61 +641,107 @@ function EditRelationSheet({
   const titleId = useId();
 
   return (
-    <SheetShell onClose={onClose} labelledBy={titleId} maxHeight="85dvh">
-      <h2
-        id={titleId}
-        className="text-[16px] font-extrabold text-ink dark:text-zinc-100 mb-1"
-      >
-        تغییر رابطه
-      </h2>
-      <p className="text-[13px] text-ink-muted dark:text-zinc-400 mb-4 leading-relaxed">
-        الان {relationLabels[person.relation]} است، در گروه {levelShort[person.level]}.
-      </p>
-
-      <p className="text-[13px] font-semibold text-ink dark:text-zinc-200 mb-2">
-        {person.name} را چطور می‌شناسی؟
-      </p>
-      <div className="flex flex-wrap gap-2 mb-4">
-        {RELATIONS.map((r) => (
-          <button
-            key={r}
-            type="button"
-            onClick={() => onSetRelation(r)}
-            aria-pressed={person.relation === r}
-            className={`chip !px-3 !py-1.5 border ${
-              person.relation === r
-                ? "bg-brand-600 text-white border-brand-600"
-                : "bg-[color:var(--circle-surface)] text-ink-muted border-stone-200 dark:border-zinc-700"
-            }`}
+    <SheetShell
+      onClose={onClose}
+      labelledBy={titleId}
+      maxHeight="88dvh"
+      hugContent={!showTrustPath}
+      footer={
+        <button
+          type="button"
+          onClick={onRemove}
+          className="w-full min-h-12 text-[13px] text-red-600 dark:text-red-400 font-semibold rounded-xl active:bg-red-50 dark:active:bg-red-950/40"
+        >
+          حذف از حلقهٔ من
+        </button>
+      }
+    >
+      <div className="flex items-center gap-3 mb-4">
+        <Avatar
+          name={person.name}
+          src={person.avatar}
+          size="md"
+          showLevel={false}
+        />
+        <div className="min-w-0 flex-1">
+          <h2
+            id={titleId}
+            className="text-[16px] font-extrabold text-ink dark:text-zinc-100 leading-snug"
           >
-            {relationLabels[r]}
-          </button>
-        ))}
+            رابطه با {person.name}
+          </h2>
+          <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-snug">
+            {relationLabels[person.relation]} · {levelLabels[person.level]}
+          </p>
+        </div>
       </div>
 
-      <p className="text-[13px] font-semibold text-ink dark:text-zinc-200 mb-2">
-        در کدام گروه باشد؟
+      <p className="text-[12px] font-semibold text-ink dark:text-zinc-200 mb-2">
+        {person.name} را چطور می‌شناسی؟
       </p>
-      <div className="flex gap-2 mb-4">
-        {LEVELS.map((lvl) => (
-          <button
-            key={lvl}
-            type="button"
-            onClick={() => onSetLevel(lvl)}
-            aria-pressed={person.level === lvl}
-            className={`flex-1 rounded-xl py-2.5 text-[12px] font-bold border transition-colors ${
-              person.level === lvl
-                ? "bg-brand-600 text-white border-brand-600"
-                : "bg-[color:var(--circle-surface)] text-ink-faint border-stone-200 dark:border-zinc-700"
-            }`}
-          >
-            {levelShort[lvl]}
-          </button>
-        ))}
+      <div className="flex flex-wrap gap-2 mb-5">
+        {RELATIONS.map((r) => {
+          const selected = person.relation === r;
+          return (
+            <button
+              key={r}
+              type="button"
+              onClick={() => onSetRelation(r)}
+              aria-pressed={selected}
+              className={`min-h-10 px-3.5 rounded-full text-[13px] font-bold border transition-colors ${
+                selected
+                  ? "bg-brand-600 text-white border-brand-600"
+                  : "bg-[color:var(--circle-surface)] text-ink-muted border-stone-200 dark:border-zinc-700 dark:text-zinc-300"
+              }`}
+            >
+              {relationLabels[r]}
+            </button>
+          );
+        })}
+      </div>
+
+      <p className="text-[12px] font-semibold text-ink dark:text-zinc-200 mb-1.5">
+        جایگاهش در حلقهٔ تو
+      </p>
+      <p className="text-[11px] text-ink-faint mb-2 leading-relaxed">
+        {GROUP_PRIVATE_LINE}
+      </p>
+      <div className="space-y-2 mb-4">
+        {LEVELS.map((lvl) => {
+          const active = person.level === lvl;
+          return (
+            <button
+              key={lvl}
+              type="button"
+              onClick={() => onSetLevel(lvl)}
+              aria-pressed={active}
+              className={`w-full text-right rounded-xl border px-3.5 py-3 transition-colors ${
+                active
+                  ? "bg-brand-600 text-white border-brand-600"
+                  : "border-stone-200/80 dark:border-zinc-700 bg-[color:var(--circle-surface)] dark:bg-zinc-900"
+              }`}
+            >
+              <span
+                className={`block text-[14px] font-bold ${
+                  active ? "text-white" : "text-ink dark:text-zinc-100"
+                }`}
+              >
+                {levelLabels[lvl]}
+              </span>
+              <span
+                className={`block text-[12px] mt-0.5 leading-relaxed ${
+                  active ? "text-white/80" : "text-ink-muted"
+                }`}
+              >
+                {levelHint[lvl]}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {showTrustPath && (
-        <div className="mb-4">
+        <div className="mb-3">
           <TrustPath posterId={personId} trustPath={trustPath} variant="full" />
         </div>
       )}
@@ -710,19 +750,12 @@ function EditRelationSheet({
         <Link
           href="/graph"
           onClick={onClose}
-          className="inline-flex items-center gap-1 text-[12px] text-brand-600 font-medium mb-4"
+          className="flex items-center justify-between min-h-11 rounded-xl px-3.5 border border-stone-200/80 dark:border-zinc-800 text-[13px] font-semibold text-brand-600 dark:text-brand-400"
         >
-          نقشه‌ی ارتباط‌ها را ببین ‹
+          نقشه‌ی ارتباط‌ها را ببین
+          <span aria-hidden>‹</span>
         </Link>
       )}
-
-      <button
-        type="button"
-        onClick={onRemove}
-        className="w-full text-[13px] text-red-500 dark:text-red-400 font-semibold py-3 border-t border-stone-100 dark:border-zinc-800"
-      >
-        حذف از حلقهٔ من
-      </button>
     </SheetShell>
   );
 }

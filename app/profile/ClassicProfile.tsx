@@ -292,46 +292,32 @@ function ProfileActivity() {
         >
           {visibleTabs.map((t) => {
             const active = activeTab === t.id;
-            const listingsTab = t.id === "listings";
+            const count = t.count;
             return (
               <button
                 key={t.id}
                 type="button"
                 role="tab"
                 aria-selected={active}
+                aria-label={`${t.label}، ${toPersianDigits(count)}`}
                 onClick={() => startTransition(() => setTab(t.id))}
-                className={`shrink-0 flex-1 min-w-[4.5rem] rounded-xl px-2.5 py-2 text-[12px] font-bold transition-all duration-200 ${
+                className={`shrink-0 flex-1 min-w-0 flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-[12px] font-bold transition-all duration-200 ${
                   active
                     ? "bg-brand-600 text-white shadow-md shadow-brand-600/25"
                     : "text-ink-muted dark:text-zinc-400 active:bg-white/60 dark:active:bg-zinc-700/50"
                 }`}
               >
-                {t.label}
-                {listingsTab && listingsSplit ? (
-                  <span
-                    className={`ms-1 nums text-[11px] font-semibold ${
-                      active ? "text-white/85" : "text-ink-faint"
-                    }`}
-                  >
-                    {toPersianDigits(liveListings.length)}
-                    <span
-                      className={
-                        active ? "text-white/55" : "text-ink-faint/80"
-                      }
-                    >
-                      {" "}
-                      · {toPersianDigits(inactiveListings.length)}
-                    </span>
-                  </span>
-                ) : (
-                  <span
-                    className={`ms-1 nums text-[11px] font-semibold ${
-                      active ? "text-white/85" : "text-ink-faint"
-                    }`}
-                  >
-                    {toPersianDigits(t.count)}
-                  </span>
-                )}
+                <span className="truncate">{t.label}</span>
+                <span
+                  dir="ltr"
+                  className={`nums shrink-0 inline-flex min-w-[1.2rem] h-[1.2rem] px-1 items-center justify-center rounded-full text-[10px] font-extrabold leading-none ${
+                    active
+                      ? "bg-white/22 text-white"
+                      : "bg-stone-200/90 text-ink-muted dark:bg-zinc-700 dark:text-zinc-300"
+                  }`}
+                >
+                  {toPersianDigits(count)}
+                </span>
               </button>
             );
           })}
