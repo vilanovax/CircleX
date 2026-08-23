@@ -9,6 +9,9 @@ export const NOTICE_KIND = {
   joinRequest: "join_request",
   inviteAccepted: "invite_accepted",
   watchHit: "watch_hit",
+  listingReportResolved: "listing_report_resolved",
+  contentHidden: "content_hidden",
+  broadcast: "broadcast",
 } as const;
 
 function guestLabel(name: string): string {
@@ -44,6 +47,61 @@ export async function notifyJoinRequest(opts: {
       actionLabel: "بررسی",
       actorUserId: opts.guestUserId,
       joinRequestId: opts.joinRequestId,
+    },
+  });
+}
+
+export async function notifyListingReportResolved(opts: {
+  reporterId: string;
+  listingId: string;
+  listingTitle: string;
+  status: "reviewed" | "dismissed";
+}): Promise<void> {
+  const reviewed = opts.status === "reviewed";
+  const title = reviewed ? "گزارش آگهی بررسی شد" : "گزارش آگهی بسته شد";
+  const body = reviewed
+    ? `گزارش تو درباره «${opts.listingTitle}» بررسی شد.`
+    : `گزارش تو درباره «${opts.listingTitle}» بررسی شد و اقدامی لازم نبود.`;
+  await prisma.systemNotice.create({
+    data: {
+      userId: opts.reporterId,
+      kind: NOTICE_KIND.listingReportResolved,
+      title,
+      body,
+      actionHref: `/listing/${opts.listingId}`,
+      actionLabel: "آگهی",
+      listingId: opts.listingId,
+    },
+  });
+}
+
+export async function notifyContentHidden(opts: {
+  ownerId: string;
+  kind: "listing" | "request" | "event";
+  id: string;
+  title: string;
+}): Promise<void> {
+  const noun =
+    opts.kind === "listing"
+      ? "آگهی"
+      : opts.kind === "request"
+        ? "درخواست"
+        : "رویداد";
+  const href =
+    opts.kind === "listing"
+      ? `/listing/${opts.id}`
+      : opts.kind === "request"
+        ? `/request/${opts.id}`
+        : `/event/${opts.id}`;
+  await prisma.systemNotice.create({
+    data: {
+      userId: opts.ownerId,
+      kind: NOTICE_KIND.contentHidden,
+      title: `${noun} از دید دیگران مخفی شد`,
+      body: `«${opts.title}» فعلاً در فید حلقه دیده نمی‌شود.`,
+      actionHref: href,
+      actionLabel: noun,
+      listingId: opts.kind === "listing" ? opts.id : undefined,
     },
   });
 }
@@ -96,11 +154,12 @@ export function toClientNotice(
 }
 
 export async function loadNoticeRows(userId: string) {
-  return prisma.systemNotice.findMany({
+  const rows = await prisma.systemNotice.findMany({
     where: { userId },
-    orderBy: { createdAt: "asc" },
+    orderBy: { createdAt: "desc" },
     take: NOTICE_INBOX_CAP,
   });
+  return rows.reverse();
 }
 
 export async function markNoticesRead(userId: string): Promise<number> {

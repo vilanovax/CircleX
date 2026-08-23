@@ -48,6 +48,9 @@ model User {
   city               String?
   profileCompletedAt     DateTime?
   showOwnListingsInFeed  Boolean   @default(true)
+  bannedAt           DateTime?
+  bannedUntil        DateTime?
+  banReason          String?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -78,6 +81,7 @@ model User {
   watchedBy           ListingWatch[]       @relation("WatchTarget")
 
   @@index([phoneNormalized])
+  @@index([bannedAt])
 }
 
 model Session {
@@ -305,11 +309,13 @@ model WantRequest {
   privacy     String   @default("ABC")
   city        String?
   area        String?
+  hidden      Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   offers      WantOffer[]
 
   @@index([requesterId])
+  @@index([hidden])
 }
 
 model WantOffer {
@@ -342,11 +348,13 @@ model Gathering {
   capacity    Int?
   privacy     String   @default("ABC")
   city        String?
+  hidden      Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   rsvps       GatheringRsvp[]
 
   @@index([hostId])
+  @@index([hidden])
 }
 
 model GatheringRsvp {
@@ -429,4 +437,76 @@ model ThreadPreference {
 
   @@unique([userId, peerId])
   @@index([userId])
+}
+
+enum AdminRole {
+  superadmin
+  moderator
+  support
+  analyst
+}
+
+model AdminUser {
+  id           String          @id @default(cuid())
+  email        String          @unique
+  name         String
+  passwordHash String
+  role         AdminRole
+  lastLoginAt  DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  sessions     AdminSession[]
+  auditLogs    AdminAuditLog[]
+
+  @@index([email])
+}
+
+model AdminSession {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique
+  adminUserId String
+  admin       AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+
+  @@index([adminUserId])
+}
+
+model AdminAuditLog {
+  id          String    @id @default(cuid())
+  adminUserId String
+  admin       AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  action      String
+  targetType  String
+  targetId    String
+  reason      String?
+  meta        Json?
+  createdAt   DateTime  @default(now())
+
+  @@index([adminUserId, createdAt])
+  @@index([targetType, targetId])
+}
+
+model AppSetting {
+  id        String   @id
+  flags     Json
+  growth    Json
+  auth      Json
+  catalog   Json
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}
+
+model Broadcast {
+  id          String   @id @default(cuid())
+  title       String
+  body        String
+  actionHref  String?
+  actionLabel String?
+  audience    String
+  sentCount   Int      @default(0)
+  createdById String
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
 }

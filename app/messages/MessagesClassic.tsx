@@ -286,7 +286,7 @@ const MessagesBody = memo(function MessagesBody({
             onPointerEnter={preloadMessageSheets}
             onFocus={preloadMessageSheets}
             aria-label="گفتگوی جدید"
-            className="w-9 h-9 rounded-xl bg-brand-600 text-white flex items-center justify-center active:scale-95 shadow-sm shadow-brand-600/20 transition-transform duration-150"
+            className="w-9 h-9 rounded-xl bg-brand-600 text-white inline-grid place-items-center appearance-none p-0 leading-none active:scale-95 shadow-sm shadow-brand-600/20 transition-transform duration-150"
           >
             <PencilIcon className="w-5 h-5" />
           </button>

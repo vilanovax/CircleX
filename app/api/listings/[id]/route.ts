@@ -3,6 +3,7 @@ import { listingAccess } from "@/lib/circle-network";
 import { prisma } from "@/lib/db";
 import { jsonError, readJson, withDb } from "@/lib/http";
 import { listingEndorsementsInclude, toClientListing } from "@/lib/mappers";
+import { catalogExtraAreas } from "@/lib/app-settings";
 import { parseDealStatus, parseListingWrite } from "@/lib/listing-payload";
 import { getSessionUser } from "@/lib/server-auth";
 import { fanoutListingWatches } from "@/lib/server-watches";
@@ -76,7 +77,7 @@ export async function PATCH(
     body.image != null;
 
   if (isWrite) {
-    const parsed = parseListingWrite(body);
+    const parsed = parseListingWrite(body, await catalogExtraAreas());
     if (!parsed.ok) return jsonError(parsed.error, 400);
     const updated = await prisma.marketListing.update({
       where: { id: row.id },

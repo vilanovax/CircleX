@@ -8,6 +8,7 @@ import { useSheetA11y } from "@/lib/use-sheet-a11y";
 import { lazyUi } from "@/lib/lazy-ui";
 import { CalendarIcon, QuestionIcon, TagIcon } from "./Icons";
 import { useToast } from "./Toast";
+import { useCatalog } from "@/lib/use-catalog";
 
 const AddListingSheet = lazyUi(() => import("./AddListingSheet"));
 const AddRequestSheet = lazyUi(() => import("./AddRequestSheet"));
@@ -50,6 +51,7 @@ export default function CreateSheet({ onClose }: { onClose: () => void }) {
   const addRequest = useStore((s) => s.addRequest);
   const addEvent = useStore((s) => s.addEvent);
   const { show } = useToast();
+  const flags = useCatalog().flags;
   const panelRef = useRef<HTMLDivElement>(null);
   const handleEscape = useCallback(() => {
     if (step !== "menu") {
@@ -168,7 +170,11 @@ export default function CreateSheet({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="card overflow-hidden divide-y divide-stone-100 dark:divide-zinc-800">
-            {MENU_OPTIONS.map((o) => (
+            {MENU_OPTIONS.filter((o) => {
+              if (o.id === "request") return flags.requests;
+              if (o.id === "event") return flags.events;
+              return true;
+            }).map((o) => (
               <button
                 key={o.id}
                 type="button"

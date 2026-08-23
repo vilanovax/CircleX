@@ -13,6 +13,7 @@ import { PlusIcon } from "@/components/Icons";
 import { useToast } from "@/components/Toast";
 import { canView } from "@/lib/trust";
 import { toPersianDigits } from "@/lib/persian";
+import { useCatalog } from "@/lib/use-catalog";
 
 const AddEventSheet = lazyUi(() => import("@/components/AddEventSheet"));
 
@@ -25,12 +26,13 @@ function EventsContent() {
   const hydrated = useStore((s) => s.hydrated);
   const { show } = useToast();
   const [showAdd, setShowAdd] = useState(false);
+  const eventsOn = useCatalog().flags.events;
 
   useEffect(() => {
-    if (searchParams.get("compose") === "1") {
+    if (eventsOn && searchParams.get("compose") === "1") {
       setShowAdd(true);
     }
-  }, [searchParams]);
+  }, [searchParams, eventsOn]);
 
   function closeAddSheet() {
     setShowAdd(false);
@@ -55,14 +57,16 @@ function EventsContent() {
         }
         back
         action={
-          <button
-            type="button"
-            onClick={() => setShowAdd(true)}
-            className="w-9 h-9 rounded-xl bg-brand-600 text-white flex items-center justify-center shadow-sm shadow-brand-600/20 active:bg-brand-700"
-            aria-label="ساخت رویداد"
-          >
-            <PlusIcon className="w-5 h-5" />
-          </button>
+          eventsOn ? (
+            <button
+              type="button"
+              onClick={() => setShowAdd(true)}
+              className="inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl bg-brand-600 p-0 leading-none text-white shadow-sm shadow-brand-600/20 active:bg-brand-700"
+              aria-label="ساخت رویداد"
+            >
+              <PlusIcon className="w-5 h-5" />
+            </button>
+          ) : undefined
         }
       />
 
@@ -84,8 +88,8 @@ function EventsContent() {
             icon="🎉"
             title="رویدادی نیست"
             description="کلاس، دورهمی، بازارچه یا سفر گروهی — بین آدم‌هایی که می‌شناسی."
-            actionLabel="ساخت اولین رویداد"
-            onAction={() => setShowAdd(true)}
+            actionLabel={eventsOn ? "ساخت اولین رویداد" : undefined}
+            onAction={eventsOn ? () => setShowAdd(true) : undefined}
           />
         ) : (
           <div className="space-y-2.5">

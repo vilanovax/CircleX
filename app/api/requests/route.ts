@@ -1,3 +1,4 @@
+import { assertFlag, catalogExtraAreas } from "@/lib/app-settings";
 import { prisma } from "@/lib/db";
 import { jsonError, readJson, withDb } from "@/lib/http";
 import { toClientRequest } from "@/lib/mappers";
@@ -10,8 +11,13 @@ export async function POST(req: Request) {
   return withDb(async () => {
     const session = await getSessionUser();
     if (!session) return jsonError("وارد نشده‌ای", 401, "unauthorized");
+    const blocked = await assertFlag("requests");
+    if (blocked !== true) return blocked;
 
-    const parsed = parseRequestWrite(await readJson(req));
+    const parsed = parseRequestWrite(
+      await readJson(req),
+      await catalogExtraAreas(),
+    );
     if (!parsed.ok) return jsonError(parsed.error, 400);
 
     const row = await prisma.wantRequest.create({

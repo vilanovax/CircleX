@@ -6,7 +6,6 @@ import { useToast } from "@/components/Toast";
 import { levelHint, levelLabels, relationLabels } from "@/lib/labels";
 import {
   GROUP_PRIVATE_LINE,
-  WAVE_MAX_USES,
   WAVE_ROSTER_LIMIT,
   copyText,
   inviteShareText,
@@ -23,6 +22,7 @@ import {
 import { parseInviteLines } from "@/lib/invite-paste";
 import { toPersianDigits } from "@/lib/persian";
 import { useStore } from "@/lib/store";
+import { useCatalog } from "@/lib/use-catalog";
 import type { Invite, RelationType, TrustLevel } from "@/lib/types";
 
 const RELATIONS: RelationType[] = [
@@ -55,6 +55,9 @@ function CheckMark({ className }: { className?: string }) {
 export default function InviteSheet({ onClose }: { onClose: () => void }) {
   const { me, createInvite } = useStore();
   const { show } = useToast();
+  const catalog = useCatalog();
+  const waveOn = catalog.flags.waveInvites;
+  const waveCap = catalog.growth.waveMaxUses;
   const [mode, setMode] = useState<"personal" | "wave">("personal");
   const [relation, setRelation] = useState<RelationType>("friend");
   const [waveRelation, setWaveRelation] = useState<RelationType>("family");
@@ -118,7 +121,7 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
     );
   }
 
-  if (mode === "wave") {
+  if (mode === "wave" && waveOn) {
     const parsed = parseInviteLines(pasteText);
     const pasteBlocked = pasteOpen && parsed.valid.length === 0;
     return (
@@ -158,7 +161,7 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
         </h2>
         <p className="text-[13px] text-ink-muted dark:text-zinc-400 mt-1.5 leading-relaxed">
           یک لینک می‌سازی و همان را می‌فرستی. وقتی با شمارهٔ خودشان وارد
-          شوند، در حلقه دیده می‌شوند. تا {toPersianDigits(WAVE_MAX_USES)} نفر.
+          شوند، در حلقه دیده می‌شوند. تا {toPersianDigits(waveCap)} نفر.
         </p>
 
         <p className="text-[13px] font-bold mt-5 mb-2 text-ink dark:text-zinc-200">
@@ -379,18 +382,20 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
           ۱۱ رقم با ۰۹، یا خالی بگذار
         </p>
       )}
-      <button
-        type="button"
-        onClick={() => setMode("wave")}
-        className="mt-4 w-full text-right px-3.5 py-3 rounded-xl bg-brand-50 dark:bg-brand-500/15 active:scale-[0.99] transition-transform duration-150"
-      >
-        <span className="block text-[13px] font-bold text-brand-700 dark:text-brand-400">
-          دعوت یک گروه
-        </span>
-        <span className="block text-[11px] text-ink-muted mt-0.5 leading-snug">
-          یک لینک برای گروه یا چند شماره
-        </span>
-      </button>
+      {waveOn ? (
+        <button
+          type="button"
+          onClick={() => setMode("wave")}
+          className="mt-4 w-full text-right px-3.5 py-3 rounded-xl bg-brand-50 dark:bg-brand-500/15 active:scale-[0.99] transition-transform duration-150"
+        >
+          <span className="block text-[13px] font-bold text-brand-700 dark:text-brand-400">
+            دعوت یک گروه
+          </span>
+          <span className="block text-[11px] text-ink-muted mt-0.5 leading-snug">
+            یک لینک برای گروه یا چند شماره
+          </span>
+        </button>
+      ) : null}
     </SheetShell>
   );
 }

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { getAppSettings } from "@/lib/app-settings";
 import { createPolishedListingDraft } from "@/lib/listing-polish";
 import { suggestListingPrices } from "@/lib/price-suggest";
 import type { ListingType } from "@/lib/types";
+import { withDb } from "@/lib/http";
 
 type Body = {
   text?: string;
@@ -38,7 +40,12 @@ export async function POST(req: Request) {
   let source: "local" | "openai" = "local";
 
   const key = process.env.OPENAI_API_KEY;
-  if (key) {
+  const settings = await withDb(() => getAppSettings());
+  const aiOn =
+    Boolean(key) &&
+    !(settings instanceof Response) &&
+    settings.flags.aiPolish;
+  if (aiOn && key) {
     try {
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -103,13 +110,18 @@ export async function POST(req: Request) {
     draft,
     priceHints,
     source,
-    aiConfigured: Boolean(process.env.OPENAI_API_KEY),
+    aiConfigured: aiOn,
   });
 }
 
 /** Capability probe for the compose UI. */
 export async function GET() {
+  const settings = await withDb(() => getAppSettings());
+  const aiOn =
+    Boolean(process.env.OPENAI_API_KEY) &&
+    !(settings instanceof Response) &&
+    settings.flags.aiPolish;
   return NextResponse.json({
-    aiConfigured: Boolean(process.env.OPENAI_API_KEY),
+    aiConfigured: aiOn,
   });
 }

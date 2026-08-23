@@ -20,6 +20,7 @@ import { useToast } from "@/components/Toast";
 import { useStore } from "@/lib/store";
 import { AREA_CITYWIDE } from "@/lib/place";
 import { withBasePath } from "@/lib/avatar";
+import { useCatalog } from "@/lib/use-catalog";
 import {
   applyDraftAnswers,
   draftListingFromText,
@@ -224,6 +225,7 @@ const ListingComposeForm = forwardRef<
   ref,
 ) {
   const { show } = useToast();
+  const catalog = useCatalog();
   const editMode = Boolean(initial);
   const seed = initial ? seedFromListing(initial) : null;
   const meCity = useStore((s) => s.me.city);
@@ -947,8 +949,16 @@ const ListingComposeForm = forwardRef<
                   setCategory(e.target.value);
                   setCategorySource("user");
                 }}
+                list="listing-category-options"
                 className="field !text-[13px]"
               />
+              {catalog.categories.length > 0 ? (
+                <datalist id="listing-category-options">
+                  {catalog.categories.map((item) => (
+                    <option key={item} value={item} />
+                  ))}
+                </datalist>
+              ) : null}
             </section>
             <section>
               <label

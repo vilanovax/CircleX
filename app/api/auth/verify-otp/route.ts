@@ -1,8 +1,9 @@
+import { getAppSettings } from "@/lib/app-settings";
+import { isUserBanned } from "@/lib/ban";
 import { prisma } from "@/lib/db";
 import { jsonError, readJson, withDb } from "@/lib/http";
 import { isValidIranMobile, normalizePhone } from "@/lib/phone";
 import {
-  OTP_MAX_ATTEMPTS,
   createSession,
   hashOtp,
   otpDevCode,
@@ -24,6 +25,7 @@ export async function POST(req: Request) {
   }
 
   return withDb(async () => {
+    const settings = await getAppSettings();
     const challenge = await prisma.otpChallenge.findFirst({
       where: { phoneNormalized: phone },
       orderBy: { createdAt: "desc" },
@@ -34,7 +36,7 @@ export async function POST(req: Request) {
     if (challenge.expiresAt.getTime() <= Date.now()) {
       return jsonError("کد منقضی شده. دوباره بفرست", 400, "expired");
     }
-    if (challenge.attempts >= OTP_MAX_ATTEMPTS) {
+    if (challenge.attempts >= settings.auth.otpMaxAttempts) {
       return jsonError("دفعات اشتباه زیاد شد. دوباره کد بگیر", 429, "locked");
     }
 
@@ -57,6 +59,22 @@ export async function POST(req: Request) {
       create: { phoneNormalized: phone },
       update: {},
     });
+
+    if (isUserBanned(user)) {
+      await prisma.otpChallenge.deleteMany({ where: { phoneNormalized: phone } });
+      return jsonError("این حساب مسدود است", 403, "banned");
+    }
+
+    if (
+      user.bannedAt &&
+      user.bannedUntil &&
+      user.bannedUntil.getTime() <= Date.now()
+    ) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { bannedAt: null, bannedUntil: null, banReason: null },
+      });
+    }
 
     await prisma.otpChallenge.deleteMany({ where: { phoneNormalized: phone } });
     await createSession(user.id);

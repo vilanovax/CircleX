@@ -1,9 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { StoreProvider } from "@/lib/store";
-import { ToastProvider } from "@/components/Toast";
+import AppFrame from "@/components/AppFrame";
 import { ThemeProvider, themeScript } from "@/lib/theme";
-import RequireAuth from "@/components/RequireAuth";
 import { vazirmatn } from "@/lib/fonts";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
@@ -44,13 +42,7 @@ export default function RootLayout({
       </head>
       <body className={`${vazirmatn.className} font-sans`}>
         <ThemeProvider>
-          <StoreProvider>
-            <ToastProvider>
-              <div className="app-shell">
-                <RequireAuth>{children}</RequireAuth>
-              </div>
-            </ToastProvider>
-          </StoreProvider>
+          <AppFrame>{children}</AppFrame>
         </ThemeProvider>
       </body>
     </html>

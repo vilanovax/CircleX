@@ -23,6 +23,7 @@ import type { CircleEvent, Listing, Person, Request } from "@/lib/types";
 import { formatEventDateDisplay, normalizeFa, toPersianDigits } from "@/lib/persian";
 import { CONCEPT_TIP_KEY } from "@/lib/home-tip";
 import { canView, filterByAccess, trustScore } from "@/lib/trust";
+import { useCatalog } from "@/lib/use-catalog";
 
 const Onboarding = lazyUi(() => import("@/components/Onboarding"));
 const HomeEmptyCircle = lazyUi(() => import("@/components/HomeEmptyCircle"), {
@@ -121,6 +122,7 @@ export default function ClassicFeed() {
   const circleReady = useStore((s) => s.circleReady);
   const onboarded = useStore((s) => s.onboarded);
   const showOwnListingsInFeed = useStore((s) => s.showOwnListingsInFeed);
+  const catalog = useCatalog();
   const [filter, setFilter] = useState<FeedFilter>("all");
   const [circleScope, setCircleScope] = useState<CircleScope>("network");
   const [query, setQuery] = useState("");
@@ -308,6 +310,7 @@ export default function ClassicFeed() {
                 <FeedEmptyState
                   hasFilter
                   requestsMode
+                  canCompose={catalog.flags.requests}
                   onClear={() => {
                     setFilter("all");
                     setCircleScope("network");
@@ -582,10 +585,12 @@ function FeedEmptyState({
   hasFilter,
   onClear,
   requestsMode = false,
+  canCompose = true,
 }: {
   hasFilter: boolean;
   onClear: () => void;
   requestsMode?: boolean;
+  canCompose?: boolean;
 }) {
   return (
     <div className="card p-6 text-center">
@@ -616,12 +621,14 @@ function FeedEmptyState({
             پاک کردن فیلتر و جستجو
           </button>
         )}
-        <Link
-          href={requestsMode ? "/requests?compose=1" : "/new"}
-          className="btn-primary text-sm"
-        >
-          {requestsMode ? "ثبت درخواست" : "ثبت آگهی"}
-        </Link>
+        {canCompose ? (
+          <Link
+            href={requestsMode ? "/requests?compose=1" : "/new"}
+            className="btn-primary text-sm"
+          >
+            {requestsMode ? "ثبت درخواست" : "ثبت آگهی"}
+          </Link>
+        ) : null}
       </div>
     </div>
   );

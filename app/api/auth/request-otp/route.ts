@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/db";
 import { jsonError, readJson, withDb } from "@/lib/http";
 import { isValidIranMobile, normalizePhone } from "@/lib/phone";
+import { getAppSettings, otpTtlMs } from "@/lib/app-settings";
 import {
   OTP_RESEND_MS,
-  OTP_TTL_MS,
   hashOtp,
   otpDevCode,
 } from "@/lib/server-auth";
@@ -27,12 +27,13 @@ export async function POST(req: Request) {
       return jsonError("کمی صبر کن و دوباره بفرست", 429, "rate_limit");
     }
 
+    const settings = await getAppSettings();
     const code = otpDevCode();
     await prisma.otpChallenge.create({
       data: {
         phoneNormalized: phone,
         codeHash: hashOtp(phone, code),
-        expiresAt: new Date(Date.now() + OTP_TTL_MS),
+        expiresAt: new Date(Date.now() + otpTtlMs(settings.auth.otpTtlMinutes)),
       },
     });
     await sendOtp(phone, code);

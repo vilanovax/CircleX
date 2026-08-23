@@ -1,3 +1,4 @@
+import { assertFlag } from "@/lib/app-settings";
 import { prisma } from "@/lib/db";
 import { jsonError, readJson } from "@/lib/http";
 import { WAVE_ROSTER_LIMIT } from "@/lib/invite";
@@ -67,6 +68,10 @@ export async function POST(req: Request) {
   }
 
   const kind: InviteKind = body?.kind === "wave" ? "wave" : "personal";
+  if (kind === "wave") {
+    const blocked = await assertFlag("waveInvites");
+    if (blocked !== true) return blocked;
+  }
   let trustGroup = body?.trustGroup as TrustGroup | undefined;
   if (kind === "personal") {
     if (!trustGroup || !GROUPS.includes(trustGroup)) {

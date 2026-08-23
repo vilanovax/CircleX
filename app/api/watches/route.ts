@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { assertFlag } from "@/lib/app-settings";
 import { prisma } from "@/lib/db";
 import { jsonError, readJson, withDb } from "@/lib/http";
 import { getSessionUser } from "@/lib/server-auth";
@@ -58,6 +59,8 @@ export async function POST(req: Request) {
   return withDb(async () => {
     const session = await getSessionUser();
     if (!session) return jsonError("وارد نشده‌ای", 401, "unauthorized");
+    const blocked = await assertFlag("watches");
+    if (blocked !== true) return blocked;
 
     const body = await readJson<{ kind?: unknown; phrase?: unknown; personId?: unknown }>(
       req,

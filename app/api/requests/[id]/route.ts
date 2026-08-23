@@ -19,6 +19,9 @@ export async function GET(
       include: { offers: true },
     });
     if (!row) return jsonError("درخواست پیدا نشد", 404);
+    if (row.hidden && row.requesterId !== session.id) {
+      return jsonError("درخواست پیدا نشد", 404);
+    }
 
     const access = await listingAccess(session.id, row.requesterId);
     if (!access.ok) return jsonError("این درخواست در حلقه تو نیست", 403);

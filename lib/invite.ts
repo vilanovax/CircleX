@@ -16,11 +16,9 @@ export const WAVE_MAX_USES = 10;
 export const WAVE_ROSTER_LIMIT = 20;
 export const WAVE_DEFAULT_TRUST = "B" as const;
 
-export function waveMaxUses(rosterCount = 0): number {
-  return Math.min(
-    WAVE_ROSTER_LIMIT,
-    Math.max(WAVE_MAX_USES, rosterCount),
-  );
+export function waveMaxUses(rosterCount = 0, floor = WAVE_MAX_USES): number {
+  const base = Math.min(WAVE_ROSTER_LIMIT, Math.max(2, floor));
+  return Math.min(WAVE_ROSTER_LIMIT, Math.max(base, rosterCount));
 }
 
 export function inviteRosterTotal(invite: Invite): number {

@@ -79,6 +79,7 @@ export function parseDealStatus(value: unknown): ListingDealStatus | undefined {
 
 export function parseListingWrite(
   body: unknown,
+  extraAreas: Iterable<string> = [],
 ): { ok: true; data: ListingWriteInput } | { ok: false; error: string } {
   if (!body || typeof body !== "object") {
     return { ok: false, error: "بدنه نامعتبر است" };
@@ -127,7 +128,7 @@ export function parseListingWrite(
 
   const condition = asTrimmed(raw.condition, 40) || undefined;
   const specs = parseSpecs(raw.specs);
-  const area = parseArea(raw.area);
+  const area = parseArea(raw.area, extraAreas);
 
   return {
     ok: true,

@@ -1,55 +1,79 @@
+import type { ListingReportStatus } from "@prisma/client";
+import { actorRole, canSeeFullPhone, requireAdmin } from "@/lib/admin-auth";
+import { listEnvelope, parseListParams } from "@/lib/admin-http";
+import { redactAdminPhone } from "@/lib/admin-labels";
 import { prisma } from "@/lib/db";
-import { jsonError } from "@/lib/http";
+import { withDb } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
-/**
- * Simple inbox for platform admin.
- * Header: `Authorization: Bearer <ADMIN_SECRET>`
- */
 export async function GET(req: Request) {
-  const secret = process.env.ADMIN_SECRET?.trim();
-  if (!secret) {
-    return jsonError("ادمین پیکربندی نشده", 503);
-  }
+  return withDb(async () => {
+    const auth = await requireAdmin(req, { allowSecret: true });
+    if (!auth.ok) return auth.response;
 
-  const auth = req.headers.get("authorization") ?? "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-  if (token !== secret) {
-    return jsonError("دسترسی نداری", 401, "unauthorized");
-  }
+    const fullPhone = canSeeFullPhone(actorRole(auth.actor));
+    const url = new URL(req.url);
+    const { take, skip } = parseListParams(url);
+    const statusParam = url.searchParams.get("status") ?? "open";
 
-  const url = new URL(req.url);
-  const statusParam = url.searchParams.get("status") ?? "open";
-  const take = Math.min(
-    Number(url.searchParams.get("limit") ?? 50) || 50,
-    100,
-  );
+    const statusFilter: ListingReportStatus | undefined =
+      statusParam === "all"
+        ? undefined
+        : statusParam === "reviewed" || statusParam === "dismissed"
+          ? statusParam
+          : "open";
 
-  const statusFilter =
-    statusParam === "all"
-      ? undefined
-      : statusParam === "reviewed" || statusParam === "dismissed"
-        ? statusParam
-        : "open";
+    const where = statusFilter ? { status: statusFilter } : {};
 
-  const reports = await prisma.listingReport.findMany({
-    where: statusFilter ? { status: statusFilter } : {},
-    orderBy: { createdAt: "desc" },
-    take,
-    include: {
+    const [total, rows] = await Promise.all([
+      prisma.listingReport.count({ where }),
+      prisma.listingReport.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take,
+        skip,
+        include: {
+          listing: {
+            select: {
+              id: true,
+              title: true,
+              type: true,
+              dealStatus: true,
+              sellerId: true,
+              seller: { select: { id: true, name: true, phoneNormalized: true } },
+            },
+          },
+          reporter: { select: { id: true, name: true, phoneNormalized: true } },
+        },
+      }),
+    ]);
+
+    const items = rows.map((row) => ({
+      id: row.id,
+      reason: row.reason,
+      note: row.note,
+      status: row.status,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
       listing: {
-        select: {
-          id: true,
-          title: true,
-          type: true,
-          sellerId: true,
-          seller: { select: { name: true, phoneNormalized: true } },
+        id: row.listing.id,
+        title: row.listing.title,
+        type: row.listing.type,
+        dealStatus: row.listing.dealStatus,
+        seller: {
+          id: row.listing.seller.id,
+          name: row.listing.seller.name,
+          phone: redactAdminPhone(row.listing.seller.phoneNormalized, fullPhone),
         },
       },
-      reporter: { select: { id: true, name: true, phoneNormalized: true } },
-    },
-  });
+      reporter: {
+        id: row.reporter.id,
+        name: row.reporter.name,
+        phone: redactAdminPhone(row.reporter.phoneNormalized, fullPhone),
+      },
+    }));
 
-  return Response.json({ reports });
+    return Response.json(listEnvelope(items, { total, take, skip }));
+  });
 }

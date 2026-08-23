@@ -284,9 +284,9 @@ const CirclePageHeader = memo(function CirclePageHeader({
           onClick={onInvite}
           onPointerEnter={preloadInviteSheet}
           onFocus={preloadInviteSheet}
-          className="inline-flex items-center gap-1 h-8 rounded-xl bg-brand-600 text-white px-2.5 text-[11px] font-bold active:scale-95 transition-transform duration-150"
+          className="inline-flex h-9 shrink-0 items-center gap-1 rounded-xl bg-brand-600 px-2.5 text-[11px] font-bold leading-none text-white active:scale-95 transition-transform duration-150"
         >
-          <UserPlusIcon className="w-4 h-4" />
+          <UserPlusIcon className="block h-4 w-4 shrink-0" />
           دعوت
         </button>
       }

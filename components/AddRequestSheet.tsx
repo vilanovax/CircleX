@@ -16,6 +16,7 @@ import type { BudgetUnit, Privacy } from "@/lib/types";
 import { formatTomanInput, toEnglishDigits } from "@/lib/persian";
 import { AREA_CITYWIDE } from "@/lib/place";
 import { useStore } from "@/lib/store";
+import { useCatalog } from "@/lib/use-catalog";
 
 const EMOJIS = [
   "🔎",
@@ -30,17 +31,6 @@ const EMOJIS = [
   "💻",
   "🏠",
   "🎮",
-];
-
-const CATEGORY_SUGGESTIONS = [
-  "لوازم اداری",
-  "الکترونیک",
-  "خانه",
-  "کودک",
-  "ورزش",
-  "آموزش",
-  "خودرو",
-  "سایر",
 ];
 
 const BUDGET_UNITS: { id: BudgetUnit; label: string }[] = [
@@ -77,6 +67,10 @@ export default function AddRequestSheet({
   onBack?: () => void;
 }) {
   const { show } = useToast();
+  const catalog = useCatalog();
+  const categoryChoices = [...catalog.categories, "سایر"].filter(
+    (item, i, arr) => arr.indexOf(item) === i,
+  );
   const meCity = useStore((s) => s.me.city);
   const draftRef = useRef<Draft>({ title: "", description: "", budget: "" });
   const [hasTitle, setHasTitle] = useState(false);
@@ -214,7 +208,7 @@ export default function AddRequestSheet({
           دسته‌بندی
         </label>
         <div className="flex flex-wrap gap-1.5">
-          {CATEGORY_SUGGESTIONS.map((c) => {
+          {categoryChoices.map((c) => {
             const active =
               c === "سایر" ? customCategory : !customCategory && category === c;
             return (

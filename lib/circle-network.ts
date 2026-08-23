@@ -468,12 +468,18 @@ export async function loadSocialFeed(
   }
   const [requestRows, eventRows] = await Promise.all([
     prisma.wantRequest.findMany({
-      where: { requesterId: { in: actorIds } },
+      where: {
+        requesterId: { in: actorIds },
+        OR: [{ hidden: false }, { requesterId: viewerId }],
+      },
       orderBy: { createdAt: "desc" },
       include: { offers: true },
     }),
     prisma.gathering.findMany({
-      where: { hostId: { in: actorIds } },
+      where: {
+        hostId: { in: actorIds },
+        OR: [{ hidden: false }, { hostId: viewerId }],
+      },
       orderBy: { createdAt: "desc" },
       include: { rsvps: { select: { personId: true } } },
     }),

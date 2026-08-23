@@ -59,6 +59,7 @@ export type OfferWriteInput = {
 
 export function parseRequestWrite(
   body: unknown,
+  extraAreas: Iterable<string> = [],
 ): { ok: true; data: RequestWriteInput } | { ok: false; error: string } {
   if (!body || typeof body !== "object") {
     return { ok: false, error: "بدنه نامعتبر است" };
@@ -91,7 +92,7 @@ export function parseRequestWrite(
     }
     budgetUnit = raw.budgetUnit as BudgetUnit;
   }
-  const area = parseArea(raw.area);
+  const area = parseArea(raw.area, extraAreas);
   return {
     ok: true,
     data: { title, description, category, image, budget, budgetUnit, privacy, area },

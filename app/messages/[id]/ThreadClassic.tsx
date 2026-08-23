@@ -32,6 +32,7 @@ import { ApiError } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { lazyUi } from "@/lib/lazy-ui";
 import { toPersianDigits } from "@/lib/persian";
+import { useCatalog } from "@/lib/use-catalog";
 
 const WatchSheet = lazyUi(() => import("@/app/messages/WatchSheet"));
 const InviteSheet = lazyUi(() => import("@/components/InviteSheet"));
@@ -54,6 +55,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   const setListingDealStatus = useStore((s) => s.setListingDealStatus);
   const joinRequests = useStore((s) => s.joinRequests);
   const { show } = useToast();
+  const watchesOn = useCatalog().flags.watches;
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [showCircloWatches, setShowCircloWatches] = useState(false);
@@ -188,13 +190,13 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
     return (
       <main className="flex flex-col h-[100dvh]">
         <Header back fallbackHref="/messages">
-          <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex min-h-9 min-w-0 items-center gap-2.5">
             <Avatar name={peer.name} src={peer.avatar} size="sm" showLevel={false} />
-            <div className="min-w-0">
-              <p className="font-extrabold text-[14px] text-ink dark:text-zinc-100 leading-tight truncate">
+            <div className="flex min-w-0 flex-col justify-center">
+              <p className="m-0 truncate text-[14px] font-extrabold leading-none text-ink dark:text-zinc-100">
                 {peer.name}
               </p>
-              <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 truncate">
+              <p className="m-0 mt-1 truncate text-[11px] leading-none text-ink-muted dark:text-zinc-400">
                 از سیرکل · فقط اطلاع
               </p>
             </div>
@@ -238,10 +240,12 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
             میان‌بر
           </p>
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-            <CircloChip
-              label="گوش‌به‌زنگ"
-              onClick={() => setShowCircloWatches(true)}
-            />
+            {watchesOn ? (
+              <CircloChip
+                label="گوش‌به‌زنگ"
+                onClick={() => setShowCircloWatches(true)}
+              />
+            ) : null}
             <CircloChip
               label={hasOwnListing ? "آگهی جدید" : "اولین آگهی"}
               onClick={() => router.push("/new")}
@@ -263,7 +267,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
             سیرکلو گفتگو نیست — نمی‌توانی جواب بدهی.
           </p>
         </div>
-        {showCircloWatches ? (
+          {showCircloWatches && watchesOn ? (
           <WatchSheet onClose={() => setShowCircloWatches(false)} />
         ) : null}
         {showCircloInvite ? (
@@ -352,14 +356,14 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
       <Header back fallbackHref="/messages">
         <Link
           href={`/person/${peerId}`}
-          className="flex items-center gap-2.5 min-w-0 active:opacity-70"
+          className="flex min-h-9 min-w-0 items-center gap-2.5 active:opacity-70"
         >
           <Avatar name={peer.name} src={peer.avatar} size="sm" showLevel={false} />
-          <div className="min-w-0">
-            <p className="font-extrabold text-[14px] text-ink dark:text-zinc-100 leading-tight truncate">
+          <div className="flex min-w-0 flex-col justify-center">
+            <p className="m-0 truncate text-[14px] font-extrabold leading-none text-ink dark:text-zinc-100">
               {peer.name}
             </p>
-            <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 truncate">
+            <p className="m-0 mt-1 truncate text-[11px] leading-none text-ink-muted dark:text-zinc-400">
               {subtitle}
             </p>
           </div>

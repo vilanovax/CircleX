@@ -200,7 +200,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
               type="button"
               onClick={() => setShowEditRelation(true)}
               aria-label="تغییر رابطه"
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-ink-muted hover:bg-stone-200/50 dark:hover:bg-zinc-800"
+              className="inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none text-ink-muted hover:bg-stone-200/50 dark:hover:bg-zinc-800"
             >
               <MoreIcon className="w-5 h-5" />
             </button>

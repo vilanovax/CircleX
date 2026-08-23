@@ -9,6 +9,7 @@ import {
   areaPlaces,
   type AreaMode,
 } from "@/lib/place";
+import { useCatalog } from "@/lib/use-catalog";
 
 const HOOD_PREVIEW = 6;
 
@@ -21,8 +22,14 @@ export default function AreaPicker({
   value: string;
   onChange: (area: string) => void;
 }) {
+  const catalog = useCatalog();
   const mode = areaMode(value);
-  const { regions, hoods } = areaPlaces(city);
+  const fromCatalog = catalog.cities.find((item) => item.name === city);
+  const fallback = areaPlaces(city);
+  const regions = fromCatalog?.regions?.length
+    ? fromCatalog.regions
+    : fallback.regions;
+  const hoods = fromCatalog?.hoods?.length ? fromCatalog.hoods : fallback.hoods;
   const placeSelected = mode === "place";
   const hiddenHoods = hoods.slice(HOOD_PREVIEW);
   const selectedInMore = hiddenHoods.includes(value);

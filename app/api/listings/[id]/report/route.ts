@@ -1,5 +1,6 @@
 import { listingAccess } from "@/lib/circle-network";
 import { notifyAdminOfListingReport } from "@/lib/admin-notify";
+import { assertFlag } from "@/lib/app-settings";
 import { prisma } from "@/lib/db";
 import { jsonError, readJson } from "@/lib/http";
 import { getSessionUser } from "@/lib/server-auth";
@@ -27,6 +28,8 @@ export async function POST(
 ) {
   const session = await getSessionUser();
   if (!session) return jsonError("وارد نشده‌ای", 401, "unauthorized");
+  const blocked = await assertFlag("listingReports");
+  if (blocked !== true) return blocked;
 
   const listing = await prisma.marketListing.findUnique({
     where: { id: params.id },

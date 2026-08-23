@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
+import { getAppSettings, inviteTtlMs } from "@/lib/app-settings";
 import {
-  INVITE_TTL_MS,
   WAVE_DEFAULT_TRUST,
   WAVE_ROSTER_LIMIT,
   newInviteCode,
@@ -39,12 +39,17 @@ export async function createInviteRecord(input: {
   people?: InviteRosterPerson[];
 }) {
   const kind = input.kind;
+  const settings = await getAppSettings();
   const roster =
     kind === "wave"
       ? dedupeRoster(input.people ?? []).slice(0, WAVE_ROSTER_LIMIT)
       : [];
-  const maxUses = kind === "wave" ? waveMaxUses(roster.length) : 1;
+  const maxUses =
+    kind === "wave"
+      ? waveMaxUses(roster.length, settings.growth.waveMaxUses)
+      : 1;
   const trustGroup = kind === "wave" ? WAVE_DEFAULT_TRUST : input.trustGroup;
+  const expiresAt = new Date(Date.now() + inviteTtlMs(settings.growth.inviteTtlDays));
 
   for (let i = 0; i < 8; i++) {
     const code = newInviteCode();
@@ -60,7 +65,7 @@ export async function createInviteRecord(input: {
           kind,
           maxUses,
           useCount: 0,
-          expiresAt: new Date(Date.now() + INVITE_TTL_MS),
+          expiresAt,
           expected:
             roster.length > 0
               ? {

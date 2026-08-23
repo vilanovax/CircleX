@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
+import { useCatalog } from "@/lib/use-catalog";
 import Header from "@/components/Header";
 import ListingGallery from "@/components/ListingGallery";
 import ListingSpecs from "@/components/ListingSpecs";
@@ -460,18 +461,21 @@ function ListingHeaderActions({
   onReport: () => void;
   onReportIntent: () => void;
 }) {
+  const reportsOn = useCatalog().flags.listingReports;
   return (
     <div className="flex items-center gap-0.5">
-      <button
-        type="button"
-        onClick={onReport}
-        onPointerEnter={onReportIntent}
-        className="inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none text-ink-faint hover:bg-stone-200/50 dark:hover:bg-zinc-800 transition-colors"
-        aria-label="گزارش آگهی"
-        title="گزارش آگهی"
-      >
-        <FlagIcon className="w-5 h-5" />
-      </button>
+      {reportsOn ? (
+        <button
+          type="button"
+          onClick={onReport}
+          onPointerEnter={onReportIntent}
+          className="inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none text-ink-faint hover:bg-stone-200/50 dark:hover:bg-zinc-800 transition-colors"
+          aria-label="گزارش آگهی"
+          title="گزارش آگهی"
+        >
+          <FlagIcon className="w-5 h-5" />
+        </button>
+      ) : null}
       <ListingSaveButton id={listingId} />
     </div>
   );
@@ -490,7 +494,7 @@ function ListingSaveButton({ id }: { id: string }) {
           show(saved ? "از نشان‌شده‌های پروفایل حذف شد" : "در پروفایل ذخیره شد ✓"),
         );
       }}
-      className={`inline-grid size-9 shrink-0 place-items-center appearance-none overflow-hidden rounded-xl p-0 leading-none transition-colors ${
+      className={`inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none transition-colors ${
         saved
           ? "text-pink-500 bg-pink-50 dark:bg-pink-500/10"
           : "text-ink-faint hover:bg-stone-200/50 dark:hover:bg-zinc-800"

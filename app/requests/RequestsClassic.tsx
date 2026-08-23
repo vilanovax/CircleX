@@ -13,6 +13,7 @@ import { PlusIcon } from "@/components/Icons";
 import { canView } from "@/lib/trust";
 import { useToast } from "@/components/Toast";
 import { toPersianDigits } from "@/lib/persian";
+import { useCatalog } from "@/lib/use-catalog";
 
 const AddRequestSheet = lazyUi(() => import("@/components/AddRequestSheet"));
 
@@ -25,12 +26,13 @@ function RequestsContent() {
   const hydrated = useStore((s) => s.hydrated);
   const { show } = useToast();
   const [showAdd, setShowAdd] = useState(false);
+  const requestsOn = useCatalog().flags.requests;
 
   useEffect(() => {
-    if (searchParams.get("compose") === "1") {
+    if (requestsOn && searchParams.get("compose") === "1") {
       setShowAdd(true);
     }
-  }, [searchParams]);
+  }, [searchParams, requestsOn]);
 
   function closeAddSheet() {
     setShowAdd(false);
@@ -55,14 +57,16 @@ function RequestsContent() {
         }
         back
         action={
-          <button
-            type="button"
-            onClick={() => setShowAdd(true)}
-            className="w-9 h-9 rounded-xl bg-brand-600 text-white flex items-center justify-center shadow-sm shadow-brand-600/20 active:bg-brand-700"
-            aria-label="ثبت درخواست"
-          >
-            <PlusIcon className="w-5 h-5" />
-          </button>
+          requestsOn ? (
+            <button
+              type="button"
+              onClick={() => setShowAdd(true)}
+              className="inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl bg-brand-600 p-0 leading-none text-white shadow-sm shadow-brand-600/20 active:bg-brand-700"
+              aria-label="ثبت درخواست"
+            >
+              <PlusIcon className="w-5 h-5" />
+            </button>
+          ) : undefined
         }
       />
 
@@ -84,8 +88,8 @@ function RequestsContent() {
             icon="🔎"
             title="هنوز درخواستی نیست"
             description="درخواست را بین حلقه‌ات بگذار تا دیگران یا آشنایانشان کمک کنند."
-            actionLabel="ثبت اولین درخواست"
-            onAction={() => setShowAdd(true)}
+            actionLabel={requestsOn ? "ثبت اولین درخواست" : undefined}
+            onAction={requestsOn ? () => setShowAdd(true) : undefined}
           />
         ) : (
           <div className="space-y-2.5">

@@ -268,6 +268,22 @@ export function SendIcon({ className }: IconProps) {
   );
 }
 
+export function MegaphoneIcon({ className }: IconProps) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 11v2a3 3 0 0 0 3 3h1l1 4h2v-4h1l8 3V5L9 8H6a3 3 0 0 0-3 3Z" />
+    </svg>
+  );
+}
+
 export function MicIcon({ className }: IconProps) {
   return (
     <svg

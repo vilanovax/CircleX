@@ -19,6 +19,9 @@ export async function GET(
       include: { rsvps: { select: { personId: true } } },
     });
     if (!row) return jsonError("رویداد پیدا نشد", 404);
+    if (row.hidden && row.hostId !== session.id) {
+      return jsonError("رویداد پیدا نشد", 404);
+    }
 
     const access = await listingAccess(session.id, row.hostId);
     if (!access.ok) return jsonError("این رویداد در حلقه تو نیست", 403);

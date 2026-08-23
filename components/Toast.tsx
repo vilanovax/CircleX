@@ -64,8 +64,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         aria-live="polite"
         aria-atomic="true"
       >
-        <div className="app-shell !min-h-0 !shadow-none bg-transparent">
-          <div className="flex flex-col items-center gap-2 pt-3 px-4">
+        <div className="flex flex-col items-center gap-2 pt-3 px-4">
             {toasts.map((t) => (
               <div
                 key={t.id}
@@ -89,7 +88,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               </div>
             ))}
           </div>
-        </div>
       </div>
     </ToastContext.Provider>
   );

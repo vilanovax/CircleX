@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "crypto";
 import { cookies } from "next/headers";
+import { isUserBanned } from "./ban";
 import { prisma } from "./db";
 import type { User } from "@prisma/client";
 
@@ -73,7 +74,25 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     await prisma.session.delete({ where: { id: session.id } }).catch(() => {});
     return null;
   }
+  if (isUserBanned(session.user)) {
+    await prisma.session
+      .deleteMany({ where: { userId: session.user.id } })
+      .catch(() => {});
+    cookies().set(SESSION_COOKIE, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 0,
+    });
+    return null;
+  }
   return toSessionUser(session.user);
+}
+
+export async function destroyAllUserSessions(userId: string): Promise<number> {
+  const result = await prisma.session.deleteMany({ where: { userId } });
+  return result.count;
 }
 
 export async function requireUser(): Promise<SessionUser> {

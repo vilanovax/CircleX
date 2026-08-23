@@ -10,7 +10,8 @@
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
-    "db:push": "prisma db push"
+    "db:push": "prisma db push",
+    "db:seed-admin": "npx tsx scripts/seed-admin.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",

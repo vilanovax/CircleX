@@ -11,6 +11,7 @@ import {
 } from "react";
 import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
+import { useCatalog } from "@/lib/use-catalog";
 import Header from "@/components/Header";
 import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
@@ -53,6 +54,7 @@ type ActivityTab = "listings" | "events" | "saved" | "endorsements";
 
 export default function ClassicProfile() {
   const hydrated = useStore((s) => s.hydrated);
+  const watchesOn = useCatalog().flags.watches;
   const [showAccount, setShowAccount] = useState(false);
   const [showWatches, setShowWatches] = useState(false);
 
@@ -72,15 +74,17 @@ export default function ClassicProfile() {
         title="پروفایل"
         action={
           <div className="flex items-center gap-0.5">
-            <button
-              type="button"
-              onClick={() => setShowWatches(true)}
-              aria-label="گوش‌به‌زنگ‌ها"
-              title="گوش‌به‌زنگ‌ها"
-              className="inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none text-ink-muted dark:text-zinc-300 active:bg-stone-100 dark:active:bg-zinc-800"
-            >
-              <EyeIcon className="w-5 h-5" />
-            </button>
+            {watchesOn ? (
+              <button
+                type="button"
+                onClick={() => setShowWatches(true)}
+                aria-label="گوش‌به‌زنگ‌ها"
+                title="گوش‌به‌زنگ‌ها"
+                className="inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none text-ink-muted dark:text-zinc-300 active:bg-stone-100 dark:active:bg-zinc-800"
+              >
+                <EyeIcon className="w-5 h-5" />
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => setShowAccount(true)}
@@ -97,7 +101,7 @@ export default function ClassicProfile() {
         <ProfileHero />
         <ProfileActivity />
       </div>
-      {showWatches ? (
+      {showWatches && watchesOn ? (
         <WatchSheet onClose={() => setShowWatches(false)} />
       ) : null}
       {showAccount ? (

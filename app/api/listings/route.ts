@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { catalogExtraAreas } from "@/lib/app-settings";
 import { prisma } from "@/lib/db";
 import { jsonError, readJson } from "@/lib/http";
 import { toClientListing } from "@/lib/mappers";
@@ -12,7 +13,10 @@ export async function POST(req: Request) {
   const session = await getSessionUser();
   if (!session) return jsonError("وارد نشده‌ای", 401, "unauthorized");
 
-  const parsed = parseListingWrite(await readJson(req));
+  const parsed = parseListingWrite(
+    await readJson(req),
+    await catalogExtraAreas(),
+  );
   if (!parsed.ok) return jsonError(parsed.error, 400);
 
   const row = await prisma.marketListing.create({

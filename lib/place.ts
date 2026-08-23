@@ -59,6 +59,26 @@ const KARAJ_HOODS = [
   "مهرشهر",
 ] as const;
 
+export const CATALOG_CITY_SEED: {
+  name: string;
+  enabled: boolean;
+  regions: string[];
+  hoods: string[];
+}[] = [
+  {
+    name: "تهران",
+    enabled: true,
+    regions: [...TEHRAN_REGIONS],
+    hoods: [...TEHRAN_HOODS],
+  },
+  {
+    name: "کرج",
+    enabled: true,
+    regions: [],
+    hoods: [...KARAJ_HOODS],
+  },
+];
+
 const BY_CITY: Record<
   string,
   { regions: readonly string[]; hoods: readonly string[] }
@@ -99,14 +119,20 @@ export function areaFromMode(mode: AreaMode): string {
   return AREA_CITYWIDE;
 }
 
-export function parseArea(value: unknown): string | undefined {
+export function parseArea(
+  value: unknown,
+  extra: Iterable<string> = [],
+): string | undefined {
   const raw = String(value ?? "")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 40);
   if (!raw) return undefined;
-  if (!ALLOWED.has(raw)) return undefined;
-  return raw;
+  if (ALLOWED.has(raw)) return raw;
+  for (const name of Array.from(extra)) {
+    if (name === raw) return raw;
+  }
+  return undefined;
 }
 
 /** Short line for feed cards. */

@@ -8,6 +8,7 @@ import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
 import ListingComposeForm from "@/components/ListingComposeForm";
 import { useToast } from "@/components/Toast";
+import { useCatalog } from "@/lib/use-catalog";
 
 /** Full-page route for deep links; primary flow is + → CreateSheet. */
 export default function NewClassic() {
@@ -15,25 +16,28 @@ export default function NewClassic() {
   const addListing = useStore((s) => s.addListing);
   const { show } = useToast();
   const [publishing, setPublishing] = useState(false);
+  const catalog = useCatalog();
 
   return (
     <main className="pb-28 min-h-[100dvh]">
       <Header title="آگهی جدید" back />
 
       <div className="px-4 pt-4 space-y-5">
-        <Link
-          href="/requests?compose=1"
-          className="card block px-3.5 py-3 active:scale-[0.99] transition"
-        >
-          <p className="font-bold text-[13px] text-ink dark:text-zinc-100">
-            دنبال چیزی هستی؟
-          </p>
-          <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
-            مثلاً «کلاس نقاشی کودک» — به‌جای آگهی،{" "}
-            <span className="font-semibold text-amber-800/80 dark:text-amber-200/90">درخواست</span>{" "}
-            ثبت کن تا افراد حلقه بتوانند کمک کنند.
-          </p>
-        </Link>
+        {catalog.flags.requests ? (
+          <Link
+            href="/requests?compose=1"
+            className="card block px-3.5 py-3 active:scale-[0.99] transition"
+          >
+            <p className="font-bold text-[13px] text-ink dark:text-zinc-100">
+              دنبال چیزی هستی؟
+            </p>
+            <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
+              مثلاً «کلاس نقاشی کودک» — به‌جای آگهی،{" "}
+              <span className="font-semibold text-amber-800/80 dark:text-amber-200/90">درخواست</span>{" "}
+              ثبت کن تا افراد حلقه بتوانند کمک کنند.
+            </p>
+          </Link>
+        ) : null}
 
         <ListingComposeForm
           submitLabel={publishing ? "در حال انتشار…" : "انتشار آگهی در حلقه"}

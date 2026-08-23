@@ -1,3 +1,4 @@
+import { assertFlag } from "@/lib/app-settings";
 import { prisma } from "@/lib/db";
 import { jsonError, readJson, withDb } from "@/lib/http";
 import { toClientEvent } from "@/lib/mappers";
@@ -10,6 +11,8 @@ export async function POST(req: Request) {
   return withDb(async () => {
     const session = await getSessionUser();
     if (!session) return jsonError("وارد نشده‌ای", 401, "unauthorized");
+    const blocked = await assertFlag("events");
+    if (blocked !== true) return blocked;
 
     const parsed = parseEventWrite(await readJson(req));
     if (!parsed.ok) return jsonError(parsed.error, 400);

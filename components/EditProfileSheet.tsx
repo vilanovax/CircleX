@@ -9,6 +9,7 @@ import {
   PICKER_AVATARS,
   withBasePath,
 } from "@/lib/avatar";
+import { useCatalog } from "@/lib/use-catalog";
 
 function editAvatarChoices(current?: string): string[] {
   const list: string[] = [...PICKER_AVATARS];
@@ -48,6 +49,14 @@ export default function EditProfileSheet({
       : PICKER_AVATARS[0],
   );
   const [busy, setBusy] = useState(false);
+  const catalog = useCatalog();
+  const cityOptions = useMemo(() => {
+    const names = catalog.cities.map((item) => item.name);
+    if (initialCity && !names.includes(initialCity)) {
+      return [initialCity, ...names];
+    }
+    return names;
+  }, [catalog.cities, initialCity]);
   const [error, setError] = useState<string | null>(null);
   const avatarGroupId = useId();
   const choices = useMemo(
@@ -65,7 +74,11 @@ export default function EditProfileSheet({
     setBusy(true);
     setError(null);
     try {
-      await onSave({ name: trimmed, city: city.trim(), avatar });
+      await onSave({
+        name: trimmed,
+        city: (cityOptions.includes(city) ? city : cityOptions[0] ?? city).trim(),
+        avatar,
+      });
     } catch {
       setError("ذخیره نشد. دوباره امتحان کن.");
       setBusy(false);
@@ -196,15 +209,30 @@ export default function EditProfileSheet({
       <label className="block text-[12px] font-bold mt-4 mb-1.5 text-ink dark:text-zinc-200">
         شهر
       </label>
-      <input
-        value={city}
-        onChange={(e) => setCity(e.target.value)}
-        placeholder="مثلاً تهران"
-        autoComplete="address-level2"
-        spellCheck={false}
-        disabled={busy}
-        className="field !min-h-12"
-      />
+      {cityOptions.length > 0 ? (
+        <select
+          value={cityOptions.includes(city) ? city : cityOptions[0]}
+          onChange={(e) => setCity(e.target.value)}
+          disabled={busy}
+          className="field !min-h-12"
+        >
+          {cityOptions.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          value={city}
+          onChange={(e) => setCity(e.target.value)}
+          placeholder="مثلاً تهران"
+          autoComplete="address-level2"
+          spellCheck={false}
+          disabled={busy}
+          className="field !min-h-12"
+        />
+      )}
       {error ? (
         <p
           id="edit-profile-error"
