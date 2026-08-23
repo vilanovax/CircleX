@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import Avatar from "@/components/Avatar";
@@ -30,9 +30,15 @@ import { chatPeerSubtitle, viaConnectorName } from "@/lib/trust";
 import type { Message } from "@/lib/types";
 import { ApiError } from "@/lib/api";
 import { useToast } from "@/components/Toast";
+import { lazyUi } from "@/lib/lazy-ui";
+import { toPersianDigits } from "@/lib/persian";
+
+const WatchSheet = lazyUi(() => import("@/app/messages/WatchSheet"));
+const InviteSheet = lazyUi(() => import("@/components/InviteSheet"));
 
 export default function ThreadClassic(_props: { params: { id: string } }) {
   const params = useParams();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const peerId = String(params.id);
   const people = useStore((s) => s.people);
@@ -46,9 +52,12 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   const addMessage = useStore((s) => s.addMessage);
   const markThreadRead = useStore((s) => s.markThreadRead);
   const setListingDealStatus = useStore((s) => s.setListingDealStatus);
+  const joinRequests = useStore((s) => s.joinRequests);
   const { show } = useToast();
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [showCircloWatches, setShowCircloWatches] = useState(false);
+  const [showCircloInvite, setShowCircloInvite] = useState(false);
   const [listingLoadState, setListingLoadState] = useState<
     "idle" | "loading" | "ready" | "missing"
   >("idle");
@@ -174,6 +183,8 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   }
 
   if (isCircloPeer(peerId)) {
+    const joins = joinRequests.length;
+    const hasOwnListing = listings.some((l) => l.sellerId === "me");
     return (
       <main className="flex flex-col h-[100dvh]">
         <Header back fallbackHref="/messages">
@@ -193,7 +204,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
           {thread.length === 0 ? (
             <p className="text-center text-[13px] text-ink-muted leading-relaxed px-6 pt-16">
               درخواست ورود، پذیرش دعوت، و آگهی‌هایی که گوش‌به‌زنگ‌شان هستی اینجا
-              می‌آید. عبارت یا نفر را از پروفایل، کنار حساب بگذار.
+              می‌آید. میان‌برها پایین صفحه است.
             </p>
           ) : (
             <div className="space-y-3">
@@ -222,11 +233,42 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
           )}
           <div ref={bottomRef} />
         </div>
-        <div className="shrink-0 border-t border-stone-200/70 dark:border-zinc-800 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <p className="text-[12px] text-ink-muted text-center leading-relaxed">
+        <div className="shrink-0 border-t border-stone-200/70 dark:border-zinc-800 bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-xl px-3 pt-2 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
+          <p className="text-[10px] font-semibold text-ink-faint px-0.5 mb-1.5">
+            میان‌بر
+          </p>
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+            <CircloChip
+              label="گوش‌به‌زنگ"
+              onClick={() => setShowCircloWatches(true)}
+            />
+            <CircloChip
+              label={hasOwnListing ? "آگهی جدید" : "اولین آگهی"}
+              onClick={() => router.push("/new")}
+            />
+            <CircloChip
+              label={
+                joins > 0
+                  ? `حلقه · ${toPersianDigits(joins)}`
+                  : "حلقه‌ی من"
+              }
+              onClick={() => router.push("/circle")}
+            />
+            <CircloChip
+              label="دعوت"
+              onClick={() => setShowCircloInvite(true)}
+            />
+          </div>
+          <p className="text-[11px] text-ink-faint text-center mt-2 leading-relaxed">
             سیرکلو گفتگو نیست — نمی‌توانی جواب بدهی.
           </p>
         </div>
+        {showCircloWatches ? (
+          <WatchSheet onClose={() => setShowCircloWatches(false)} />
+        ) : null}
+        {showCircloInvite ? (
+          <InviteSheet onClose={() => setShowCircloInvite(false)} />
+        ) : null}
       </main>
     );
   }
@@ -518,6 +560,24 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
         </div>
       </div>
     </main>
+  );
+}
+
+function CircloChip({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="shrink-0 rounded-full border px-3 py-1.5 text-[11.5px] font-semibold border-stone-200/90 dark:border-zinc-700 bg-stone-50/90 dark:bg-zinc-800/80 text-ink dark:text-zinc-100 transition-transform active:scale-[0.97]"
+    >
+      {label}
+    </button>
   );
 }
 
