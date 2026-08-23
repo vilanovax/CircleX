@@ -1,6 +1,8 @@
 import { listingAccess, personFromNetworkUser } from "@/lib/circle-network";
+import { isCircloPeer } from "@/lib/circlo";
 import { prisma } from "@/lib/db";
 import { memberFromEdge, toClientDirectMessage } from "@/lib/mappers";
+import { loadNoticeRows, toClientNotice } from "@/lib/server-notices";
 import type { Message, Person } from "@/lib/types";
 
 export const DM_TEXT_MAX = 2000;
@@ -14,7 +16,9 @@ export async function peopleForMessagePeers(
   viewerId: string,
   peerIds: string[],
 ): Promise<Person[]> {
-  const unique = Array.from(new Set(peerIds.filter(Boolean)));
+  const unique = Array.from(
+    new Set(peerIds.filter((id) => id && !isCircloPeer(id))),
+  );
   if (unique.length === 0) return [];
 
   const edges = await prisma.circleEdge.findMany({
@@ -67,6 +71,9 @@ export async function assertCanSendDm(
   listingId?: string | null,
 ): Promise<SendAuth> {
   if (!peerId) return { ok: false, error: "مخاطب نامعتبر است", status: 400 };
+  if (isCircloPeer(peerId)) {
+    return { ok: false, error: "به سیرکلو نمی‌توان پیام داد", status: 400 };
+  }
   if (peerId === viewerId) {
     return { ok: false, error: "نمی‌توانی به خودت پیام بدهی", status: 400 };
   }
@@ -143,18 +150,32 @@ export async function loadInbox(viewerId: string): Promise<{
   messages: Message[];
   people: Person[];
 }> {
-  const rows = await prisma.directMessage.findMany({
-    where: {
-      OR: [{ fromUserId: viewerId }, { toUserId: viewerId }],
-    },
-    orderBy: { createdAt: "desc" },
-    take: DM_INBOX_CAP,
-  });
+  const [rows, noticeRows] = await Promise.all([
+    prisma.directMessage.findMany({
+      where: {
+        OR: [{ fromUserId: viewerId }, { toUserId: viewerId }],
+      },
+      orderBy: { createdAt: "desc" },
+      take: DM_INBOX_CAP,
+    }),
+    loadNoticeRows(viewerId),
+  ]);
   const now = Date.now();
-  const messages = rows
+  const stamped: { at: number; message: Message }[] = rows
     .slice()
     .reverse()
-    .map((row) => toClientDirectMessage(row, viewerId, now));
+    .map((row) => ({
+      at: row.createdAt.getTime(),
+      message: toClientDirectMessage(row, viewerId, now),
+    }));
+  for (const row of noticeRows) {
+    stamped.push({
+      at: row.createdAt.getTime(),
+      message: toClientNotice(row, now),
+    });
+  }
+  stamped.sort((a, b) => a.at - b.at);
+  const messages = stamped.map((s) => s.message);
   const peerIds = Array.from(new Set(messages.map((m) => m.peerId)));
   const people = await peopleForMessagePeers(viewerId, peerIds);
   return { messages, people };

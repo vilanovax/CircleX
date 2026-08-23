@@ -8,6 +8,10 @@ import {
 } from "@/lib/mappers";
 import { getSessionUser } from "@/lib/server-auth";
 import { isExpectedInvitee } from "@/lib/server-invite";
+import {
+  notifyInviteAccepted,
+  notifyJoinRequest,
+} from "@/lib/server-notices";
 import { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -63,7 +67,7 @@ export async function POST(
   });
 
   if (!expected) {
-    await prisma.circleJoinRequest.upsert({
+    const joinReq = await prisma.circleJoinRequest.upsert({
       where: {
         hostUserId_guestUserId: {
           hostUserId: row.inviterUserId,
@@ -82,6 +86,12 @@ export async function POST(
         resolvedAt: null,
       },
     });
+    await notifyJoinRequest({
+      hostUserId: row.inviterUserId,
+      guestUserId: session.id,
+      guestName: session.name,
+      joinRequestId: joinReq.id,
+    }).catch(() => {});
     return Response.json({
       invite: toClientInvite(row),
       inviter,
@@ -172,6 +182,13 @@ export async function POST(
         include: inviteExpectedInclude,
       });
     });
+
+    await notifyInviteAccepted({
+      hostUserId: row.inviterUserId,
+      guestUserId: session.id,
+      guestName: session.name,
+      inviteId: row.id,
+    }).catch(() => {});
 
     return Response.json({
       invite: toClientInvite(invite),

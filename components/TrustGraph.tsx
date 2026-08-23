@@ -372,7 +372,7 @@ function TrustGraph({
                       ? "transition-[stroke-width,opacity] duration-200"
                       : `stroke-stone-400 dark:stroke-zinc-500 transition-opacity duration-200 ${
                           faint
-                            ? "opacity-12"
+                            ? "opacity-[0.06]"
                             : selected
                               ? "opacity-15"
                               : "opacity-55"
@@ -414,7 +414,9 @@ function TrustGraph({
               >
                 <g
                   className={`transition-opacity duration-200 ${
-                    dim(n.id) ? "opacity-25" : "opacity-100"
+                    dim(n.id)
+                      ? "opacity-[0.12] grayscale"
+                      : "opacity-100"
                   }`}
                 >
                   {(isMe || onPath || isSelected) && (

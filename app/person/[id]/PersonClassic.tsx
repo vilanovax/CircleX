@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { startTransition, useId, useMemo, useState } from "react";
+import { startTransition, useEffect, useId, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { lazyUi } from "@/lib/lazy-ui";
 import { isActiveCircleMember } from "@/lib/circle-member";
+import { isCircloPeer } from "@/lib/circlo";
 import { canMessageFromProfile } from "@/lib/messaging";
 import Header from "@/components/Header";
 import Avatar from "@/components/Avatar";
@@ -58,6 +59,9 @@ export default function PersonClassic(_props: { params: { id: string } }) {
   const params = useParams();
   const router = useRouter();
   const id = String(params.id);
+  useEffect(() => {
+    if (isCircloPeer(id)) router.replace("/messages/circlo");
+  }, [id, router]);
   const person = useStore((s) =>
     id === "me" || (s.meServerId && id === s.meServerId)
       ? s.me

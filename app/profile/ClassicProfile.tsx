@@ -24,6 +24,7 @@ import {
   ClockIcon,
   GearIcon,
   HeartIcon,
+  EyeIcon,
   MapPinIcon,
   PencilIcon,
   PlusIcon,
@@ -41,6 +42,7 @@ import { listingConversationCountMap } from "@/lib/thread-listing";
 import type { CircleEvent, Listing } from "@/lib/types";
 
 const EditProfileSheet = lazyUi(() => import("@/components/EditProfileSheet"));
+const WatchSheet = lazyUi(() => import("@/app/messages/WatchSheet"));
 const SavedListingCard = lazyUi(() => import("@/components/ListingCard"), {
   loading: () => (
     <div className="card h-[4.75rem] animate-pulse bg-stone-100 dark:bg-zinc-800" />
@@ -52,6 +54,7 @@ type ActivityTab = "listings" | "events" | "saved" | "endorsements";
 export default function ClassicProfile() {
   const hydrated = useStore((s) => s.hydrated);
   const [showAccount, setShowAccount] = useState(false);
+  const [showWatches, setShowWatches] = useState(false);
 
   if (!hydrated) {
     return (
@@ -68,21 +71,35 @@ export default function ClassicProfile() {
       <Header
         title="پروفایل"
         action={
-          <button
-            type="button"
-            onClick={() => setShowAccount(true)}
-            aria-label="حساب"
-            title="حساب"
-            className="inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none text-ink-muted dark:text-zinc-300 active:bg-stone-100 dark:active:bg-zinc-800"
-          >
-            <GearIcon className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              onClick={() => setShowWatches(true)}
+              aria-label="گوش‌به‌زنگ‌ها"
+              title="گوش‌به‌زنگ‌ها"
+              className="inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none text-ink-muted dark:text-zinc-300 active:bg-stone-100 dark:active:bg-zinc-800"
+            >
+              <EyeIcon className="w-5 h-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAccount(true)}
+              aria-label="حساب"
+              title="حساب"
+              className="inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none text-ink-muted dark:text-zinc-300 active:bg-stone-100 dark:active:bg-zinc-800"
+            >
+              <GearIcon className="w-5 h-5" />
+            </button>
+          </div>
         }
       />
       <div className="px-4 pt-3 space-y-3.5 listing-detail-rise">
         <ProfileHero />
         <ProfileActivity />
       </div>
+      {showWatches ? (
+        <WatchSheet onClose={() => setShowWatches(false)} />
+      ) : null}
       {showAccount ? (
         <AccountSheet onClose={() => setShowAccount(false)} />
       ) : null}

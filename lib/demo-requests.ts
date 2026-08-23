@@ -4,6 +4,7 @@ import {
   VIEWER_LISTING_DEFS,
   type DemoPersonKey,
 } from "@/lib/demo-circle-catalog";
+import { CIRCLO_PEER_ID } from "@/lib/circlo";
 import { relationLabels, relationTowardName } from "@/lib/labels";
 import type {
   CircleEvent,
@@ -516,7 +517,7 @@ export function mergeInboxMessages(
   );
   const revivedPeerIds = deletedPeerIds.filter((id) => unreadPeers.has(id));
   const hide = new Set(
-    deletedPeerIds.filter((id) => !unreadPeers.has(id)),
+    deletedPeerIds.filter((id) => !unreadPeers.has(id) && id !== CIRCLO_PEER_ID),
   );
   const visible = server.filter((m) => !hide.has(m.peerId));
   const pending = prev.filter((m) => isLocalPendingMessageId(m.id));

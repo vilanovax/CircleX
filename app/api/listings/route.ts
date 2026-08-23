@@ -4,6 +4,7 @@ import { jsonError, readJson } from "@/lib/http";
 import { toClientListing } from "@/lib/mappers";
 import { parseListingWrite } from "@/lib/listing-payload";
 import { getSessionUser } from "@/lib/server-auth";
+import { fanoutListingWatches } from "@/lib/server-watches";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,15 @@ export async function POST(req: Request) {
         : undefined,
     },
   });
+
+  void fanoutListingWatches({
+    id: row.id,
+    sellerId: row.sellerId,
+    title: row.title,
+    description: row.description,
+    privacy: row.privacy,
+    dealStatus: row.dealStatus,
+  }).catch(() => {});
 
   return Response.json({ listing: toClientListing(row, session.id) });
 }

@@ -175,6 +175,10 @@ export interface Message {
   read: boolean;
   /** When set, this message is a referral carrying a listing preview. */
   listingId?: string;
+  /** System inbox (Circlo), not a person-to-person DM. */
+  kind?: "notice";
+  actionHref?: string;
+  actionLabel?: string;
 }
 
 /** A response to a request — someone offering what the requester wants. */

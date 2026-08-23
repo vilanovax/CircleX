@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db";
 import { jsonError, readJson, withDb } from "@/lib/http";
+import { isCircloPeer } from "@/lib/circlo";
 import { getSessionUser } from "@/lib/server-auth";
+import { markNoticesRead } from "@/lib/server-notices";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +14,10 @@ export async function POST(req: Request) {
     const body = await readJson<{ peerId?: unknown }>(req);
     const peerId = typeof body?.peerId === "string" ? body.peerId.trim() : "";
     if (!peerId) return jsonError("مخاطب نامعتبر است", 400);
+    if (isCircloPeer(peerId)) {
+      const updated = await markNoticesRead(session.id);
+      return Response.json({ ok: true, updated });
+    }
     if (peerId === session.id) {
       return jsonError("مخاطب نامعتبر است", 400);
     }

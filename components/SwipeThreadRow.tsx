@@ -18,6 +18,7 @@ type Props = {
   children: ReactNode;
   archived: boolean;
   pinned: boolean;
+  disabled?: boolean;
   onArchive: () => void;
   onUnarchive: () => void;
   onDelete: () => void;
@@ -32,6 +33,7 @@ export default function SwipeThreadRow({
   children,
   archived,
   pinned,
+  disabled = false,
   onArchive,
   onUnarchive,
   onDelete,
@@ -99,6 +101,8 @@ export default function SwipeThreadRow({
   }
 
   const open = offset < -OPEN_THRESHOLD / 2;
+
+  if (disabled) return <>{children}</>;
 
   return (
     <div className="relative overflow-hidden">

@@ -73,6 +73,9 @@ model User {
   savedListings       SavedListing[]
   threadPrefs         ThreadPreference[]   @relation("ThreadOwner")
   threadAsPeer        ThreadPreference[]   @relation("ThreadPeer")
+  systemNotices       SystemNotice[]
+  listingWatches      ListingWatch[]       @relation("WatchOwner")
+  watchedBy           ListingWatch[]       @relation("WatchTarget")
 
   @@index([phoneNormalized])
 }
@@ -369,6 +372,47 @@ model SavedListing {
 
   @@unique([userId, listingId])
   @@index([userId])
+}
+
+model ListingWatch {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation("WatchOwner", fields: [userId], references: [id], onDelete: Cascade)
+  kind         String
+  phrase       String?
+  phraseNorm   String?
+  targetUserId String?
+  target       User?    @relation("WatchTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId, kind])
+  @@index([targetUserId, enabled])
+  @@index([kind, enabled])
+}
+
+model SystemNotice {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind          String
+  title         String
+  body          String
+  actionHref    String?
+  actionLabel   String?
+  actorUserId   String?
+  joinRequestId String?
+  inviteId      String?
+  listingId     String?
+  watchId       String?
+  readAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@index([userId, kind, actorUserId])
+  @@index([userId, kind, watchId, createdAt])
 }
 
 model ThreadPreference {

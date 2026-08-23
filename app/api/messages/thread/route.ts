@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { jsonError, readJson, withDb } from "@/lib/http";
+import { isCircloPeer } from "@/lib/circlo";
 import { PIN_THREAD_MAX } from "@/lib/social-payload";
 import { getSessionUser } from "@/lib/server-auth";
 
@@ -17,7 +18,7 @@ export async function PUT(req: Request) {
       deleted?: unknown;
     }>(req);
     const peerId = typeof body?.peerId === "string" ? body.peerId.trim() : "";
-    if (!peerId || peerId === session.id) {
+    if (!peerId || peerId === session.id || isCircloPeer(peerId)) {
       return jsonError("مخاطب نامعتبر است", 400);
     }
 

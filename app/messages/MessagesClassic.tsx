@@ -16,9 +16,10 @@ import BottomNav from "@/components/BottomNav";
 import Avatar from "@/components/Avatar";
 import SwipeThreadRow from "@/components/SwipeThreadRow";
 import { useToast } from "@/components/Toast";
-import { ChatIcon, MoreIcon, PencilIcon, PinIcon, SearchIcon } from "@/components/Icons";
+import { MoreIcon, PencilIcon, PinIcon, SearchIcon } from "@/components/Icons";
 import { lazyUi } from "@/lib/lazy-ui";
 import { threadPreview } from "@/lib/message-preview";
+import { CIRCLO_PEER_ID, CIRCLO_PERSON, isCircloPeer } from "@/lib/circlo";
 import { toPersianDigits } from "@/lib/persian";
 import { listingSubject } from "@/lib/listing-prompts";
 import { recalledThreadListing } from "@/lib/thread-listing";
@@ -97,7 +98,7 @@ const MessagesBody = memo(function MessagesBody({
   const [menu, setMenu] = useState<ThreadMenu | null>(null);
   const deferredQuery = useDeferredValue(query);
 
-  const peers = threadIndex.peerIds;
+  const peers = threadIndex.peerIds.filter((id) => !isCircloPeer(id));
   const archivedSet = useMemo(
     () => new Set(archivedThreads),
     [archivedThreads],
@@ -113,12 +114,12 @@ const MessagesBody = memo(function MessagesBody({
     [peers, archivedSet],
   );
   const inboxUnread = useMemo(() => {
-    let n = 0;
+    let n = threadIndex.unreadByPeer.get(CIRCLO_PEER_ID) ?? 0;
     for (const id of inboxPeers) n += threadIndex.unreadByPeer.get(id) ?? 0;
     return n;
   }, [inboxPeers, threadIndex]);
 
-  const subtitle = !hydrated || peers.length === 0
+  const subtitle = !hydrated
     ? undefined
     : filter === "archive"
       ? `${toPersianDigits(archivedPeers.length)} آرشیو`
@@ -163,8 +164,21 @@ const MessagesBody = memo(function MessagesBody({
         ),
         pinned: pinnedSet.has(peerId),
         archived: archivedSet.has(peerId),
+        official: false,
       });
     }
+
+    const circloPeer = CIRCLO_PERSON;
+    const circloLast = threadIndex.lastByPeer.get(CIRCLO_PEER_ID);
+    const circloUnread = threadIndex.unreadByPeer.get(CIRCLO_PEER_ID) ?? 0;
+    const circloMatchesQuery =
+      !q ||
+      circloPeer.name.includes(q) ||
+      "circlo".includes(q.toLowerCase());
+    const showCirclo =
+      filter !== "archive" &&
+      circloMatchesQuery &&
+      (filter !== "unread" || circloUnread > 0);
 
     if (filter === "archive") return mapped;
 
@@ -175,7 +189,26 @@ const MessagesBody = memo(function MessagesBody({
           pinnedThreads.indexOf(a.peerId) - pinnedThreads.indexOf(b.peerId),
       );
     const rest = mapped.filter((r) => !r.pinned);
-    return [...pinnedRows, ...rest];
+    const circloRow = showCirclo
+      ? [
+          {
+            peerId: CIRCLO_PEER_ID,
+            peer: circloPeer,
+            last: circloLast,
+            unread: circloUnread,
+            preview: circloLast
+              ? threadPreview(circloLast, getListing)
+              : "اخبار حلقه — درخواست ورود و پذیرش دعوت",
+            topicListingId: undefined as string | undefined,
+            topicListing: undefined as Listing | undefined,
+            relationLine: "از سیرکل",
+            pinned: true,
+            archived: false,
+            official: true,
+          },
+        ]
+      : [];
+    return [...circloRow, ...pinnedRows, ...rest];
   }, [
     deferredQuery,
     filter,
@@ -261,14 +294,14 @@ const MessagesBody = memo(function MessagesBody({
       />
 
       <div className="px-4 pt-3 space-y-3 listing-detail-rise">
-        {hydrated && peers.length > 0 ? (
+        {hydrated ? (
           <div className="space-y-2">
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
               <FilterChip
                 active={filter === "all"}
                 onClick={() => startTransition(() => setFilter("all"))}
                 label="همه"
-                count={inboxPeers.length}
+                count={inboxPeers.length + 1}
               />
               <FilterChip
                 active={filter === "unread"}
@@ -283,7 +316,7 @@ const MessagesBody = memo(function MessagesBody({
                 count={archivedPeers.length}
               />
             </div>
-            {peers.length >= 8 || query ? (
+            {inboxPeers.length >= 7 || query ? (
               <label className="relative block">
                 <SearchIcon className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" />
                 <input
@@ -300,8 +333,6 @@ const MessagesBody = memo(function MessagesBody({
 
         {!hydrated ? (
           <ThreadListSkeleton count={5} />
-        ) : peers.length === 0 ? (
-          <EmptyState onStart={onCompose} />
         ) : rows.length === 0 ? (
           <div className="card p-5 text-center">
             <p className="text-sm font-bold text-ink dark:text-zinc-100">
@@ -340,6 +371,7 @@ const MessagesBody = memo(function MessagesBody({
                 relationLine={row.relationLine}
                 pinned={row.pinned}
                 archived={row.archived}
+                official={row.official}
                 eager={idx < ABOVE_FOLD}
                 onMore={onMore}
                 onArchive={handleArchive}
@@ -390,6 +422,7 @@ const InboxThreadRow = memo(function InboxThreadRow({
   relationLine,
   pinned,
   archived,
+  official,
   eager,
   onMore,
   onArchive,
@@ -407,6 +440,7 @@ const InboxThreadRow = memo(function InboxThreadRow({
   relationLine: string;
   pinned: boolean;
   archived: boolean;
+  official?: boolean;
   eager: boolean;
   onMore: (menu: ThreadMenu) => void;
   onArchive: (peerId: string, name: string) => void;
@@ -419,6 +453,7 @@ const InboxThreadRow = memo(function InboxThreadRow({
       <SwipeThreadRow
         archived={archived}
         pinned={pinned}
+        disabled={official}
         onArchive={() => onArchive(peerId, peer.name)}
         onUnarchive={() => onUnarchive(peerId, peer.name)}
         onDelete={() => onDelete(peerId, peer.name)}
@@ -434,15 +469,19 @@ const InboxThreadRow = memo(function InboxThreadRow({
           topicListing={topicListing}
           relationLine={relationLine}
           pinned={pinned}
+          official={official}
           eager={eager}
-          onMore={() =>
-            onMore({
-              peerId,
-              name: peer.name,
-              avatar: peer.avatar,
-              pinned,
-              archived,
-            })
+          onMore={
+            official
+              ? undefined
+              : () =>
+                  onMore({
+                    peerId,
+                    name: peer.name,
+                    avatar: peer.avatar,
+                    pinned,
+                    archived,
+                  })
           }
         />
       </SwipeThreadRow>
@@ -460,6 +499,7 @@ const ThreadRow = memo(function ThreadRow({
   topicListing,
   relationLine,
   pinned,
+  official,
   eager,
   onMore,
 }: {
@@ -472,8 +512,9 @@ const ThreadRow = memo(function ThreadRow({
   topicListing?: Listing;
   relationLine: string;
   pinned?: boolean;
+  official?: boolean;
   eager?: boolean;
-  onMore: () => void;
+  onMore?: () => void;
 }) {
   const hasUnread = unread > 0;
   const href = topicListingId
@@ -525,13 +566,19 @@ const ThreadRow = memo(function ThreadRow({
               {last?.postedAt ?? "—"}
             </span>
           </div>
-          {topicLine ? (
+          {topicLine && !official ? (
             <p className="text-[11px] font-semibold text-brand-700/80 dark:text-brand-300/90 truncate mt-px">
               {topicLine}
             </p>
           ) : (
             <p className="text-[11px] text-ink-muted truncate mt-px">
-              {relationLine}
+              {official ? (
+                <span className="text-brand-700 dark:text-brand-300 font-semibold">
+                  از سیرکل
+                </span>
+              ) : (
+                relationLine
+              )}
             </p>
           )}
           <div className="flex items-center gap-2 mt-0.5">
@@ -552,6 +599,7 @@ const ThreadRow = memo(function ThreadRow({
           </div>
         </div>
       </Link>
+      {onMore ? (
       <button
         type="button"
         onClick={onMore}
@@ -562,6 +610,9 @@ const ThreadRow = memo(function ThreadRow({
       >
         <MoreIcon className="w-5 h-5" />
       </button>
+      ) : (
+        <span className="w-3 shrink-0" aria-hidden />
+      )}
     </div>
   );
 });
@@ -598,36 +649,3 @@ function FilterChip({
     </button>
   );
 }
-
-const EmptyState = memo(function EmptyState({
-  onStart,
-}: {
-  onStart: () => void;
-}) {
-  return (
-    <div className="card p-6 text-center mt-2">
-      <div className="w-14 h-14 rounded-2xl bg-brand-50 dark:bg-brand-500/15 text-brand-600 flex items-center justify-center mx-auto mb-3">
-        <ChatIcon className="w-7 h-7" />
-      </div>
-      <p className="font-bold text-ink dark:text-zinc-100">هنوز گفتگویی نداری</p>
-      <p className="text-sm text-ink-muted dark:text-zinc-400 mt-1.5 leading-relaxed max-w-xs mx-auto">
-        از یک آگهی پیام بده، یا همین‌جا با کسی از حلقه شروع کن.
-      </p>
-      <button
-        type="button"
-        onClick={onStart}
-        onPointerEnter={preloadMessageSheets}
-        onFocus={preloadMessageSheets}
-        className="btn-primary inline-block mt-4"
-      >
-        پیام دادن
-      </button>
-      <Link
-        href="/circle"
-        className="block text-xs text-brand-600 font-medium mt-3"
-      >
-        یا اول حلقه‌ات را بساز ‹
-      </Link>
-    </div>
-  );
-});

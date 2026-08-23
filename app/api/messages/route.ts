@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { jsonError, readJson, withDb } from "@/lib/http";
 import { toClientDirectMessage } from "@/lib/mappers";
+import { isCircloPeer } from "@/lib/circlo";
 import {
   assertCanSendDm,
   DM_TEXT_MAX,
@@ -38,6 +39,9 @@ export async function POST(req: Request) {
         : undefined;
 
     if (!peerId) return jsonError("مخاطب نامعتبر است", 400);
+    if (isCircloPeer(peerId)) {
+      return jsonError("به سیرکلو نمی‌توان پیام داد", 400);
+    }
     if (text.length > DM_TEXT_MAX) {
       return jsonError("پیام خیلی بلند است", 400);
     }

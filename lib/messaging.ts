@@ -1,10 +1,12 @@
 import { isActiveCircleMember } from "@/lib/circle-member";
+import { isCircloPeer } from "@/lib/circlo";
 import { canView } from "@/lib/trust";
 import type { Listing, Person } from "@/lib/types";
 
 /** Free private chat: circle members, or continue an existing thread. */
 export function canDirectMessage(peer: Person, hasThread: boolean): boolean {
   if (peer.id === "me") return false;
+  if (isCircloPeer(peer.id)) return false;
   return isActiveCircleMember(peer) || hasThread;
 }
 
@@ -61,6 +63,7 @@ export function canOpenThread(
   },
 ): boolean {
   if (peer.id === "me") return false;
+  if (isCircloPeer(peer.id)) return true;
   if (opts.hasThread) return true;
   if (opts.listing) {
     return canMessageAboutListing(peer, opts.listing, opts.getPerson);

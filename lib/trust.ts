@@ -41,7 +41,7 @@ export function trustScore(
 }
 
 /** Minimum trust score a viewer needs for each privacy setting. */
-function requiredScore(privacy: Privacy): number {
+export function requiredScore(privacy: Privacy): number {
   switch (privacy) {
     case "A":
       return 3;

@@ -11,6 +11,7 @@ import {
 import { createContext, useContextSelector } from "use-context-selector";
 import { AVATAR_IMAGES } from "./avatar";
 import { api, ApiError } from "./api";
+import { CIRCLO_PERSON, isCircloPeer } from "./circlo";
 import { newUuid } from "./invite";
 import {
   ME,
@@ -252,7 +253,10 @@ function blankMe(): Person {
 
 function overlayPeople(prev: Person[], incoming: Person[]): Person[] {
   const map = new Map(prev.map((p) => [p.id, p]));
-  for (const person of incoming) map.set(person.id, person);
+  for (const person of incoming) {
+    if (isCircloPeer(person.id)) continue;
+    map.set(person.id, person);
+  }
   return Array.from(map.values());
 }
 
@@ -342,7 +346,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ...data.members,
         ...data.pendingPeople,
         ...(data.network ?? []),
-      ];
+      ].filter((p) => !isCircloPeer(p.id));
       const mergedPeople = keepGraph
         ? overlayPeople(peopleRef.current, incoming)
         : (() => {
@@ -610,9 +614,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const getPerson = useCallback(
     (id: string) =>
-      id === "me" || (meServerId && id === meServerId)
-        ? meProfile
-        : personById.get(id),
+      isCircloPeer(id)
+        ? CIRCLO_PERSON
+        : id === "me" || (meServerId && id === meServerId)
+          ? meProfile
+          : personById.get(id),
     [meProfile, meServerId, personById],
   );
 
@@ -733,6 +739,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const addMessage = useCallback(
     async (peerId: string, text: string, listingId?: string) => {
+      if (isCircloPeer(peerId)) return;
       const tempId = `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       const optimistic: Message = {
         id: tempId,
@@ -801,6 +808,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       peerId: string,
       patch: { archived?: boolean; pinned?: boolean; deleted?: boolean },
     ) => {
+      if (isCircloPeer(peerId)) return;
       await api("/api/messages/thread", {
         method: "PUT",
         body: JSON.stringify({ peerId, ...patch }),
@@ -811,6 +819,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const archiveThread = useCallback(
     async (peerId: string) => {
+      if (isCircloPeer(peerId)) return;
       setArchivedThreads((prev) =>
         prev.includes(peerId) ? prev : [...prev, peerId],
       );
@@ -835,6 +844,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const deleteThread = useCallback(
     async (peerId: string) => {
+      if (isCircloPeer(peerId)) return;
       setMessages((prev) => prev.filter((msg) => msg.peerId !== peerId));
       setArchivedThreads((prev) => prev.filter((id) => id !== peerId));
       setPinnedThreads((prev) => prev.filter((id) => id !== peerId));
@@ -849,6 +859,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const togglePinThread = useCallback(
     async (peerId: string) => {
+      if (isCircloPeer(peerId)) return false;
       const pinned = pinnedThreads.includes(peerId);
       if (!pinned && pinnedThreads.length >= 3) return false;
       if (pinned) {

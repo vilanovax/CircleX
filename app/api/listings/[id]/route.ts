@@ -5,6 +5,7 @@ import { jsonError, readJson, withDb } from "@/lib/http";
 import { listingEndorsementsInclude, toClientListing } from "@/lib/mappers";
 import { parseDealStatus, parseListingWrite } from "@/lib/listing-payload";
 import { getSessionUser } from "@/lib/server-auth";
+import { fanoutListingWatches } from "@/lib/server-watches";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +67,8 @@ export async function PATCH(
   }
 
   const dealStatus = parseDealStatus(body.dealStatus);
+  const republish =
+    row.dealStatus === "inactive" && dealStatus === "available";
   const isWrite =
     body.title != null ||
     body.description != null ||
@@ -95,6 +98,16 @@ export async function PATCH(
       },
       include: listingEndorsementsInclude,
     });
+    if (republish) {
+      void fanoutListingWatches({
+        id: updated.id,
+        sellerId: updated.sellerId,
+        title: updated.title,
+        description: updated.description,
+        privacy: updated.privacy,
+        dealStatus: updated.dealStatus,
+      }).catch(() => {});
+    }
     return Response.json({ listing: toClientListing(updated, session.id) });
   }
 
@@ -105,6 +118,17 @@ export async function PATCH(
     data: { dealStatus },
     include: listingEndorsementsInclude,
   });
+
+  if (republish) {
+    void fanoutListingWatches({
+      id: updated.id,
+      sellerId: updated.sellerId,
+      title: updated.title,
+      description: updated.description,
+      privacy: updated.privacy,
+      dealStatus: updated.dealStatus,
+    }).catch(() => {});
+  }
 
   return Response.json({ listing: toClientListing(updated, session.id) });
 }

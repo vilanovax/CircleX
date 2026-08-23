@@ -17,6 +17,7 @@ import {
   type BuyerPrompt,
 } from "@/lib/listing-prompts";
 import { canOpenThread } from "@/lib/messaging";
+import { isCircloPeer } from "@/lib/circlo";
 import { canView } from "@/lib/trust";
 import {
   latestListingIdInThread,
@@ -168,6 +169,64 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
     return (
       <main className="min-h-[100dvh] flex items-center justify-center">
         <p className="text-sm text-ink-faint">کاربر پیدا نشد.</p>
+      </main>
+    );
+  }
+
+  if (isCircloPeer(peerId)) {
+    return (
+      <main className="flex flex-col h-[100dvh]">
+        <Header back fallbackHref="/messages">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Avatar name={peer.name} src={peer.avatar} size="sm" showLevel={false} />
+            <div className="min-w-0">
+              <p className="font-extrabold text-[14px] text-ink dark:text-zinc-100 leading-tight truncate">
+                {peer.name}
+              </p>
+              <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 truncate">
+                از سیرکل · فقط اطلاع
+              </p>
+            </div>
+          </div>
+        </Header>
+        <div className="flex-1 overflow-y-auto px-3 py-3">
+          {thread.length === 0 ? (
+            <p className="text-center text-[13px] text-ink-muted leading-relaxed px-6 pt-16">
+              درخواست ورود، پذیرش دعوت، و آگهی‌هایی که گوش‌به‌زنگ‌شان هستی اینجا
+              می‌آید. عبارت یا نفر را از پروفایل، کنار حساب بگذار.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {thread.map((msg) => (
+                <div key={msg.id} className="flex justify-start">
+                  <div
+                    dir="rtl"
+                    className="max-w-[88%] rounded-2xl bg-[color:var(--circle-surface)] text-ink shadow-card dark:bg-zinc-900 dark:text-zinc-100 dark:border dark:border-zinc-800 px-3.5 py-2.5 text-[13px] leading-relaxed"
+                  >
+                    <p className="whitespace-pre-line">{msg.text}</p>
+                    {msg.actionHref && msg.actionLabel ? (
+                      <Link
+                        href={msg.actionHref}
+                        className="mt-2.5 inline-flex items-center justify-center rounded-xl bg-brand-600 text-white text-[12px] font-bold px-3 py-2 active:scale-[0.98]"
+                      >
+                        {msg.actionLabel}
+                      </Link>
+                    ) : null}
+                    <span className="block text-[10px] mt-1.5 nums text-ink-faint">
+                      {msg.postedAt}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+        <div className="shrink-0 border-t border-stone-200/70 dark:border-zinc-800 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <p className="text-[12px] text-ink-muted text-center leading-relaxed">
+            سیرکلو گفتگو نیست — نمی‌توانی جواب بدهی.
+          </p>
+        </div>
       </main>
     );
   }
