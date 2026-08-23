@@ -5,7 +5,8 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { toPersianDigits } from "@/lib/persian";
-import { AdminSkeleton, AdminPill, AdminCount } from "@/components/admin/AdminBits";
+import { AdminSkeleton, AdminPill, AdminCount, AdminLoadMore, downloadAdminCsv, mergeById } from "@/components/admin/AdminBits";
+import { useToast } from "@/components/Toast";
 
 type UserRow = {
   id: string;
@@ -20,7 +21,10 @@ type UserRow = {
   banned: boolean;
 };
 
+const PAGE_SIZE = 40;
+
 function UsersBody() {
+  const { show } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
   const incomplete = searchParams.get("profile") === "incomplete";
@@ -31,6 +35,8 @@ function UsersBody() {
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebounced(q), 280);
@@ -41,7 +47,10 @@ function UsersBody() {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ limit: "40" });
+      const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        skip: "0",
+      });
       if (debounced.trim()) params.set("q", debounced.trim());
       if (incomplete) params.set("profile", "incomplete");
       if (banned) params.set("banned", "1");
@@ -61,15 +70,43 @@ function UsersBody() {
     void load();
   }, [load]);
 
+  async function loadMore() {
+    if (loadingMore || items.length >= total) return;
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        skip: String(items.length),
+      });
+      if (debounced.trim()) params.set("q", debounced.trim());
+      if (incomplete) params.set("profile", "incomplete");
+      if (banned) params.set("banned", "1");
+      const data = await api<{ items: UserRow[]; meta: { total: number } }>(
+        `/api/admin/users?${params.toString()}`,
+      );
+      setItems((cur) => mergeById(cur, data.items));
+      setTotal(data.meta.total);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "ادامه فهرست خوانده نشد");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
   return (
     <div>
-      <h1 className="text-[20px] font-semibold">کاربران</h1>
-      <AdminCount loading={loading} className="mb-4">
-        {incomplete ? "فقط پروفایل ناقص · " : ""}
-        {banned ? "فقط حساب‌های مسدود · " : ""}
-        {toPersianDigits(total)} نفر
-      </AdminCount>
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="admin-page-head">
+        <div>
+          <h1 className="text-[20px] font-semibold">کاربران</h1>
+          <AdminCount loading={loading}>
+            {incomplete ? "فقط پروفایل ناقص · " : ""}
+            {banned ? "فقط حساب‌های مسدود · " : ""}
+            {toPersianDigits(total)} نفر
+          </AdminCount>
+        </div>
+      </div>
+      <div className="admin-toolbar">
         <label className="sr-only" htmlFor="admin-user-q">
           جستجوی کاربر
         </label>
@@ -78,7 +115,7 @@ function UsersBody() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="نام، شماره، یا شناسه"
-          className="admin-input max-w-md"
+          className="admin-input"
         />
         {incomplete || banned ? (
           <button
@@ -97,13 +134,29 @@ function UsersBody() {
             مسدودها
           </button>
         )}
+        <button
+          type="button"
+          disabled={exporting}
+          onClick={() => {
+            setExporting(true);
+            void downloadAdminCsv("users")
+              .then(() => show("فایل CSV آماده شد"))
+              .catch((err) =>
+                show(err instanceof Error ? err.message : "خروجی گرفته نشد"),
+              )
+              .finally(() => setExporting(false));
+          }}
+          className="admin-btn rounded-xl border border-black/10 px-3 py-2 text-[12.5px] disabled:opacity-50 dark:border-white/15"
+        >
+          {exporting ? "در حال ساخت…" : "خروجی CSV"}
+        </button>
       </div>
       {error ? (
         <p role="alert" className="text-[13px] text-red-600">
           {error}
         </p>
       ) : null}
-      {loading ? (
+      {loading && !items.length ? (
         <AdminSkeleton />
       ) : (
         <div className="admin-panel admin-table-wrap">
@@ -115,6 +168,7 @@ function UsersBody() {
                 <th>شهر</th>
                 <th>حلقه</th>
                 <th>آگهی</th>
+                <th className="hidden xl:table-cell">دعوت</th>
                 <th>پروفایل</th>
               </tr>
             </thead>
@@ -152,6 +206,9 @@ function UsersBody() {
                   <td>{row.city || "—"}</td>
                   <td>{toPersianDigits(row.circleCount)}</td>
                   <td>{toPersianDigits(row.listingCount)}</td>
+                  <td className="hidden xl:table-cell">
+                    {toPersianDigits(row.inviteCount)}
+                  </td>
                   <td>
                     {row.profileCompleted ? (
                       <AdminPill tone="ok">کامل</AdminPill>
@@ -163,7 +220,7 @@ function UsersBody() {
               ))}
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-10 text-center text-ink-faint">
+                  <td colSpan={7} className="py-10 text-center text-ink-faint">
                     {q.trim() || incomplete || banned
                       ? "کسی با این فیلتر پیدا نشد"
                       : "هنوز کاربری نیست"}
@@ -172,6 +229,12 @@ function UsersBody() {
               ) : null}
             </tbody>
           </table>
+          <AdminLoadMore
+            shown={items.length}
+            total={total}
+            loading={loadingMore}
+            onLoad={() => void loadMore()}
+          />
         </div>
       )}
     </div>

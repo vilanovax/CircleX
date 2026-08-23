@@ -11,7 +11,7 @@ import { toPersianDigits } from "@/lib/persian";
 import { useToast } from "@/components/Toast";
 import { listingTypeLabels } from "@/lib/labels";
 import type { ListingType } from "@/lib/types";
-import { AdminSkeleton, faAdminDate, AdminCount, AdminTabs, AdminSwitch } from "@/components/admin/AdminBits";
+import { AdminSkeleton, faAdminDate, AdminCount, AdminTabs, AdminSwitch, AdminLoadMore, mergeById } from "@/components/admin/AdminBits";
 
 type ReportItem = {
   id: string;
@@ -31,6 +31,8 @@ type ReportItem = {
 
 type Me = { admin: { role: string } };
 
+const PAGE_SIZE = 50;
+
 export default function AdminReportsPage() {
   const { show } = useToast();
   const [status, setStatus] = useState<"open" | "reviewed" | "dismissed" | "all">(
@@ -41,6 +43,7 @@ export default function AdminReportsPage() {
   const [selected, setSelected] = useState<ReportItem | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [canWrite, setCanWrite] = useState(false);
   const [reason, setReason] = useState("");
   const [hideListing, setHideListing] = useState(false);
@@ -52,7 +55,7 @@ export default function AdminReportsPage() {
     setError(null);
     try {
       const data = await api<{ items: ReportItem[]; meta: { total: number } }>(
-        `/api/admin/listing-reports?status=${status}&limit=50`,
+        `/api/admin/listing-reports?status=${status}&limit=${PAGE_SIZE}&skip=0`,
       );
       setItems(data.items);
       setTotal(data.meta.total);
@@ -71,6 +74,23 @@ export default function AdminReportsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function loadMore() {
+    if (loadingMore || items.length >= total) return;
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const data = await api<{ items: ReportItem[]; meta: { total: number } }>(
+        `/api/admin/listing-reports?status=${status}&limit=${PAGE_SIZE}&skip=${items.length}`,
+      );
+      setItems((cur) => mergeById(cur, data.items));
+      setTotal(data.meta.total);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "ادامه فهرست خوانده نشد");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   useEffect(() => {
     api<Me>("/api/admin/auth/me")
@@ -112,7 +132,7 @@ export default function AdminReportsPage() {
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div className="admin-page-head">
         <div>
           <h1 className="text-[20px] font-semibold">گزارش آگهی</h1>
           <AdminCount loading={loading}>
@@ -143,7 +163,7 @@ export default function AdminReportsPage() {
       {loading && !items.length ? (
         <AdminSkeleton />
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_20.5rem]">
+        <div className="admin-split">
           <div className="admin-panel admin-table-wrap">
             <table className="admin-table">
               <thead>
@@ -151,6 +171,7 @@ export default function AdminReportsPage() {
                   <th>آگهی</th>
                   <th>دلیل</th>
                   <th>فروشنده</th>
+                  <th className="hidden xl:table-cell">زمان</th>
                   <th>وضعیت</th>
                 </tr>
               </thead>
@@ -190,13 +211,16 @@ export default function AdminReportsPage() {
                           {row.listing.seller.phone}
                         </p>
                       </td>
+                      <td className="hidden whitespace-nowrap text-ink-faint xl:table-cell">
+                        {faAdminDate(row.createdAt)}
+                      </td>
                       <td>{REPORT_STATUS_LABELS[row.status]}</td>
                     </tr>
                   );
                 })}
                 {!loading && items.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="py-10 text-center text-ink-faint">
+                    <td colSpan={5} className="py-10 text-center text-ink-faint">
                       {status === "open"
                         ? "صف خالی است — گزارش بازی نیست"
                         : "گزارشی در این وضعیت نیست"}
@@ -205,9 +229,15 @@ export default function AdminReportsPage() {
                 ) : null}
               </tbody>
             </table>
+            <AdminLoadMore
+              shown={items.length}
+              total={total}
+              loading={loadingMore}
+              onLoad={() => void loadMore()}
+            />
           </div>
 
-          <aside className="admin-panel h-fit p-4 lg:sticky lg:top-4">
+          <aside className="admin-panel h-fit p-4 lg:sticky lg:top-5">
             {!selected ? (
               <p className="text-[13px] text-ink-faint">یک گزارش را انتخاب کن</p>
             ) : (

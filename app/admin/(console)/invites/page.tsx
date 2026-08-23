@@ -14,7 +14,9 @@ import {
   AdminSkeleton,
   AdminCount,
   AdminTabs,
+  AdminLoadMore,
   faAdminDate,
+  mergeById,
 } from "@/components/admin/AdminBits";
 
 type Person = { id: string; name: string; phone: string };
@@ -46,6 +48,9 @@ type JoinItem = {
 
 type Me = { admin: { role: string } };
 
+const PAGE_SIZE = 50;
+const JOIN_PAGE_SIZE = 30;
+
 export default function AdminInvitesPage() {
   const { show } = useToast();
   const [status, setStatus] = useState<
@@ -61,6 +66,8 @@ export default function AdminInvitesPage() {
   const [joins, setJoins] = useState<JoinItem[]>([]);
   const [joinTotal, setJoinTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadingMoreJoins, setLoadingMoreJoins] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [canWrite, setCanWrite] = useState(false);
   const [reason, setReason] = useState("");
@@ -70,7 +77,10 @@ export default function AdminInvitesPage() {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ limit: "50" });
+      const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        skip: "0",
+      });
       if (status !== "all") params.set("status", status);
       if (kind !== "all") params.set("kind", kind);
       const [invites, joinData] = await Promise.all([
@@ -80,7 +90,7 @@ export default function AdminInvitesPage() {
           bursts: { inviterUserId: string; count: number }[];
         }>(`/api/admin/invites?${params.toString()}`),
         api<{ items: JoinItem[]; meta: { total: number } }>(
-          "/api/admin/join-requests?status=pending&limit=30",
+          `/api/admin/join-requests?status=pending&limit=${JOIN_PAGE_SIZE}&skip=0`,
         ),
       ]);
       setItems(invites.items);
@@ -105,6 +115,47 @@ export default function AdminInvitesPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function loadMore() {
+    if (loadingMore || items.length >= total) return;
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        skip: String(items.length),
+      });
+      if (status !== "all") params.set("status", status);
+      if (kind !== "all") params.set("kind", kind);
+      const data = await api<{
+        items: InviteItem[];
+        meta: { total: number };
+      }>(`/api/admin/invites?${params.toString()}`);
+      setItems((cur) => mergeById(cur, data.items));
+      setTotal(data.meta.total);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "ادامه فهرست خوانده نشد");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  async function loadMoreJoins() {
+    if (loadingMoreJoins || joins.length >= joinTotal) return;
+    setLoadingMoreJoins(true);
+    setError(null);
+    try {
+      const data = await api<{ items: JoinItem[]; meta: { total: number } }>(
+        `/api/admin/join-requests?status=pending&limit=${JOIN_PAGE_SIZE}&skip=${joins.length}`,
+      );
+      setJoins((cur) => mergeById(cur, data.items));
+      setJoinTotal(data.meta.total);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "ادامه صف خوانده نشد");
+    } finally {
+      setLoadingMoreJoins(false);
+    }
+  }
 
   useEffect(() => {
     api<Me>("/api/admin/auth/me")
@@ -142,14 +193,14 @@ export default function AdminInvitesPage() {
   return (
     <div className="space-y-8">
       <div>
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div className="admin-page-head">
           <div>
             <h1 className="text-[20px] font-semibold">دعوت‌ها</h1>
             <AdminCount loading={loading}>
               {toPersianDigits(total)} دعوت در این فیلتر
             </AdminCount>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="admin-page-head-actions">
             <AdminTabs
               label="وضعیت دعوت"
               value={status}
@@ -195,7 +246,7 @@ export default function AdminInvitesPage() {
         {loading && !items.length ? (
           <AdminSkeleton />
         ) : (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_20.5rem]">
+          <div className="admin-split">
             <div className="admin-panel admin-table-wrap">
               <table className="admin-table">
                 <thead>
@@ -203,6 +254,7 @@ export default function AdminInvitesPage() {
                     <th>کد</th>
                     <th>فرستنده</th>
                     <th>ظرفیت</th>
+                    <th className="hidden xl:table-cell">انقضا</th>
                     <th>وضعیت</th>
                   </tr>
                 </thead>
@@ -247,6 +299,9 @@ export default function AdminInvitesPage() {
                           {toPersianDigits(row.useCount)}/
                           {toPersianDigits(row.maxUses)}
                         </td>
+                        <td className="hidden whitespace-nowrap text-ink-faint xl:table-cell">
+                          {faAdminDate(row.expiresAt)}
+                        </td>
                         <td>
                           <AdminPill
                             tone={
@@ -263,21 +318,27 @@ export default function AdminInvitesPage() {
                   })}
                   {!loading && items.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="py-10 text-center text-ink-faint">
+                      <td colSpan={5} className="py-10 text-center text-ink-faint">
                         دعوتی در این فیلتر نیست
                       </td>
                     </tr>
                   ) : null}
                 </tbody>
               </table>
+              <AdminLoadMore
+                shown={items.length}
+                total={total}
+                loading={loadingMore}
+                onLoad={() => void loadMore()}
+              />
             </div>
 
-            <aside className="admin-panel h-fit p-4 lg:sticky lg:top-4">
+            <aside className="admin-panel h-fit p-4 lg:sticky lg:top-5">
               {!selected ? (
                 <p className="text-[13px] text-ink-faint">یک دعوت را انتخاب کن</p>
               ) : (
                 <div className="space-y-3 text-[13px]">
-                  <h2 className="font-mono text-[16px]" dir="ltr">
+                  <h2 className="font-mono text-[15px]" dir="ltr">
                     {selected.code}
                   </h2>
                   <p className="text-ink-muted">
@@ -350,12 +411,12 @@ export default function AdminInvitesPage() {
       </div>
 
       <section>
-        <h2 className="mb-1 text-[16px] font-semibold">درخواست پیوستن باز</h2>
+        <h2 className="mb-1 text-[15px] font-semibold">درخواست پیوستن باز</h2>
         <AdminCount loading={loading} className="mb-3">
           {toPersianDigits(joinTotal)} مورد · پذیرش با میزبان است، اینجا فقط صف
           دیده می‌شود
         </AdminCount>
-        {loading ? (
+        {loading && !joins.length ? (
           <AdminSkeleton rows={3} />
         ) : (
         <div className="admin-panel admin-table-wrap">
@@ -402,6 +463,12 @@ export default function AdminInvitesPage() {
               ) : null}
             </tbody>
           </table>
+          <AdminLoadMore
+            shown={joins.length}
+            total={joinTotal}
+            loading={loadingMoreJoins}
+            onLoad={() => void loadMoreJoins()}
+          />
         </div>
         )}
       </section>

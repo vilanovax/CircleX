@@ -1,0 +1,224 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-23T14:05:00.000Z",
+  "title": "Design System: سیرکل",
+  "extensions": {
+    "colorMeta": {
+      "plum": {
+        "role": "primary",
+        "displayName": "Sitting-room plum",
+        "canonical": "#4a3a8f",
+        "tonalRamp": ["#221d45", "#2f275c", "#3c3075", "#4a3a8f", "#5f4aa8", "#a89ad6", "#e6e1f5", "#f3f1fa"]
+      },
+      "plum-deep": {
+        "role": "primary",
+        "displayName": "Plum deep",
+        "canonical": "#3c3075",
+        "tonalRamp": ["#221d45", "#2f275c", "#3c3075", "#4a3a8f", "#5f4aa8", "#7f6bc0", "#cdc4eb", "#f3f1fa"]
+      },
+      "plum-mid": {
+        "role": "primary",
+        "displayName": "Plum mid",
+        "canonical": "#5f4aa8",
+        "tonalRamp": ["#221d45", "#2f275c", "#3c3075", "#4a3a8f", "#5f4aa8", "#7f6bc0", "#cdc4eb", "#f3f1fa"]
+      },
+      "plum-wash": {
+        "role": "primary",
+        "displayName": "Plum wash",
+        "canonical": "#f3f1fa",
+        "tonalRamp": ["#221d45", "#3c3075", "#4a3a8f", "#5f4aa8", "#a89ad6", "#cdc4eb", "#e6e1f5", "#f3f1fa"]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Limestone floor",
+        "canonical": "#ebe8e3",
+        "tonalRamp": ["#121110", "#1c1b19", "#534e4a", "#8a847e", "#c4bfb8", "#ebe8e3", "#f4f1ec", "#fffcf8"]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Cream plaster",
+        "canonical": "#fffcf8",
+        "tonalRamp": ["#121110", "#1c1b19", "#534e4a", "#8a847e", "#c4bfb8", "#ebe8e3", "#f4f1ec", "#fffcf8"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Walnut ink",
+        "canonical": "#1a1816",
+        "tonalRamp": ["#1a1816", "#2c2926", "#534e4a", "#5f5a55", "#8a847e", "#c4bfb8", "#f2efe9", "#fffcf8"]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Stone mute",
+        "canonical": "#534e4a",
+        "tonalRamp": ["#1a1816", "#2c2926", "#534e4a", "#5f5a55", "#8a847e", "#c4bfb8", "#f2efe9", "#fffcf8"]
+      },
+      "ink-faint": {
+        "role": "neutral",
+        "displayName": "Dusted stone",
+        "canonical": "#5f5a55",
+        "tonalRamp": ["#1a1816", "#2c2926", "#534e4a", "#5f5a55", "#8a847e", "#c4bfb8", "#f2efe9", "#fffcf8"]
+      },
+      "trust": {
+        "role": "secondary",
+        "displayName": "Closest trust",
+        "canonical": "#1f6b42",
+        "tonalRamp": ["#0e3a24", "#1f6b42", "#2a8a55", "#4caf74", "#7bc49a", "#b7e0c8", "#e4f5eb", "#f3faf6"]
+      },
+      "trust-b": {
+        "role": "secondary",
+        "displayName": "Acquaintance steel",
+        "canonical": "#3b6ea5",
+        "tonalRamp": ["#1c3550", "#2a5080", "#3b6ea5", "#5b8cbc", "#8eb0d4", "#c5d8ea", "#e8f0f7", "#f4f8fb"]
+      },
+      "trust-c": {
+        "role": "tertiary",
+        "displayName": "Clay amber",
+        "canonical": "#c27a2d",
+        "tonalRamp": ["#5c3a14", "#8a5420", "#c27a2d", "#d4964f", "#e3b57e", "#f0d4b0", "#f8ead8", "#fdf6ee"]
+      },
+      "canvas-dark": {
+        "role": "neutral",
+        "displayName": "Dusk floor",
+        "canonical": "#121110",
+        "tonalRamp": ["#121110", "#1c1b19", "#2c2926", "#534e4a", "#8a847e", "#c4bfb8", "#f2efe9", "#fffcf8"]
+      },
+      "surface-dark": {
+        "role": "neutral",
+        "displayName": "Dusk plaster",
+        "canonical": "#1c1b19",
+        "tonalRamp": ["#121110", "#1c1b19", "#2c2926", "#534e4a", "#8a847e", "#c4bfb8", "#f2efe9", "#fffcf8"]
+      },
+      "ink-dark": {
+        "role": "neutral",
+        "displayName": "Dusk ink",
+        "canonical": "#f2efe9",
+        "tonalRamp": ["#121110", "#1c1b19", "#534e4a", "#8a847e", "#c4bfb8", "#ebe8e3", "#f2efe9", "#fffcf8"]
+      }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "Headline", "purpose": "Page titles on app and admin." },
+      "title": { "displayName": "Title", "purpose": "Card and section headings." },
+      "body": { "displayName": "Body", "purpose": "Prose and table cells." },
+      "label": { "displayName": "Label", "purpose": "Tabs, captions, pills, table headers." },
+      "caption": { "displayName": "Caption", "purpose": "Faint meta, chips, table headers, secondary lines." },
+      "nav": { "displayName": "Nav", "purpose": "Admin rail and compact desk controls." },
+      "table": { "displayName": "Table", "purpose": "Admin row body copy." },
+      "kpi": { "displayName": "KPI label", "purpose": "Metric tile captions under tabular numbers." }
+    },
+    "shadows": [
+      { "name": "card-rest", "value": "0 1px 2px rgba(26,24,22,0.04)", "purpose": "Member listing/request cards at rest." },
+      { "name": "phone-shell", "value": "0 0 40px rgba(26,24,22,0.06)", "purpose": "480px member column on the desktop canvas." },
+      { "name": "bottom-nav", "value": "0 -1px 16px rgba(26,24,22,0.06)", "purpose": "Member tab bar." },
+      { "name": "admin-savebar", "value": "0 8px 24px rgba(26,24,22,0.08)", "purpose": "Sticky unsaved-settings bar only." }
+    ],
+    "motion": [
+      { "name": "ease-state", "value": "0.12s ease", "purpose": "Button/nav background and transform." },
+      { "name": "ease-switch", "value": "0.16s ease", "purpose": "Admin switch thumb and track." },
+      { "name": "reduce", "value": "prefers-reduced-motion: reduce", "purpose": "Disable decorative motion." }
+    ],
+    "breakpoints": [
+      { "name": "admin-rail", "value": "860px" },
+      { "name": "admin-split", "value": "1024px" },
+      { "name": "admin-paired", "value": "1100px" },
+      { "name": "admin-wide", "value": "1280px" },
+      { "name": "member-shell", "value": "480px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one confirming act on a screen.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">ذخیره تغییرات</button>",
+      "css": ".ds-btn-primary{font:inherit;cursor:pointer;background:#4a3a8f;color:#fff;border:0;border-radius:0.75rem;padding:0.5rem 0.75rem;font-size:13.5px;font-weight:500;transition:background-color 0.12s ease,transform 0.12s ease}.ds-btn-primary:hover{background:#3c3075}.ds-btn-primary:active{transform:translateY(0.5px)}.ds-btn-primary:focus-visible{outline:2px solid #5f4aa8;outline-offset:2px}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Export, filter, and non-destructive desk actions.",
+      "html": "<button class=\"ds-btn-secondary\" type=\"button\">خروجی CSV</button>",
+      "css": ".ds-btn-secondary{font:inherit;cursor:pointer;background:#fffcf8;color:#1a1816;border:1px solid rgba(26,24,22,0.10);border-radius:0.75rem;padding:0.5rem 0.75rem;font-size:12.5px;transition:background-color 0.12s ease}.ds-btn-secondary:hover{background:rgba(26,24,22,0.03)}.ds-btn-secondary:focus-visible{outline:2px solid #5f4aa8;outline-offset:2px}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Search and form fields on plaster.",
+      "html": "<input class=\"ds-input\" type=\"search\" placeholder=\"نام، شماره، یا شناسه\">",
+      "css": ".ds-input{font:inherit;width:100%;border-radius:0.75rem;border:1px solid rgba(26,24,22,0.16);background:#fffcf8;color:#1a1816;padding:0.5rem 0.75rem;font-size:14px;outline:none}.ds-input:focus-visible{outline:2px solid #5f4aa8;outline-offset:2px}.ds-input::placeholder{color:#5f5a55}"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Compact status, never a second nav.",
+      "html": "<span class=\"ds-chip\">کامل</span>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;border-radius:999px;padding:0.15rem 0.5rem;font-size:11px;line-height:1.4;background:#f3f1fa;color:#3c3075;white-space:nowrap}"
+    },
+    {
+      "name": "Plaster Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Default container on limestone.",
+      "html": "<article class=\"ds-card\"><h3 class=\"ds-card-title\">قیف دعوت</h3><p class=\"ds-card-body\">ساخته‌شده در این بازه</p></article>",
+      "css": ".ds-card{background:#fffcf8;border:1px solid rgba(26,24,22,0.07);border-radius:1.125rem;padding:1rem;color:#1a1816}.ds-card-title{margin:0 0 0.75rem;font-size:14px;font-weight:500}.ds-card-body{margin:0;font-size:13px;color:#534e4a}"
+    },
+    {
+      "name": "Admin Nav Link",
+      "kind": "nav",
+      "refersTo": "nav-active",
+      "description": "Desk rail item; wash only when current.",
+      "html": "<a class=\"ds-nav is-on\" href=\"#\">رشد</a>",
+      "css": ".ds-nav{display:flex;align-items:center;gap:0.5rem;border-radius:0.75rem;padding:0.5rem 0.75rem;font-size:13.5px;color:#534e4a;text-decoration:none}.ds-nav:hover{background:rgba(26,24,22,0.04)}.ds-nav.is-on{background:#f3f1fa;color:#3c3075;font-weight:500}.ds-nav:focus-visible{outline:2px solid #5f4aa8;outline-offset:2px}"
+    },
+    {
+      "name": "Segmented Tabs",
+      "kind": "custom",
+      "refersTo": "chip",
+      "description": "Range and status filters.",
+      "html": "<div class=\"ds-tabs\" role=\"tablist\"><button class=\"ds-tab is-on\" type=\"button\">۱۴ روز</button><button class=\"ds-tab\" type=\"button\">۳۰ روز</button></div>",
+      "css": ".ds-tabs{display:inline-flex;gap:0.25rem;border-radius:0.75rem;background:rgba(26,24,22,0.04);padding:0.25rem}.ds-tab{font:inherit;cursor:pointer;border:0;background:transparent;color:#534e4a;border-radius:0.5rem;padding:0.375rem 0.75rem;font-size:12.5px}.ds-tab.is-on{background:#fffcf8;color:#1a1816;font-weight:500;box-shadow:0 1px 2px rgba(26,24,22,0.04)}.ds-tab:focus-visible{outline:2px solid #5f4aa8;outline-offset:2px}"
+    },
+    {
+      "name": "Growth KPI",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Chart metric switch; number first.",
+      "html": "<button class=\"ds-kpi is-on\" type=\"button\"><span class=\"ds-kpi-value\">۳۰</span><span class=\"ds-kpi-label\">کاربر جدید</span></button>",
+      "css": ".ds-kpi{font:inherit;color:inherit;appearance:none;display:block;width:100%;text-align:start;padding:0.85rem 1rem;border-radius:1.125rem;border:1px solid rgba(26,24,22,0.07);background:#fffcf8;cursor:pointer}.ds-kpi.is-on{border-color:rgba(74,58,143,0.35);background:rgba(74,58,143,0.07)}.ds-kpi-value{display:block;font-size:1.45rem;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;line-height:1.15}.ds-kpi-label{display:block;margin-top:0.2rem;font-size:12px;color:#534e4a}.ds-kpi:focus-visible{outline:2px solid #5f4aa8;outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "اتاق نشیمن آشنا",
+    "overview": "Circle should feel like walking into a familiar sitting room: warm stone underfoot, cream plaster walls, plum only where a hand would reach for a door. It is intimate and Persian. It is not a stall, not a SaaS dashboard skin, and not a cool-gray marketplace.\n\nThe member app is a 480px phone column — airy, one family of type, trust colors used as meaning. The admin desk uses the same room at a tighter density: more numbers per glance, side-by-side inspector, no new palette. Dark theme is the same room after dusk, not a different brand.",
+    "keyCharacteristics": [
+      "Warm limestone canvas and cream surfaces; never cool marketplace gray",
+      "One accent (sitting-room plum) for action, selection, and charts",
+      "Vazirmatn only; no display serif, no English UI chrome",
+      "Two densities, one identity: airy phone app, compact RTL admin",
+      "Flat surfaces at rest; depth is tonal, not theatrical shadow"
+    ],
+    "rules": [
+      { "name": "The Action-Only Plum Rule", "body": "Plum is for things you can press or things that are currently chosen. It is never body copy and never a page wash.", "section": "colors" },
+      { "name": "The Warm Stone Rule", "body": "Neutrals stay warm (stone, cream, walnut). Do not introduce blue-gray marketplace chrome.", "section": "colors" },
+      { "name": "The One-Family Rule", "body": "Do not add a second typeface for “admin” or “data.” Weight, size, and tabular-nums do the work.", "section": "typography" },
+      { "name": "The Two-Densities Rule", "body": "Do not stretch the member phone column into a desktop marketing layout. Do not ship admin as stacked mobile cards on a wide desk. Same colors; different topology.", "section": "colors" },
+      { "name": "The Flat-at-Rest Rule", "body": "Idle admin panels and KPIs have no drop shadow. A halo with zero offset is decoration; do not add it.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep plum for press/selection and trust colors for A/B/C meaning.",
+      "Do set dir=\"ltr\" on phones, emails, and invite codes; keep surrounding UI RTL.",
+      "Do use Persian digits in labels and tabular-nums in tables and KPIs.",
+      "Do collapse admin to a top scroller at 860px and split list/inspector from 1024px."
+    ],
+    "donts": [
+      "Don't use a second typeface, gradient text, or glass blur as decoration.",
+      "Don't put a thick colored bar on the inline edge of cards or rows.",
+      "Don't treat the member 480px shell as a desktop marketing page, or the admin desk as stacked marketing cards.",
+      "Don't invent cool-gray neutrals or a second accent “to make admin feel like software.”",
+      "Don't lock zoom or hide focus rings."
+    ]
+  }
+}

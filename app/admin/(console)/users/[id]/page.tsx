@@ -5,6 +5,9 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import {
+  ADMIN_ROLE_LABELS,
+  AUDIT_ACTION_LABELS,
+  AUDIT_TARGET_LABELS,
   INVITE_KIND_LABELS,
   INVITE_STATUS_LABELS,
 } from "@/lib/admin-labels";
@@ -12,7 +15,13 @@ import { levelLabels, listingTypeLabels, relationLabels } from "@/lib/labels";
 import { toPersianDigits } from "@/lib/persian";
 import type { ListingType, RelationType, TrustLevel } from "@/lib/types";
 import { BackIcon } from "@/components/Icons";
-import { AdminSkeleton, AdminPill, faAdminDate } from "@/components/admin/AdminBits";
+import {
+  AdminLoadMore,
+  AdminPill,
+  AdminSkeleton,
+  faAdminDate,
+  mergeById,
+} from "@/components/admin/AdminBits";
 import { AdminUserActions } from "@/components/admin/AdminUserActions";
 
 type Detail = {
@@ -76,6 +85,18 @@ type Detail = {
   };
 };
 
+type FileAuditItem = {
+  id: string;
+  action: string;
+  targetType: string;
+  targetLabel: string | null;
+  reason: string | null;
+  createdAt: string;
+  actor: { name: string; role: string };
+};
+
+const AUDIT_PAGE = 20;
+
 function Block({
   title,
   children,
@@ -96,12 +117,54 @@ export default function AdminUserDetailPage() {
   const [data, setData] = useState<Detail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
+  const [audit, setAudit] = useState<FileAuditItem[]>([]);
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditMore, setAuditMore] = useState(false);
+  const [canSeeAudit, setCanSeeAudit] = useState(false);
 
   const load = useCallback(async () => {
     const d = await api<Detail>(`/api/admin/users/${params.id}`);
     setData(d);
     setError(null);
+    setAuditLoading(true);
+    try {
+      const logs = await api<{
+        items: FileAuditItem[];
+        meta: { total: number };
+      }>(
+        `/api/admin/audit?aboutUser=${encodeURIComponent(params.id)}&limit=${AUDIT_PAGE}&skip=0`,
+      );
+      setAudit(logs.items);
+      setAuditTotal(logs.meta.total);
+      setCanSeeAudit(true);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 403) {
+        setCanSeeAudit(false);
+        setAudit([]);
+        setAuditTotal(0);
+      }
+    } finally {
+      setAuditLoading(false);
+    }
   }, [params.id]);
+
+  async function loadMoreAudit() {
+    if (auditMore || audit.length >= auditTotal) return;
+    setAuditMore(true);
+    try {
+      const logs = await api<{
+        items: FileAuditItem[];
+        meta: { total: number };
+      }>(
+        `/api/admin/audit?aboutUser=${encodeURIComponent(params.id)}&limit=${AUDIT_PAGE}&skip=${audit.length}`,
+      );
+      setAudit((cur) => mergeById(cur, logs.items));
+      setAuditTotal(logs.meta.total);
+    } finally {
+      setAuditMore(false);
+    }
+  }
 
   useEffect(() => {
     let live = true;
@@ -148,6 +211,8 @@ export default function AdminUserDetailPage() {
   }
 
   const u = data.user;
+  const showAudit =
+    canSeeAudit || role === "moderator" || role === "superadmin";
   return (
     <div className="space-y-4">
       <Link
@@ -157,7 +222,8 @@ export default function AdminUserDetailPage() {
         <BackIcon className="h-4 w-4" />
         کاربران
       </Link>
-      <header>
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+      <header className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-[20px] font-semibold">{u.name || "بدون نام"}</h1>
           {u.ban.banned ? (
@@ -180,6 +246,7 @@ export default function AdminUserDetailPage() {
         </p>
       </header>
 
+      <div className="min-w-0 xl:w-[24rem] xl:shrink-0">
       <AdminUserActions
         userId={u.id}
         ban={u.ban}
@@ -188,6 +255,84 @@ export default function AdminUserDetailPage() {
         role={role}
         onChanged={load}
       />
+      </div>
+      </div>
+
+      {showAudit ? (
+        <Block
+          title={`اقدامات روی این پرونده (${toPersianDigits(auditTotal)})`}
+        >
+          {auditLoading && !audit.length ? (
+            <AdminSkeleton rows={4} />
+          ) : audit.length === 0 ? (
+            <p className="text-[13px] text-ink-faint">
+              هنوز عملی روی این حساب ثبت نشده
+            </p>
+          ) : (
+            <>
+              <ul className="text-[13px]">
+                {audit.map((row) => {
+                  const related =
+                    row.targetType !== "User" && row.targetLabel
+                      ? row.targetLabel
+                      : null;
+                  return (
+                    <li
+                      key={row.id}
+                      className="border-t border-black/5 py-2.5 first:border-0 first:pt-0 dark:border-white/10"
+                    >
+                      <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <p className="font-medium">
+                          {AUDIT_ACTION_LABELS[row.action] ?? row.action}
+                          {related ? (
+                            <span className="font-normal text-ink-muted">
+                              {" "}
+                              · {related}
+                            </span>
+                          ) : null}
+                        </p>
+                        <p className="whitespace-nowrap text-[12px] text-ink-faint">
+                          {faAdminDate(row.createdAt)}
+                        </p>
+                      </div>
+                      <p className="text-[12px] text-ink-muted">
+                        {row.actor.name || "—"} ·{" "}
+                        {ADMIN_ROLE_LABELS[row.actor.role] ?? row.actor.role}
+                        {row.targetType !== "User" ? (
+                          <>
+                            {" "}
+                            ·{" "}
+                            {AUDIT_TARGET_LABELS[row.targetType] ??
+                              row.targetType}
+                          </>
+                        ) : null}
+                      </p>
+                      {row.reason ? (
+                        <p className="mt-1">{row.reason}</p>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+              <AdminLoadMore
+                shown={audit.length}
+                total={auditTotal}
+                loading={auditMore}
+                onLoad={() => void loadMoreAudit()}
+                inset={false}
+              />
+              <p className="mt-2">
+                <Link
+                  href="/admin/audit"
+                  className="text-[12.5px] text-brand-700 hover:underline"
+                >
+                  همهٔ لاگ عملیات
+                </Link>
+              </p>
+            </>
+          )}
+        </Block>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Block title={`حلقه (${toPersianDigits(u.counts.circle)})`}>

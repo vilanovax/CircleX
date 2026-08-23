@@ -30,6 +30,9 @@ export async function POST(req: Request) {
     if (!admin || !ok) {
       return jsonError("ایمیل یا رمز نادرست است", 401, "unauthorized");
     }
+    if (admin.disabledAt) {
+      return jsonError("این حساب غیرفعال است", 403, "disabled");
+    }
 
     await prisma.adminUser.update({
       where: { id: admin.id },

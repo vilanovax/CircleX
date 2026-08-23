@@ -8,7 +8,9 @@ import { useToast } from "@/components/Toast";
 import {
   AdminPill,
   AdminSkeleton,
+  AdminLoadMore,
   faAdminDate,
+  mergeById,
 } from "@/components/admin/AdminBits";
 
 type Item = {
@@ -25,11 +27,14 @@ type Item = {
 
 type Me = { admin: { role: string } };
 
+const PAGE_SIZE = 40;
+
 export default function AdminBroadcastsPage() {
   const { show } = useToast();
   const [items, setItems] = useState<Item[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [canSend, setCanSend] = useState(false);
@@ -46,7 +51,7 @@ export default function AdminBroadcastsPage() {
     try {
       const [list, me] = await Promise.all([
         api<{ items: Item[]; meta: { total: number } }>(
-          "/api/admin/broadcasts?limit=40",
+          `/api/admin/broadcasts?limit=${PAGE_SIZE}&skip=0`,
         ),
         api<Me>("/api/admin/auth/me"),
       ]);
@@ -65,6 +70,23 @@ export default function AdminBroadcastsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function loadMore() {
+    if (loadingMore || items.length >= total) return;
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const list = await api<{ items: Item[]; meta: { total: number } }>(
+        `/api/admin/broadcasts?limit=${PAGE_SIZE}&skip=${items.length}`,
+      );
+      setItems((cur) => mergeById(cur, list.items));
+      setTotal(list.meta.total);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "ادامه فهرست خوانده نشد");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   async function send() {
     if (!canSend || sending) return;
@@ -96,8 +118,8 @@ export default function AdminBroadcastsPage() {
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
-      <section className="admin-panel h-fit p-4 lg:sticky lg:top-4">
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
+      <section className="admin-panel h-fit p-4 lg:sticky lg:top-5">
         <h1 className="text-[20px] font-semibold">اعلامیه</h1>
         <p className="mt-1 text-[12.5px] text-ink-faint">
           پیام در صندوق سیرکلو می‌نشیند. حداکثر ۴۰۰ نفر در هر ارسال.
@@ -210,12 +232,13 @@ export default function AdminBroadcastsPage() {
             </p>
           ) : null}
         </div>
-        {loading ? (
-          <AdminSkeleton rows={6} />
-        ) : error ? (
-          <p role="alert" className="text-[13px] text-red-600">
+        {error ? (
+          <p role="alert" className="mb-3 text-[13px] text-red-600">
             {error}
           </p>
+        ) : null}
+        {loading && !items.length ? (
+          <AdminSkeleton rows={6} />
         ) : items.length === 0 ? (
           <div className="admin-panel px-4 py-8 text-center text-[13px] text-ink-muted">
             هنوز اعلامیه‌ای نرفته
@@ -225,7 +248,7 @@ export default function AdminBroadcastsPage() {
             {items.map((item) => (
               <article key={item.id} className="admin-panel p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <h3 className="text-[14.5px] font-medium">{item.title}</h3>
+                  <h3 className="text-[15px] font-medium">{item.title}</h3>
                   <AdminPill>
                     {item.sentCount > 0
                       ? `${toPersianDigits(item.sentCount)} نفر · ${item.audienceLabel}`
@@ -240,11 +263,18 @@ export default function AdminBroadcastsPage() {
                     {item.actionLabel} → {item.actionHref}
                   </p>
                 ) : null}
-                <p className="mt-2 text-[11.5px] text-ink-faint">
+                <p className="mt-2 text-[11px] text-ink-faint">
                   {faAdminDate(item.createdAt)}
                 </p>
               </article>
             ))}
+            <AdminLoadMore
+              shown={items.length}
+              total={total}
+              loading={loadingMore}
+              onLoad={() => void loadMore()}
+              inset={false}
+            />
           </div>
         )}
       </section>

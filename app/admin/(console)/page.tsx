@@ -6,6 +6,12 @@ import { api, ApiError } from "@/lib/api";
 import { toPersianDigits } from "@/lib/persian";
 import { AdminSkeleton } from "@/components/admin/AdminBits";
 
+type DayPoint = {
+  day: string;
+  label: string;
+  users: number;
+};
+
 type Dashboard = {
   stats: {
     users24h: number;
@@ -37,6 +43,35 @@ type Dashboard = {
     webhookConfigured: boolean;
   };
 };
+
+function WeekBars({ series }: { series: DayPoint[] }) {
+  const max = Math.max(1, ...series.map((row) => row.users));
+  return (
+    <div className="admin-bars" role="img" aria-label="کاربر جدید هفت روز">
+      {series.map((row) => {
+        const pct = Math.round((row.users / max) * 100);
+        return (
+          <div
+            key={row.day}
+            className="admin-bar"
+            title={`${row.label}: ${toPersianDigits(row.users)}`}
+          >
+            <span className="admin-bar-value">
+              {row.users > 0 ? toPersianDigits(row.users) : "\u00a0"}
+            </span>
+            <div className="admin-bar-track">
+              <div
+                className="admin-bar-fill"
+                style={{ height: `${Math.max(row.users > 0 ? 10 : 3, pct)}%` }}
+              />
+            </div>
+            <span className="admin-bar-label">{row.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function pct(n: number): string {
   return toPersianDigits(Math.round(n * 100));
@@ -144,13 +179,21 @@ function Health({
 
 export default function AdminDashboardPage() {
   const [data, setData] = useState<Dashboard | null>(null);
+  const [series, setSeries] = useState<DayPoint[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
-    api<Dashboard>("/api/admin/dashboard")
-      .then((d) => {
-        if (live) setData(d);
+    Promise.all([
+      api<Dashboard>("/api/admin/dashboard"),
+      api<{ series: DayPoint[] }>("/api/admin/analytics?days=7").catch(
+        () => ({ series: [] as DayPoint[] }),
+      ),
+    ])
+      .then(([d, growth]) => {
+        if (!live) return;
+        setData(d);
+        setSeries(growth.series);
       })
       .catch((err) => {
         if (live) {
@@ -187,8 +230,18 @@ export default function AdminDashboardPage() {
 
   return (
     <div>
-      <h1 className="text-[20px] font-semibold">داشبورد</h1>
-      <p className="mb-5 text-[13px] text-ink-faint">{today} · صف کار امروز</p>
+      <div className="admin-page-head">
+        <div>
+          <h1 className="text-[20px] font-semibold">داشبورد</h1>
+          <p className="text-[13px] text-ink-faint">{today} · صف کار امروز</p>
+        </div>
+        <Link
+          href="/admin/growth"
+          className="admin-btn rounded-xl border border-black/10 px-3 py-2 text-[12.5px] hover:bg-black/[0.03] dark:border-white/15 dark:hover:bg-white/[0.05]"
+        >
+          رشد ۱۴ روز
+        </Link>
+      </div>
 
       <section aria-labelledby="queue-h">
         <h2 id="queue-h" className="mb-2 text-[13px] font-medium text-ink-muted">
@@ -221,7 +274,22 @@ export default function AdminDashboardPage() {
         </div>
       </section>
 
-      <div className="mt-7 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="admin-dash-secondary mt-4">
+        {series.length > 0 ? (
+          <section className="admin-panel admin-dash-chart p-4" aria-labelledby="week-h">
+            <div className="mb-3 flex items-baseline justify-between gap-3">
+              <h2 id="week-h" className="text-[13px] font-medium text-ink-muted">
+                کاربر جدید · ۷ روز
+              </h2>
+              <Link href="/admin/growth" className="text-[12.5px] text-brand-700 hover:underline">
+                قیف دعوت
+              </Link>
+            </div>
+            <WeekBars series={series} />
+          </section>
+        ) : null}
+
+        <div className="admin-dash-stack">
         <section className="admin-panel px-4 py-2" aria-labelledby="pulse-h">
           <h2 id="pulse-h" className="pt-2 text-[13px] font-medium text-ink-muted">
             نبض شبکه
@@ -295,6 +363,7 @@ export default function AdminDashboardPage() {
             />
           </div>
         </section>
+        </div>
       </div>
     </div>
   );

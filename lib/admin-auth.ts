@@ -41,7 +41,7 @@ export async function getAdminSession(): Promise<AdminSessionUser | null> {
     include: { admin: true },
   });
   if (!session) return null;
-  if (session.expiresAt.getTime() <= Date.now()) {
+  if (session.expiresAt.getTime() <= Date.now() || session.admin.disabledAt) {
     await prisma.adminSession
       .delete({ where: { id: session.id } })
       .catch(() => {});
@@ -135,4 +135,6 @@ export const ADMIN_ROLES = {
   supportWrite: ["support", "moderator", "superadmin"] as const,
   settingsWrite: ["superadmin"] as const,
   broadcastWrite: ["moderator", "superadmin"] as const,
+  operatorsWrite: ["superadmin"] as const,
+  auditRead: ["moderator", "superadmin"] as const,
 };

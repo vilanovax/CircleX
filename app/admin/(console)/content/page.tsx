@@ -15,7 +15,9 @@ import {
   AdminCount,
   AdminTabs,
   AdminSwitch,
+  AdminLoadMore,
   faAdminDate,
+  mergeById,
 } from "@/components/admin/AdminBits";
 
 type Kind = "listing" | "request" | "event";
@@ -41,6 +43,7 @@ type ContentItem = {
 type Me = { admin: { role: string } };
 
 const KINDS: Kind[] = ["listing", "request", "event"];
+const PAGE_SIZE = 50;
 
 function endpoint(kind: Kind): string {
   if (kind === "listing") return "/api/admin/listings";
@@ -68,6 +71,7 @@ function ContentBody() {
   const [total, setTotal] = useState(0);
   const [selected, setSelected] = useState<ContentItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [canWrite, setCanWrite] = useState(false);
   const [reason, setReason] = useState("");
@@ -91,20 +95,23 @@ function ContentBody() {
       .catch(() => setCanWrite(false));
   }, []);
 
-  const query = useMemo(() => {
-    const params = new URLSearchParams({ limit: "50" });
+  const filters = useMemo(() => {
+    const params = new URLSearchParams();
     if (debounced.trim()) params.set("q", debounced.trim());
     if (visibility === "hidden") params.set("hidden", "1");
     if (visibility === "visible") params.set("hidden", "0");
-    return params.toString();
+    return params;
   }, [debounced, visibility]);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      const params = new URLSearchParams(filters);
+      params.set("limit", String(PAGE_SIZE));
+      params.set("skip", "0");
       const data = await api<{ items: ContentItem[]; meta: { total: number } }>(
-        `${endpoint(kind)}?${query}`,
+        `${endpoint(kind)}?${params.toString()}`,
       );
       setItems(data.items);
       setTotal(data.meta.total);
@@ -118,11 +125,31 @@ function ContentBody() {
     } finally {
       setLoading(false);
     }
-  }, [kind, query]);
+  }, [kind, filters]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function loadMore() {
+    if (loadingMore || items.length >= total) return;
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams(filters);
+      params.set("limit", String(PAGE_SIZE));
+      params.set("skip", String(items.length));
+      const data = await api<{ items: ContentItem[]; meta: { total: number } }>(
+        `${endpoint(kind)}?${params.toString()}`,
+      );
+      setItems((cur) => mergeById(cur, data.items));
+      setTotal(data.meta.total);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "ادامه فهرست خوانده نشد");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   useEffect(() => {
     setReason("");
@@ -154,7 +181,7 @@ function ContentBody() {
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div className="admin-page-head">
         <div>
           <h1 className="text-[20px] font-semibold">محتوا</h1>
           <AdminCount loading={loading}>
@@ -172,7 +199,7 @@ function ContentBody() {
         />
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="admin-toolbar">
         <label className="sr-only" htmlFor="admin-content-q">
           جستجوی محتوا
         </label>
@@ -181,7 +208,7 @@ function ContentBody() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="عنوان یا شناسه"
-          className="admin-input max-w-sm"
+          className="admin-input"
         />
         <AdminTabs
           label="وضعیت نمایش"
@@ -206,13 +233,14 @@ function ContentBody() {
       {loading && !items.length ? (
         <AdminSkeleton />
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_20.5rem]">
+        <div className="admin-split">
           <div className="admin-panel admin-table-wrap">
             <table className="admin-table">
               <thead>
                 <tr>
                   <th>عنوان</th>
                   <th>صاحب</th>
+                  <th className="hidden xl:table-cell">زمان</th>
                   <th>وضعیت</th>
                 </tr>
               </thead>
@@ -257,6 +285,9 @@ function ContentBody() {
                           {row.owner.phone}
                         </p>
                       </td>
+                      <td className="hidden whitespace-nowrap text-ink-faint xl:table-cell">
+                        {faAdminDate(row.createdAt)}
+                      </td>
                       <td>
                         <AdminPill tone={row.hidden ? "warn" : "ok"}>
                           {row.hidden ? "مخفی" : "نمایشی"}
@@ -267,16 +298,22 @@ function ContentBody() {
                 })}
                 {!loading && items.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="py-10 text-center text-ink-faint">
+                    <td colSpan={4} className="py-10 text-center text-ink-faint">
                       محتوایی در این فیلتر نیست
                     </td>
                   </tr>
                 ) : null}
               </tbody>
             </table>
+            <AdminLoadMore
+              shown={items.length}
+              total={total}
+              loading={loadingMore}
+              onLoad={() => void loadMore()}
+            />
           </div>
 
-          <aside className="admin-panel h-fit p-4 lg:sticky lg:top-4">
+          <aside className="admin-panel h-fit p-4 lg:sticky lg:top-5">
             {!selected ? (
               <p className="text-[13px] text-ink-faint">یک مورد را انتخاب کن</p>
             ) : (

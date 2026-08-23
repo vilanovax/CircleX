@@ -3,12 +3,15 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  ChartBarsIcon,
   CircleUsersIcon,
+  ClockIcon,
   FlagIcon,
   GearIcon,
   HomeIcon,
   MegaphoneIcon,
   SendIcon,
+  ShieldCheckIcon,
   TagIcon,
   UserIcon,
 } from "@/components/Icons";
@@ -25,13 +28,16 @@ type Admin = {
 };
 
 const NAV = [
-  { href: "/admin", label: "داشبورد", icon: HomeIcon, exact: true, users: false, ops: false },
-  { href: "/admin/reports", label: "گزارش", icon: FlagIcon, users: false, ops: false },
-  { href: "/admin/users", label: "کاربران", icon: UserIcon, users: true, ops: false },
-  { href: "/admin/invites", label: "دعوت", icon: SendIcon, users: false, ops: false },
-  { href: "/admin/content", label: "محتوا", icon: TagIcon, users: false, ops: false },
-  { href: "/admin/broadcasts", label: "اعلامیه", icon: MegaphoneIcon, users: false, ops: true },
-  { href: "/admin/settings", label: "تنظیمات", icon: GearIcon, users: false, ops: true },
+  { href: "/admin", label: "داشبورد", icon: HomeIcon, exact: true, users: false, ops: false, super: false, mods: false },
+  { href: "/admin/growth", label: "رشد", icon: ChartBarsIcon, users: false, ops: false, super: false, mods: false },
+  { href: "/admin/reports", label: "گزارش", icon: FlagIcon, users: false, ops: false, super: false, mods: false },
+  { href: "/admin/users", label: "کاربران", icon: UserIcon, users: true, ops: false, super: false, mods: false },
+  { href: "/admin/invites", label: "دعوت", icon: SendIcon, users: false, ops: false, super: false, mods: false },
+  { href: "/admin/content", label: "محتوا", icon: TagIcon, users: false, ops: false, super: false, mods: false },
+  { href: "/admin/broadcasts", label: "اعلامیه", icon: MegaphoneIcon, users: false, ops: true, super: false, mods: false },
+  { href: "/admin/settings", label: "تنظیمات", icon: GearIcon, users: false, ops: true, super: false, mods: false },
+  { href: "/admin/audit", label: "لاگ", icon: ClockIcon, users: false, ops: true, super: false, mods: true },
+  { href: "/admin/operators", label: "اپراتور", icon: ShieldCheckIcon, users: false, ops: true, super: true, mods: false },
 ] as const;
 
 export default function AdminShell({
@@ -87,9 +93,14 @@ export default function AdminShell({
           aria-label="بخش‌های پنل"
           className="mt-5 flex flex-1 flex-col gap-0.5 max-[860px]:mt-1 max-[860px]:flex-none max-[860px]:flex-row max-[860px]:flex-nowrap max-[860px]:overflow-x-auto max-[860px]:pb-0.5"
         >
-          {NAV.filter((item) =>
-            admin.role === "analyst" ? !item.users : true,
-          ).map((item, index, list) => {
+          {NAV.filter((item) => {
+            if (admin.role === "analyst" && item.users) return false;
+            if (item.mods && admin.role !== "moderator" && admin.role !== "superadmin") {
+              return false;
+            }
+            if (item.super && admin.role !== "superadmin") return false;
+            return true;
+          }).map((item, index, list) => {
             const active =
               "exact" in item && item.exact
                 ? pathname === item.href
@@ -107,6 +118,7 @@ export default function AdminShell({
                 ) : null}
                 <Link
                   href={item.href}
+                  aria-current={active ? "page" : undefined}
                   className={`admin-nav-link flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-[13.5px] transition ${
                     active
                       ? "bg-brand-50 font-medium text-brand-700 dark:bg-brand-500/15 dark:text-brand-200"

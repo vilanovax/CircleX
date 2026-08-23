@@ -453,12 +453,14 @@ model AdminUser {
   passwordHash String
   role         AdminRole
   lastLoginAt  DateTime?
+  disabledAt   DateTime?
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
   sessions     AdminSession[]
   auditLogs    AdminAuditLog[]
 
   @@index([email])
+  @@index([disabledAt])
 }
 
 model AdminSession {

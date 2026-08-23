@@ -176,7 +176,7 @@ export default function AdminSettingsPage() {
 
   return (
     <div className={canWrite && dirty ? "pb-20" : undefined}>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div className="admin-page-head">
         <div className="min-w-0">
           <h1 className="text-[20px] font-semibold">تنظیمات زنده</h1>
           <p className="mt-1 text-[12.5px] text-ink-faint">
@@ -307,7 +307,7 @@ export default function AdminSettingsPage() {
                 </button>
               ) : null}
             </div>
-            <div className="space-y-3">
+            <div className="grid gap-3 xl:grid-cols-2">
               {draft.catalog.cities.map((city, index) => (
                 <CityCard
                   key={`${city.name}-${index}`}
@@ -411,11 +411,11 @@ export default function AdminSettingsPage() {
       ) : null}
 
       {tab === "flags" ? (
-        <section className="admin-panel divide-y divide-black/5 dark:divide-white/10">
+        <section className="admin-panel grid divide-y divide-black/5 dark:divide-white/10 lg:grid-cols-2 lg:divide-y-0">
           {FLAG_KEYS.map((key) => (
             <div
               key={key}
-              className="flex items-start justify-between gap-4 px-4 py-3.5"
+              className="flex items-start justify-between gap-4 border-black/5 px-4 py-3.5 lg:border-b dark:border-white/10"
             >
               <span>
                 <span className="block text-[14px]">{FLAG_LABELS[key]}</span>
