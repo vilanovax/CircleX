@@ -27,6 +27,7 @@ export async function POST(req: Request) {
         fromUserId: peerId,
         toUserId: session.id,
         readAt: null,
+        hiddenAt: null,
       },
       data: { readAt: new Date() },
     });

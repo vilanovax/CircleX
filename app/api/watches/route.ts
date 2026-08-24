@@ -17,6 +17,7 @@ function toClientWatch(row: {
   kind: string;
   phrase: string | null;
   enabled: boolean;
+  adminDisabledAt: Date | null;
   createdAt: Date;
   targetUserId: string | null;
   target: { id: string; name: string; avatar: string } | null;
@@ -26,6 +27,7 @@ function toClientWatch(row: {
     kind: row.kind,
     phrase: row.phrase,
     enabled: row.enabled,
+    adminLocked: Boolean(row.adminDisabledAt),
     createdAt: row.createdAt.toISOString(),
     target: row.target
       ? {

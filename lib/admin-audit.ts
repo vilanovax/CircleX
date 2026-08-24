@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { invalidateAdminAuditCache } from "./admin-audit-list";
 import { prisma } from "./db";
 
 export async function writeAdminAudit(opts: {
@@ -19,4 +20,5 @@ export async function writeAdminAudit(opts: {
       meta: opts.meta,
     },
   });
+  invalidateAdminAuditCache();
 }

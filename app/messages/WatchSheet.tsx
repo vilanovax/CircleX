@@ -20,6 +20,7 @@ export type ClientWatch = {
   kind: string;
   phrase: string | null;
   enabled: boolean;
+  adminLocked?: boolean;
   createdAt: string;
   target: { id: string; name: string; avatar: string } | null;
 };
@@ -100,6 +101,10 @@ export default function WatchSheet({ onClose }: { onClose: () => void }) {
   }
 
   async function toggle(watch: ClientWatch) {
+    if (watch.adminLocked) {
+      show("این گوش‌به‌زنگ توسط تیم سیرکل خاموش شده");
+      return;
+    }
     try {
       const data = await api<{ watch: ClientWatch }>(`/api/watches/${watch.id}`, {
         method: "PATCH",
@@ -136,7 +141,7 @@ export default function WatchSheet({ onClose }: { onClose: () => void }) {
     >
       <h2
         id="watch-sheet-title"
-        className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 leading-tight"
+        className="text-[20px] font-semibold text-ink dark:text-zinc-50 leading-tight"
       >
         گوش‌به‌زنگ‌ها
       </h2>
@@ -193,6 +198,7 @@ export default function WatchSheet({ onClose }: { onClose: () => void }) {
                     key={w.id}
                     title={w.phrase || "عبارت"}
                     enabled={w.enabled}
+                    locked={w.adminLocked}
                     onToggle={() => void toggle(w)}
                     onRemove={() => void remove(w)}
                   />
@@ -258,6 +264,7 @@ export default function WatchSheet({ onClose }: { onClose: () => void }) {
                     title={w.target?.name || "عضو حلقه"}
                     avatar={w.target?.avatar}
                     enabled={w.enabled}
+                    locked={w.adminLocked}
                     onToggle={() => void toggle(w)}
                     onRemove={() => void remove(w)}
                   />
@@ -275,12 +282,14 @@ function WatchRow({
   title,
   avatar,
   enabled,
+  locked,
   onToggle,
   onRemove,
 }: {
   title: string;
   avatar?: string;
   enabled: boolean;
+  locked?: boolean;
   onToggle: () => void;
   onRemove: () => void;
 }) {
@@ -321,16 +330,18 @@ function WatchRow({
               : "text-ink-faint"
           }`}
         >
-          {enabled ? "روشن" : "خاموش"}
+          {locked ? "خاموش · تیم سیرکل" : enabled ? "روشن" : "خاموش"}
         </span>
       </span>
       <button
         type="button"
         role="switch"
         aria-checked={enabled}
+        aria-disabled={locked}
+        disabled={locked}
         aria-label={enabled ? `${title}، روشن` : `${title}، خاموش`}
         onClick={onToggle}
-        className={`relative w-11 h-[26px] rounded-full shrink-0 transition-[background-color] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97] ${
+        className={`relative w-11 h-[26px] rounded-full shrink-0 transition-[background-color] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 ${
           enabled
             ? "bg-brand-600"
             : "bg-stone-300 dark:bg-zinc-600"

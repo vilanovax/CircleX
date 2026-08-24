@@ -64,6 +64,8 @@ model User {
   edgesTo            CircleEdge[]       @relation("EdgeTo")
   listings            MarketListing[]
   listingReports      ListingReport[]
+  messageReportsFiled    MessageReport[] @relation("MessageReporter")
+  messageReportsAgainst  MessageReport[] @relation("MessageAccused")
   listingEndorsements ListingEndorsement[]
   joinRequestsHost    CircleJoinRequest[]  @relation("JoinHost")
   joinRequestsGuest   CircleJoinRequest[]  @relation("JoinGuest")
@@ -82,6 +84,8 @@ model User {
 
   @@index([phoneNormalized])
   @@index([bannedAt])
+  @@index([createdAt])
+  @@index([profileCompletedAt])
 }
 
 model Session {
@@ -93,6 +97,7 @@ model Session {
   createdAt DateTime @default(now())
 
   @@index([userId])
+  @@index([expiresAt])
 }
 
 model OtpChallenge {
@@ -106,6 +111,7 @@ model OtpChallenge {
   user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([phoneNormalized])
+  @@index([attempts])
 }
 
 model Invite {
@@ -133,6 +139,9 @@ model Invite {
 
   @@index([inviterUserId, status])
   @@index([invitedPhone])
+  @@index([createdAt])
+  @@index([acceptedAt])
+  @@index([status, expiresAt])
 }
 
 model InviteExpected {
@@ -181,6 +190,7 @@ model CircleJoinRequest {
   @@index([hostUserId, status])
   @@index([guestUserId])
   @@index([inviteId])
+  @@index([status, resolvedAt])
 }
 
 model CircleEdge {
@@ -225,6 +235,8 @@ model MarketListing {
   saves        SavedListing[]
 
   @@index([sellerId])
+  @@index([createdAt])
+  @@index([dealStatus])
 }
 
 model ListingEndorsement {
@@ -282,18 +294,43 @@ model DirectMessage {
   text       String    @default("")
   listingId  String?
   readAt     DateTime?
+  hiddenAt   DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
   from    User           @relation("MessageFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
   to      User           @relation("MessageTo", fields: [toUserId], references: [id], onDelete: Cascade)
   listing MarketListing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  reports MessageReport[]
 
   @@index([toUserId, createdAt])
   @@index([fromUserId, createdAt])
   @@index([toUserId, fromUserId])
   @@index([toUserId, readAt])
   @@index([listingId])
+  @@index([hiddenAt])
+}
+
+model MessageReport {
+  id            String               @id @default(cuid())
+  messageId     String?
+  message       DirectMessage?       @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  reporterId    String
+  reporter      User                 @relation("MessageReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  accusedId     String
+  accused       User                 @relation("MessageAccused", fields: [accusedId], references: [id], onDelete: Cascade)
+  reason        ListingReportReason
+  note          String?
+  textSnapshot  String
+  status        ListingReportStatus  @default(open)
+  hiddenMessage Boolean              @default(false)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@unique([messageId, reporterId])
+  @@index([status, createdAt])
+  @@index([accusedId])
+  @@index([reporterId])
 }
 
 model WantRequest {
@@ -316,6 +353,7 @@ model WantRequest {
 
   @@index([requesterId])
   @@index([hidden])
+  @@index([createdAt])
 }
 
 model WantOffer {
@@ -355,6 +393,7 @@ model Gathering {
 
   @@index([hostId])
   @@index([hidden])
+  @@index([createdAt])
 }
 
 model GatheringRsvp {
@@ -391,9 +430,10 @@ model ListingWatch {
   phraseNorm   String?
   targetUserId String?
   target       User?    @relation("WatchTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
-  enabled      Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  enabled          Boolean   @default(true)
+  adminDisabledAt  DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@index([userId, kind])
   @@index([targetUserId, enabled])
@@ -487,6 +527,8 @@ model AdminAuditLog {
 
   @@index([adminUserId, createdAt])
   @@index([targetType, targetId])
+  @@index([createdAt])
+  @@index([targetType, createdAt])
 }
 
 model AppSetting {

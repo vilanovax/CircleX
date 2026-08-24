@@ -1,8 +1,7 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import {
   REPORT_REASON_LABELS,
@@ -10,24 +9,26 @@ import {
 } from "@/lib/admin-labels";
 import { toPersianDigits } from "@/lib/persian";
 import { useToast } from "@/components/Toast";
-import { listingTypeLabels } from "@/lib/labels";
-import type { ListingType } from "@/lib/types";
-import { AdminSkeleton, faAdminDate, AdminCount, AdminTabs, AdminSwitch, AdminLoadMore, mergeById } from "@/components/admin/AdminBits";
-import AdminMessageReports from "@/components/admin/AdminMessageReports";
+import {
+  AdminSkeleton,
+  faAdminDate,
+  AdminCount,
+  AdminTabs,
+  AdminSwitch,
+  AdminLoadMore,
+  mergeById,
+} from "@/components/admin/AdminBits";
 
-type ReportItem = {
+type MessageReportItem = {
   id: string;
   reason: string;
   note: string | null;
   status: "open" | "reviewed" | "dismissed";
+  textSnapshot: string;
+  hiddenMessage: boolean;
+  messageGone: boolean;
   createdAt: string;
-  listing: {
-    id: string;
-    title: string;
-    type: string;
-    dealStatus: string | null;
-    seller: { id: string; name: string; phone: string };
-  };
+  accused: { id: string; name: string; phone: string };
   reporter: { id: string; name: string; phone: string };
 };
 
@@ -35,20 +36,20 @@ type Me = { admin: { role: string } };
 
 const PAGE_SIZE = 50;
 
-function ListingReportsInbox() {
+export default function AdminMessageReports() {
   const { show } = useToast();
   const [status, setStatus] = useState<"open" | "reviewed" | "dismissed" | "all">(
     "open",
   );
-  const [items, setItems] = useState<ReportItem[]>([]);
+  const [items, setItems] = useState<MessageReportItem[]>([]);
   const [total, setTotal] = useState(0);
-  const [selected, setSelected] = useState<ReportItem | null>(null);
+  const [selected, setSelected] = useState<MessageReportItem | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [canWrite, setCanWrite] = useState(false);
   const [reason, setReason] = useState("");
-  const [hideListing, setHideListing] = useState(false);
+  const [hideMessage, setHideMessage] = useState(true);
   const [noticeToReporter, setNoticeToReporter] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -56,9 +57,10 @@ function ListingReportsInbox() {
     setLoading(true);
     setError(null);
     try {
-      const data = await api<{ items: ReportItem[]; meta: { total: number } }>(
-        `/api/admin/listing-reports?status=${status}&limit=${PAGE_SIZE}&skip=0`,
-      );
+      const data = await api<{
+        items: MessageReportItem[];
+        meta: { total: number };
+      }>(`/api/admin/message-reports?status=${status}&limit=${PAGE_SIZE}&skip=0`);
       setItems(data.items);
       setTotal(data.meta.total);
       setSelected((cur) =>
@@ -80,15 +82,17 @@ function ListingReportsInbox() {
   async function loadMore() {
     if (loadingMore || items.length >= total) return;
     setLoadingMore(true);
-    setError(null);
     try {
-      const data = await api<{ items: ReportItem[]; meta: { total: number } }>(
-        `/api/admin/listing-reports?status=${status}&limit=${PAGE_SIZE}&skip=${items.length}`,
+      const data = await api<{
+        items: MessageReportItem[];
+        meta: { total: number };
+      }>(
+        `/api/admin/message-reports?status=${status}&limit=${PAGE_SIZE}&skip=${items.length}`,
       );
       setItems((cur) => mergeById(cur, data.items));
       setTotal(data.meta.total);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "ادامه فهرست خوانده نشد");
+      show(err instanceof ApiError ? err.message : "ادامه فهرست نشد");
     } finally {
       setLoadingMore(false);
     }
@@ -96,29 +100,28 @@ function ListingReportsInbox() {
 
   useEffect(() => {
     api<Me>("/api/admin/auth/me")
-      .then((d) => {
-        setCanWrite(
-          d.admin.role === "moderator" || d.admin.role === "superadmin",
-        );
-      })
+      .then((d) =>
+        setCanWrite(d.admin.role === "moderator" || d.admin.role === "superadmin"),
+      )
       .catch(() => setCanWrite(false));
   }, []);
 
   useEffect(() => {
-    setHideListing(false);
-    setNoticeToReporter(true);
+    if (!selected) return;
     setReason("");
+    setHideMessage(!selected.hiddenMessage && !selected.messageGone);
+    setNoticeToReporter(true);
   }, [selected?.id]);
 
   async function resolve(next: "reviewed" | "dismissed") {
-    if (!selected) return;
+    if (!selected || saving) return;
     setSaving(true);
     try {
-      await api(`/api/admin/listing-reports/${selected.id}`, {
+      await api(`/api/admin/message-reports/${encodeURIComponent(selected.id)}`, {
         method: "PATCH",
         body: JSON.stringify({
           status: next,
-          hideListing,
+          hideMessage: next === "reviewed" ? hideMessage : false,
           noticeToReporter,
           reason,
         }),
@@ -136,13 +139,13 @@ function ListingReportsInbox() {
     <div>
       <div className="admin-page-head">
         <div>
-          <h1 className="text-[20px] font-semibold">گزارش آگهی</h1>
+          <h1 className="text-[20px] font-semibold">گزارش پیام</h1>
           <AdminCount loading={loading}>
             {toPersianDigits(total)} مورد در این فیلتر
           </AdminCount>
         </div>
         <AdminTabs
-          label="وضعیت گزارش"
+          label="وضعیت گزارش پیام"
           value={status}
           onChange={setStatus}
           items={
@@ -170,9 +173,9 @@ function ListingReportsInbox() {
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>آگهی</th>
+                  <th>متن</th>
                   <th>دلیل</th>
-                  <th>فروشنده</th>
+                  <th>فرستنده</th>
                   <th className="hidden xl:table-cell">زمان</th>
                   <th>وضعیت</th>
                 </tr>
@@ -180,9 +183,6 @@ function ListingReportsInbox() {
               <tbody>
                 {items.map((row) => {
                   const active = selected?.id === row.id;
-                  const typeLabel =
-                    listingTypeLabels[row.listing.type as ListingType] ??
-                    row.listing.type;
                   return (
                     <tr
                       key={row.id}
@@ -199,30 +199,23 @@ function ListingReportsInbox() {
                         active ? "bg-brand-50/80 dark:bg-brand-500/10" : ""
                       }`}
                     >
-                      <td>
-                        <p className="font-medium">{row.listing.title}</p>
-                        <p className="text-[11px] text-ink-faint">{typeLabel}</p>
-                      </td>
-                      <td>{REPORT_REASON_LABELS[row.reason] ?? row.reason}</td>
-                      <td>
-                        <p>{row.listing.seller.name || "—"}</p>
-                        <p
-                          className="whitespace-nowrap font-mono text-[11px] text-ink-faint"
-                          dir="ltr"
-                        >
-                          {row.listing.seller.phone}
+                      <td className="max-w-[14rem]">
+                        <p className="line-clamp-2 text-[13px] leading-snug">
+                          {row.textSnapshot}
                         </p>
                       </td>
-                      <td className="hidden whitespace-nowrap text-ink-faint xl:table-cell">
+                      <td>{REPORT_REASON_LABELS[row.reason] ?? row.reason}</td>
+                      <td>{row.accused.name || "بدون نام"}</td>
+                      <td className="hidden xl:table-cell">
                         {faAdminDate(row.createdAt)}
                       </td>
                       <td>{REPORT_STATUS_LABELS[row.status]}</td>
                     </tr>
                   );
                 })}
-                {!loading && items.length === 0 ? (
+                {items.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-10 text-center text-ink-faint">
+                    <td colSpan={5} className="py-8 text-center text-ink-faint">
                       {status === "open"
                         ? "صف خالی است — گزارش بازی نیست"
                         : "گزارشی در این وضعیت نیست"}
@@ -236,6 +229,7 @@ function ListingReportsInbox() {
               total={total}
               loading={loadingMore}
               onLoad={() => void loadMore()}
+              inset
             />
           </div>
 
@@ -245,8 +239,11 @@ function ListingReportsInbox() {
             ) : (
               <div className="space-y-3 text-[13px]">
                 <h2 className="text-[15px] font-semibold leading-snug">
-                  {selected.listing.title}
+                  پیام گزارش‌شده
                 </h2>
+                <p className="rounded-xl bg-black/[0.03] p-2.5 whitespace-pre-wrap dark:bg-white/[0.05]">
+                  {selected.textSnapshot}
+                </p>
                 <p className="text-ink-muted">
                   {REPORT_REASON_LABELS[selected.reason]} ·{" "}
                   {faAdminDate(selected.createdAt)}
@@ -257,15 +254,15 @@ function ListingReportsInbox() {
                   </p>
                 ) : null}
                 <div>
-                  <p className="text-[11px] text-ink-faint">فروشنده</p>
+                  <p className="text-[11px] text-ink-faint">فرستنده</p>
                   <Link
-                    href={`/admin/users/${selected.listing.seller.id}`}
+                    href={`/admin/users/${selected.accused.id}`}
                     className="text-brand-700 hover:underline"
                   >
-                    {selected.listing.seller.name || "بدون نام"}
+                    {selected.accused.name || "بدون نام"}
                   </Link>
                   <p className="font-mono text-[11px]" dir="ltr">
-                    {selected.listing.seller.phone}
+                    {selected.accused.phone}
                   </p>
                 </div>
                 <div>
@@ -280,20 +277,24 @@ function ListingReportsInbox() {
                     {selected.reporter.phone}
                   </p>
                 </div>
-                {selected.listing.dealStatus === "inactive" ? (
+                {selected.hiddenMessage || selected.messageGone ? (
                   <p className="text-[12px] text-ink-muted">
-                    این آگهی الان مخفی است.
+                    این پیام از گفتگو برداشته شده.
                   </p>
                 ) : null}
+                <p className="text-[11px] leading-relaxed text-ink-faint">
+                  کل گفتگو اینجا باز نمی‌شود — فقط همین پیام.
+                </p>
 
                 {canWrite && selected.status === "open" ? (
                   <div className="space-y-2 border-t border-black/5 pt-3 dark:border-white/10">
                     <div className="flex items-center justify-between gap-3">
-                      <span>مخفی کردن آگهی</span>
+                      <span>برداشتن پیام از گفتگو</span>
                       <AdminSwitch
-                        checked={hideListing}
-                        label="مخفی کردن آگهی"
-                        onChange={setHideListing}
+                        checked={hideMessage}
+                        disabled={selected.hiddenMessage || selected.messageGone}
+                        label="برداشتن پیام از گفتگو"
+                        onChange={setHideMessage}
                       />
                     </div>
                     <div className="flex items-center justify-between gap-3">
@@ -337,40 +338,5 @@ function ListingReportsInbox() {
         </div>
       )}
     </div>
-  );
-}
-
-function ReportsBody() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const inbox = searchParams.get("kind") === "message" ? "message" : "listing";
-
-  return (
-    <div>
-      <div className="mb-3">
-        <AdminTabs
-          label="نوع گزارش"
-          value={inbox}
-          onChange={(next) => {
-            router.replace(next === "message" ? "/admin/reports?kind=message" : "/admin/reports");
-          }}
-          items={
-            [
-              { key: "listing", label: "آگهی" },
-              { key: "message", label: "پیام" },
-            ] as const
-          }
-        />
-      </div>
-      {inbox === "message" ? <AdminMessageReports /> : <ListingReportsInbox />}
-    </div>
-  );
-}
-
-export default function AdminReportsPage() {
-  return (
-    <Suspense fallback={<AdminSkeleton />}>
-      <ReportsBody />
-    </Suspense>
   );
 }

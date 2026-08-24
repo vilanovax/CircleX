@@ -99,6 +99,7 @@ export async function assertCanSendDm(
     }),
     prisma.directMessage.findFirst({
       where: {
+        hiddenAt: null,
         OR: [
           { fromUserId: viewerId, toUserId: peerId },
           { fromUserId: peerId, toUserId: viewerId },
@@ -153,6 +154,7 @@ export async function loadInbox(viewerId: string): Promise<{
   const [rows, noticeRows] = await Promise.all([
     prisma.directMessage.findMany({
       where: {
+        hiddenAt: null,
         OR: [{ fromUserId: viewerId }, { toUserId: viewerId }],
       },
       orderBy: { createdAt: "desc" },

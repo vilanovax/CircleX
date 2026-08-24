@@ -1,4 +1,5 @@
 import { ADMIN_ROLES, canSeeFullPhone, requireAdmin } from "@/lib/admin-auth";
+import { listAdminUsers } from "@/lib/admin-users";
 import { csvResponse, csvTable, EXPORT_CAP } from "@/lib/admin-csv";
 import { redactAdminPhone } from "@/lib/admin-labels";
 import { isUserBanned } from "@/lib/ban";
@@ -24,22 +25,11 @@ export async function GET(req: Request) {
       const fullPhone = canSeeFullPhone(
         auth.actor.kind === "session" ? auth.actor.admin.role : "superadmin",
       );
-      const rows = await prisma.user.findMany({
-        orderBy: { createdAt: "desc" },
+      const listed = await listAdminUsers({
         take: EXPORT_CAP,
-        select: {
-          id: true,
-          name: true,
-          phoneNormalized: true,
-          city: true,
-          profileCompletedAt: true,
-          createdAt: true,
-          bannedAt: true,
-          bannedUntil: true,
-          _count: {
-            select: { edgesFrom: true, listings: true, invitesSent: true },
-          },
-        },
+        skip: 0,
+        fullPhone,
+        includeTotal: false,
       });
       const body = csvTable(
         [
@@ -54,17 +44,17 @@ export async function GET(req: Request) {
           "listings",
           "invites",
         ],
-        rows.map((row) => [
+        listed.items.map((row) => [
           row.id,
           row.name,
-          redactAdminPhone(row.phoneNormalized, fullPhone),
+          row.phone,
           row.city,
-          row.profileCompletedAt ? "complete" : "incomplete",
-          isUserBanned(row) ? "1" : "0",
-          row.createdAt.toISOString(),
-          row._count.edgesFrom,
-          row._count.listings,
-          row._count.invitesSent,
+          row.profileCompleted ? "complete" : "incomplete",
+          row.banned ? "1" : "0",
+          row.createdAt,
+          row.circleCount,
+          row.listingCount,
+          row.inviteCount,
         ]),
       );
       return csvResponse(`circle-users-${stamp()}.csv`, body);
@@ -173,6 +163,52 @@ export async function GET(req: Request) {
         ]),
       );
       return csvResponse(`circle-reports-${stamp()}.csv`, body);
+    }
+
+    if (kind === "message-reports") {
+      const auth = await requireAdmin(req);
+      if (!auth.ok) return auth.response;
+      const fullPhone = canSeeFullPhone(
+        auth.actor.kind === "session" ? auth.actor.admin.role : "superadmin",
+      );
+      const rows = await prisma.messageReport.findMany({
+        orderBy: { createdAt: "desc" },
+        take: EXPORT_CAP,
+        select: {
+          id: true,
+          reason: true,
+          status: true,
+          hiddenMessage: true,
+          createdAt: true,
+          accused: { select: { name: true, phoneNormalized: true } },
+          reporter: { select: { name: true, phoneNormalized: true } },
+        },
+      });
+      const body = csvTable(
+        [
+          "id",
+          "reason",
+          "status",
+          "hiddenMessage",
+          "accused",
+          "accusedPhone",
+          "reporter",
+          "reporterPhone",
+          "createdAt",
+        ],
+        rows.map((row) => [
+          row.id,
+          row.reason,
+          row.status,
+          row.hiddenMessage ? "1" : "0",
+          row.accused.name,
+          redactAdminPhone(row.accused.phoneNormalized, fullPhone),
+          row.reporter.name,
+          redactAdminPhone(row.reporter.phoneNormalized, fullPhone),
+          row.createdAt.toISOString(),
+        ]),
+      );
+      return csvResponse(`circle-message-reports-${stamp()}.csv`, body);
     }
 
     return jsonError("kind نامعتبر است", 400, "invalid");

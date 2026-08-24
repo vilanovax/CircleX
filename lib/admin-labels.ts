@@ -75,6 +75,7 @@ export const EXPORT_KIND_LABELS: Record<string, string> = {
   users: "کاربران",
   invites: "دعوت‌ها",
   reports: "گزارش آگهی",
+  "message-reports": "گزارش پیام",
 };
 
 export const AUDIT_ACTION_LABELS: Record<string, string> = {
@@ -84,7 +85,10 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "listing.moderate": "اعتدال آگهی",
   "request.moderate": "اعتدال درخواست",
   "event.moderate": "اعتدال رویداد",
-  "listing_report.update": "رسیدگی به گزارش",
+  "listing_report.update": "رسیدگی به گزارش آگهی",
+  "message_report.update": "رسیدگی به گزارش پیام",
+  "watch.disable": "خاموش کردن گوش‌به‌زنگ",
+  "watch.enable": "روشن کردن گوش‌به‌زنگ",
   "invite.revoke": "لغو دعوت",
   "invite.extend": "تمدید دعوت",
   "broadcast.send": "ارسال اعلامیه",
@@ -99,6 +103,8 @@ export const AUDIT_TARGET_LABELS: Record<string, string> = {
   WantRequest: "درخواست",
   Gathering: "رویداد",
   ListingReport: "گزارش آگهی",
+  MessageReport: "گزارش پیام",
+  ListingWatch: "گوش‌به‌زنگ",
   Invite: "دعوت",
   Broadcast: "اعلامیه",
   AppSetting: "تنظیمات",
@@ -116,7 +122,10 @@ export const AUDIT_META_LABELS: Record<string, string> = {
   sessionsRevoked: "سشن باطل‌شده",
   status: "وضعیت",
   hideListing: "مخفی کردن آگهی",
+  hideMessage: "برداشتن پیام",
   noticeToReporter: "پیام به گزارش‌دهنده",
+  enabled: "روشن",
+  previousEnabled: "روشن قبلی",
   previousStatus: "وضعیت قبلی",
   previousExpiresAt: "انقضای قبلی",
   expiresAt: "انقضا",
@@ -137,7 +146,7 @@ export const AUDIT_META_LABELS: Record<string, string> = {
   categoryCount: "تعداد دسته",
 };
 
-const AUDIT_SKIP_META = new Set(["listingId"]);
+const AUDIT_SKIP_META = new Set(["listingId", "accusedId", "ownerId"]);
 const AUDIT_NESTED_META = new Set(["flags", "growth", "auth", "catalog"]);
 
 export function auditMetaRows(
@@ -199,7 +208,14 @@ export type AuditGroup = "all" | "users" | "content" | "invites" | "ops";
 
 export const AUDIT_GROUP_TYPES: Record<Exclude<AuditGroup, "all">, string[]> = {
   users: ["User"],
-  content: ["MarketListing", "WantRequest", "Gathering", "ListingReport"],
+  content: [
+    "MarketListing",
+    "WantRequest",
+    "Gathering",
+    "ListingReport",
+    "MessageReport",
+    "ListingWatch",
+  ],
   invites: ["Invite"],
   ops: ["admin_user", "AppSetting", "Broadcast"],
 };
@@ -216,6 +232,10 @@ export function auditTargetHref(targetType: string, targetId: string): string | 
       return "/admin/content?kind=event";
     case "ListingReport":
       return "/admin/reports";
+    case "MessageReport":
+      return "/admin/reports?kind=message";
+    case "ListingWatch":
+      return "/admin/watches";
     case "Invite":
       return "/admin/invites";
     case "Broadcast":

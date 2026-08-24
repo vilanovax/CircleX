@@ -174,7 +174,7 @@ Two spatial contracts, one brand.
 
 **Member app:** `.app-shell` is a centered 480px column on a limestone field. Mobile-first. Bottom nav. Stacked cards with generous vertical rhythm (`1rem` inside, `1.25rem` between groups).
 
-**Admin desk:** `.admin-shell` is a sticky 15.25rem sidebar + fluid main, content capped at 80rem. RTL: content hugs the sidebar (inline-start). Breakpoints that actually exist: 860px (sidebar becomes top nav), 1024px (list + inspector split), 1100px (growth/dashboard two-column), 1280px (wider inspector).
+**Admin desk:** `.admin-shell` is a sticky icon rail (`4.35rem`, pinned `14.25rem`) + fluid main, content capped at `96rem`. Hover peeks labels as an overlay; pin keeps the rail open. RTL: content hugs the sidebar (inline-start). Breakpoints that actually exist: 860px (rail becomes top nav), 1024px (list + inspector split), 1100px (growth/dashboard two-column), 1280px (wider inspector).
 
 Spacing rhythm is 4-based with a useful middle: 0.28 / 0.5 / 1 / 1.25 / 2rem. Tight inside a control group; generous between cards.
 
@@ -228,7 +228,7 @@ Soft sitting-room geometry: large plaster cards, pill filters, squircle marks.
 
 ### Navigation
 - **Member:** bottom tabs, icon + label, active in plum.
-- **Admin:** sticky end-side rail, 13.5px links, active plum-wash. Below 860px the rail becomes a horizontal scroller. `aria-current="page"` on the active item.
+- **Admin:** sticky end-side icon rail; labels appear on hover/focus or when pinned. Active item uses plum-wash. Below 860px the rail becomes a horizontal scroller. `aria-current="page"` on the active item.
 
 ### Admin signature
 - **KPI tiles:** 1.45rem tabular number + 12px label; selected = plum wash + plum hairline. They are the chart’s metric switch, not hero metrics for decoration.

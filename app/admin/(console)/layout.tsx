@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { getAdminSession } from "@/lib/admin-auth";
 import AdminShell from "@/components/admin/AdminShell";
 import { redirect } from "next/navigation";
@@ -16,5 +17,10 @@ export default async function AdminConsoleLayout({
 }) {
   const admin = await getAdminSession();
   if (!admin) redirect("/admin/login");
-  return <AdminShell admin={admin}>{children}</AdminShell>;
+  const navPinned = cookies().get("circle_admin_nav")?.value === "open";
+  return (
+    <AdminShell admin={admin} navPinned={navPinned}>
+      {children}
+    </AdminShell>
+  );
 }

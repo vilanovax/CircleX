@@ -10,6 +10,7 @@ export const NOTICE_KIND = {
   inviteAccepted: "invite_accepted",
   watchHit: "watch_hit",
   listingReportResolved: "listing_report_resolved",
+  messageReportResolved: "message_report_resolved",
   contentHidden: "content_hidden",
   broadcast: "broadcast",
 } as const;
@@ -71,6 +72,43 @@ export async function notifyListingReportResolved(opts: {
       actionHref: `/listing/${opts.listingId}`,
       actionLabel: "آگهی",
       listingId: opts.listingId,
+    },
+  });
+}
+
+export async function notifyMessageReportResolved(opts: {
+  reporterId: string;
+  status: "reviewed" | "dismissed";
+  hiddenMessage: boolean;
+}): Promise<void> {
+  const reviewed = opts.status === "reviewed";
+  const title = reviewed ? "گزارش پیام بررسی شد" : "گزارش پیام بسته شد";
+  const body = opts.hiddenMessage
+    ? "گزارش تو بررسی شد و آن پیام از گفتگو برداشته شد."
+    : reviewed
+      ? "گزارش تو درباره یک پیام بررسی شد."
+      : "گزارش تو درباره یک پیام بررسی شد و اقدامی لازم نبود.";
+  await prisma.systemNotice.create({
+    data: {
+      userId: opts.reporterId,
+      kind: NOTICE_KIND.messageReportResolved,
+      title,
+      body,
+      actionHref: "/messages",
+      actionLabel: "پیام‌ها",
+    },
+  });
+}
+
+export async function notifyMessageHidden(opts: { senderId: string }): Promise<void> {
+  await prisma.systemNotice.create({
+    data: {
+      userId: opts.senderId,
+      kind: NOTICE_KIND.contentHidden,
+      title: "یک پیام تو برداشته شد",
+      body: "پیامی که فرستاده بودی با مقررات حلقه سازگار نبود و از گفتگو برداشته شد.",
+      actionHref: "/messages",
+      actionLabel: "پیام‌ها",
     },
   });
 }

@@ -17,13 +17,16 @@ export async function PATCH(
 
     const row = await prisma.listingWatch.findFirst({
       where: { id, userId: session.id },
-      select: { id: true },
+      select: { id: true, adminDisabledAt: true },
     });
     if (!row) return jsonError("پیدا نشد", 404);
 
     const body = await readJson<{ enabled?: unknown }>(req);
     if (typeof body?.enabled !== "boolean") {
       return jsonError("وضعیت نامعتبر است", 400);
+    }
+    if (row.adminDisabledAt && body.enabled) {
+      return jsonError("این گوش‌به‌زنگ توسط تیم سیرکل خاموش شده", 403);
     }
 
     const updated = await prisma.listingWatch.update({
@@ -39,6 +42,7 @@ export async function PATCH(
         kind: updated.kind,
         phrase: updated.phrase,
         enabled: updated.enabled,
+        adminLocked: Boolean(updated.adminDisabledAt),
         createdAt: updated.createdAt.toISOString(),
         target: updated.target
           ? {

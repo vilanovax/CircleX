@@ -32,6 +32,7 @@ export async function GET(
       const viaMessage = await prisma.directMessage.findFirst({
         where: {
           listingId: row.id,
+          hiddenAt: null,
           OR: [{ toUserId: session.id }, { fromUserId: session.id }],
         },
         select: { id: true },

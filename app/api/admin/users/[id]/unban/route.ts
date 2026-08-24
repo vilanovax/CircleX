@@ -1,5 +1,6 @@
 import { writeAdminAudit } from "@/lib/admin-audit";
 import { ADMIN_ROLES, requireAdmin, sessionAdminId } from "@/lib/admin-auth";
+import { invalidateAdminUsersCache } from "@/lib/admin-users";
 import { parseAdminReason } from "@/lib/admin-http";
 import { prisma } from "@/lib/db";
 import { jsonError, readJson, withDb } from "@/lib/http";
@@ -41,6 +42,8 @@ export async function POST(
         previousBannedUntil: user.bannedUntil?.toISOString() ?? null,
       },
     });
+
+    invalidateAdminUsersCache();
 
     return Response.json({
       ok: true,

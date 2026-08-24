@@ -9,7 +9,7 @@ import ListingImage from "@/components/ListingImage";
 import ListingAskPrompts from "@/components/ListingAskPrompts";
 import Header from "@/components/Header";
 import LockedMessaging from "@/components/LockedMessaging";
-import { SendIcon } from "@/components/Icons";
+import { SendIcon, FlagIcon } from "@/components/Icons";
 import { formatPrice } from "@/lib/labels";
 import {
   listingSubject,
@@ -36,6 +36,7 @@ import { useCatalog } from "@/lib/use-catalog";
 
 const WatchSheet = lazyUi(() => import("@/app/messages/WatchSheet"));
 const InviteSheet = lazyUi(() => import("@/components/InviteSheet"));
+const ReportMessageSheet = lazyUi(() => import("@/components/ReportMessageSheet"));
 
 export default function ThreadClassic(_props: { params: { id: string } }) {
   const params = useParams();
@@ -60,6 +61,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   const [sending, setSending] = useState(false);
   const [showCircloWatches, setShowCircloWatches] = useState(false);
   const [showCircloInvite, setShowCircloInvite] = useState(false);
+  const [reportMsg, setReportMsg] = useState<Message | null>(null);
   const [listingLoadState, setListingLoadState] = useState<
     "idle" | "loading" | "ready" | "missing"
   >("idle");
@@ -225,7 +227,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
                         {msg.actionLabel}
                       </Link>
                     ) : null}
-                    <span className="block text-[10px] mt-1.5 nums text-ink-faint">
+                    <span className="block text-[11px] mt-1.5 nums text-ink-faint">
                       {msg.postedAt}
                     </span>
                   </div>
@@ -236,7 +238,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
           <div ref={bottomRef} />
         </div>
         <div className="shrink-0 border-t border-stone-200/70 dark:border-zinc-800 bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-xl px-3 pt-2 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
-          <p className="text-[10px] font-semibold text-ink-faint px-0.5 mb-1.5">
+          <p className="text-[11px] font-semibold text-ink-faint px-0.5 mb-1.5">
             میان‌بر
           </p>
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
@@ -410,7 +412,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
           </Link>
           {isSellerOfContext && dealStatus !== "inactive" && (
             <div className="mt-2.5">
-              <p className="text-[10px] font-semibold text-ink-faint mb-1.5">
+              <p className="text-[11px] font-semibold text-ink-faint mb-1.5">
                 وضعیت آگهی را برای طرف مقابل مشخص کن
               </p>
               <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
@@ -517,6 +519,16 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
                       clusteredBottom={sameNext}
                       showTime={showTime}
                     />
+                    {!msg.fromMe && !msg.kind ? (
+                      <button
+                        type="button"
+                        aria-label="گزارش پیام"
+                        onClick={() => setReportMsg(msg)}
+                        className="mb-0.5 shrink-0 rounded-full p-1.5 text-ink-faint hover:bg-black/[0.05] hover:text-ink dark:hover:bg-white/[0.06]"
+                      >
+                        <FlagIcon className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               );
@@ -563,6 +575,13 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
           </button>
         </div>
       </div>
+      {reportMsg ? (
+        <ReportMessageSheet
+          messageId={reportMsg.id}
+          preview={reportMsg.text}
+          onClose={() => setReportMsg(null)}
+        />
+      ) : null}
     </main>
   );
 }
@@ -578,7 +597,7 @@ function CircloChip({
     <button
       type="button"
       onClick={onClick}
-      className="shrink-0 rounded-full border px-3 py-1.5 text-[11.5px] font-semibold border-stone-200/90 dark:border-zinc-700 bg-stone-50/90 dark:bg-zinc-800/80 text-ink dark:text-zinc-100 transition-transform active:scale-[0.97]"
+      className="shrink-0 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold border-stone-200/90 dark:border-zinc-700 bg-stone-50/90 dark:bg-zinc-800/80 text-ink dark:text-zinc-100 transition-transform active:scale-[0.97]"
     >
       {label}
     </button>
@@ -656,7 +675,7 @@ function Bubble({
       )}
       {showTime && (
         <span
-          className={`block text-[10px] mt-1.5 nums ${
+          className={`block text-[11px] mt-1.5 nums ${
             msg.fromMe ? "text-white/70" : "text-ink-faint"
           }`}
         >

@@ -4,7 +4,11 @@ import Link from "next/link";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
-import { CONTENT_KIND_LABELS } from "@/lib/admin-labels";
+import {
+  ADMIN_ROLE_LABELS,
+  AUDIT_ACTION_LABELS,
+  CONTENT_KIND_LABELS,
+} from "@/lib/admin-labels";
 import { eventKindLabels, listingTypeLabels } from "@/lib/labels";
 import { toPersianDigits } from "@/lib/persian";
 import type { EventKind, ListingType } from "@/lib/types";
@@ -42,8 +46,26 @@ type ContentItem = {
 
 type Me = { admin: { role: string } };
 
+type FileAuditItem = {
+  id: string;
+  action: string;
+  targetType: string;
+  reason: string | null;
+  createdAt: string;
+  actor: { name: string; role: string };
+};
+
 const KINDS: Kind[] = ["listing", "request", "event"];
 const PAGE_SIZE = 50;
+const AUDIT_PAGE = 20;
+
+function auditQuery(kind: Kind, id: string): string {
+  if (kind === "listing") return `aboutListing=${encodeURIComponent(id)}`;
+  if (kind === "request") {
+    return `targetType=WantRequest&targetId=${encodeURIComponent(id)}`;
+  }
+  return `targetType=Gathering&targetId=${encodeURIComponent(id)}`;
+}
 
 function endpoint(kind: Kind): string {
   if (kind === "listing") return "/api/admin/listings";
@@ -78,6 +100,12 @@ function ContentBody() {
   const [noticeToOwner, setNoticeToOwner] = useState(true);
   const [clearImage, setClearImage] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [audit, setAudit] = useState<FileAuditItem[]>([]);
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditMore, setAuditMore] = useState(false);
+  const [canSeeAudit, setCanSeeAudit] = useState(false);
+  const [auditNonce, setAuditNonce] = useState(0);
   const { show } = useToast();
 
   useEffect(() => {
@@ -157,6 +185,57 @@ function ContentBody() {
     setNoticeToOwner(true);
   }, [selected?.id]);
 
+  useEffect(() => {
+    if (!selected) {
+      setAudit([]);
+      setAuditTotal(0);
+      return;
+    }
+    const id = selected.id;
+    let live = true;
+    setAuditLoading(true);
+    api<{ items: FileAuditItem[]; meta: { total: number } }>(
+      `/api/admin/audit?${auditQuery(kind, id)}&limit=${AUDIT_PAGE}&skip=0`,
+    )
+      .then((logs) => {
+        if (!live) return;
+        setAudit(logs.items);
+        setAuditTotal(logs.meta.total);
+        setCanSeeAudit(true);
+      })
+      .catch((err) => {
+        if (!live) return;
+        if (err instanceof ApiError && err.status === 403) {
+          setCanSeeAudit(false);
+          setAudit([]);
+          setAuditTotal(0);
+        }
+      })
+      .finally(() => {
+        if (live) setAuditLoading(false);
+      });
+    return () => {
+      live = false;
+    };
+  }, [selected?.id, kind, auditNonce]);
+
+  async function loadMoreAudit() {
+    if (!selected || auditMore || audit.length >= auditTotal) return;
+    setAuditMore(true);
+    try {
+      const logs = await api<{
+        items: FileAuditItem[];
+        meta: { total: number };
+      }>(
+        `/api/admin/audit?${auditQuery(kind, selected.id)}&limit=${AUDIT_PAGE}&skip=${audit.length}`,
+      );
+      setAudit((cur) => mergeById(cur, logs.items));
+      setAuditTotal(logs.meta.total);
+    } finally {
+      setAuditMore(false);
+    }
+  }
+
   async function moderate(hidden: boolean) {
     if (!selected) return;
     setSaving(true);
@@ -172,6 +251,7 @@ function ContentBody() {
       });
       show(hidden ? "از فید مخفی شد" : "دوباره نمایشی شد");
       await load();
+      setAuditNonce((n) => n + 1);
     } catch (err) {
       show(err instanceof ApiError ? err.message : "ذخیره نشد");
     } finally {
@@ -340,6 +420,62 @@ function ContentBody() {
                 <p className="text-[12px] text-ink-muted">
                   عکس: {selected.hasImage ? "دارد" : "ندارد"}
                 </p>
+
+                {canSeeAudit || canWrite ? (
+                  <div className="border-t border-black/5 pt-3 dark:border-white/10">
+                    <p className="text-[11px] text-ink-faint">
+                      اقدامات روی این {CONTENT_KIND_LABELS[kind]}
+                      {auditLoading && !audit.length
+                        ? ""
+                        : ` · ${toPersianDigits(auditTotal)}`}
+                    </p>
+                    {auditLoading && !audit.length ? (
+                      <p className="mt-2 text-[12px] text-ink-faint">
+                        در حال خواندن…
+                      </p>
+                    ) : audit.length === 0 ? (
+                      <p className="mt-2 text-[12px] text-ink-faint">
+                        هنوز عملی روی این {CONTENT_KIND_LABELS[kind]} ثبت نشده
+                      </p>
+                    ) : (
+                      <>
+                        <ul className="mt-2">
+                          {audit.map((row) => (
+                            <li
+                              key={row.id}
+                              className="border-t border-black/5 py-2 first:border-0 first:pt-0 dark:border-white/10"
+                            >
+                              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                                <p className="font-medium">
+                                  {AUDIT_ACTION_LABELS[row.action] ??
+                                    row.action}
+                                </p>
+                                <p className="whitespace-nowrap text-[12px] text-ink-faint">
+                                  {faAdminDate(row.createdAt)}
+                                </p>
+                              </div>
+                              <p className="text-[12px] text-ink-muted">
+                                {row.actor.name || "—"} ·{" "}
+                                {ADMIN_ROLE_LABELS[row.actor.role] ??
+                                  row.actor.role}
+                              </p>
+                              {row.reason ? (
+                                <p className="mt-1">{row.reason}</p>
+                              ) : null}
+                            </li>
+                          ))}
+                        </ul>
+                        <AdminLoadMore
+                          shown={audit.length}
+                          total={auditTotal}
+                          loading={auditMore}
+                          onLoad={() => void loadMoreAudit()}
+                          inset={false}
+                        />
+                      </>
+                    )}
+                  </div>
+                ) : null}
 
                 {canWrite ? (
                   <div className="space-y-2 border-t border-black/5 pt-3 dark:border-white/10">

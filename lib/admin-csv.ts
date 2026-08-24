@@ -26,5 +26,10 @@ export function csvResponse(filename: string, body: string): Response {
   });
 }
 
-export const EXPORT_KINDS = ["users", "invites", "reports"] as const;
+export const EXPORT_KINDS = [
+  "users",
+  "invites",
+  "reports",
+  "message-reports",
+] as const;
 export type ExportKind = (typeof EXPORT_KINDS)[number];

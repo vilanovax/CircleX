@@ -1,5 +1,6 @@
 import type { AdminRole, AdminUser } from "@prisma/client";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { prisma } from "./db";
 import { jsonError } from "./http";
 import { hashToken, newSessionToken } from "./server-auth";
@@ -33,7 +34,7 @@ function cookieOpts(maxAge: number) {
   };
 }
 
-export async function getAdminSession(): Promise<AdminSessionUser | null> {
+export const getAdminSession = cache(async (): Promise<AdminSessionUser | null> => {
   const token = cookies().get(ADMIN_SESSION_COOKIE)?.value;
   if (!token) return null;
   const session = await prisma.adminSession.findUnique({
@@ -48,7 +49,7 @@ export async function getAdminSession(): Promise<AdminSessionUser | null> {
     return null;
   }
   return toAdminSessionUser(session.admin);
-}
+});
 
 export async function createAdminSession(adminUserId: string): Promise<void> {
   const token = newSessionToken();

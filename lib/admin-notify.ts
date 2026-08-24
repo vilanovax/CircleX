@@ -50,3 +50,49 @@ export async function notifyAdminOfListingReport(
     console.warn("[listing-report] webhook failed", err);
   }
 }
+
+export type MessageReportNotifyPayload = {
+  reportId: string;
+  reason: string;
+  note: string | null;
+  snapshot: string;
+  accused: {
+    id: string;
+    name: string;
+    phone: string;
+  };
+  reporter: {
+    id: string;
+    name: string;
+    phone: string;
+  };
+  createdAt: string;
+};
+
+export async function notifyAdminOfMessageReport(
+  payload: MessageReportNotifyPayload,
+): Promise<void> {
+  const line = `[message-report] ${payload.reason} · accused=${payload.accused.phone} · reporter=${payload.reporter.phone} · report=${payload.reportId}`;
+  console.info(line);
+
+  const webhook = process.env.ADMIN_WEBHOOK_URL?.trim();
+  if (!webhook) return;
+
+  try {
+    const res = await fetch(webhook, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: `گزارش پیام: ${payload.accused.name || payload.accused.phone} (${payload.reason})`,
+        ...payload,
+      }),
+    });
+    if (!res.ok) {
+      console.warn(
+        `[message-report] webhook ${res.status} ${await res.text().catch(() => "")}`,
+      );
+    }
+  } catch (err) {
+    console.warn("[message-report] webhook failed", err);
+  }
+}

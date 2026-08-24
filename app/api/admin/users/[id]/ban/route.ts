@@ -1,5 +1,6 @@
 import { writeAdminAudit } from "@/lib/admin-audit";
 import { ADMIN_ROLES, requireAdmin, sessionAdminId } from "@/lib/admin-auth";
+import { invalidateAdminUsersCache } from "@/lib/admin-users";
 import { parseAdminReason } from "@/lib/admin-http";
 import { banPublicState } from "@/lib/ban";
 import { prisma } from "@/lib/db";
@@ -66,6 +67,8 @@ export async function POST(
         sessionsRevoked: revoked,
       },
     });
+
+    invalidateAdminUsersCache();
 
     return Response.json({
       ok: true,
