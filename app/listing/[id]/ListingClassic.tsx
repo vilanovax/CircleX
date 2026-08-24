@@ -18,6 +18,7 @@ import {
   FlagIcon,
   HeartIcon,
   MoreIcon,
+  NoteIcon,
   PencilIcon,
   ShieldCheckIcon,
 } from "@/components/Icons";
@@ -41,11 +42,11 @@ import { listingGalleryImages } from "@/lib/listing-image";
 import { placeDetailLabel } from "@/lib/place";
 import { useOwnerListingFlow } from "@/components/OwnerListingManager";
 import { ListingDetailSkeleton } from "@/components/Skeleton";
-import ListingPersonalNote from "@/components/ListingPersonalNote";
 
 const ReferSheet = lazyUi(() => import("@/components/ReferSheet"));
 const ReportListingSheet = lazyUi(() => import("@/components/ReportListingSheet"));
 const EndorseSheet = lazyUi(() => import("@/components/EndorseSheet"));
+const ListingNoteSheet = lazyUi(() => import("@/components/ListingPersonalNote"));
 const TrustPath = lazyUi(() => import("@/components/TrustPath"), {
   loading: () => (
     <div className="h-16 rounded-xl bg-stone-100 dark:bg-zinc-800 animate-pulse" />
@@ -63,6 +64,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const [showRefer, setShowRefer] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [showEndorse, setShowEndorse] = useState(false);
+  const [showNote, setShowNote] = useState(false);
   const [pathExpanded, setPathExpanded] = useState(false);
   const [lookup, setLookup] = useState<"idle" | "loading" | "miss">("idle");
   const [ownerMenuSlot, setOwnerMenuSlot] = useState<HTMLSpanElement | null>(
@@ -184,6 +186,10 @@ export default function ListingClassic(_props: { params: { id: string } }) {
               onReportIntent={() => {
                 void import("@/components/ReportListingSheet");
               }}
+              onNote={() => setShowNote(true)}
+              onNoteIntent={() => {
+                void import("@/components/ListingPersonalNote");
+              }}
             />
           )
         }
@@ -239,7 +245,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
           ) : null}
         </div>
 
-        <p className="text-[13.5px] text-ink-muted dark:text-zinc-300 leading-[1.8] mt-3.5 whitespace-pre-line">
+        <p className="text-[13px] text-ink-muted dark:text-zinc-300 leading-[1.8] mt-3.5 whitespace-pre-line">
           {listing.description}
         </p>
 
@@ -252,14 +258,14 @@ export default function ListingClassic(_props: { params: { id: string } }) {
             .filter(Boolean)
             .join(" · ")}
         </p>
-        <p className="mt-1 text-[11.5px] text-ink-faint dark:text-zinc-500 leading-relaxed px-0.5">
+        <p className="mt-1 text-[11px] text-ink-faint dark:text-zinc-500 leading-relaxed px-0.5">
           {listingPrivacyAudienceLine(
             listing.privacy,
             isMine ? "تو" : seller?.name,
           )}
         </p>
         {isMine && inactive ? (
-          <p className="mt-3 rounded-2xl bg-stone-100/80 dark:bg-zinc-800/70 px-3.5 py-2.5 text-[12.5px] text-ink-muted dark:text-zinc-300 leading-relaxed">
+          <p className="mt-3 rounded-2xl bg-stone-100/80 dark:bg-zinc-800/70 px-3.5 py-2.5 text-[12px] text-ink-muted dark:text-zinc-300 leading-relaxed">
             این آگهی غیرفعال است — حلقه آن را در فید نمی‌بیند. در پروفایل تو
             می‌ماند.
           </p>
@@ -346,8 +352,6 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         </section>
       ) : null}
 
-      {!isMine ? <ListingPersonalNote listingId={listing.id} /> : null}
-
       <section className="px-4 pt-3 cv-block">
         <div className="card px-3.5 py-3">
           <div className="flex items-start justify-between gap-3">
@@ -428,6 +432,12 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         />
       )}
 
+      {showNote ? (
+        <ListingNoteSheet
+          listingId={listing.id}
+          onClose={() => setShowNote(false)}
+        />
+      ) : null}
       {showEndorse ? (
         <EndorseSheet
           listingId={listing.id}
@@ -459,30 +469,54 @@ function ListingHeaderActions({
   listingId,
   onReport,
   onReportIntent,
+  onNote,
+  onNoteIntent,
 }: {
   listingId: string;
   onReport: () => void;
   onReportIntent: () => void;
+  onNote: () => void;
+  onNoteIntent: () => void;
 }) {
   const reportsOn = useCatalog().flags.listingReports;
+  const hasNote = useStore((s) => Boolean(s.listingNotes[listingId]?.trim()));
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex items-center gap-0 overflow-visible">
       {reportsOn ? (
         <button
           type="button"
           onClick={onReport}
           onPointerEnter={onReportIntent}
-          className="inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none text-ink-faint hover:bg-stone-200/50 dark:hover:bg-zinc-800 transition-colors"
+          className={HEADER_ICON}
           aria-label="گزارش آگهی"
           title="گزارش آگهی"
         >
-          <FlagIcon className="w-5 h-5" />
+          <FlagIcon className="block h-[18px] w-[18px]" />
         </button>
       ) : null}
+      <button
+        type="button"
+        onClick={onNote}
+        onPointerEnter={onNoteIntent}
+        className={`${HEADER_ICON} ${
+          hasNote ? "text-brand-600 dark:text-brand-400" : ""
+        }`}
+        aria-label="یادداشت برای این آگهی"
+        aria-pressed={hasNote}
+        title="یادداشت برای این آگهی"
+      >
+        <NoteIcon className="block h-[18px] w-[18px]" />
+        {hasNote ? (
+          <span className="absolute end-1.5 top-1.5 size-1.5 rounded-full bg-brand-600 dark:bg-brand-400" />
+        ) : null}
+      </button>
       <ListingSaveButton id={listingId} />
     </div>
   );
 }
+
+const HEADER_ICON =
+  "relative inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-visible rounded-lg p-0 leading-none text-ink-faint hover:bg-stone-200/50 dark:hover:bg-zinc-800 transition-colors appearance-none";
 
 function ListingSaveButton({ id }: { id: string }) {
   const saved = useStore((s) => s.saved.includes(id));
@@ -504,15 +538,15 @@ function ListingSaveButton({ id }: { id: string }) {
           ),
         );
       }}
-      className={`inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none transition-colors ${
+      className={`${HEADER_ICON} ${
         saved
           ? "text-pink-500 bg-pink-50 dark:bg-pink-500/10"
-          : "text-ink-faint hover:bg-stone-200/50 dark:hover:bg-zinc-800"
+          : ""
       }`}
       aria-label={saved ? "حذف از نشان‌شده‌ها" : "نشان کردن"}
       aria-pressed={saved}
     >
-      <HeartIcon className="w-5 h-5" filled={saved} />
+      <HeartIcon className="block h-[18px] w-[18px] overflow-visible" filled={saved} />
     </button>
   );
 }

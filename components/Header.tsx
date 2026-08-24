@@ -38,7 +38,7 @@ export default function Header({
           aria-hidden
           className="pointer-events-none absolute inset-x-0 bottom-full h-[50vh] bg-[color:var(--circle-surface)] dark:bg-zinc-900"
         />
-        <div className="flex min-h-14 items-center gap-2 px-4">
+        <div className="flex min-h-14 items-center gap-1 ps-[max(0.75rem,env(safe-area-inset-right,0px))] pe-[max(1.25rem,env(safe-area-inset-left,0px))]">
           {back && (
             <button
               onClick={handleBack}
@@ -51,7 +51,7 @@ export default function Header({
           <div className="flex min-h-9 min-w-0 flex-1 flex-col justify-center">
             {children ?? (
               <>
-                <h1 className="m-0 font-extrabold text-ink dark:text-zinc-100 truncate leading-none text-[17px]">
+                <h1 className="m-0 font-extrabold text-ink dark:text-zinc-100 truncate leading-none text-[15px]">
                   {title}
                 </h1>
                 {subtitle ? (
@@ -63,7 +63,9 @@ export default function Header({
             )}
           </div>
           {action ? (
-            <div className="flex shrink-0 items-center">{action}</div>
+            <div className="flex shrink-0 items-center overflow-visible">
+              {action}
+            </div>
           ) : null}
         </div>
       </div>
