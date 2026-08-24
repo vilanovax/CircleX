@@ -145,7 +145,7 @@ function ProfileHero() {
           />
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
-              <h2 className="text-[1.15rem] font-extrabold text-ink dark:text-zinc-50 tracking-tight truncate leading-tight">
+              <h2 className="text-[20px] font-extrabold text-ink dark:text-zinc-50 tracking-tight truncate leading-tight">
                 {me.name}
               </h2>
               <button
@@ -204,6 +204,7 @@ function ProfileActivity() {
   const listings = useStore((s) => s.listings);
   const events = useStore((s) => s.events);
   const saved = useStore((s) => s.saved);
+  const listingNotes = useStore((s) => s.listingNotes);
   const [tab, setTab] = useState<ActivityTab>("listings");
   const [hashSaved, setHashSaved] = useState(false);
 
@@ -331,7 +332,7 @@ function ProfileActivity() {
                 <span className="truncate">{t.label}</span>
                 <span
                   dir="ltr"
-                  className={`nums shrink-0 inline-flex min-w-[1.2rem] h-[1.2rem] px-1 items-center justify-center rounded-full text-[10px] font-extrabold leading-none ${
+                  className={`nums shrink-0 inline-flex min-w-[1.2rem] h-[1.2rem] px-1 items-center justify-center rounded-full text-[11px] font-extrabold leading-none ${
                     active
                       ? "bg-white/22 text-white"
                       : "bg-stone-200/90 text-ink-muted dark:bg-zinc-700 dark:text-zinc-300"
@@ -419,11 +420,19 @@ function ProfileActivity() {
             />
           ) : (
             <div className="space-y-2.5">
-              {savedListings.map((l) => (
-                <div key={l.id} className="cv-card">
-                  <SavedListingCard listing={l} compactTrust />
-                </div>
-              ))}
+              {savedListings.map((l) => {
+                const note = listingNotes[l.id]?.trim();
+                return (
+                  <div key={l.id} className="cv-card">
+                    <SavedListingCard listing={l} compactTrust />
+                    {note ? (
+                      <p className="px-1 pt-1.5 text-[11px] text-ink-muted leading-snug line-clamp-2">
+                        {note}
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           )
         ) : null}
@@ -557,7 +566,7 @@ function AccountSheet({ onClose }: { onClose: () => void }) {
     >
       <h2
         id="account-sheet-title"
-        className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 leading-tight"
+        className="font-extrabold text-[20px] text-ink dark:text-zinc-50 leading-tight"
       >
         حساب
       </h2>
@@ -713,7 +722,7 @@ function ListingGroup({
             </span>
           </p>
           {hint ? (
-            <p className="text-[10px] text-ink-faint mt-0.5 leading-snug">
+            <p className="text-[11px] text-ink-faint mt-0.5 leading-snug">
               {hint}
             </p>
           ) : null}
@@ -780,7 +789,7 @@ const ProfileListingRow = memo(function ProfileListingRow({
               {listing.title}
             </p>
             {inactive ? (
-              <span className="shrink-0 chip !text-[10px] !py-0.5 !px-1.5 bg-stone-200/80 text-ink-muted dark:bg-zinc-800 dark:text-zinc-400">
+              <span className="shrink-0 chip !text-[11px] !py-0.5 !px-1.5 bg-stone-200/80 text-ink-muted dark:bg-zinc-800 dark:text-zinc-400">
                 غیرفعال
               </span>
             ) : null}

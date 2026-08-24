@@ -41,6 +41,7 @@ import { listingGalleryImages } from "@/lib/listing-image";
 import { placeDetailLabel } from "@/lib/place";
 import { useOwnerListingFlow } from "@/components/OwnerListingManager";
 import { ListingDetailSkeleton } from "@/components/Skeleton";
+import ListingPersonalNote from "@/components/ListingPersonalNote";
 
 const ReferSheet = lazyUi(() => import("@/components/ReferSheet"));
 const ReportListingSheet = lazyUi(() => import("@/components/ReportListingSheet"));
@@ -217,13 +218,13 @@ export default function ListingClassic(_props: { params: { id: string } }) {
           ) : null}
         </div>
 
-        <h1 className="text-[1.4rem] font-extrabold text-ink dark:text-zinc-50 leading-[1.35] tracking-tight">
+        <h1 className="text-[20px] font-extrabold text-ink dark:text-zinc-50 leading-[1.35] tracking-tight">
           {displayTitle}
         </h1>
 
         <div className="mt-2.5 flex items-baseline gap-2 flex-wrap">
           {listing.price != null ? (
-            <span className="text-[1.4rem] font-extrabold text-ink dark:text-zinc-50 nums tracking-tight">
+            <span className="text-[20px] font-extrabold text-ink dark:text-zinc-50 nums tracking-tight">
               {formatPrice(listing.price)}
             </span>
           ) : (
@@ -344,6 +345,8 @@ export default function ListingClassic(_props: { params: { id: string } }) {
           </div>
         </section>
       ) : null}
+
+      {!isMine ? <ListingPersonalNote listingId={listing.id} /> : null}
 
       <section className="px-4 pt-3 cv-block">
         <div className="card px-3.5 py-3">
@@ -483,6 +486,7 @@ function ListingHeaderActions({
 
 function ListingSaveButton({ id }: { id: string }) {
   const saved = useStore((s) => s.saved.includes(id));
+  const hasNote = useStore((s) => Boolean(s.listingNotes[id]?.trim()));
   const toggleSaved = useStore((s) => s.toggleSaved);
   const { show } = useToast();
 
@@ -491,7 +495,13 @@ function ListingSaveButton({ id }: { id: string }) {
       type="button"
       onClick={() => {
         void toggleSaved(id).then(() =>
-          show(saved ? "از نشان‌شده‌های پروفایل حذف شد" : "در پروفایل ذخیره شد ✓"),
+          show(
+            saved
+              ? hasNote
+                ? "نشان برداشته شد؛ یادداشتت ماند"
+                : "از نشان‌شده‌های پروفایل حذف شد"
+              : "در پروفایل ذخیره شد ✓",
+          ),
         );
       }}
       className={`inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none transition-colors ${
@@ -634,7 +644,7 @@ function ListingBuyerFooter({
               }`}
             >
               <div className="flex items-center gap-2">
-                <span className="shrink-0 text-[10px] font-bold text-ink-faint tracking-wide">
+                <span className="shrink-0 text-[11px] font-bold text-ink-faint tracking-wide">
                   بپرس
                 </span>
                 <div className="min-w-0 flex-1">
