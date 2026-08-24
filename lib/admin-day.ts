@@ -35,3 +35,12 @@ export function faDayLabel(ymd: string): string {
     day: "numeric",
   });
 }
+
+export function faDayLong(ymd: string): string {
+  return tehranMidnight(ymd).toLocaleDateString("fa-IR", {
+    timeZone: "Asia/Tehran",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}

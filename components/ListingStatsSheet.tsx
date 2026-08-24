@@ -6,7 +6,9 @@ import SheetShell from "@/components/SheetShell";
 import ListingImage from "@/components/ListingImage";
 import Avatar from "@/components/Avatar";
 import {
-  ChatIcon,
+  BackIcon,
+  ChatStackIcon,
+  CircleUsersIcon,
   EyeIcon,
   HeartIcon,
 } from "@/components/Icons";
@@ -55,6 +57,7 @@ export default function ListingStatsSheet({
   const { show } = useToast();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [remote, setRemote] = useState<ListingOwnerStats | null>(null);
+  const [statsReady, setStatsReady] = useState(false);
 
   const wordGroups = useMemo(
     () => groupByPerson(listing.endorsements),
@@ -76,7 +79,10 @@ export default function ListingStatsSheet({
       .then((data) => {
         if (!cancelled) setRemote(data);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setStatsReady(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -120,34 +126,29 @@ export default function ListingStatsSheet({
   const kpis = [
     {
       key: "views",
-      label: "نمایش",
-      hint: "نفر جزئیات را باز کردند",
+      label: "دیده شدن",
       value: views,
       icon: EyeIcon,
     },
     {
       key: "saves",
-      label: "نشان",
-      hint: "در پروفایل ذخیره شد",
+      label: "نشان‌شده",
       value: saves,
       icon: HeartIcon,
     },
     {
       key: "conversations",
       label: "گفتگو",
-      hint: "نفر از روی این آگهی نوشتند",
       value: conversations,
-      icon: ChatIcon,
+      icon: CircleUsersIcon,
     },
     {
       key: "messages",
       label: "پیام",
       hint:
-        unread > 0
-          ? `${toPersianDigits(unread)} خوانده‌نشده`
-          : "کل پیام‌های این آگهی",
+        unread > 0 ? `${toPersianDigits(unread)} خوانده‌نشده` : undefined,
       value: messageCount,
-      icon: ChatIcon,
+      icon: ChatStackIcon,
       accent: unread > 0,
     },
   ];
@@ -159,7 +160,7 @@ export default function ListingStatsSheet({
       zClass="z-[60]"
       maxHeight="88dvh"
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-start gap-3">
         <ListingImage
           image={listing.image}
           alt={title}
@@ -169,67 +170,93 @@ export default function ListingStatsSheet({
           frameClassName="w-12 h-12 rounded-2xl overflow-hidden shrink-0 ring-1 ring-stone-200/80 dark:ring-zinc-700"
         />
         <div className="min-w-0 flex-1">
-          <h2
-            id="listing-stats-title"
-            className="text-[20px] font-semibold leading-tight text-ink dark:text-zinc-50"
-          >
-            آمار آگهی
-          </h2>
-          <p className="mt-0.5 line-clamp-1 text-[12.5px] leading-snug text-ink-muted dark:text-zinc-400">
-            {title}
-          </p>
-        </div>
-        <span
-          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
-            inactive
-              ? "bg-stone-200/80 text-ink-muted dark:bg-zinc-800 dark:text-zinc-400"
-              : "bg-[color:var(--circle-trust)]/12 text-[color:var(--circle-trust)]"
-          }`}
-        >
-          {inactive ? "غیرفعال" : "در فید"}
-        </span>
-      </div>
-
-      <p className="mt-2 text-[12.5px] leading-snug text-ink-muted nums dark:text-zinc-400">
-        {listingTypeLabels[listing.type]} · {priceLabel}
-      </p>
-
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        {kpis.map((kpi) => {
-          const Icon = kpi.icon;
-          return (
-            <div
-              key={kpi.key}
-              className={`rounded-2xl px-3 py-3 ring-1 ${
-                kpi.accent
-                  ? "bg-brand-600/8 ring-brand-600/25 dark:bg-brand-500/10 dark:ring-brand-400/20"
-                  : "bg-stone-50 ring-stone-200/80 dark:bg-zinc-800/55 dark:ring-zinc-700/80"
+          <div className="flex items-center gap-2">
+            <h2
+              id="listing-stats-title"
+              className="min-w-0 truncate text-[20px] font-semibold leading-tight text-ink dark:text-zinc-50"
+            >
+              آمار آگهی
+            </h2>
+            <span
+              className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                inactive
+                  ? "bg-stone-200/80 text-ink-muted dark:bg-zinc-800 dark:text-zinc-400"
+                  : "bg-[color:var(--circle-trust)]/12 text-[color:var(--circle-trust)]"
               }`}
             >
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[12.5px] font-medium text-ink-muted dark:text-zinc-400">
-                  {kpi.label}
-                </p>
-                <Icon className="h-4 w-4 shrink-0 text-brand-600 dark:text-brand-400" />
-              </div>
-              <p className="mt-1.5 nums text-[20px] font-semibold leading-none text-ink dark:text-zinc-50">
-                {toPersianDigits(kpi.value)}
-              </p>
-              <p className="mt-1.5 text-[11px] leading-snug text-ink-faint dark:text-zinc-500">
-                {kpi.hint}
-              </p>
-            </div>
-          );
-        })}
+              {inactive ? "غیرفعال" : "در فید"}
+            </span>
+          </div>
+          <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-ink dark:text-zinc-200">
+            {title}
+          </p>
+          <p className="mt-0.5 nums text-[12px] text-ink-muted dark:text-zinc-400">
+            {listingTypeLabels[listing.type]} · {priceLabel}
+          </p>
+        </div>
       </div>
 
-      <div className="mt-4">
-        <p className="mb-1.5 px-0.5 text-[12.5px] font-medium text-ink-muted dark:text-zinc-400">
-          {peers.length > 0 ? "گفتگو از روی این آگهی" : "هنوز گفتگویی نیست"}
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        {!statsReady
+          ? [0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-[4.25rem] animate-pulse rounded-2xl bg-stone-100 dark:bg-zinc-800"
+              />
+            ))
+          : kpis.map((kpi) => {
+              const Icon = kpi.icon;
+              const zero = kpi.value === 0;
+              const hint = "hint" in kpi ? kpi.hint : undefined;
+              return (
+                <div
+                  key={kpi.key}
+                  className={`rounded-2xl px-3 py-2 ring-1 ${
+                    kpi.accent
+                      ? "bg-brand-600/8 ring-brand-600/25 dark:bg-brand-500/10 dark:ring-brand-400/20"
+                      : "bg-stone-50 ring-stone-200/80 dark:bg-zinc-800/55 dark:ring-zinc-700/80"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[12px] font-medium text-ink-muted dark:text-zinc-400">
+                      {kpi.label}
+                    </p>
+                    <Icon
+                      className={`h-4 w-4 shrink-0 ${
+                        kpi.accent
+                          ? "text-brand-600 dark:text-brand-400"
+                          : "text-ink-faint dark:text-zinc-500"
+                      }`}
+                    />
+                  </div>
+                  <p
+                    className={`mt-1 nums text-[20px] font-semibold leading-none ${
+                      zero
+                        ? "text-ink-faint dark:text-zinc-500"
+                        : "text-ink dark:text-zinc-50"
+                    }`}
+                  >
+                    {toPersianDigits(kpi.value)}
+                  </p>
+                  {hint ? (
+                    <p className="mt-1 text-[11px] leading-snug text-ink-faint dark:text-zinc-500">
+                      {hint}
+                    </p>
+                  ) : null}
+                </div>
+              );
+            })}
+      </div>
+
+      <div className="mt-5">
+        <p className="mb-1.5 px-0.5 text-[13px] font-semibold text-ink dark:text-zinc-200">
+          {peers.length > 0
+            ? `گفتگو · ${toPersianDigits(peers.length)} نفر`
+            : "هنوز کسی ننوشته"}
         </p>
         {peers.length === 0 ? (
-          <p className="rounded-2xl bg-stone-50 px-3 py-3 text-[14px] leading-relaxed text-ink-muted ring-1 ring-stone-200/80 dark:bg-zinc-800/55 dark:text-zinc-400 dark:ring-zinc-700/80">
-            وقتی کسی از حلقه پیام بدهد، اینجا می‌آید.
+          <p className="rounded-2xl bg-stone-50 px-3 py-3 text-[13px] leading-relaxed text-ink-muted ring-1 ring-stone-200/80 dark:bg-zinc-800/55 dark:text-zinc-400 dark:ring-zinc-700/80">
+            وقتی کسی از روی این آگهی پیام بدهد، اسمش اینجا می‌آید.
           </p>
         ) : (
           <div className="card divide-y divide-stone-100 overflow-hidden dark:divide-zinc-800">
@@ -263,13 +290,13 @@ export default function ListingStatsSheet({
                         </span>
                       ) : null}
                     </span>
-                    <span className="mt-0.5 block truncate text-[11px] text-ink-muted dark:text-zinc-400">
+                    <span className="mt-0.5 block truncate text-[12px] text-ink-muted dark:text-zinc-400">
                       {person ? viewerRelationPhrase(person) : "از حلقه"}
                       {" · "}
                       {preview}
                     </span>
                   </span>
-                  <ChatIcon className="h-4 w-4 shrink-0 text-brand-600 dark:text-brand-400" />
+                  <BackIcon className="h-4 w-4 shrink-0 text-ink-faint dark:text-zinc-500" />
                 </button>
               );
             })}

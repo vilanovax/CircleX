@@ -225,11 +225,11 @@ export function auditTargetHref(targetType: string, targetId: string): string | 
     case "User":
       return `/admin/users/${targetId}`;
     case "MarketListing":
-      return "/admin/content?kind=listing";
+      return `/admin/content?kind=listing&id=${encodeURIComponent(targetId)}`;
     case "WantRequest":
-      return "/admin/content?kind=request";
+      return `/admin/content?kind=request&id=${encodeURIComponent(targetId)}`;
     case "Gathering":
-      return "/admin/content?kind=event";
+      return `/admin/content?kind=event&id=${encodeURIComponent(targetId)}`;
     case "ListingReport":
       return "/admin/reports";
     case "MessageReport":

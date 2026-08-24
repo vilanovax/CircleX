@@ -1,7 +1,9 @@
 import { Prisma } from "@prisma/client";
 import { cache } from "react";
 import {
+  AUDIT_ACTION_LABELS,
   AUDIT_GROUP_TYPES,
+  AUDIT_TARGET_LABELS,
   type AuditGroup,
 } from "@/lib/admin-labels";
 import { prisma } from "@/lib/db";
@@ -45,6 +47,7 @@ export type ListAdminAuditParams = {
   aboutListing?: string;
   targetType?: string;
   targetId?: string;
+  q?: string;
 };
 
 type SqlAuditRow = {
@@ -104,6 +107,7 @@ function cacheKey(params: ListAdminAuditParams): string {
     params.aboutListing ?? "",
     params.targetType ?? "",
     params.targetId ?? "",
+    params.q ?? "",
   ]);
 }
 
@@ -140,6 +144,7 @@ function buildWhere(params: ListAdminAuditParams): Prisma.Sql {
   const aboutListing = params.aboutListing?.trim().slice(0, 64) ?? "";
   const targetType = params.targetType?.trim() ?? "";
   const targetId = params.targetId?.trim().slice(0, 64) ?? "";
+  const q = (params.q?.trim() ?? "").replace(/[%_\\]/g, "").slice(0, 80);
 
   if (aboutUser) {
     parts.push(Prisma.sql`(
@@ -203,6 +208,39 @@ function buildWhere(params: ListAdminAuditParams): Prisma.Sql {
 
   if (actorId) {
     parts.push(Prisma.sql`a."adminUserId" = ${actorId}`);
+  }
+
+  if (q) {
+    const like = `%${q}%`;
+    const qLower = q.toLowerCase();
+    const actions = Object.entries(AUDIT_ACTION_LABELS)
+      .filter(
+        ([key, label]) => key.toLowerCase().includes(qLower) || label.includes(q),
+      )
+      .map(([key]) => key);
+    const types = Object.entries(AUDIT_TARGET_LABELS)
+      .filter(
+        ([key, label]) => key.toLowerCase().includes(qLower) || label.includes(q),
+      )
+      .map(([key]) => key);
+    const extra: Prisma.Sql[] = [
+      Prisma.sql`a.action ILIKE ${like}`,
+      Prisma.sql`COALESCE(a.reason, '') ILIKE ${like}`,
+      Prisma.sql`a."targetId" ILIKE ${like}`,
+      Prisma.sql`actor.name ILIKE ${like}`,
+      Prisma.sql`actor.email ILIKE ${like}`,
+    ];
+    if (actions.length) {
+      extra.push(
+        Prisma.sql`a.action IN (${Prisma.join(actions.map((item) => Prisma.sql`${item}`))})`,
+      );
+    }
+    if (types.length) {
+      extra.push(
+        Prisma.sql`a."targetType" IN (${Prisma.join(types.map((item) => Prisma.sql`${item}`))})`,
+      );
+    }
+    parts.push(Prisma.sql`(${Prisma.join(extra, " OR ")})`);
   }
 
   if (!parts.length) return Prisma.sql`TRUE`;
@@ -299,6 +337,7 @@ async function queryAdminAudit(params: ListAdminAuditParams): Promise<AdminAudit
     const countRows = await prisma.$queryRaw<CountRow[]>`
       SELECT COUNT(*)::int AS n
       FROM "AdminAuditLog" a
+      JOIN "AdminUser" actor ON actor.id = a."adminUserId"
       WHERE ${where}
     `;
     return { items: [], total: num(countRows[0]?.n), take, skip };
@@ -322,7 +361,8 @@ export async function listAdminAudit(
     !params.aboutUser &&
     !params.aboutListing &&
     !params.targetType &&
-    !params.targetId;
+    !params.targetId &&
+    !params.q;
   const key = cacheable ? cacheKey(params) : "";
   if (cacheable) {
     const hit = readCache(key);
@@ -334,10 +374,11 @@ export async function listAdminAudit(
 }
 
 export const loadAdminAuditPage = cache(
-  async (group: AuditGroup): Promise<AdminAuditList> =>
+  async (group: AuditGroup, q = ""): Promise<AdminAuditList> =>
     listAdminAudit({
       group,
       take: ADMIN_AUDIT_PAGE_SIZE,
       skip: 0,
+      q: q.trim() || undefined,
     }),
 );

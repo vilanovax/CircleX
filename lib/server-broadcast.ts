@@ -7,6 +7,20 @@ export const BROADCAST_SEND_CAP = 400;
 
 export type BroadcastAudience = "all" | "incomplete";
 
+function audienceWhere(audience: BroadcastAudience): Prisma.UserWhereInput {
+  const AND: Prisma.UserWhereInput[] = [notBannedWhere(new Date())];
+  if (audience === "incomplete") {
+    AND.push({ profileCompletedAt: null });
+  }
+  return { AND };
+}
+
+export async function countBroadcastAudience(
+  audience: BroadcastAudience,
+): Promise<number> {
+  return prisma.user.count({ where: audienceWhere(audience) });
+}
+
 export async function sendBroadcast(opts: {
   title: string;
   body: string;
@@ -15,14 +29,8 @@ export async function sendBroadcast(opts: {
   audience: BroadcastAudience;
   createdById: string;
 }) {
-  const now = new Date();
-  const AND: Prisma.UserWhereInput[] = [notBannedWhere(now)];
-  if (opts.audience === "incomplete") {
-    AND.push({ profileCompletedAt: null });
-  }
-
   const users = await prisma.user.findMany({
-    where: { AND },
+    where: audienceWhere(opts.audience),
     select: { id: true },
     take: BROADCAST_SEND_CAP,
     orderBy: { createdAt: "desc" },

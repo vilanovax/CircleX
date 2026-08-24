@@ -1,17 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   AREA_CITYWIDE,
   AREA_MODES,
   areaFromMode,
   areaMode,
   areaPlaces,
+  filterHoods,
+  foldAreaName,
+  mergePlaceNames,
+  sortHoodsFa,
   type AreaMode,
 } from "@/lib/place";
+import { toPersianDigits } from "@/lib/persian";
 import { useCatalog } from "@/lib/use-catalog";
 
-const HOOD_PREVIEW = 6;
+const POPULAR = [
+  "پونک",
+  "سعادت آباد",
+  "شهرک غرب",
+  "ونک",
+  "تجریش",
+  "پاسداران",
+  "نارمک",
+  "تهرانپارس",
+  "ستارخان",
+  "شهرک اکباتان",
+];
 
 export default function AreaPicker({
   city,
@@ -26,15 +42,13 @@ export default function AreaPicker({
   const mode = areaMode(value);
   const fromCatalog = catalog.cities.find((item) => item.name === city);
   const fallback = areaPlaces(city);
-  const regions = fromCatalog?.regions?.length
-    ? fromCatalog.regions
-    : fallback.regions;
-  const hoods = fromCatalog?.hoods?.length ? fromCatalog.hoods : fallback.hoods;
+  const regions = mergePlaceNames(
+    fallback.regions,
+    fromCatalog?.regions ?? [],
+  );
+  const hoods = mergePlaceNames(fallback.hoods, fromCatalog?.hoods ?? []);
   const placeSelected = mode === "place";
-  const hiddenHoods = hoods.slice(HOOD_PREVIEW);
-  const selectedInMore = hiddenHoods.includes(value);
-  const [showMore, setShowMore] = useState(selectedInMore);
-  const visibleHoods = showMore ? hoods : hoods.slice(0, HOOD_PREVIEW);
+  const useSearch = hoods.length > 12;
 
   function pickMode(next: AreaMode) {
     if (next === "place") {
@@ -114,41 +128,221 @@ export default function AreaPicker({
             <span className="font-medium text-ink-faint">(اختیاری)</span>
           </p>
           {regions.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5 mb-1.5">
+            <div className="flex flex-wrap gap-1.5 mb-2">
               {regions.map((opt) => (
                 <PlaceChip
                   key={opt}
                   label={opt}
-                  active={value === opt}
-                  onClick={() => onChange(value === opt ? AREA_CITYWIDE : opt)}
+                  active={samePlace(value, opt)}
+                  onClick={() =>
+                    onChange(samePlace(value, opt) ? AREA_CITYWIDE : opt)
+                  }
                 />
               ))}
             </div>
           ) : null}
-          {visibleHoods.length > 0 ? (
+          {useSearch ? (
+            <HoodSearch hoods={hoods} value={value} onChange={onChange} />
+          ) : hoods.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
-              {visibleHoods.map((opt) => (
+              {sortHoodsFa(hoods).map((opt) => (
                 <PlaceChip
                   key={opt}
                   label={opt}
-                  active={value === opt}
-                  onClick={() => onChange(value === opt ? AREA_CITYWIDE : opt)}
+                  active={samePlace(value, opt)}
+                  onClick={() =>
+                    onChange(samePlace(value, opt) ? AREA_CITYWIDE : opt)
+                  }
                 />
               ))}
             </div>
-          ) : null}
-          {!showMore && hiddenHoods.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => setShowMore(true)}
-              className="mt-2 text-[12px] font-semibold text-brand-600 dark:text-brand-400"
-            >
-              محله‌های بیشتر
-            </button>
           ) : null}
         </div>
       ) : null}
     </section>
+  );
+}
+
+function samePlace(a: string, b: string): boolean {
+  return foldAreaName(a) === foldAreaName(b);
+}
+
+function HoodSearch({
+  hoods,
+  value,
+  onChange,
+}: {
+  hoods: string[];
+  value: string;
+  onChange: (area: string) => void;
+}) {
+  const listId = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const selectedHood = hoods.find((h) => samePlace(value, h)) ?? null;
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [hi, setHi] = useState(0);
+
+  const popular = useMemo(
+    () =>
+      mergePlaceNames(
+        POPULAR.filter((name) => hoods.some((h) => samePlace(h, name))),
+      ).slice(0, 8),
+    [hoods],
+  );
+
+  const browsable = useMemo(() => sortHoodsFa(hoods), [hoods]);
+
+  const results = useMemo(() => {
+    if (!open) return [];
+    const q = foldAreaName(query);
+    if (!q) return browsable;
+    return filterHoods(hoods, query).slice(0, 40);
+  }, [open, query, hoods, browsable]);
+
+  useEffect(() => {
+    if (!open) setQuery("");
+  }, [open, selectedHood]);
+
+  useEffect(() => {
+    setHi(0);
+  }, [query, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  function pick(name: string) {
+    onChange(samePlace(value, name) ? AREA_CITYWIDE : name);
+    setOpen(false);
+  }
+
+  return (
+    <div ref={rootRef} className="relative">
+      {popular.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {popular.map((opt) => (
+            <PlaceChip
+              key={opt}
+              label={opt}
+              active={samePlace(value, opt)}
+              onClick={() => pick(opt)}
+            />
+          ))}
+        </div>
+      ) : null}
+      {selectedHood && !open ? (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="chip bg-brand-600 text-white border-brand-600 !px-2.5 !py-1 !text-[11px]"
+            onClick={() => setOpen(true)}
+          >
+            {selectedHood}
+          </button>
+          <button
+            type="button"
+            className="text-[12px] font-semibold text-ink-muted"
+            onClick={() => onChange(AREA_CITYWIDE)}
+          >
+            پاک کردن
+          </button>
+        </div>
+      ) : (
+        <input
+          role="combobox"
+          aria-expanded={open}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.preventDefault();
+              setOpen(false);
+              return;
+            }
+            if (e.key === "ArrowDown") {
+              e.preventDefault();
+              setOpen(true);
+              setHi((i) =>
+                results.length
+                  ? Math.min(results.length - 1, i + 1)
+                  : 0,
+              );
+              return;
+            }
+            if (e.key === "ArrowUp") {
+              e.preventDefault();
+              setHi((i) => Math.max(0, i - 1));
+              return;
+            }
+            if (e.key === "Enter" && open && results[hi]) {
+              e.preventDefault();
+              pick(results[hi]);
+            }
+          }}
+          placeholder="جستجوی محله — مثلاً پونک"
+          className="field"
+        />
+      )}
+      {open ? (
+        <ul
+          id={listId}
+          role="listbox"
+          className="absolute z-20 mt-1 max-h-52 w-full overflow-y-auto rounded-xl border border-stone-200/90 bg-[color:var(--circle-surface)] py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
+        >
+          {results.length === 0 ? (
+            <li className="px-3 py-2.5 text-[12.5px] text-ink-faint">
+              محله‌ای با این نام نیست
+            </li>
+          ) : (
+            results.map((name, i) => {
+              const active = i === hi;
+              const chosen = samePlace(value, name);
+              return (
+                <li key={name} role="option" aria-selected={chosen}>
+                  <button
+                    type="button"
+                    onMouseEnter={() => setHi(i)}
+                    onClick={() => pick(name)}
+                    className={`flex w-full items-center justify-between px-3 py-2 text-right text-[13px] ${
+                      active
+                        ? "bg-brand-50 text-brand-800 dark:bg-brand-500/15 dark:text-brand-200"
+                        : "text-ink dark:text-zinc-200"
+                    }`}
+                  >
+                    <span>{name}</span>
+                    {chosen ? (
+                      <span className="text-[11px] text-brand-600">انتخاب‌شده</span>
+                    ) : null}
+                  </button>
+                </li>
+              );
+            })
+          )}
+          {foldAreaName(query) && results.length > 0 ? (
+            <li className="border-t border-black/5 px-3 py-1.5 text-[11px] text-ink-faint dark:border-white/10">
+              {toPersianDigits(results.length)} نتیجه
+              {filterHoods(hoods, query).length > 40 ? " — نزدیک‌ترین‌ها" : ""}
+            </li>
+          ) : !foldAreaName(query) ? (
+            <li className="border-t border-black/5 px-3 py-1.5 text-[11px] text-ink-faint dark:border-white/10">
+              نام محله را تایپ کن — {toPersianDigits(hoods.length)} محله
+            </li>
+          ) : null}
+        </ul>
+      ) : null}
+    </div>
   );
 }
 

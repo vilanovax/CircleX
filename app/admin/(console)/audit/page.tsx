@@ -11,7 +11,7 @@ import { AuditClient } from "./AuditClient";
 async function AuditLoaded({
   searchParams,
 }: {
-  searchParams: { group?: string };
+  searchParams: { group?: string; q?: string };
 }) {
   const admin = await getAdminSession();
   if (!admin) redirect("/admin/login");
@@ -32,12 +32,14 @@ async function AuditLoaded({
   }
 
   const group = parseAuditGroup(searchParams.group);
+  const q = (searchParams.q ?? "").trim();
   try {
-    const data = await loadAdminAuditPage(group);
+    const data = await loadAdminAuditPage(group, q);
     return (
       <AuditClient
         key={group}
         group={group}
+        initialQ={q}
         initialItems={data.items}
         initialTotal={data.total}
       />
@@ -54,7 +56,7 @@ async function AuditLoaded({
 export default function AdminAuditPage({
   searchParams,
 }: {
-  searchParams: { group?: string };
+  searchParams: { group?: string; q?: string };
 }) {
   return (
     <Suspense fallback={<AdminSkeleton />}>

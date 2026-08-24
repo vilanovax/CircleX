@@ -10,6 +10,7 @@ import { jsonError, readJson, withDb } from "@/lib/http";
 import { prisma } from "@/lib/db";
 import {
   BROADCAST_SEND_CAP,
+  countBroadcastAudience,
   sendBroadcast,
   type BroadcastAudience,
 } from "@/lib/server-broadcast";
@@ -30,17 +31,19 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const { take, skip } = parseListParams(url, 40);
 
-    const [total, rows] = await Promise.all([
+    const [total, rows, audienceAll, audienceIncomplete] = await Promise.all([
       prisma.broadcast.count(),
       prisma.broadcast.findMany({
         orderBy: { createdAt: "desc" },
         take,
         skip,
       }),
+      countBroadcastAudience("all"),
+      countBroadcastAudience("incomplete"),
     ]);
 
-    return Response.json(
-      listEnvelope(
+    return Response.json({
+      ...listEnvelope(
         rows.map((row) => ({
           id: row.id,
           title: row.title,
@@ -55,7 +58,12 @@ export async function GET(req: Request) {
         })),
         { total, take, skip },
       ),
-    );
+      cap: BROADCAST_SEND_CAP,
+      audienceCounts: {
+        all: audienceAll,
+        incomplete: audienceIncomplete,
+      },
+    });
   });
 }
 

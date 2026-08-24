@@ -353,6 +353,15 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
         ? "پاسخ پیشنهادی:"
         : "می‌تونی بپرسی:";
 
+  const dealLabel =
+    dealStatus === "inactive"
+      ? "غیرفعال"
+      : dealStatus === "reserved"
+        ? "رزرو"
+        : dealStatus === "agreed"
+          ? "توافق"
+          : "موجود";
+
   return (
     <main className="flex flex-col h-[100dvh]">
       <Header back fallbackHref="/messages">
@@ -366,17 +375,20 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
               {peer.name}
             </p>
             <p className="m-0 mt-1 truncate text-[11px] leading-none text-ink-muted dark:text-zinc-400">
-              {subtitle}
+              گفتگو · {subtitle}
             </p>
           </div>
         </Link>
       </Header>
 
       {contextListing && (
-        <div className="shrink-0 border-b border-stone-200/70 dark:border-zinc-800 bg-[color:var(--circle-surface)] dark:bg-zinc-900 px-3 py-2.5">
+        <div className="shrink-0 border-b border-stone-200/70 bg-[color:var(--circle-surface)] px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900">
+          <p className="mb-1.5 text-[11px] font-medium text-ink-faint">
+            آگهی این گفتگو
+          </p>
           <Link
             href={`/listing/${contextListing.id}`}
-            className="flex items-center gap-2.5 active:opacity-80"
+            className="flex items-center gap-2.5 rounded-xl bg-stone-50 px-2 py-2 ring-1 ring-stone-200/80 active:opacity-80 dark:bg-zinc-800/60 dark:ring-zinc-700"
           >
             <ListingImage
               image={contextListing.image}
@@ -384,38 +396,47 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
               size="sm"
               category={contextListing.category}
               type={contextListing.type}
-              frameClassName="w-11 h-11 rounded-lg overflow-hidden shrink-0"
+              frameClassName="h-11 w-11 shrink-0 overflow-hidden rounded-lg"
             />
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-bold text-ink dark:text-zinc-100 truncate">
+              <p className="truncate text-[13px] font-bold text-ink dark:text-zinc-100">
                 {contextListing.title}
               </p>
-              <p className="text-[11px] text-ink-muted nums">
+              <p className="mt-0.5 nums text-[11px] text-ink-muted">
                 {contextListing.price != null
                   ? formatPrice(contextListing.price)
                   : contextListing.type === "service"
                     ? "توافقی"
                     : "رایگان"}
-                {" · "}
-                {dealStatus === "inactive"
-                  ? "غیرفعال"
-                  : dealStatus === "reserved"
-                    ? "رزرو شده"
-                    : dealStatus === "agreed"
-                      ? "توافق شده"
-                      : "موجود"}
               </p>
             </div>
-            <span className="text-ink-faint text-sm" aria-hidden>
+            <span
+              className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                dealStatus === "inactive"
+                  ? "bg-stone-200/80 text-ink-muted dark:bg-zinc-700 dark:text-zinc-400"
+                  : dealStatus === "reserved"
+                    ? "bg-amber-100 text-amber-900 dark:bg-amber-500/20 dark:text-amber-200"
+                    : dealStatus === "agreed"
+                      ? "bg-[color:var(--circle-trust)]/15 text-[color:var(--circle-trust)]"
+                      : "bg-brand-600/10 text-brand-700 dark:text-brand-300"
+              }`}
+            >
+              {dealLabel}
+            </span>
+            <span className="shrink-0 text-sm text-ink-faint" aria-hidden>
               ‹
             </span>
           </Link>
-          {isSellerOfContext && dealStatus !== "inactive" && (
-            <div className="mt-2.5">
-              <p className="text-[11px] font-semibold text-ink-faint mb-1.5">
-                وضعیت آگهی را برای طرف مقابل مشخص کن
+          {isSellerOfContext && dealStatus !== "inactive" ? (
+            <div className="mt-2">
+              <p className="mb-1.5 text-[11px] text-ink-muted">
+                وضعیت برای {peer.name}
               </p>
-              <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+              <div
+                className="flex gap-1.5"
+                role="group"
+                aria-label="وضعیت معامله"
+              >
                 {(
                   [
                     ["available", "موجود"],
@@ -447,10 +468,10 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
                           ).catch(notifySendError);
                         }
                       }}
-                      className={`shrink-0 chip !px-2.5 !py-1 !text-[11px] border ${
+                      className={`chip !px-2.5 !py-1 !text-[11px] border ${
                         active
                           ? "bg-brand-600 text-white border-brand-600"
-                          : "bg-stone-50 text-ink-muted border-stone-200/80 dark:bg-zinc-800 dark:border-zinc-700"
+                          : "bg-transparent text-ink-muted border-stone-200/90 dark:border-zinc-600"
                       }`}
                     >
                       {label}
@@ -459,7 +480,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
                 })}
               </div>
             </div>
-          )}
+          ) : null}
         </div>
       )}
 

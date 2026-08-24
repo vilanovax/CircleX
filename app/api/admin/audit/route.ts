@@ -21,6 +21,7 @@ export async function GET(req: Request) {
     const aboutListing = (url.searchParams.get("aboutListing") ?? "").trim();
     const targetType = (url.searchParams.get("targetType") ?? "").trim();
     const targetId = (url.searchParams.get("targetId") ?? "").trim();
+    const q = (url.searchParams.get("q") ?? "").trim();
 
     const data = await listAdminAudit({
       group,
@@ -31,6 +32,7 @@ export async function GET(req: Request) {
       aboutListing: aboutListing || undefined,
       targetType: targetType || undefined,
       targetId: targetId || undefined,
+      q: q || undefined,
     });
 
     return Response.json(

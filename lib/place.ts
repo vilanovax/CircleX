@@ -1,5 +1,10 @@
 /** Approximate place for listings/requests — neighborhood, not a street address. */
 
+import { toEnglishDigits } from "@/lib/persian";
+import { TEHRAN_HOODS } from "@/lib/tehran-hoods";
+
+export { TEHRAN_HOODS };
+
 export const AREA_CITYWIDE = "سراسر شهر";
 export const AREA_ONLINE = "آنلاین";
 export const AREA_SHIP = "ارسال";
@@ -35,21 +40,6 @@ const TEHRAN_REGIONS = [
   "شرق تهران",
   "غرب تهران",
   "مرکز تهران",
-] as const;
-
-const TEHRAN_HOODS = [
-  "پونک",
-  "سعادت‌آباد",
-  "شهرک غرب",
-  "ونک",
-  "تجریش",
-  "پاسداران",
-  "یوسف‌آباد",
-  "انقلاب",
-  "تهرانپارس",
-  "نارمک",
-  "ستارخان",
-  "اکباتان",
 ] as const;
 
 const KARAJ_HOODS = [
@@ -119,6 +109,20 @@ export function areaFromMode(mode: AreaMode): string {
   return AREA_CITYWIDE;
 }
 
+export function foldAreaName(value: string): string {
+  return toEnglishDigits(value)
+    .replace(/\u200c/g, " ")
+    .replace(/ي/g, "ی")
+    .replace(/ك/g, "ک")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const ALLOWED_FOLD = new Map<string, string>();
+Array.from(ALLOWED).forEach((name) => {
+  ALLOWED_FOLD.set(foldAreaName(name), name);
+});
+
 export function parseArea(
   value: unknown,
   extra: Iterable<string> = [],
@@ -126,13 +130,54 @@ export function parseArea(
   const raw = String(value ?? "")
     .replace(/\s+/g, " ")
     .trim()
-    .slice(0, 40);
+    .slice(0, 48);
   if (!raw) return undefined;
   if (ALLOWED.has(raw)) return raw;
+  const folded = foldAreaName(raw);
+  const known = ALLOWED_FOLD.get(folded);
+  if (known) return known;
   for (const name of Array.from(extra)) {
-    if (name === raw) return raw;
+    if (name === raw || foldAreaName(name) === folded) return name;
   }
   return undefined;
+}
+
+export function mergePlaceNames(
+  primary: readonly string[],
+  extra: readonly string[] = [],
+): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const name of [...primary, ...extra]) {
+    const key = foldAreaName(name);
+    if (key.length < 2 || seen.has(key)) continue;
+    seen.add(key);
+    out.push(name);
+  }
+  return out;
+}
+
+export function compareHoodsFa(a: string, b: string): number {
+  return foldAreaName(a).localeCompare(foldAreaName(b), "fa");
+}
+
+export function sortHoodsFa(hoods: readonly string[]): string[] {
+  return [...hoods].sort(compareHoodsFa);
+}
+
+export function filterHoods(hoods: readonly string[], query: string): string[] {
+  const q = foldAreaName(query);
+  if (!q) return [];
+  const starts: string[] = [];
+  const rest: string[] = [];
+  for (const name of hoods) {
+    const folded = foldAreaName(name);
+    if (folded.startsWith(q)) starts.push(name);
+    else if (folded.includes(q)) rest.push(name);
+  }
+  starts.sort(compareHoodsFa);
+  rest.sort(compareHoodsFa);
+  return starts.concat(rest);
 }
 
 /** Short line for feed cards. */

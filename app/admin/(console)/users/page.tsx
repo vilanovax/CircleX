@@ -39,7 +39,7 @@ async function UsersLoaded({
     );
     return (
       <UsersClient
-        key={`${incomplete ? 1 : 0}-${banned ? 1 : 0}-${q}`}
+        key={`${incomplete ? 1 : 0}-${banned ? 1 : 0}`}
         initialItems={data.items}
         initialTotal={data.total}
         initialQ={q}

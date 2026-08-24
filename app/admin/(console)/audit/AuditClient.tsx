@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
+import { copyText } from "@/lib/invite";
 import {
   ADMIN_ROLE_LABELS,
   AUDIT_ACTION_LABELS,
@@ -12,11 +14,15 @@ import {
   type AuditGroup,
 } from "@/lib/admin-labels";
 import { toPersianDigits } from "@/lib/persian";
+import { SearchIcon } from "@/components/Icons";
+import { useToast } from "@/components/Toast";
 import {
   AdminCount,
   AdminLoadMore,
+  AdminPill,
   AdminSkeleton,
   faAdminDate,
+  faAdminRelative,
   mergeById,
 } from "@/components/admin/AdminBits";
 import {
@@ -34,12 +40,18 @@ const GROUPS = [
 
 type Props = {
   group: AuditGroup;
+  initialQ: string;
   initialItems: AdminAuditRow[];
   initialTotal: number;
 };
 
-function groupHref(group: AuditGroup): string {
-  return group === "all" ? "/admin/audit" : `/admin/audit?group=${group}`;
+function auditHref(group: AuditGroup, search: string): string {
+  const params = new URLSearchParams();
+  if (group !== "all") params.set("group", group);
+  const q = search.trim();
+  if (q) params.set("q", q);
+  const qs = params.toString();
+  return qs ? `/admin/audit?${qs}` : "/admin/audit";
 }
 
 function shortId(id: string): string {
@@ -60,8 +72,40 @@ function targetTitle(row: AdminAuditRow): string {
   return row.targetLabel ?? "حذف‌شده";
 }
 
-export function AuditClient({ group, initialItems, initialTotal }: Props) {
+function actionTone(action: string): "warn" | "ok" | "muted" {
+  if (
+    action === "user.ban" ||
+    action === "watch.disable" ||
+    action === "invite.revoke" ||
+    action.endsWith(".moderate")
+  ) {
+    return "warn";
+  }
+  if (
+    action === "user.unban" ||
+    action === "watch.enable" ||
+    action === "invite.extend"
+  ) {
+    return "ok";
+  }
+  return "muted";
+}
+
+function actionLabel(action: string): string {
+  return AUDIT_ACTION_LABELS[action] ?? action;
+}
+
+export function AuditClient({
+  group,
+  initialQ,
+  initialItems,
+  initialTotal,
+}: Props) {
+  const { show } = useToast();
+  const router = useRouter();
   const skipFirst = useRef(true);
+  const [q, setQ] = useState(initialQ);
+  const [debounced, setDebounced] = useState(initialQ);
   const [items, setItems] = useState<AdminAuditRow[]>(initialItems);
   const [total, setTotal] = useState(initialTotal);
   const [selected, setSelected] = useState<AdminAuditRow | null>(
@@ -71,6 +115,29 @@ export function AuditClient({ group, initialItems, initialTotal }: Props) {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebounced(q), 280);
+    return () => window.clearTimeout(t);
+  }, [q]);
+
+  useEffect(() => {
+    if (debounced.trim() === initialQ.trim()) return;
+    router.replace(auditHref(group, debounced), { scroll: false });
+  }, [debounced, group, initialQ, router]);
+
+  const query = useCallback(
+    (skip: number) => {
+      const params = new URLSearchParams({
+        group,
+        limit: String(ADMIN_AUDIT_PAGE_SIZE),
+        skip: String(skip),
+      });
+      if (debounced.trim()) params.set("q", debounced.trim());
+      return `/api/admin/audit?${params.toString()}`;
+    },
+    [group, debounced],
+  );
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -78,7 +145,7 @@ export function AuditClient({ group, initialItems, initialTotal }: Props) {
       const data = await api<{
         items: AdminAuditRow[];
         meta: { total: number };
-      }>(`/api/admin/audit?group=${group}&limit=${ADMIN_AUDIT_PAGE_SIZE}&skip=0`);
+      }>(query(0));
       setItems(data.items);
       setTotal(data.meta.total);
       setSelected((cur) =>
@@ -91,7 +158,7 @@ export function AuditClient({ group, initialItems, initialTotal }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [group]);
+  }, [query]);
 
   useEffect(() => {
     if (skipFirst.current) {
@@ -109,9 +176,7 @@ export function AuditClient({ group, initialItems, initialTotal }: Props) {
       const data = await api<{
         items: AdminAuditRow[];
         meta: { total: number };
-      }>(
-        `/api/admin/audit?group=${group}&limit=${ADMIN_AUDIT_PAGE_SIZE}&skip=${items.length}`,
-      );
+      }>(query(items.length));
       setItems((cur) => mergeById(cur, data.items));
       setTotal(data.meta.total);
     } catch (err) {
@@ -121,19 +186,59 @@ export function AuditClient({ group, initialItems, initialTotal }: Props) {
     }
   }
 
+  function moveSelection(delta: number) {
+    if (!items.length) return;
+    const i = selected ? items.findIndex((row) => row.id === selected.id) : 0;
+    const next = items[Math.min(items.length - 1, Math.max(0, i + delta))];
+    if (next) setSelected(next);
+  }
+
+  async function copy(value: string, ok: string) {
+    const done = await copyText(value);
+    show(done ? ok : "کپی نشد");
+  }
+
   const href = selected
     ? auditTargetHref(selected.targetType, selected.targetId)
     : null;
   const metaRows = selected ? auditMetaRows(selected.meta) : [];
+  const subtitle = useMemo(() => {
+    const n = toPersianDigits(total);
+    if (debounced.trim()) {
+      return loading
+        ? "در حال خواندن…"
+        : `${n} نتیجه برای «${debounced.trim()}»`;
+    }
+    return `${n} عمل در این بخش`;
+  }, [total, debounced, loading]);
 
   return (
     <div>
       <div className="admin-page-head">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-[20px] font-semibold">لاگ عملیات</h1>
-          <AdminCount loading={loading}>
-            {toPersianDigits(total)} عمل در این فیلتر
+          <AdminCount loading={loading && !debounced.trim()}>
+            {subtitle}
           </AdminCount>
+        </div>
+      </div>
+
+      <div className="admin-toolbar">
+        <label className="sr-only" htmlFor="admin-audit-q">
+          جستجوی لاگ
+        </label>
+        <div className="relative min-w-0 flex-1 basis-[14rem] max-w-[28rem]">
+          <SearchIcon className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
+          <input
+            id="admin-audit-q"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && q) setQ("");
+            }}
+            placeholder="عمل، اپراتور، ایمیل، شناسه، دلیل"
+            className="admin-input w-full pr-9"
+          />
         </div>
         <div
           className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-xl bg-black/[0.04] p-1 dark:bg-white/[0.06]"
@@ -145,7 +250,7 @@ export function AuditClient({ group, initialItems, initialTotal }: Props) {
             return (
               <Link
                 key={tab.key}
-                href={groupHref(tab.key)}
+                href={auditHref(tab.key, q)}
                 prefetch
                 role="tab"
                 aria-selected={active}
@@ -182,7 +287,18 @@ export function AuditClient({ group, initialItems, initialTotal }: Props) {
                   <th>اپراتور</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    moveSelection(1);
+                  }
+                  if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    moveSelection(-1);
+                  }
+                }}
+              >
                 {items.map((row) => {
                   const active = selected?.id === row.id;
                   return (
@@ -199,13 +315,16 @@ export function AuditClient({ group, initialItems, initialTotal }: Props) {
                       }}
                       className="cursor-pointer"
                     >
-                      <td className="whitespace-nowrap text-ink-faint">
-                        {faAdminDate(row.createdAt)}
+                      <td className="whitespace-nowrap">
+                        <p className="text-[13px]">{faAdminRelative(row.createdAt)}</p>
+                        <p className="text-[11px] text-ink-faint">
+                          {faAdminDate(row.createdAt)}
+                        </p>
                       </td>
                       <td>
-                        <p className="font-medium">
-                          {AUDIT_ACTION_LABELS[row.action] ?? row.action}
-                        </p>
+                        <AdminPill tone={actionTone(row.action)}>
+                          {actionLabel(row.action)}
+                        </AdminPill>
                       </td>
                       <td>
                         <p className="font-medium">{targetTitle(row)}</p>
@@ -214,8 +333,7 @@ export function AuditClient({ group, initialItems, initialTotal }: Props) {
                           {!row.targetLabel ? (
                             <>
                               {" "}
-                              ·{" "}
-                              <span dir="ltr">{shortId(row.targetId)}</span>
+                              · <span dir="ltr">{shortId(row.targetId)}</span>
                             </>
                           ) : null}
                         </p>
@@ -232,9 +350,11 @@ export function AuditClient({ group, initialItems, initialTotal }: Props) {
                 {!loading && items.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="py-10 text-center text-ink-faint">
-                      {group === "all"
-                        ? "هنوز عملی ثبت نشده — مسدود، مخفی، لغو دعوت و تنظیمات اینجا می‌آیند"
-                        : "در این بخش عملی نیست"}
+                      {debounced.trim()
+                        ? "با این جستجو عملی پیدا نشد"
+                        : group === "all"
+                          ? "هنوز عملی ثبت نشده — مسدود، مخفی، لغو دعوت و تنظیمات اینجا می‌آیند"
+                          : "در این بخش عملی نیست"}
                     </td>
                   </tr>
                 ) : null}
@@ -248,76 +368,107 @@ export function AuditClient({ group, initialItems, initialTotal }: Props) {
             />
           </div>
 
-          <aside className="admin-panel h-fit p-4 lg:sticky lg:top-5">
+          <aside className="admin-panel h-fit overflow-hidden lg:sticky lg:top-5">
             {!selected ? (
-              <p className="text-[13px] text-ink-faint">یک عمل را انتخاب کن</p>
+              <p className="p-4 text-[13px] text-ink-faint">یک عمل را انتخاب کن</p>
             ) : (
-              <div className="space-y-3 text-[13px]">
-                <h2 className="text-[15px] font-semibold leading-snug">
-                  {AUDIT_ACTION_LABELS[selected.action] ?? selected.action}
-                </h2>
-                <p className="text-ink-muted">
-                  {faAdminDate(selected.createdAt)}
-                </p>
-                <div>
-                  <p className="text-[11px] text-ink-faint">هدف</p>
+              <div>
+                <div className="border-b border-black/5 px-4 py-3.5 dark:border-white/10">
+                  <AdminPill tone={actionTone(selected.action)}>
+                    {actionLabel(selected.action)}
+                  </AdminPill>
+                  <p className="mt-2 text-[12.5px] text-ink-muted">
+                    {faAdminRelative(selected.createdAt)}
+                    {" · "}
+                    {faAdminDate(selected.createdAt)}
+                  </p>
                   {href ? (
                     <Link
                       href={href}
-                      className="text-brand-700 hover:underline"
+                      className="mt-3 inline-flex admin-btn rounded-xl bg-brand-600 px-3 py-1.5 text-[12.5px] font-medium text-white hover:bg-brand-700"
                     >
-                      {targetTitle(selected)}
+                      باز کردن هدف
                     </Link>
-                  ) : (
-                    <p>{targetTitle(selected)}</p>
-                  )}
-                  <p className="text-[11px] text-ink-faint">
-                    {AUDIT_TARGET_LABELS[selected.targetType] ??
-                      selected.targetType}
-                    {!selected.targetLabel ? (
-                      <>
-                        {" "}
-                        · <span dir="ltr">{shortId(selected.targetId)}</span>
-                      </>
-                    ) : null}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[11px] text-ink-faint">اپراتور</p>
-                  <p>{selected.actor.name || "—"}</p>
-                  <p className="text-[11px] text-ink-faint">
-                    {ADMIN_ROLE_LABELS[selected.actor.role] ??
-                      selected.actor.role}
-                  </p>
-                  {selected.actor.email ? (
-                    <p className="font-mono text-[11px]" dir="ltr">
-                      {selected.actor.email}
-                    </p>
                   ) : null}
                 </div>
-                {selected.reason ? (
+
+                <dl className="space-y-3 px-4 py-3.5 text-[13px]">
                   <div>
-                    <p className="text-[11px] text-ink-faint">دلیل</p>
-                    <p className="rounded-xl bg-black/[0.03] p-2.5 dark:bg-white/[0.05]">
-                      {selected.reason}
-                    </p>
-                  </div>
-                ) : null}
-                {metaRows.length ? (
-                  <dl className="space-y-1.5 border-t border-black/5 pt-3 dark:border-white/10">
-                    {metaRows.map((row) => (
-                      <div
-                        key={row.key}
-                        className="flex items-start justify-between gap-3"
+                    <dt className="text-[11px] text-ink-faint">هدف</dt>
+                    <dd className="mt-0.5 font-medium">{targetTitle(selected)}</dd>
+                    <dd className="text-[12px] text-ink-muted">
+                      {AUDIT_TARGET_LABELS[selected.targetType] ??
+                        selected.targetType}
+                    </dd>
+                    <dd className="mt-1 flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-[11px] text-ink-faint" dir="ltr">
+                        {shortId(selected.targetId)}
+                      </span>
+                      <button
+                        type="button"
+                        className="admin-btn text-[12px] text-brand-700"
+                        onClick={() => void copy(selected.targetId, "شناسه کپی شد")}
                       >
-                        <dt className="text-[11px] text-ink-faint">
-                          {row.label}
-                        </dt>
-                        <dd className="text-end">{displayMetaValue(row.value)}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                ) : null}
+                        کپی شناسه
+                      </button>
+                    </dd>
+                  </div>
+                  <div className="border-t border-black/5 pt-3 dark:border-white/10">
+                    <dt className="text-[11px] text-ink-faint">اپراتور</dt>
+                    <dd className="mt-0.5">{selected.actor.name || "—"}</dd>
+                    <dd className="text-[12px] text-ink-muted">
+                      {ADMIN_ROLE_LABELS[selected.actor.role] ??
+                        selected.actor.role}
+                    </dd>
+                    {selected.actor.email ? (
+                      <dd className="mt-1 flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-[11px]" dir="ltr">
+                          {selected.actor.email}
+                        </span>
+                        <button
+                          type="button"
+                          className="admin-btn text-[12px] text-brand-700"
+                          onClick={() =>
+                            void copy(selected.actor.email, "ایمیل کپی شد")
+                          }
+                        >
+                          کپی
+                        </button>
+                      </dd>
+                    ) : null}
+                  </div>
+                  {selected.reason ? (
+                    <div className="border-t border-black/5 pt-3 dark:border-white/10">
+                      <dt className="text-[11px] text-ink-faint">دلیل</dt>
+                      <dd className="mt-1 rounded-xl bg-black/[0.03] p-2.5 leading-relaxed dark:bg-white/[0.05]">
+                        {selected.reason}
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+
+                {metaRows.length ? (
+                  <div className="border-t border-black/5 px-4 py-3.5 dark:border-white/10">
+                    <p className="mb-2 text-[11px] text-ink-faint">تغییرات</p>
+                    <dl className="space-y-2">
+                      {metaRows.map((row) => (
+                        <div
+                          key={row.key}
+                          className="flex items-start justify-between gap-3 text-[13px]"
+                        >
+                          <dt className="text-ink-muted">{row.label}</dt>
+                          <dd className="text-end font-medium">
+                            {displayMetaValue(row.value)}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                ) : (
+                  <p className="border-t border-black/5 px-4 py-3 text-[12px] text-ink-faint dark:border-white/10">
+                    جزئیات بیشتری در متا نیست
+                  </p>
+                )}
               </div>
             )}
           </aside>

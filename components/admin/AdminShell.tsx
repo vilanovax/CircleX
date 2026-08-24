@@ -18,6 +18,7 @@ import {
   SidebarRailIcon,
   TagIcon,
   UserIcon,
+  ArchiveIcon,
 } from "@/components/Icons";
 import { ADMIN_ROLE_LABELS } from "@/lib/admin-labels";
 import { api } from "@/lib/api";
@@ -41,6 +42,7 @@ const NAV = [
   { href: "/admin/content", label: "محتوا", icon: TagIcon, users: false, ops: false, super: false, mods: false },
   { href: "/admin/broadcasts", label: "اعلامیه", icon: MegaphoneIcon, users: false, ops: true, super: false, mods: false },
   { href: "/admin/settings", label: "تنظیمات", icon: GearIcon, users: false, ops: true, super: false, mods: false },
+  { href: "/admin/backup", label: "بک‌آپ", icon: ArchiveIcon, users: false, ops: true, super: true, mods: false },
   { href: "/admin/audit", label: "لاگ", icon: ClockIcon, users: false, ops: true, super: false, mods: true },
   { href: "/admin/operators", label: "اپراتور", icon: ShieldCheckIcon, users: false, ops: true, super: true, mods: false },
 ] as const;

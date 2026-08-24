@@ -85,8 +85,8 @@ function parseCity(raw: unknown): CatalogCity | null {
   return {
     name,
     enabled: asBool(row.enabled, true),
-    regions: Array.from(new Set(regions)).slice(0, 40),
-    hoods: Array.from(new Set(hoods)).slice(0, 40),
+    regions: Array.from(new Set(regions)).slice(0, 80),
+    hoods: Array.from(new Set(hoods)).slice(0, 800),
   };
 }
 
