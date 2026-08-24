@@ -15,6 +15,7 @@ import {
 import ListingImagePicker from "@/components/ListingImagePicker";
 import PrivacyPicker from "@/components/PrivacyPicker";
 import AreaPicker from "@/components/AreaPicker";
+import CatalogCategorySelect from "@/components/CatalogCategorySelect";
 import VoiceDictateButton from "@/components/VoiceDictateButton";
 import { useToast } from "@/components/Toast";
 import { useStore } from "@/lib/store";
@@ -950,23 +951,15 @@ const ListingComposeForm = forwardRef<
                 دسته
                 {showSource ? <SourceBadge source={categorySource} /> : null}
               </label>
-              <input
+              <CatalogCategorySelect
                 id="listing-category"
                 value={category}
-                onChange={(e) => {
-                  setCategory(e.target.value);
+                categories={catalog.categories}
+                onChange={(next) => {
+                  setCategory(next);
                   setCategorySource("user");
                 }}
-                list="listing-category-options"
-                className="field !text-[13px]"
               />
-              {catalog.categories.length > 0 ? (
-                <datalist id="listing-category-options">
-                  {catalog.categories.map((item) => (
-                    <option key={item} value={item} />
-                  ))}
-                </datalist>
-              ) : null}
             </section>
             {showCondition ? (
             <section>
