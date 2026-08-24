@@ -71,6 +71,11 @@ const TABLES = [
     () => prisma.savedListing.findMany({ orderBy: { createdAt: "asc" } }),
   ],
   [
+    "listingPersonalNotes",
+    () =>
+      prisma.listingPersonalNote.findMany({ orderBy: { createdAt: "asc" } }),
+  ],
+  [
     "listingViews",
     () => prisma.listingView.findMany({ orderBy: { createdAt: "asc" } }),
   ],
@@ -187,6 +192,9 @@ export async function backupSummary(): Promise<BackupSummary> {
     prisma.gathering.count().then((n) => ["events", n] as const),
     prisma.gatheringRsvp.count().then((n) => ["eventRsvps", n] as const),
     prisma.savedListing.count().then((n) => ["savedListings", n] as const),
+    prisma.listingPersonalNote
+      .count()
+      .then((n) => ["listingPersonalNotes", n] as const),
     prisma.listingView.count().then((n) => ["listingViews", n] as const),
     prisma.listingWatch.count().then((n) => ["listingWatches", n] as const),
     prisma.systemNotice.count().then((n) => ["systemNotices", n] as const),

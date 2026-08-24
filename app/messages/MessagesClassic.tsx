@@ -557,7 +557,8 @@ const ThreadRow = memo(function ThreadRow({
               <span className="truncate">{peer.name}</span>
             </p>
             <span
-              className={`text-[11px] shrink-0 nums ${
+              dir="rtl"
+              className={`text-[11px] shrink-0 ${
                 hasUnread
                   ? "text-brand-600 font-bold"
                   : "text-ink-muted dark:text-zinc-500"

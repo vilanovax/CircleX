@@ -1,4 +1,9 @@
-import { ENDORSE_NOTE_MAX, ITEM_BADGES, PERSON_BADGES } from "./labels";
+import {
+  ENDORSE_NOTE_MAX,
+  ITEM_BADGES,
+  LISTING_NOTE_MAX,
+  PERSON_BADGES,
+} from "./labels";
 import { isAllowedListingImage } from "./listing-photo";
 import { parseArea } from "./place";
 import type { BadgeType, ListingSpec, ListingType, Privacy } from "./types";
@@ -198,4 +203,18 @@ export function parseEndorsementVisibility(body: unknown):
     return { ok: false, error: "وضعیت نمایش نامعتبر است" };
   }
   return { ok: true, personId, hidden: raw.hidden };
+}
+
+export function parsePersonalNote(body: unknown):
+  | { ok: true; note: string }
+  | { ok: false; error: string } {
+  if (!body || typeof body !== "object") {
+    return { ok: false, error: "بدنه نامعتبر است" };
+  }
+  const raw = (body as Record<string, unknown>).note;
+  if (raw == null) return { ok: true, note: "" };
+  if (typeof raw !== "string") {
+    return { ok: false, error: "یادداشت نامعتبر است" };
+  }
+  return { ok: true, note: raw.trim().slice(0, LISTING_NOTE_MAX) };
 }

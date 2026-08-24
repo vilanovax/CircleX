@@ -185,6 +185,7 @@ export const badgeResultLabels: Record<BadgeType, string> = {
 };
 
 export const ENDORSE_NOTE_MAX = 160;
+export const LISTING_NOTE_MAX = 280;
 
 /** Badges shown as checkboxes in the endorse sheet (not free-text). */
 export const ITEM_BADGES: BadgeType[] = ["verify_item", "verify_quality"];

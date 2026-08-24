@@ -16,6 +16,10 @@ import {
   VIEWER_REQUEST_DEFS,
 } from "@/lib/demo-requests";
 import { createInviteRecord } from "@/lib/server-invite";
+import {
+  loadTehranHoods,
+  pickTehranHood,
+} from "@/lib/seed-tehran-area";
 import type { RelationType, TrustGroup, User } from "@prisma/client";
 
 export async function demoCircleAlreadyLinked(
@@ -102,8 +106,13 @@ async function ensureEdge(input: {
   });
 }
 
-async function ensureListings(sellerId: string, items: DemoListingDef[]) {
+async function ensureListings(
+  sellerId: string,
+  items: DemoListingDef[],
+  hoods: string[],
+) {
   for (const item of items) {
+    const area = pickTehranHood(`${sellerId}:${item.title}`, hoods);
     const existing = await prisma.marketListing.findFirst({
       where: { sellerId, title: item.title },
     });
@@ -113,7 +122,7 @@ async function ensureListings(sellerId: string, items: DemoListingDef[]) {
         data.image = item.image;
         data.images = item.images;
       }
-      if (!existing.area && item.area) data.area = item.area;
+      if (existing.area !== area) data.area = area;
       if (Object.keys(data).length > 0) {
         await prisma.marketListing.update({
           where: { id: existing.id },
@@ -135,7 +144,7 @@ async function ensureListings(sellerId: string, items: DemoListingDef[]) {
         condition: item.condition ?? null,
         privacy: item.privacy,
         city: null,
-        area: item.area ?? null,
+        area,
         dealStatus: item.dealStatus ?? "available",
       },
     });
@@ -146,8 +155,9 @@ async function ensureListingsFor(
   sellerId: string,
   city: string,
   items: DemoListingDef[],
+  hoods: string[],
 ) {
-  await ensureListings(sellerId, items);
+  await ensureListings(sellerId, items, hoods);
   await prisma.marketListing.updateMany({
     where: { sellerId, OR: [{ city: null }, { city: "" }] },
     data: { city },
@@ -164,14 +174,15 @@ async function ensureListingsFor(
  */
 export async function seedDemoCircle(viewerId: string, viewerPhone: string) {
   const alreadyLinked = await demoCircleAlreadyLinked(viewerId);
-  await ensureDemoRoster(viewerId);
+  const hoods = await loadTehranHoods();
+  await ensureDemoRoster(viewerId, hoods);
   if (!alreadyLinked) {
     await ensureDemoInviteAndJoin(viewerId, viewerPhone);
   }
-  await ensureViewerListings(viewerId);
+  await ensureViewerListings(viewerId, hoods);
 }
 
-async function ensureViewerListings(viewerId: string) {
+async function ensureViewerListings(viewerId: string, hoods: string[]) {
   const viewer = await prisma.user.findUnique({
     where: { id: viewerId },
     select: { city: true },
@@ -180,10 +191,11 @@ async function ensureViewerListings(viewerId: string) {
     viewerId,
     viewer?.city?.trim() || "تهران",
     VIEWER_LISTING_DEFS,
+    hoods,
   );
 }
 
-async function ensureDemoRoster(viewerId: string) {
+async function ensureDemoRoster(viewerId: string, hoods: string[]) {
   const byKey = new Map<DemoPersonKey, User>();
 
   for (const person of DEMO_DIRECT) {
@@ -204,7 +216,7 @@ async function ensureDemoRoster(viewerId: string) {
       displayName: person.name,
     });
 
-    await ensureListingsFor(user.id, person.city, person.listings);
+    await ensureListingsFor(user.id, person.city, person.listings, hoods);
   }
 
   const myEdges = await prisma.circleEdge.findMany({
@@ -277,10 +289,10 @@ async function ensureDemoRoster(viewerId: string) {
       displayName: fof.name,
     });
 
-    await ensureListingsFor(user.id, fof.city, fof.listings);
+    await ensureListingsFor(user.id, fof.city, fof.listings, hoods);
   }
 
-  await ensureWantAndGatherings(viewerId, byKey);
+  await ensureWantAndGatherings(viewerId, byKey, hoods);
 }
 
 async function ensureDemoInviteAndJoin(
@@ -414,10 +426,12 @@ const DEMO_GATHERINGS: {
 async function ensureWantAndGatherings(
   viewerId: string,
   byKey: Map<DemoPersonKey, User>,
+  hoods: string[],
 ) {
   for (const def of DEMO_REQUEST_DEFS) {
     const requester = byKey.get(def.requesterKey);
     if (!requester || requester.id === viewerId) continue;
+    const area = pickTehranHood(`${requester.id}:${def.title}`, hoods);
     await prisma.wantRequest.upsert({
       where: { id: def.id },
       create: {
@@ -431,14 +445,15 @@ async function ensureWantAndGatherings(
         budgetUnit: def.budgetUnit ?? null,
         privacy: def.privacy,
         city: def.city ?? requester.city,
-        area: def.area ?? null,
+        area,
       },
-      update: { area: def.area ?? undefined },
+      update: { area },
     });
   }
 
   for (const def of VIEWER_REQUEST_DEFS) {
     const id = `${def.id}__${viewerId}`;
+    const area = pickTehranHood(`${viewerId}:${def.title}`, hoods);
     await prisma.wantRequest.upsert({
       where: { id },
       create: {
@@ -452,9 +467,9 @@ async function ensureWantAndGatherings(
         budgetUnit: def.budgetUnit ?? null,
         privacy: def.privacy,
         city: def.city ?? "تهران",
-        area: def.area ?? null,
+        area,
       },
-      update: { area: def.area ?? undefined },
+      update: { area },
     });
   }
 

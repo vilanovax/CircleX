@@ -3,6 +3,11 @@ import { prisma } from "@/lib/db";
 import { twoItemsForPhone } from "@/lib/family-catalog";
 import { inviteExpectedInclude } from "@/lib/mappers";
 import { isValidIranMobile, normalizePhone } from "@/lib/phone";
+import {
+  assignTehranHoodsToListings,
+  loadTehranHoods,
+  pickTehranHood,
+} from "@/lib/seed-tehran-area";
 import type { InviteKind } from "@prisma/client";
 
 const AVATAR_POOL = AVATAR_IMAGES.filter((src) => src !== "/avatars/01.webp");
@@ -35,6 +40,7 @@ function avatarFor(phone: string, used: Set<string>): string {
 }
 
 export async function seedFamilyCircle(inviterId: string, inviterPhone: string) {
+  const hoods = await loadTehranHoods();
   const invites = await prisma.invite.findMany({
     where: {
       inviterUserId: inviterId,
@@ -210,10 +216,19 @@ export async function seedFamilyCircle(inviterId: string, inviterPhone: string) 
           condition: item.condition,
           privacy: "ABC",
           city: seller.city || "تهران",
+          area: pickTehranHood(`${sellerId}:${item.title}`, hoods),
           dealStatus: "available",
         },
       });
     }
+  }
+
+  if (uniqueSellers.length > 0) {
+    const familyListings = await prisma.marketListing.findMany({
+      where: { sellerId: { in: uniqueSellers } },
+      select: { id: true, title: true, sellerId: true, area: true },
+    });
+    await assignTehranHoodsToListings(familyListings, hoods);
   }
 
   return { people: uniqueSellers.length };

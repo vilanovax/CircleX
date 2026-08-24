@@ -76,6 +76,7 @@ model User {
   gatheringsHosted    Gathering[]          @relation("GatheringHost")
   gatheringRsvps      GatheringRsvp[]
   savedListings       SavedListing[]
+  listingNotes        ListingPersonalNote[]
   listingViews        ListingView[]
   threadPrefs         ThreadPreference[]   @relation("ThreadOwner")
   threadAsPeer        ThreadPreference[]   @relation("ThreadPeer")
@@ -234,6 +235,7 @@ model MarketListing {
   messages     DirectMessage[]
   endorsements ListingEndorsement[]
   saves        SavedListing[]
+  notes        ListingPersonalNote[]
   views        ListingView[]
 
   @@index([sellerId])
@@ -418,6 +420,21 @@ model SavedListing {
   listingId String
   listing   MarketListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
   createdAt DateTime      @default(now())
+
+  @@unique([userId, listingId])
+  @@index([userId])
+  @@index([listingId])
+}
+
+model ListingPersonalNote {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listingId String
+  listing   MarketListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
   @@unique([userId, listingId])
   @@index([userId])

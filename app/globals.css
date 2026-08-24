@@ -176,10 +176,10 @@ body {
   scrollbar-width: none;
 }
 
-/* Numbers stay LTR even inside RTL text */
+/* Tabular digits; keep mixed phrases like «۳ ساعت پیش» RTL. */
 .nums {
-  direction: ltr;
-  unicode-bidi: embed;
+  font-variant-numeric: tabular-nums;
+  unicode-bidi: isolate;
 }
 
 /* Listing detail — soft entrance after hero */

@@ -1,3 +1,4 @@
+import { backfillAllSeedTehranAreas } from "@/lib/seed-tehran-area";
 import { seedDemoCircle } from "@/lib/server-demo-circle-seed";
 import { seedFamilyCircle } from "@/lib/server-family-seed";
 
@@ -7,4 +8,5 @@ export { demoCircleAlreadyLinked } from "@/lib/server-demo-circle-seed";
 export async function seedCircleForUser(userId: string, phone: string) {
   await seedFamilyCircle(userId, phone);
   await seedDemoCircle(userId, phone);
+  await backfillAllSeedTehranAreas();
 }

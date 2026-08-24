@@ -14,10 +14,10 @@ export function faAdminRelative(iso: string): string {
   if (Number.isNaN(then)) return "—";
   const sec = Math.round((Date.now() - then) / 1000);
   if (sec < 45) return "همین الان";
-  if (sec < 3600) return `${toPersianDigits(Math.max(1, Math.floor(sec / 60)))} دقیقه پیش`;
-  if (sec < 86400) return `${toPersianDigits(Math.floor(sec / 3600))} ساعت پیش`;
+  if (sec < 3600) return `\u200F${toPersianDigits(Math.max(1, Math.floor(sec / 60)))} دقیقه پیش`;
+  if (sec < 86400) return `\u200F${toPersianDigits(Math.floor(sec / 3600))} ساعت پیش`;
   if (sec < 86400 * 2) return "دیروز";
-  if (sec < 86400 * 7) return `${toPersianDigits(Math.floor(sec / 86400))} روز پیش`;
+  if (sec < 86400 * 7) return `\u200F${toPersianDigits(Math.floor(sec / 86400))} روز پیش`;
   return faAdminDate(iso);
 }
 

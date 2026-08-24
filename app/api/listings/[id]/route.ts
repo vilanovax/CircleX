@@ -51,8 +51,22 @@ export async function GET(
       }).catch(() => {});
     }
 
+    const noteRow =
+      row.sellerId === session.id
+        ? null
+        : await prisma.listingPersonalNote.findUnique({
+            where: {
+              userId_listingId: {
+                userId: session.id,
+                listingId: row.id,
+              },
+            },
+            select: { body: true },
+          });
+
     return Response.json({
       listing: toClientListing(row, session.id, access.trustPath),
+      personalNote: noteRow?.body?.trim() ? noteRow.body : null,
     });
   });
 }

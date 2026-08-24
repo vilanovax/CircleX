@@ -16,19 +16,6 @@ import {
 import { toPersianDigits } from "@/lib/persian";
 import { useCatalog } from "@/lib/use-catalog";
 
-const POPULAR = [
-  "پونک",
-  "سعادت آباد",
-  "شهرک غرب",
-  "ونک",
-  "تجریش",
-  "پاسداران",
-  "نارمک",
-  "تهرانپارس",
-  "ستارخان",
-  "شهرک اکباتان",
-];
-
 export default function AreaPicker({
   city,
   value,
@@ -42,13 +29,11 @@ export default function AreaPicker({
   const mode = areaMode(value);
   const fromCatalog = catalog.cities.find((item) => item.name === city);
   const fallback = areaPlaces(city);
-  const regions = mergePlaceNames(
-    fallback.regions,
-    fromCatalog?.regions ?? [],
+  const hoods = mergePlaceNames(
+    [...fallback.regions, ...fallback.hoods],
+    [...(fromCatalog?.regions ?? []), ...(fromCatalog?.hoods ?? [])],
   );
-  const hoods = mergePlaceNames(fallback.hoods, fromCatalog?.hoods ?? []);
   const placeSelected = mode === "place";
-  const useSearch = hoods.length > 12;
 
   function pickMode(next: AreaMode) {
     if (next === "place") {
@@ -121,42 +106,13 @@ export default function AreaPicker({
         })}
       </div>
 
-      {placeSelected && (regions.length > 0 || hoods.length > 0) ? (
+      {placeSelected && hoods.length > 0 ? (
         <div className="mt-3">
           <p className="text-[12px] font-bold text-ink dark:text-zinc-200 mb-1.5">
             محله{" "}
             <span className="font-medium text-ink-faint">(اختیاری)</span>
           </p>
-          {regions.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {regions.map((opt) => (
-                <PlaceChip
-                  key={opt}
-                  label={opt}
-                  active={samePlace(value, opt)}
-                  onClick={() =>
-                    onChange(samePlace(value, opt) ? AREA_CITYWIDE : opt)
-                  }
-                />
-              ))}
-            </div>
-          ) : null}
-          {useSearch ? (
-            <HoodSearch hoods={hoods} value={value} onChange={onChange} />
-          ) : hoods.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {sortHoodsFa(hoods).map((opt) => (
-                <PlaceChip
-                  key={opt}
-                  label={opt}
-                  active={samePlace(value, opt)}
-                  onClick={() =>
-                    onChange(samePlace(value, opt) ? AREA_CITYWIDE : opt)
-                  }
-                />
-              ))}
-            </div>
-          ) : null}
+          <HoodSearch hoods={hoods} value={value} onChange={onChange} />
         </div>
       ) : null}
     </section>
@@ -182,14 +138,6 @@ function HoodSearch({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [hi, setHi] = useState(0);
-
-  const popular = useMemo(
-    () =>
-      mergePlaceNames(
-        POPULAR.filter((name) => hoods.some((h) => samePlace(h, name))),
-      ).slice(0, 8),
-    [hoods],
-  );
 
   const browsable = useMemo(() => sortHoodsFa(hoods), [hoods]);
 
@@ -224,18 +172,6 @@ function HoodSearch({
 
   return (
     <div ref={rootRef} className="relative">
-      {popular.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5 mb-2">
-          {popular.map((opt) => (
-            <PlaceChip
-              key={opt}
-              label={opt}
-              active={samePlace(value, opt)}
-              onClick={() => pick(opt)}
-            />
-          ))}
-        </div>
-      ) : null}
       {selectedHood && !open ? (
         <div className="flex items-center gap-2">
           <button
@@ -275,9 +211,7 @@ function HoodSearch({
               e.preventDefault();
               setOpen(true);
               setHi((i) =>
-                results.length
-                  ? Math.min(results.length - 1, i + 1)
-                  : 0,
+                results.length ? Math.min(results.length - 1, i + 1) : 0,
               );
               return;
             }
@@ -343,30 +277,5 @@ function HoodSearch({
         </ul>
       ) : null}
     </div>
-  );
-}
-
-function PlaceChip({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`chip !px-2.5 !py-1 !text-[11px] border transition-colors ${
-        active
-          ? "bg-brand-600 text-white border-brand-600"
-          : "bg-stone-50 text-ink-muted border-stone-200/80 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400"
-      }`}
-    >
-      {label}
-    </button>
   );
 }

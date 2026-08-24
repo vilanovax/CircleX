@@ -63,6 +63,7 @@ export async function GET() {
     events: network.events,
     joinRequests: joinRows.map(toClientJoinRequest),
     saved: prefs.saved,
+    listingNotes: prefs.listingNotes,
     archivedThreads: prefs.archivedThreads,
     pinnedThreads: prefs.pinnedThreads,
     deletedThreads: prefs.deletedThreads,

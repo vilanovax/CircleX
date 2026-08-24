@@ -227,7 +227,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
                         {msg.actionLabel}
                       </Link>
                     ) : null}
-                    <span className="block text-[11px] mt-1.5 nums text-ink-faint">
+                    <span dir="rtl" className="block text-[11px] mt-1.5 text-ink-faint">
                       {msg.postedAt}
                     </span>
                   </div>
@@ -353,14 +353,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
         ? "پاسخ پیشنهادی:"
         : "می‌تونی بپرسی:";
 
-  const dealLabel =
-    dealStatus === "inactive"
-      ? "غیرفعال"
-      : dealStatus === "reserved"
-        ? "رزرو"
-        : dealStatus === "agreed"
-          ? "توافق"
-          : "موجود";
+  const listingGone = Boolean(activeListingId) && listingLoadState === "missing";
 
   return (
     <main className="flex flex-col h-[100dvh]">
@@ -381,53 +374,59 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
         </Link>
       </Header>
 
-      {contextListing && (
+      {(contextListing || listingGone) && (
         <div className="shrink-0 border-b border-stone-200/70 bg-[color:var(--circle-surface)] px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900">
           <p className="mb-1.5 text-[11px] font-medium text-ink-faint">
             آگهی این گفتگو
           </p>
-          <Link
-            href={`/listing/${contextListing.id}`}
-            className="flex items-center gap-2.5 rounded-xl bg-stone-50 px-2 py-2 ring-1 ring-stone-200/80 active:opacity-80 dark:bg-zinc-800/60 dark:ring-zinc-700"
-          >
-            <ListingImage
-              image={contextListing.image}
-              alt={contextListing.title}
-              size="sm"
-              category={contextListing.category}
-              type={contextListing.type}
-              frameClassName="h-11 w-11 shrink-0 overflow-hidden rounded-lg"
-            />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-bold text-ink dark:text-zinc-100">
-                {contextListing.title}
+          {listingGone || !contextListing ? (
+            <>
+              <div
+                className="pointer-events-none flex items-center gap-2.5 rounded-xl bg-stone-100 px-2 py-2 ring-1 ring-stone-200/80 grayscale dark:bg-zinc-800 dark:ring-zinc-700"
+                aria-disabled="true"
+              >
+                <div className="h-11 w-11 shrink-0 rounded-lg bg-stone-200 dark:bg-zinc-700" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-bold text-ink-faint">
+                    آگهی
+                  </p>
+                </div>
+              </div>
+              <p className="mt-1.5 text-[12.5px] text-ink-muted">
+                آگهی مورد نظر حذف شده است
               </p>
-              <p className="mt-0.5 nums text-[11px] text-ink-muted">
-                {contextListing.price != null
-                  ? formatPrice(contextListing.price)
-                  : contextListing.type === "service"
-                    ? "توافقی"
-                    : "رایگان"}
-              </p>
-            </div>
-            <span
-              className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                dealStatus === "inactive"
-                  ? "bg-stone-200/80 text-ink-muted dark:bg-zinc-700 dark:text-zinc-400"
-                  : dealStatus === "reserved"
-                    ? "bg-amber-100 text-amber-900 dark:bg-amber-500/20 dark:text-amber-200"
-                    : dealStatus === "agreed"
-                      ? "bg-[color:var(--circle-trust)]/15 text-[color:var(--circle-trust)]"
-                      : "bg-brand-600/10 text-brand-700 dark:text-brand-300"
-              }`}
+            </>
+          ) : (
+            <Link
+              href={`/listing/${contextListing.id}`}
+              className="flex items-center gap-2.5 rounded-xl bg-stone-50 px-2 py-2 ring-1 ring-stone-200/80 active:opacity-80 dark:bg-zinc-800/60 dark:ring-zinc-700"
             >
-              {dealLabel}
-            </span>
-            <span className="shrink-0 text-sm text-ink-faint" aria-hidden>
-              ‹
-            </span>
-          </Link>
-          {isSellerOfContext && dealStatus !== "inactive" ? (
+              <ListingImage
+                image={contextListing.image}
+                alt={contextListing.title}
+                size="sm"
+                category={contextListing.category}
+                type={contextListing.type}
+                frameClassName="h-11 w-11 shrink-0 overflow-hidden rounded-lg"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="block truncate text-[13px] font-bold leading-snug text-ink dark:text-zinc-100">
+                  {contextListing.title}
+                </p>
+                <p className="mt-0.5 block nums text-[11px] leading-snug text-ink-muted">
+                  {contextListing.price != null
+                    ? formatPrice(contextListing.price)
+                    : contextListing.type === "service"
+                      ? "توافقی"
+                      : "رایگان"}
+                </p>
+              </div>
+              <span className="shrink-0 text-sm text-ink-faint" aria-hidden>
+                ‹
+              </span>
+            </Link>
+          )}
+          {contextListing && isSellerOfContext && dealStatus !== "inactive" ? (
             <div className="mt-2">
               <p className="mb-1.5 text-[11px] text-ink-muted">
                 وضعیت برای {peer.name}
@@ -637,7 +636,7 @@ function isClockStamp(postedAt: string): boolean {
 function DayDivider({ label }: { label: string }) {
   return (
     <div className="flex items-center justify-center my-3">
-      <span className="text-[11px] font-semibold text-ink-muted dark:text-zinc-400 bg-[color:var(--circle-surface)]/90 dark:bg-zinc-900/90 border border-stone-200/60 dark:border-zinc-700 px-2.5 py-0.5 rounded-full shadow-sm nums">
+      <span className="text-[11px] font-semibold text-ink-muted dark:text-zinc-400 bg-[color:var(--circle-surface)]/90 dark:bg-zinc-900/90 border border-stone-200/60 dark:border-zinc-700 px-2.5 py-0.5 rounded-full shadow-sm" dir="rtl">
         {label}
       </span>
     </div>
@@ -696,7 +695,8 @@ function Bubble({
       )}
       {showTime && (
         <span
-          className={`block text-[11px] mt-1.5 nums ${
+          dir="rtl"
+          className={`block text-[11px] mt-1.5 ${
             msg.fromMe ? "text-white/70" : "text-ink-faint"
           }`}
         >

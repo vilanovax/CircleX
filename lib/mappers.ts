@@ -229,14 +229,14 @@ export function relativePostedAt(date: Date, now = Date.now()): string {
   const diff = Math.max(0, now - date.getTime());
   const minutes = Math.floor(diff / 60_000);
   if (minutes < 1) return "همین حالا";
-  if (minutes < 60) return `${toPersianDigits(minutes)} دقیقه پیش`;
+  if (minutes < 60) return `\u200F${toPersianDigits(minutes)} دقیقه پیش`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${toPersianDigits(hours)} ساعت پیش`;
+  if (hours < 24) return `\u200F${toPersianDigits(hours)} ساعت پیش`;
   const days = Math.floor(hours / 24);
   if (days === 1) return "دیروز";
-  if (days < 7) return `${toPersianDigits(days)} روز پیش`;
-  if (days < 30) return `${toPersianDigits(Math.floor(days / 7))} هفته پیش`;
-  return `${toPersianDigits(Math.floor(days / 30))} ماه پیش`;
+  if (days < 7) return `\u200F${toPersianDigits(days)} روز پیش`;
+  if (days < 30) return `\u200F${toPersianDigits(Math.floor(days / 7))} هفته پیش`;
+  return `\u200F${toPersianDigits(Math.floor(days / 30))} ماه پیش`;
 }
 
 type ListingEndorsementSource = {

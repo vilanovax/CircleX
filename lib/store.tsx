@@ -109,6 +109,8 @@ export interface StoreValue {
   messages: Message[];
   events: CircleEvent[];
   saved: string[];
+  /** Private per-listing notes; only the current user ever sees these. */
+  listingNotes: Record<string, string>;
   /** Peer ids hidden from the main inbox (still recoverable). */
   archivedThreads: string[];
   /** Peer ids pinned to the top of the inbox (max a few). */
@@ -218,6 +220,7 @@ export interface StoreValue {
   addOffer: (input: NewOfferInput) => Promise<void>;
   withdrawOffer: (requestId: string) => Promise<void>;
   toggleSaved: (listingId: string) => Promise<void>;
+  setListingNote: (listingId: string, note: string) => Promise<void>;
   isSaved: (listingId: string) => boolean;
   completeOnboarding: () => void;
   /** Apply the server user after OTP verify. */
@@ -269,6 +272,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [events, setEvents] = useState<CircleEvent[]>([]);
   const [saved, setSaved] = useState<string[]>([]);
+  const [listingNotes, setListingNotes] = useState<Record<string, string>>({});
   const [archivedThreads, setArchivedThreads] = useState<string[]>([]);
   const [pinnedThreads, setPinnedThreads] = useState<string[]>([]);
   const [deletedThreads, setDeletedThreads] = useState<string[]>([]);
@@ -315,6 +319,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     events?: CircleEvent[];
     joinRequests?: CircleJoinRequest[];
     saved?: string[];
+    listingNotes?: Record<string, string>;
     archivedThreads?: string[];
     pinnedThreads?: string[];
     deletedThreads?: string[];
@@ -365,6 +370,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setOffers(data.offers ?? []);
       setEvents(data.events ?? []);
       if (Array.isArray(data.saved)) setSaved(data.saved);
+      if (data.listingNotes && typeof data.listingNotes === "object") {
+        setListingNotes(data.listingNotes);
+      }
       if (Array.isArray(data.archivedThreads)) {
         setArchivedThreads(data.archivedThreads);
       }
@@ -653,9 +661,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const existing = listingsRef.current.find((l) => l.id === id);
     if (existing && !existing.feedPreview) return existing;
     try {
-      const { listing } = await api<{ listing: Listing }>(
-        `/api/listings/${encodeURIComponent(id)}`,
-      );
+      const { listing, personalNote } = await api<{
+        listing: Listing;
+        personalNote?: string | null;
+      }>(`/api/listings/${encodeURIComponent(id)}`);
       const current = listingsRef.current.find((row) => row.id === listing.id);
       const next = {
         ...listing,
@@ -669,6 +678,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           ? prev.map((row) => (row.id === next.id ? next : row))
           : [next, ...prev],
       );
+      if (typeof personalNote === "string" && personalNote.trim()) {
+        setListingNotes((prev) =>
+          prev[listing.id] === personalNote
+            ? prev
+            : { ...prev, [listing.id]: personalNote },
+        );
+      } else if (personalNote === null) {
+        setListingNotes((prev) => {
+          if (!(listing.id in prev)) return prev;
+          const copy = { ...prev };
+          delete copy[listing.id];
+          return copy;
+        });
+      }
       return next;
     } catch {
       return listingsRef.current.find((l) => l.id === id) ?? existing;
@@ -1344,6 +1367,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setSaved(next);
   }, []);
 
+  const setListingNote = useCallback(async (listingId: string, note: string) => {
+    const { note: nextNote, saved: nextSaved } = await api<{
+      note: string | null;
+      saved: string[];
+    }>(`/api/listings/${encodeURIComponent(listingId)}/note`, {
+      method: "PUT",
+      body: JSON.stringify({ note }),
+    });
+    setListingNotes((prev) => {
+      if (!nextNote) {
+        if (!(listingId in prev)) return prev;
+        const copy = { ...prev };
+        delete copy[listingId];
+        return copy;
+      }
+      if (prev[listingId] === nextNote) return prev;
+      return { ...prev, [listingId]: nextNote };
+    });
+    setSaved(nextSaved);
+  }, []);
+
   const isSaved = useCallback(
     (listingId: string) => saved.includes(listingId),
     [saved],
@@ -1443,6 +1487,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setOffers([]);
     setEvents([]);
     setSaved([]);
+    setListingNotes({});
     setMessages([]);
     setArchivedThreads([]);
     setPinnedThreads([]);
@@ -1462,6 +1507,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       messages,
       events,
       saved,
+      listingNotes,
       archivedThreads,
       pinnedThreads,
       invites,
@@ -1525,6 +1571,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addOffer,
       withdrawOffer,
       toggleSaved,
+      setListingNote,
       isSaved,
       completeOnboarding,
       completeLogin,
@@ -1543,6 +1590,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       messages,
       events,
       saved,
+      listingNotes,
       archivedThreads,
       pinnedThreads,
       invites,
@@ -1606,6 +1654,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addOffer,
       withdrawOffer,
       toggleSaved,
+      setListingNote,
       isSaved,
       completeOnboarding,
       completeLogin,
