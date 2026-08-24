@@ -498,16 +498,14 @@ function ListingHeaderActions({
         type="button"
         onClick={onNote}
         onPointerEnter={onNoteIntent}
-        className={`${HEADER_ICON} ${
-          hasNote ? "text-brand-600 dark:text-brand-400" : ""
-        }`}
+        className={HEADER_ICON}
         aria-label="یادداشت برای این آگهی"
         aria-pressed={hasNote}
         title="یادداشت برای این آگهی"
       >
         <NoteIcon className="block h-[18px] w-[18px]" />
         {hasNote ? (
-          <span className="absolute end-1.5 top-1.5 size-1.5 rounded-full bg-brand-600 dark:bg-brand-400" />
+          <span className="absolute end-1 top-1 size-2 rounded-full bg-red-500 ring-2 ring-[color:var(--circle-surface)] dark:bg-red-400 dark:ring-zinc-900" />
         ) : null}
       </button>
       <ListingSaveButton id={listingId} />
