@@ -6,6 +6,7 @@ import { listingEndorsementsInclude, toClientListing } from "@/lib/mappers";
 import { catalogExtraAreas } from "@/lib/app-settings";
 import { parseDealStatus, parseListingWrite } from "@/lib/listing-payload";
 import { getSessionUser } from "@/lib/server-auth";
+import { recordListingView } from "@/lib/listing-stats";
 import { fanoutListingWatches } from "@/lib/server-watches";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +41,14 @@ export async function GET(
       if (!viaMessage) {
         return jsonError("این آگهی در حلقه تو نیست", 403);
       }
+    }
+
+    if (row.sellerId !== session.id) {
+      void recordListingView({
+        listingId: row.id,
+        viewerId: session.id,
+        sellerId: row.sellerId,
+      }).catch(() => {});
     }
 
     return Response.json({

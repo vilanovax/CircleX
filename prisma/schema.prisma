@@ -76,6 +76,7 @@ model User {
   gatheringsHosted    Gathering[]          @relation("GatheringHost")
   gatheringRsvps      GatheringRsvp[]
   savedListings       SavedListing[]
+  listingViews        ListingView[]
   threadPrefs         ThreadPreference[]   @relation("ThreadOwner")
   threadAsPeer        ThreadPreference[]   @relation("ThreadPeer")
   systemNotices       SystemNotice[]
@@ -233,6 +234,7 @@ model MarketListing {
   messages     DirectMessage[]
   endorsements ListingEndorsement[]
   saves        SavedListing[]
+  views        ListingView[]
 
   @@index([sellerId])
   @@index([createdAt])
@@ -419,6 +421,20 @@ model SavedListing {
 
   @@unique([userId, listingId])
   @@index([userId])
+  @@index([listingId])
+}
+
+model ListingView {
+  id        String        @id @default(cuid())
+  listingId String
+  listing   MarketListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  viewerId  String
+  viewer    User          @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@unique([listingId, viewerId])
+  @@index([listingId])
+  @@index([viewerId])
 }
 
 model ListingWatch {

@@ -93,10 +93,33 @@ export default function EditListingSheet({
         labelledBy="edit-listing-title"
         zClass="z-50"
         maxHeight="100dvh"
+        header={
+          <div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <h2
+                id="edit-listing-title"
+                className="font-extrabold text-[20px] text-ink dark:text-zinc-50 leading-tight"
+              >
+                ویرایش آگهی
+              </h2>
+              <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
+                ذخیره فقط جزئیات را عوض می‌کند؛ آگهی فعال می‌ماند.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="بستن"
+              className="shrink-0 w-10 h-10 -me-1 -mt-0.5 rounded-full flex items-center justify-center text-ink-muted dark:text-zinc-400 active:scale-[0.97] active:bg-stone-100 dark:active:bg-zinc-800 transition-[transform,background-color] duration-150"
+            >
+              <CloseIcon className="w-5 h-5" />
+            </button>
+          </div>
+        }
         footer={
           <div>
             {footer.hint && (
-              <p className="text-[11px] text-ink-muted text-center mb-2 leading-relaxed">
+              <p className="text-[12px] text-ink-muted text-center mb-2 leading-relaxed">
                 {footer.hint}
               </p>
             )}
@@ -104,7 +127,7 @@ export default function EditListingSheet({
               type="button"
               disabled={!footer.canSubmit || saving}
               onClick={() => formRef.current?.submit()}
-              className="btn-primary w-full !py-3 text-[15px] shadow-lg shadow-brand-600/20 active:scale-[0.99] transition-transform duration-150 disabled:opacity-60"
+              className="btn-primary w-full !py-3.5 text-[15px] font-bold shadow-lg shadow-brand-600/20 active:scale-[0.97] transition-transform duration-150 disabled:opacity-60"
             >
               {saving ? "در حال ذخیره…" : footer.primaryLabel}
             </button>
@@ -112,7 +135,7 @@ export default function EditListingSheet({
               <button
                 type="button"
                 onClick={() => void reactivate()}
-                className="mt-2 w-full text-[13px] font-bold text-brand-600 dark:text-brand-400 py-2.5"
+                className="mt-1.5 w-full min-h-11 text-[13px] font-bold text-brand-600 dark:text-brand-400 rounded-xl active:scale-[0.98] active:bg-brand-50 dark:active:bg-brand-500/10 transition-[transform,background-color] duration-150"
               >
                 دوباره فعال کن
               </button>
@@ -120,7 +143,7 @@ export default function EditListingSheet({
               <button
                 type="button"
                 onClick={() => setShowDeactivate(true)}
-                className="mt-2 w-full text-[13px] font-bold text-red-600 dark:text-red-400 py-2.5"
+                className="mt-1.5 w-full min-h-11 text-[13px] font-bold text-red-600 dark:text-red-400 rounded-xl active:scale-[0.98] active:bg-red-50 dark:active:bg-red-500/10 transition-[transform,background-color] duration-150"
               >
                 این آگهی دیگر دیده نشود
               </button>
@@ -128,38 +151,14 @@ export default function EditListingSheet({
           </div>
         }
       >
-        <div className="flex items-center gap-2 mb-1">
-          <div className="min-w-0 flex-1">
-            <h2
-              id="edit-listing-title"
-              className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 leading-tight"
-            >
-              ویرایش آگهی
-            </h2>
-            <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-relaxed">
-              عنوان، عکس و جزئیات را عوض کن. ذخیره، آگهی را غیرفعال نمی‌کند.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="بستن"
-            className="shrink-0 w-9 h-9 -me-1 rounded-full flex items-center justify-center text-ink-muted dark:text-zinc-400 active:bg-stone-100 dark:active:bg-zinc-800"
-          >
-            <CloseIcon className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="mt-3.5 pb-2">
-          <ListingComposeForm
-            ref={formRef}
-            hideActions
-            initial={initial}
-            submitLabel="ذخیره تغییرات"
-            onFooterMetaChange={onFooterMetaChange}
-            onSubmit={save}
-          />
-        </div>
+        <ListingComposeForm
+          ref={formRef}
+          hideActions
+          initial={initial}
+          submitLabel="ذخیره تغییرات"
+          onFooterMetaChange={onFooterMetaChange}
+          onSubmit={save}
+        />
       </SheetShell>
 
       {showDeactivate && (

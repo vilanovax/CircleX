@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { cache } from "react";
 import { prisma } from "./db";
 import { jsonError } from "./http";
+import { sessionCookieSecure } from "./cookie-secure";
 import { hashToken, newSessionToken } from "./server-auth";
 
 export const ADMIN_SESSION_COOKIE = "circle_admin_session";
@@ -29,7 +30,7 @@ function cookieOpts(maxAge: number) {
     httpOnly: true,
     sameSite: "lax" as const,
     path: "/",
-    secure: process.env.NODE_ENV === "production",
+    secure: sessionCookieSecure(),
     maxAge,
   };
 }

@@ -61,8 +61,8 @@ function PrivacyPicker({
               role="radio"
               aria-checked={active}
               onClick={() => onChange(p)}
-              className={`w-full flex items-center gap-2.5 rounded-xl border text-right transition-[transform,colors] duration-150 active:scale-[0.99] ${
-                compact ? "px-3 py-2" : "px-3.5 py-2.5 rounded-2xl gap-3"
+              className={`w-full flex items-center gap-2.5 rounded-xl border text-right transition-[transform,background-color,border-color] duration-150 active:scale-[0.99] ${
+                compact ? "px-3 py-2.5" : "px-3.5 py-2.5 rounded-2xl gap-3"
               } ${
                 active
                   ? "border-brand-500 bg-brand-50/90 dark:bg-brand-500/15"

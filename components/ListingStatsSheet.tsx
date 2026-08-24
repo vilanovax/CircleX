@@ -1,14 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import SheetShell from "@/components/SheetShell";
 import ListingImage from "@/components/ListingImage";
 import Avatar from "@/components/Avatar";
-import { ChatIcon } from "@/components/Icons";
+import {
+  ChatIcon,
+  EyeIcon,
+  HeartIcon,
+} from "@/components/Icons";
 import { groupByPerson } from "@/components/Endorsements";
 import { useStore } from "@/lib/store";
-import { ApiError } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import {
   formatPrice,
@@ -23,6 +27,15 @@ import {
   listingThreadPreview,
 } from "@/lib/thread-listing";
 import type { Listing } from "@/lib/types";
+
+type ListingOwnerStats = {
+  views: number;
+  saves: number;
+  conversations: number;
+  messages: number;
+  unread: number;
+  endorsements: number;
+};
 
 export default function ListingStatsSheet({
   listing,
@@ -41,6 +54,7 @@ export default function ListingStatsSheet({
   );
   const { show } = useToast();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [remote, setRemote] = useState<ListingOwnerStats | null>(null);
 
   const wordGroups = useMemo(
     () => groupByPerson(listing.endorsements),
@@ -51,16 +65,28 @@ export default function ListingStatsSheet({
     () => listingThreadPeers(messages, listing.id),
     [messages, listing.id],
   );
-  const messageCount = useMemo(
+  const localMessages = useMemo(
     () => listingMessageCount(messages, listing.id),
     [messages, listing.id],
   );
-  const endorserCount = useMemo(() => {
-    const ids = new Set(
-      listing.endorsements.filter((e) => !e.hidden).map((e) => e.personId),
-    );
-    return ids.size;
-  }, [listing.endorsements]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void api<ListingOwnerStats>(`/api/listings/${listing.id}/stats`)
+      .then((data) => {
+        if (!cancelled) setRemote(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [listing.id]);
+
+  const views = remote?.views ?? 0;
+  const saves = remote?.saves ?? 0;
+  const conversations = Math.max(remote?.conversations ?? 0, peers.length);
+  const messageCount = Math.max(remote?.messages ?? 0, localMessages);
+  const unread = remote?.unread ?? 0;
 
   const title = listingDisplayTitle(listing.title, listing.type);
   const inactive = listing.dealStatus === "inactive";
@@ -70,20 +96,6 @@ export default function ListingStatsSheet({
       : listing.type === "service"
         ? "توافقی"
         : "رایگان";
-
-  const pulse = [
-    peers.length > 0
-      ? `${toPersianDigits(peers.length)} گفتگو`
-      : "بدون گفتگو",
-    messageCount > 0 && messageCount !== peers.length
-      ? `${toPersianDigits(messageCount)} پیام`
-      : null,
-    endorserCount > 0
-      ? `${toPersianDigits(endorserCount)} تأیید`
-      : "بدون تأیید",
-  ]
-    .filter(Boolean)
-    .join(" · ");
 
   function openThread(peerId: string) {
     onClose();
@@ -105,6 +117,41 @@ export default function ListingStatsSheet({
     }
   }
 
+  const kpis = [
+    {
+      key: "views",
+      label: "نمایش",
+      hint: "نفر جزئیات را باز کردند",
+      value: views,
+      icon: EyeIcon,
+    },
+    {
+      key: "saves",
+      label: "نشان",
+      hint: "در پروفایل ذخیره شد",
+      value: saves,
+      icon: HeartIcon,
+    },
+    {
+      key: "conversations",
+      label: "گفتگو",
+      hint: "نفر از روی این آگهی نوشتند",
+      value: conversations,
+      icon: ChatIcon,
+    },
+    {
+      key: "messages",
+      label: "پیام",
+      hint:
+        unread > 0
+          ? `${toPersianDigits(unread)} خوانده‌نشده`
+          : "کل پیام‌های این آگهی",
+      value: messageCount,
+      icon: ChatIcon,
+      accent: unread > 0,
+    },
+  ];
+
   return (
     <SheetShell
       onClose={onClose}
@@ -124,16 +171,16 @@ export default function ListingStatsSheet({
         <div className="min-w-0 flex-1">
           <h2
             id="listing-stats-title"
-            className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 leading-tight"
+            className="text-[20px] font-semibold leading-tight text-ink dark:text-zinc-50"
           >
             آمار آگهی
           </h2>
-          <p className="mt-0.5 text-[12px] text-ink-muted dark:text-zinc-400 leading-snug line-clamp-1">
+          <p className="mt-0.5 line-clamp-1 text-[12.5px] leading-snug text-ink-muted dark:text-zinc-400">
             {title}
           </p>
         </div>
         <span
-          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
             inactive
               ? "bg-stone-200/80 text-ink-muted dark:bg-zinc-800 dark:text-zinc-400"
               : "bg-[color:var(--circle-trust)]/12 text-[color:var(--circle-trust)]"
@@ -143,25 +190,53 @@ export default function ListingStatsSheet({
         </span>
       </div>
 
-      <p className="mt-2.5 text-[12px] text-ink-muted dark:text-zinc-400 nums leading-snug px-0.5">
+      <p className="mt-2 text-[12.5px] leading-snug text-ink-muted nums dark:text-zinc-400">
         {listingTypeLabels[listing.type]} · {priceLabel}
-        <span className="text-ink-faint"> · {pulse}</span>
       </p>
 
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        {kpis.map((kpi) => {
+          const Icon = kpi.icon;
+          return (
+            <div
+              key={kpi.key}
+              className={`rounded-2xl px-3 py-3 ring-1 ${
+                kpi.accent
+                  ? "bg-brand-600/8 ring-brand-600/25 dark:bg-brand-500/10 dark:ring-brand-400/20"
+                  : "bg-stone-50 ring-stone-200/80 dark:bg-zinc-800/55 dark:ring-zinc-700/80"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[12.5px] font-medium text-ink-muted dark:text-zinc-400">
+                  {kpi.label}
+                </p>
+                <Icon className="h-4 w-4 shrink-0 text-brand-600 dark:text-brand-400" />
+              </div>
+              <p className="mt-1.5 nums text-[20px] font-semibold leading-none text-ink dark:text-zinc-50">
+                {toPersianDigits(kpi.value)}
+              </p>
+              <p className="mt-1.5 text-[11px] leading-snug text-ink-faint dark:text-zinc-500">
+                {kpi.hint}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
       <div className="mt-4">
-        <p className="text-[11px] font-semibold text-ink-muted dark:text-zinc-400 px-0.5 mb-1.5">
+        <p className="mb-1.5 px-0.5 text-[12.5px] font-medium text-ink-muted dark:text-zinc-400">
           {peers.length > 0 ? "گفتگو از روی این آگهی" : "هنوز گفتگویی نیست"}
         </p>
         {peers.length === 0 ? (
-          <p className="rounded-2xl bg-stone-50 dark:bg-zinc-800/55 px-3 py-3 text-[13px] text-ink-muted dark:text-zinc-400 leading-relaxed ring-1 ring-stone-200/80 dark:ring-zinc-700/80">
+          <p className="rounded-2xl bg-stone-50 px-3 py-3 text-[14px] leading-relaxed text-ink-muted ring-1 ring-stone-200/80 dark:bg-zinc-800/55 dark:text-zinc-400 dark:ring-zinc-700/80">
             وقتی کسی از حلقه پیام بدهد، اینجا می‌آید.
           </p>
         ) : (
-          <div className="card divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
+          <div className="card divide-y divide-stone-100 overflow-hidden dark:divide-zinc-800">
             {peers.map((peerId) => {
               const person = getPerson(peerId);
               const thread = getThread(peerId);
-              const unread = unreadCount(peerId);
+              const threadUnread = unreadCount(peerId);
               const preview = listingThreadPreview(thread, listing.id);
               const name = person?.name ?? "عضو حلقه";
               return (
@@ -169,7 +244,7 @@ export default function ListingStatsSheet({
                   key={peerId}
                   type="button"
                   onClick={() => openThread(peerId)}
-                  className="w-full flex items-center gap-3 px-3 py-3 text-right min-h-[3.5rem] active:bg-stone-50/80 dark:active:bg-zinc-800/60 transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand-500"
+                  className="flex min-h-[3.5rem] w-full items-center gap-3 px-3 py-3 text-right transition-colors duration-150 active:bg-stone-50/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand-500 dark:active:bg-zinc-800/60"
                 >
                   <Avatar
                     name={name}
@@ -178,23 +253,23 @@ export default function ListingStatsSheet({
                     showLevel={false}
                   />
                   <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-[13px] font-bold text-ink dark:text-zinc-100 truncate">
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate text-[15px] font-semibold text-ink dark:text-zinc-100">
                         {name}
                       </span>
-                      {unread > 0 ? (
-                        <span className="shrink-0 rounded-full bg-brand-600 text-white text-[10px] font-bold px-1.5 py-px nums leading-none">
-                          {toPersianDigits(unread)}
+                      {threadUnread > 0 ? (
+                        <span className="nums shrink-0 rounded-full bg-brand-600 px-1.5 py-px text-[11px] font-medium leading-none text-white">
+                          {toPersianDigits(threadUnread)}
                         </span>
                       ) : null}
                     </span>
-                    <span className="mt-0.5 block text-[11px] text-ink-muted dark:text-zinc-400 truncate">
+                    <span className="mt-0.5 block truncate text-[11px] text-ink-muted dark:text-zinc-400">
                       {person ? viewerRelationPhrase(person) : "از حلقه"}
                       {" · "}
                       {preview}
                     </span>
                   </span>
-                  <ChatIcon className="w-4 h-4 shrink-0 text-brand-600 dark:text-brand-400" />
+                  <ChatIcon className="h-4 w-4 shrink-0 text-brand-600 dark:text-brand-400" />
                 </button>
               );
             })}
@@ -204,10 +279,10 @@ export default function ListingStatsSheet({
 
       {wordGroups.length > 0 ? (
         <div className="mt-4">
-          <p className="text-[11px] font-semibold text-ink-muted dark:text-zinc-400 px-0.5 mb-1.5">
+          <p className="mb-1.5 px-0.5 text-[12.5px] font-medium text-ink-muted dark:text-zinc-400">
             حرف آشنایان روی آگهی
           </p>
-          <p className="text-[12px] text-ink-muted dark:text-zinc-400 px-0.5 mb-2 leading-relaxed">
+          <p className="mb-2 px-0.5 text-[12.5px] leading-relaxed text-ink-muted dark:text-zinc-400">
             کل همان نظر را نشان بده یا پنهان کن. متن را عوض نمی‌کنی.
           </p>
           <ul className="space-y-2">
@@ -221,8 +296,8 @@ export default function ListingStatsSheet({
                   key={group.personId}
                   className={`rounded-2xl px-3 py-3 ring-1 ${
                     hidden
-                      ? "bg-stone-50/80 dark:bg-zinc-800/40 ring-stone-200/80 dark:ring-zinc-700/80"
-                      : "bg-white dark:bg-zinc-900 ring-stone-200/80 dark:ring-zinc-700"
+                      ? "bg-stone-50/80 ring-stone-200/80 dark:bg-zinc-800/40 dark:ring-zinc-700/80"
+                      : "bg-white ring-stone-200/80 dark:bg-zinc-900 dark:ring-zinc-700"
                   }`}
                 >
                   <div className="flex items-start gap-2.5">
@@ -233,15 +308,15 @@ export default function ListingStatsSheet({
                       showLevel={false}
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="text-[13px] font-bold text-ink dark:text-zinc-100">
+                      <p className="text-[15px] font-semibold text-ink dark:text-zinc-100">
                         {name}
                       </p>
                       {group.note ? (
-                        <p className="mt-1 text-[12.5px] text-ink dark:text-zinc-200 leading-relaxed">
+                        <p className="mt-1 text-[14px] leading-relaxed text-ink dark:text-zinc-200">
                           «{group.note}»
                         </p>
                       ) : (
-                        <p className="mt-1 text-[12px] text-ink-muted">
+                        <p className="mt-1 text-[12.5px] text-ink-muted">
                           بدون متن — فقط گزینه
                         </p>
                       )}
@@ -256,7 +331,7 @@ export default function ListingStatsSheet({
                     type="button"
                     disabled={busy}
                     onClick={() => toggleWord(group.personId, !hidden)}
-                    className="mt-2.5 w-full rounded-xl py-2 text-[12px] font-bold ring-1 ring-stone-200 dark:ring-zinc-700 text-ink dark:text-zinc-100 active:bg-stone-50 dark:active:bg-zinc-800 disabled:opacity-50"
+                    className="mt-2.5 w-full rounded-xl py-2 text-[12.5px] font-medium text-ink ring-1 ring-stone-200 active:bg-stone-50 disabled:opacity-50 dark:text-zinc-100 dark:ring-zinc-700 dark:active:bg-zinc-800"
                   >
                     {busy
                       ? "…"

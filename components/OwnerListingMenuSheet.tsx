@@ -68,7 +68,7 @@ export default function OwnerListingMenuSheet({
         <div className="min-w-0 flex-1 pt-0.5">
           <h2
             id="owner-listing-menu"
-            className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 leading-tight"
+            className="text-[20px] font-semibold leading-tight text-ink dark:text-zinc-50"
           >
             آگهی تو
           </h2>
@@ -105,7 +105,7 @@ export default function OwnerListingMenuSheet({
         <ActionRow
           icon={
             <span className="w-10 h-10 rounded-xl bg-brand-50 dark:bg-brand-500/15 text-brand-700 dark:text-brand-300 flex items-center justify-center shrink-0">
-              <PencilIcon className="w-[1.15rem] h-[1.15rem]" />
+              <PencilIcon className="h-5 w-5" />
             </span>
           }
           label="ویرایش آگهی"
@@ -115,17 +115,17 @@ export default function OwnerListingMenuSheet({
         <ActionRow
           icon={
             <span className="w-10 h-10 rounded-xl bg-brand-50 dark:bg-brand-500/15 text-brand-700 dark:text-brand-300 flex items-center justify-center shrink-0">
-              <ChartBarsIcon className="w-[1.15rem] h-[1.15rem]" />
+              <ChartBarsIcon className="h-5 w-5" />
             </span>
           }
           label="آمار آگهی"
-          hint="گفتگو و نمایش حرف آشنایان"
+          hint="نمایش، نشان و پیام"
           onClick={onStats}
         />
         <ActionRow
           icon={
             <span className="w-10 h-10 rounded-xl bg-brand-50 dark:bg-brand-500/15 text-brand-700 dark:text-brand-300 flex items-center justify-center shrink-0">
-              <ChatIcon className="w-[1.15rem] h-[1.15rem]" />
+              <ChatIcon className="h-5 w-5" />
             </span>
           }
           label="پیام‌های این آگهی"
@@ -136,7 +136,7 @@ export default function OwnerListingMenuSheet({
           <ActionRow
             icon={
               <span className="w-10 h-10 rounded-xl bg-[color:var(--circle-trust)]/10 dark:bg-[color:var(--circle-trust)]/15 text-[color:var(--circle-trust)] flex items-center justify-center shrink-0">
-                <EyeIcon className="w-[1.15rem] h-[1.15rem]" />
+                <EyeIcon className="h-5 w-5" />
               </span>
             }
             label="دوباره فعال کن"
@@ -148,7 +148,7 @@ export default function OwnerListingMenuSheet({
           <ActionRow
             icon={
               <span className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-500/15 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0">
-                <EyeOffIcon className="w-[1.15rem] h-[1.15rem]" />
+                <EyeOffIcon className="h-5 w-5" />
               </span>
             }
             label="این آگهی دیگر دیده نشود"
@@ -164,7 +164,7 @@ export default function OwnerListingMenuSheet({
       <ActionRow
         icon={
           <span className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-500/15 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0">
-            <TrashIcon className="w-[1.15rem] h-[1.15rem]" />
+            <TrashIcon className="h-5 w-5" />
           </span>
         }
         label="حذف آگهی"

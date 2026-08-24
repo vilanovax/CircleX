@@ -121,16 +121,16 @@ function ListingImagePicker({
                   }`}
                 />
                 {i === 0 && (
-                  <span className="absolute top-1 start-1 text-[9px] font-bold bg-brand-600 text-white px-1.5 py-0.5 rounded-md">
+                  <span className="absolute top-1 start-1 text-[11px] font-bold bg-brand-600 text-white px-1.5 py-0.5 rounded-md">
                     عکس اصلی
                   </span>
                 )}
-                <div className="flex gap-1 mt-1">
+                <div className="flex gap-1 mt-1.5">
                   {i !== 0 && (
                     <button
                       type="button"
                       onClick={() => moveToCover(i)}
-                      className="flex-1 text-[10px] font-bold text-brand-600 dark:text-brand-400 py-1"
+                      className="flex-1 min-h-8 text-[11px] font-bold text-brand-600 dark:text-brand-400 rounded-lg active:bg-brand-50 dark:active:bg-brand-500/10"
                     >
                       عکس اصلی
                     </button>
@@ -138,7 +138,7 @@ function ListingImagePicker({
                   <button
                     type="button"
                     onClick={() => removeAt(i)}
-                    className="flex-1 text-[10px] font-bold text-ink-faint py-1"
+                    className="flex-1 min-h-8 text-[11px] font-bold text-ink-muted dark:text-zinc-400 rounded-lg active:bg-stone-100 dark:active:bg-zinc-800"
                   >
                     حذف
                   </button>
@@ -150,13 +150,11 @@ function ListingImagePicker({
                 type="button"
                 disabled={busy}
                 onClick={() => inputRef.current?.click()}
-                className="shrink-0 h-24 w-28 rounded-xl border-2 border-dashed border-stone-200 dark:border-zinc-700 bg-stone-50/80 dark:bg-zinc-800/40 flex flex-col items-center justify-center text-ink-faint gap-0.5"
+                className="shrink-0 h-24 w-28 rounded-xl border-2 border-dashed border-stone-200 dark:border-zinc-700 bg-stone-50/80 dark:bg-zinc-800/40 flex flex-col items-center justify-center text-ink-faint gap-1 active:scale-[0.97] transition-transform duration-150"
               >
-                <span className="text-xl leading-none" aria-hidden>
-                  +
-                </span>
-                <span className="text-[10px] font-semibold">
-                  {busy ? "…" : "عکس"}
+                <CameraIcon className="w-5 h-5 text-ink-muted dark:text-zinc-400" />
+                <span className="text-[11px] font-semibold">
+                  {busy ? "در حال آپلود…" : "افزودن"}
                 </span>
               </button>
             )}

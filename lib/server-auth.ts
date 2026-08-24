@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "crypto";
 import { cookies } from "next/headers";
 import { isUserBanned } from "./ban";
+import { sessionCookieSecure } from "./cookie-secure";
 import { prisma } from "./db";
 import type { User } from "@prisma/client";
 
@@ -82,7 +83,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       httpOnly: true,
       sameSite: "lax",
       path: "/",
-      secure: process.env.NODE_ENV === "production",
+      secure: sessionCookieSecure(),
       maxAge: 0,
     });
     return null;
@@ -119,7 +120,7 @@ export async function createSession(userId: string): Promise<void> {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    secure: process.env.NODE_ENV === "production",
+    secure: sessionCookieSecure(),
     maxAge: Math.floor(SESSION_TTL_MS / 1000),
   });
 }
@@ -135,7 +136,7 @@ export async function destroySession(): Promise<void> {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    secure: process.env.NODE_ENV === "production",
+    secure: sessionCookieSecure(),
     maxAge: 0,
   });
 }

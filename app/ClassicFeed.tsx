@@ -218,7 +218,7 @@ export default function ClassicFeed() {
 
   return (
     <main className="pb-24 min-h-[100dvh]">
-      <header className="relative sticky top-0 z-20 border-b border-stone-200/70 bg-[color:var(--circle-surface)] before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-[50vh] before:bg-[color:var(--circle-surface)] dark:border-zinc-800 dark:bg-zinc-950 dark:before:bg-zinc-950">
+      <header className="sticky top-0 z-20 border-b border-stone-200/70 bg-[color:var(--circle-surface)] before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-[50vh] before:bg-[color:var(--circle-surface)] dark:border-zinc-800 dark:bg-zinc-950 dark:before:bg-zinc-950">
         <div className="px-4 pt-[max(0.85rem,env(safe-area-inset-top))] pb-1.5">
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5 shrink-0">
@@ -500,7 +500,7 @@ function CircleScopeControl({
         <span className="font-bold text-brand-700 dark:text-brand-300">
           {label}
         </span>
-        <span className="text-ink-faint text-[10px]" aria-hidden>
+        <span className="text-ink-faint text-[11px]" aria-hidden>
           ▾
         </span>
       </button>
@@ -660,7 +660,7 @@ function EventStripCard({ event }: { event: CircleEvent }) {
       <p className="text-[11px] text-ink-muted mt-1.5">
         {formatEventDateDisplay(event.date)}
       </p>
-      <p className="text-[10px] text-ink-faint mt-0.5 nums">
+      <p className="text-[11px] text-ink-faint mt-0.5 nums">
         {toPersianDigits(count)}
         {event.capacity ? `/${toPersianDigits(event.capacity)}` : ""} نفر ·{" "}
         <span className="truncate">{event.location}</span>

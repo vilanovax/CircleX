@@ -48,7 +48,9 @@ const NAV = [
 const NAV_COOKIE = "circle_admin_nav";
 
 function persistPinned(next: boolean) {
-  document.cookie = `${NAV_COOKIE}=${next ? "open" : "rail"};path=/;max-age=31536000;samesite=lax`;
+  const path = process.env.NEXT_PUBLIC_BASE_PATH || "/";
+  const secure = location.protocol === "https:" ? ";Secure" : "";
+  document.cookie = `${NAV_COOKIE}=${next ? "open" : "rail"};path=${path};max-age=31536000;samesite=lax${secure}`;
 }
 
 export default function AdminShell({

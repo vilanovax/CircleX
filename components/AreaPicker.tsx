@@ -70,7 +70,7 @@ export default function AreaPicker({
               role="radio"
               aria-checked={active}
               onClick={() => pickMode(opt.id)}
-              className={`w-full flex items-center gap-2.5 rounded-xl border px-3 py-2 text-right transition-[transform,colors] duration-150 active:scale-[0.99] ${
+              className={`w-full flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-right transition-[transform,background-color,border-color] duration-150 active:scale-[0.99] ${
                 active
                   ? "border-brand-500 bg-brand-50/90 dark:bg-brand-500/15"
                   : "border-stone-200/80 dark:border-zinc-700 bg-[color:var(--circle-surface)] dark:bg-zinc-900"

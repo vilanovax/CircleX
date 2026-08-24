@@ -47,7 +47,7 @@ import {
   suggestListingPrices,
   type PriceHint,
 } from "@/lib/price-suggest";
-import { formatTomanInput, toEnglishDigits } from "@/lib/persian";
+import { formatTomanInput, toEnglishDigits, toPersianDigits } from "@/lib/persian";
 import { isListingPhoto } from "@/lib/listing-image";
 import type { ListingSpec, ListingType, Privacy } from "@/lib/types";
 
@@ -162,7 +162,7 @@ function SourceBadge({ source }: { source?: FieldSource | DraftSpec["confidence"
   if (!kind) return null;
   return (
     <span
-      className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+      className={`shrink-0 text-[11px] font-bold px-1.5 py-0.5 rounded-md ${
         kind === "text"
           ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
           : "bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200"
@@ -326,7 +326,7 @@ const ListingComposeForm = forwardRef<
 
   const livePriceHints = useMemo(() => {
     if (priceHints.length > 0) return priceHints;
-    if (!needsPrice || deferredRaw.trim().length < 12) return [];
+    if (editMode || !needsPrice || deferredRaw.trim().length < 12) return [];
     return suggestListingPrices({
       category:
         category ||
@@ -335,7 +335,7 @@ const ListingComposeForm = forwardRef<
       text: deferredRaw,
       condition: condition || undefined,
     });
-  }, [priceHints, needsPrice, deferredRaw, category, type, condition]);
+  }, [priceHints, editMode, needsPrice, deferredRaw, category, type, condition]);
 
   useEffect(() => {
     onCanSubmitChange?.(canSubmit);
@@ -535,7 +535,7 @@ const ListingComposeForm = forwardRef<
       images,
       privacy,
       area,
-      condition: condition.trim() || undefined,
+      condition: type === "service" ? undefined : condition.trim() || undefined,
       specs: specs.length ? specs : undefined,
     });
   }
@@ -661,13 +661,16 @@ const ListingComposeForm = forwardRef<
       </div>
     ) : null;
 
+  const showCondition = type !== "service";
+  const showSource = !editMode;
+
   const typeFields = (
     <>
       {type === "exchange" && (
-        <section className="mb-3">
+        <section className="mb-4">
           <label
             htmlFor="listing-exchange"
-            className="block text-[13px] font-bold mb-1 text-ink dark:text-zinc-200"
+            className="block text-[13px] font-bold mb-1.5 text-ink dark:text-zinc-200"
           >
             با چه چیزی تعویض می‌کنی؟
           </label>
@@ -682,7 +685,7 @@ const ListingComposeForm = forwardRef<
       )}
 
       {type === "loan" && (
-        <section className="mb-3 space-y-2.5">
+        <section className="mb-4 space-y-3">
           <div>
             <label
               htmlFor="listing-loan-duration"
@@ -744,14 +747,14 @@ const ListingComposeForm = forwardRef<
       )}
 
       {(type === "sale" || type === "service") && (
-        <section className="mb-3">
-          <div className="flex items-center justify-between gap-2 mb-1">
+        <section className="mb-4">
+          <div className="flex items-center justify-between gap-2 mb-1.5">
             <label
               htmlFor="listing-price"
               className="flex items-center gap-1.5 text-[13px] font-bold text-ink dark:text-zinc-200"
             >
               {type === "service" ? "هزینه" : "قیمت"}
-              {step === "review" && needsPrice && (
+              {showSource && step === "review" && needsPrice && (
                 <SourceBadge source={priceSource} />
               )}
             </label>
@@ -893,14 +896,19 @@ const ListingComposeForm = forwardRef<
             </>
           )}
 
-          <section className="mb-3">
-            <label
-              htmlFor="listing-title"
-              className="flex items-center gap-1.5 text-[13px] font-bold mb-1 text-ink dark:text-zinc-200"
-            >
-              عنوان
-              <SourceBadge source={titleSource} />
-            </label>
+          <section className="mb-4">
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <label
+                htmlFor="listing-title"
+                className="flex items-center gap-1.5 text-[13px] font-bold text-ink dark:text-zinc-200"
+              >
+                عنوان
+                {showSource ? <SourceBadge source={titleSource} /> : null}
+              </label>
+              <span className="nums text-[11px] text-ink-faint">
+                {toPersianDigits(title.length)}/{toPersianDigits(80)}
+              </span>
+            </div>
             <input
               id="listing-title"
               value={title}
@@ -913,13 +921,13 @@ const ListingComposeForm = forwardRef<
             />
           </section>
 
-          <section className="mb-3">
+          <section className="mb-4">
             <label
               htmlFor="listing-desc"
-              className="flex items-center gap-1.5 text-[13px] font-bold mb-1 text-ink dark:text-zinc-200"
+              className="flex items-center gap-1.5 text-[13px] font-bold mb-1.5 text-ink dark:text-zinc-200"
             >
               توضیح کوتاه
-              <SourceBadge source={descriptionSource} />
+              {showSource ? <SourceBadge source={descriptionSource} /> : null}
             </label>
             <textarea
               id="listing-desc"
@@ -928,19 +936,19 @@ const ListingComposeForm = forwardRef<
                 setDescription(e.target.value);
                 setDescriptionSource("user");
               }}
-              rows={3}
-              className="field resize-none min-h-[5rem] leading-relaxed"
+              rows={4}
+              className="field resize-none min-h-[6rem] leading-relaxed"
             />
           </section>
 
-          <div className="grid grid-cols-2 gap-2.5 mb-3">
+          <div className={`grid gap-2.5 mb-4 ${showCondition ? "grid-cols-2" : "grid-cols-1"}`}>
             <section>
               <label
                 htmlFor="listing-category"
-                className="flex items-center gap-1.5 text-[12px] font-bold mb-1 text-ink dark:text-zinc-200"
+                className="flex items-center gap-1.5 text-[13px] font-bold mb-1.5 text-ink dark:text-zinc-200"
               >
                 دسته
-                <SourceBadge source={categorySource} />
+                {showSource ? <SourceBadge source={categorySource} /> : null}
               </label>
               <input
                 id="listing-category"
@@ -960,13 +968,16 @@ const ListingComposeForm = forwardRef<
                 </datalist>
               ) : null}
             </section>
+            {showCondition ? (
             <section>
               <label
                 htmlFor="listing-condition"
-                className="flex items-center gap-1.5 text-[12px] font-bold mb-1 text-ink dark:text-zinc-200"
+                className="flex items-center gap-1.5 text-[13px] font-bold mb-1.5 text-ink dark:text-zinc-200"
               >
                 وضعیت
-                <SourceBadge source={condition ? conditionSource : undefined} />
+                {showSource ? (
+                  <SourceBadge source={condition ? conditionSource : undefined} />
+                ) : null}
               </label>
               <input
                 id="listing-condition"
@@ -979,6 +990,7 @@ const ListingComposeForm = forwardRef<
                 className="field !text-[13px]"
               />
             </section>
+            ) : null}
           </div>
 
           {typeFields}
@@ -1025,6 +1037,7 @@ const ListingComposeForm = forwardRef<
             </section>
           )}
 
+          {(!editMode || editableSpecs.length > 0) ? (
           <section className="mb-4">
             <p className="text-[13px] font-bold text-ink dark:text-zinc-200 mb-2">
               مشخصات
@@ -1045,7 +1058,7 @@ const ListingComposeForm = forwardRef<
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 mb-1">
                           <p className="text-[11px] text-ink-faint">{s.label}</p>
-                          <SourceBadge source={s.confidence} />
+                          {showSource ? <SourceBadge source={s.confidence} /> : null}
                         </div>
                         {editingLabel === s.label ? (
                           <input
@@ -1088,10 +1101,13 @@ const ListingComposeForm = forwardRef<
                 ))}
               </ul>
             )}
+            {editableSpecs.length > 0 ? (
             <p className="text-[11px] text-ink-faint mt-2 leading-relaxed">
               ابعاد یا ادعاهای حساس را فقط اگر درست‌اند نگه دارید.
             </p>
+            ) : null}
           </section>
+          ) : null}
 
           {!hideActions && !editMode && (
             <button
@@ -1148,11 +1164,11 @@ const ListingTypePicker = memo(function ListingTypePicker({
 }) {
   return (
     <section className="mb-4">
-      <label className="block text-[13px] font-bold mb-1.5 text-ink dark:text-zinc-200">
+      <label className="block text-[13px] font-bold mb-2 text-ink dark:text-zinc-200">
         می‌خواهی چه کاری انجام دهی؟
       </label>
-      <div className="grid grid-cols-6 gap-2">
-        {TYPES.map((t, i) => {
+      <div className="grid grid-cols-5 gap-1.5" role="group" aria-label="نوع آگهی">
+        {TYPES.map((t) => {
           const active = type === t;
           const Icon = TYPE_ICONS[t];
           return (
@@ -1161,7 +1177,7 @@ const ListingTypePicker = memo(function ListingTypePicker({
               type="button"
               onClick={() => onChange(t)}
               aria-pressed={active}
-              className={`${i < 3 ? "col-span-2" : "col-span-3"} rounded-xl px-2.5 py-2.5 text-[12px] font-bold border flex items-center justify-center gap-1.5 transition-[transform,colors] duration-150 active:scale-[0.97] ${
+              className={`rounded-xl px-1 py-2 text-[11px] font-bold border flex flex-col items-center justify-center gap-1 min-h-[3.25rem] transition-[transform,background-color,border-color,color] duration-150 active:scale-[0.97] ${
                 active
                   ? "bg-brand-600 text-white border-brand-600"
                   : "bg-[color:var(--circle-surface)] dark:bg-zinc-900 text-ink-muted border-stone-200/80 dark:border-zinc-700"
@@ -1230,7 +1246,7 @@ const ListingRawTextBlock = memo(function ListingRawTextBlock({
       />
       {voiceListening ? (
         <div className="mt-2 rounded-xl border border-rose-200/80 dark:border-rose-500/30 bg-rose-50/80 dark:bg-rose-500/10 px-3 py-2">
-          <p className="text-[10px] font-bold text-rose-700 dark:text-rose-300 mb-0.5">
+          <p className="text-[11px] font-bold text-rose-700 dark:text-rose-300 mb-0.5">
             در حال شنیدن…
           </p>
           <p className="text-[12px] text-ink dark:text-zinc-100 leading-relaxed min-h-[1.25rem]">

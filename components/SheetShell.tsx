@@ -12,6 +12,7 @@ export default function SheetShell({
   onClose,
   labelledBy,
   children,
+  header,
   footer,
   maxHeight = "90dvh",
   zClass = "z-40",
@@ -25,6 +26,8 @@ export default function SheetShell({
   onClose: () => void;
   labelledBy: string;
   children: ReactNode;
+  /** Stays pinned above the scroll area — titles, close, step chrome. */
+  header?: ReactNode;
   footer?: ReactNode;
   maxHeight?: string;
   zClass?: string;
@@ -75,10 +78,17 @@ export default function SheetShell({
           ) : (
             <div className="h-1 shrink-0" />
           )}
+          {header ? (
+            <div className="shrink-0 px-4 pb-3 border-b border-stone-200/60 dark:border-zinc-800">
+              {header}
+            </div>
+          ) : null}
           <div
             className={`${
               hugContent ? "flex-none" : "min-h-0 flex-1"
-            } overflow-y-auto overscroll-contain px-4 pb-4`}
+            } overflow-y-auto overscroll-contain px-4 pb-4 ${
+              header ? "pt-3.5" : ""
+            }`}
           >
             {children}
           </div>
