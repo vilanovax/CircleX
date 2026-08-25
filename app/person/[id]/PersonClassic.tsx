@@ -82,11 +82,17 @@ export default function PersonClassic(_props: { params: { id: string } }) {
   const [showTrustDetails, setShowTrustDetails] = useState(false);
   const [showEditRelation, setShowEditRelation] = useState(false);
   const [contentTab, setContentTab] = useState<ContentTab>("listings");
+  const hiddenListings = useStore((s) => s.hiddenListings);
 
   const theirListings = useMemo(
     () =>
-      listings.filter((l) => l.sellerId === id && canView(l, getPerson)),
-    [listings, id, getPerson],
+      listings.filter(
+        (l) =>
+          l.sellerId === id &&
+          canView(l, getPerson) &&
+          !hiddenListings.includes(l.id),
+      ),
+    [listings, id, getPerson, hiddenListings],
   );
   const theirRequests = useMemo(
     () =>

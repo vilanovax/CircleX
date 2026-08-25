@@ -56,6 +56,7 @@ export async function GET() {
       events: feed.events,
       joinRequests: joinRows.map(toClientJoinRequest),
       saved: prefs.saved,
+      hiddenListings: prefs.hiddenListings,
       listingNotes: prefs.listingNotes,
       archivedThreads: prefs.archivedThreads,
       pinnedThreads: prefs.pinnedThreads,

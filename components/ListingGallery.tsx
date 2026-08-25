@@ -137,13 +137,13 @@ export default function ListingGallery({
 
       {multi ? (
         <>
-          <div className="absolute top-3 start-3 z-10 rounded-full bg-black/50 text-white text-[11px] font-bold px-2.5 py-1 nums backdrop-blur-md tracking-wide">
+          <div className="absolute bottom-3 end-3 z-10 rounded-full bg-black/55 text-white text-[11px] font-bold px-2.5 py-1 nums backdrop-blur-md tracking-wide">
             {toPersianDigits(index + 1)}
             <span className="opacity-70 font-semibold mx-1">/</span>
             {toPersianDigits(total)}
           </div>
           <div
-            className="absolute bottom-4 inset-x-0 z-10 flex justify-center gap-1.5"
+            className="absolute bottom-3 inset-x-16 z-10 flex justify-center gap-1.5"
             role="tablist"
             aria-label="انتخاب تصویر"
           >

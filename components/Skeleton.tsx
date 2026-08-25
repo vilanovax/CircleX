@@ -98,9 +98,15 @@ export function ListingDetailSkeleton() {
           <div className={`h-6 w-12 ${bone} rounded-full`} />
         </div>
         <div className={`h-7 w-3/4 ${bone} rounded`} />
-        <div className={`h-6 w-20 ${bone} rounded`} />
+        <div className={`h-3 w-2/5 ${bone} rounded`} />
+        <div className={`h-6 w-24 ${bone} rounded`} />
+        <div className="grid grid-cols-3 gap-px overflow-hidden rounded-2xl">
+          <div className={`h-16 ${bone}`} />
+          <div className={`h-16 ${bone}`} />
+          <div className={`h-16 ${bone}`} />
+        </div>
+        <div className={`h-28 w-full ${bone} rounded-2xl`} />
         <div className={`h-16 w-full ${bone} rounded-xl`} />
-        <div className={`h-24 w-full ${bone} rounded-2xl`} />
       </div>
     </div>
   );

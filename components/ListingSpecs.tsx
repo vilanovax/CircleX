@@ -1,10 +1,15 @@
+import { visibleListingSpecs } from "@/lib/listing-hero-specs";
 import type { ListingSpec } from "@/lib/types";
 
-/** Specs the buyer already sees as title/price chips — skip in the table. */
-const HIDDEN = new Set(["قیمت", "قابل مذاکره"]);
-
-export default function ListingSpecs({ specs }: { specs: ListingSpec[] }) {
-  const rows = specs.filter((s) => !HIDDEN.has(s.label));
+export default function ListingSpecs({
+  specs,
+  omitLabels = [],
+}: {
+  specs: ListingSpec[];
+  omitLabels?: string[];
+}) {
+  const skip = new Set(omitLabels);
+  const rows = visibleListingSpecs(specs).filter((s) => !skip.has(s.label));
   if (rows.length === 0) return null;
 
   return (

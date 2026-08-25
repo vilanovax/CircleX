@@ -26,6 +26,7 @@ import {
   GearIcon,
   HeartIcon,
   EyeIcon,
+  EyeOffIcon,
   MapPinIcon,
   PencilIcon,
   PlusIcon,
@@ -50,7 +51,7 @@ const SavedListingCard = lazyUi(() => import("@/components/ListingCard"), {
   ),
 });
 
-type ActivityTab = "listings" | "events" | "saved" | "endorsements";
+type ActivityTab = "listings" | "events" | "saved" | "hidden" | "endorsements";
 
 export default function ClassicProfile() {
   const hydrated = useStore((s) => s.hydrated);
@@ -204,9 +205,13 @@ function ProfileActivity() {
   const listings = useStore((s) => s.listings);
   const events = useStore((s) => s.events);
   const saved = useStore((s) => s.saved);
+  const hiddenListings = useStore((s) => s.hiddenListings);
   const listingNotes = useStore((s) => s.listingNotes);
+  const toggleHiddenListing = useStore((s) => s.toggleHiddenListing);
+  const { show } = useToast();
   const [tab, setTab] = useState<ActivityTab>("listings");
   const [hashSaved, setHashSaved] = useState(false);
+  const [hashHidden, setHashHidden] = useState(false);
 
   const myListings = useMemo(
     () => listings.filter((l) => l.sellerId === "me"),
@@ -238,6 +243,15 @@ function ProfileActivity() {
     return out;
   }, [saved, listingById]);
 
+  const hiddenListingRows = useMemo(() => {
+    const out: Listing[] = [];
+    for (const id of hiddenListings) {
+      const listing = listingById.get(id);
+      if (listing) out.push(listing);
+    }
+    return out;
+  }, [hiddenListings, listingById]);
+
   const { hostedEvents, attendingEvents, allMyEvents } = useMemo(() => {
     const hosted: CircleEvent[] = [];
     const attending: CircleEvent[] = [];
@@ -260,6 +274,11 @@ function ProfileActivity() {
       { id: "events" as const, label: "رویدادها", count: allMyEvents },
       { id: "saved" as const, label: "نشان‌ها", count: savedListings.length },
       {
+        id: "hidden" as const,
+        label: "پنهان‌ها",
+        count: hiddenListingRows.length,
+      },
+      {
         id: "endorsements" as const,
         label: "تأییدهای من",
         count: myGivenBadges.length,
@@ -269,6 +288,7 @@ function ProfileActivity() {
       myListings.length,
       allMyEvents,
       savedListings.length,
+      hiddenListingRows.length,
       myGivenBadges.length,
     ],
   );
@@ -276,9 +296,12 @@ function ProfileActivity() {
   const visibleTabs = useMemo(
     () =>
       activityTabs.filter(
-        (t) => t.count > 0 || (hashSaved && t.id === "saved"),
+        (t) =>
+          t.count > 0 ||
+          (hashSaved && t.id === "saved") ||
+          (hashHidden && t.id === "hidden"),
       ),
-    [activityTabs, hashSaved],
+    [activityTabs, hashSaved, hashHidden],
   );
   const showTabBar = visibleTabs.length >= 2;
   const activeTab = visibleTabs.some((t) => t.id === tab)
@@ -297,9 +320,21 @@ function ProfileActivity() {
       return () => window.clearTimeout(t);
     }
 
+    if (window.location.hash === "#hidden") {
+      setHashHidden(true);
+      setTab("hidden");
+      const el = document.getElementById("activity");
+      if (!el) return;
+      const t = window.setTimeout(() => {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 120);
+      return () => window.clearTimeout(t);
+    }
+
     if (myListings.length > 0) return;
     if (allMyEvents > 0) setTab("events");
     else if (savedListings.length > 0) setTab("saved");
+    else if (hiddenListingRows.length > 0) setTab("hidden");
     else if (myGivenBadges.length > 0) setTab("endorsements");
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once after hydrate
   }, []);
@@ -367,7 +402,13 @@ function ProfileActivity() {
 
       <div
         className="mt-0"
-        id={activeTab === "saved" ? "saved" : undefined}
+        id={
+          activeTab === "saved"
+            ? "saved"
+            : activeTab === "hidden"
+              ? "hidden"
+              : undefined
+        }
         role="tabpanel"
       >
         {activeTab === "listings" ? (
@@ -433,6 +474,37 @@ function ProfileActivity() {
                   </div>
                 );
               })}
+            </div>
+          )
+        ) : null}
+
+        {activeTab === "hidden" ? (
+          hiddenListingRows.length === 0 ? (
+            <EmptyCard
+              title="آگهی پنهانی نداری"
+              text="از صفحهٔ آگهی بزن «دیگر در فید نبین» تا اینجا جمع شود."
+              href="/"
+              cta="دیدن آگهی‌ها"
+              icon="eye"
+            />
+          ) : (
+            <div className="space-y-2.5">
+              {hiddenListingRows.map((l) => (
+                <div key={l.id} className="cv-card">
+                  <SavedListingCard listing={l} compactTrust />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void toggleHiddenListing(l.id).then(() =>
+                        show("دوباره در فید می‌آید"),
+                      );
+                    }}
+                    className="mt-1.5 px-1 text-[12px] font-bold text-brand-600 dark:text-brand-400"
+                  >
+                    برگردان به فید
+                  </button>
+                </div>
+              ))}
             </div>
           )
         ) : null}
@@ -857,7 +929,7 @@ function EmptyCard({
   text: string;
   href: string;
   cta: string;
-  icon?: "heart" | "plus" | "calendar" | "shield";
+  icon?: "heart" | "plus" | "calendar" | "shield" | "eye";
 }) {
   return (
     <div className="card px-5 py-7 text-center relative overflow-hidden">
@@ -878,7 +950,9 @@ function EmptyCard({
                 ? "bg-levelB/10 text-levelB ring-levelB/20"
                 : icon === "shield"
                   ? "bg-levelA/10 text-levelA ring-levelA/20"
-                  : "bg-brand-50 dark:bg-brand-500/15 text-brand-600 dark:text-brand-300 ring-brand-100 dark:ring-brand-500/25"
+                  : icon === "eye"
+                    ? "bg-stone-100 dark:bg-zinc-800 text-ink-muted ring-stone-200/80 dark:ring-zinc-700"
+                    : "bg-brand-50 dark:bg-brand-500/15 text-brand-600 dark:text-brand-300 ring-brand-100 dark:ring-brand-500/25"
           }`}
         >
           {icon === "heart" ? (
@@ -887,6 +961,8 @@ function EmptyCard({
             <CalendarIcon className="w-5 h-5" />
           ) : icon === "shield" ? (
             <ShieldCheckIcon className="w-5 h-5" />
+          ) : icon === "eye" ? (
+            <EyeOffIcon className="w-5 h-5" />
           ) : (
             <PlusIcon className="w-5 h-5" />
           )}

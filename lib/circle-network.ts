@@ -507,17 +507,23 @@ export async function loadSocialFeed(
 export async function loadViewerPrefs(viewerId: string): Promise<{
   showOwnListingsInFeed: boolean;
   saved: string[];
+  hiddenListings: string[];
   listingNotes: Record<string, string>;
   archivedThreads: string[];
   pinnedThreads: string[];
   deletedThreads: string[];
 }> {
-  const [user, savedRows, noteRows, threadRows] = await Promise.all([
+  const [user, savedRows, hiddenRows, noteRows, threadRows] = await Promise.all([
     prisma.user.findUnique({
       where: { id: viewerId },
       select: { showOwnListingsInFeed: true },
     }),
     prisma.savedListing.findMany({
+      where: { userId: viewerId },
+      orderBy: { createdAt: "desc" },
+      select: { listingId: true },
+    }),
+    prisma.hiddenListing.findMany({
       where: { userId: viewerId },
       orderBy: { createdAt: "desc" },
       select: { listingId: true },
@@ -543,6 +549,7 @@ export async function loadViewerPrefs(viewerId: string): Promise<{
   return {
     showOwnListingsInFeed: user?.showOwnListingsInFeed ?? true,
     saved: savedRows.map((row) => row.listingId),
+    hiddenListings: hiddenRows.map((row) => row.listingId),
     listingNotes,
     archivedThreads,
     pinnedThreads,

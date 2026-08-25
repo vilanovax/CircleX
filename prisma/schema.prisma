@@ -76,6 +76,7 @@ model User {
   gatheringsHosted    Gathering[]          @relation("GatheringHost")
   gatheringRsvps      GatheringRsvp[]
   savedListings       SavedListing[]
+  hiddenListings      HiddenListing[]
   listingNotes        ListingPersonalNote[]
   listingViews        ListingView[]
   threadPrefs         ThreadPreference[]   @relation("ThreadOwner")
@@ -235,6 +236,7 @@ model MarketListing {
   messages     DirectMessage[]
   endorsements ListingEndorsement[]
   saves        SavedListing[]
+  hides        HiddenListing[]
   notes        ListingPersonalNote[]
   views        ListingView[]
 
@@ -414,6 +416,20 @@ model GatheringRsvp {
 }
 
 model SavedListing {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listingId String
+  listing   MarketListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@unique([userId, listingId])
+  @@index([userId])
+  @@index([listingId])
+}
+
+/** Viewer hid this listing from their feed; relationship is unchanged. */
+model HiddenListing {
   id        String        @id @default(cuid())
   userId    String
   user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)

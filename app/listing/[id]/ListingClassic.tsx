@@ -8,13 +8,17 @@ import { useStore } from "@/lib/store";
 import { useCatalog } from "@/lib/use-catalog";
 import Header from "@/components/Header";
 import ListingGallery from "@/components/ListingGallery";
+import ListingHeroSpecs from "@/components/ListingHeroSpecs";
 import ListingSpecs from "@/components/ListingSpecs";
+import ListingTrustStrip from "@/components/ListingTrustStrip";
+import ListingSellerMore from "@/components/ListingSellerMore";
 import { lazyUi } from "@/lib/lazy-ui";
 import Avatar from "@/components/Avatar";
 import { EndorsementList, visibleEndorsements } from "@/components/Endorsements";
 import {
   ChatIcon,
   CircleUsersIcon,
+  EyeOffIcon,
   FlagIcon,
   HeartIcon,
   MoreIcon,
@@ -33,13 +37,15 @@ import type { Listing } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
 import { canView, listingSellerSubtitle } from "@/lib/trust";
 import { useToast } from "@/components/Toast";
+import { ApiError } from "@/lib/api";
 import ListingAskPrompts from "@/components/ListingAskPrompts";
 import {
   listingBuyerPrompts,
   type BuyerPrompt,
 } from "@/lib/listing-prompts";
 import { listingGalleryImages } from "@/lib/listing-image";
-import { placeDetailLabel } from "@/lib/place";
+import { pickHeroSpecs } from "@/lib/listing-hero-specs";
+import { AREA_MODES, areaMode, placeDetailLabel } from "@/lib/place";
 import { useOwnerListingFlow } from "@/components/OwnerListingManager";
 import { ListingDetailSkeleton } from "@/components/Skeleton";
 
@@ -58,6 +64,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const params = useParams();
   const id = String(params.id);
   const listing = useStore((s) => s.listings.find((row) => row.id === id));
+  const listingHidden = useStore((s) => s.hiddenListings.includes(id));
   const ensureListing = useStore((s) => s.ensureListing);
   const getPerson = useStore((s) => s.getPerson);
   const hydrated = useStore((s) => s.hydrated);
@@ -98,6 +105,10 @@ export default function ListingClassic(_props: { params: { id: string } }) {
     () => (listing ? listingGalleryImages(listing) : []),
     [listing],
   );
+  const heroSpecs = useMemo(
+    () => (listing?.specs ? pickHeroSpecs(listing.specs) : []),
+    [listing],
+  );
   const endorsementMeta = useMemo(() => {
     if (!listing) {
       return { count: 0, mine: [] as Listing["endorsements"] };
@@ -130,20 +141,27 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const isDirect =
     listing.sellerId !== "me" && listing.trustPath.length === 0;
   const displayTitle = listingDisplayTitle(listing.title, listing.type);
+  const placeLine = placeDetailLabel(listing.city, listing.area);
+  const deliveryMode = AREA_MODES.find(
+    (row) => row.id === areaMode(listing.area),
+  );
+  const deliveryBit =
+    deliveryMode && placeLine !== deliveryMode.label ? deliveryMode.label : "";
   const negotiable = listing.specs?.find((s) => s.label === "قابل مذاکره");
   const endorsementCount = endorsementMeta.count;
   const myEndorsements = endorsementMeta.mine;
   const buyerPrompts = listingBuyerPrompts(listing);
   const footerPad =
-    isMine || buyerPrompts.length === 0 ? "pb-[5.75rem]" : "pb-[8.25rem]";
+    isMine || buyerPrompts.length === 0
+      ? "pb-[6.25rem] scroll-pb-[6.25rem]"
+      : "pb-[8.75rem] scroll-pb-[8.75rem]";
 
-  const ctaLabel = (() => {
-    if (listing.type === "donation") return "برای دریافت پیام بده";
-    if (listing.type === "service") return "برای رزرو پیام بده";
-    if (listing.type === "sale") return "دربارهٔ کالا پیام بده";
-    if (seller) return `پیام به ${seller.name}`;
-    return "پیام به فروشنده";
-  })();
+  const ctaLabel =
+    listing.type === "donation"
+      ? "پیام برای دریافت"
+      : listing.type === "service"
+        ? "پیام برای رزرو"
+        : "پیام به فروشنده";
 
   if (!isMine && inactive) {
     return (
@@ -207,7 +225,8 @@ export default function ListingClassic(_props: { params: { id: string } }) {
           <span className={`chip ${listingTypeChip[listing.type]}`}>
             {listingTypeLabels[listing.type]}
           </span>
-          {listing.category ? (
+          {listing.category &&
+          listing.category !== listingTypeLabels[listing.type] ? (
             <span className="chip !text-[11px] !py-0.5 bg-transparent text-ink-muted ring-1 ring-stone-200/60 dark:ring-zinc-700">
               {listing.category}
             </span>
@@ -228,6 +247,19 @@ export default function ListingClassic(_props: { params: { id: string } }) {
           {displayTitle}
         </h1>
 
+        <p className="mt-2 text-[12px] text-ink-muted dark:text-zinc-400 leading-relaxed px-0.5">
+          {[placeLine, deliveryBit, listing.postedAt]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+        <p className="mt-1 text-[11px] text-ink-faint dark:text-zinc-500 leading-relaxed px-0.5">
+          {listingPrivacyAudienceLine(
+            listing.privacy,
+            isMine ? "تو" : seller?.name,
+          )}
+          {!isMine && !isDirect ? " · از طریق آشنایان می‌رسد" : ""}
+        </p>
+
         <div className="mt-2.5 flex items-baseline gap-2 flex-wrap">
           {listing.price != null ? (
             <span className="text-[20px] font-extrabold text-ink dark:text-zinc-50 nums tracking-tight">
@@ -245,35 +277,39 @@ export default function ListingClassic(_props: { params: { id: string } }) {
           ) : null}
         </div>
 
-        <p className="text-[13px] text-ink-muted dark:text-zinc-300 leading-[1.8] mt-3.5 whitespace-pre-line">
+        {heroSpecs.length === 3 ? (
+          <ListingHeroSpecs specs={heroSpecs} />
+        ) : null}
+
+        {listing.specs && listing.specs.length > 0 ? (
+          <ListingSpecs
+            specs={listing.specs}
+            omitLabels={heroSpecs.map((s) => s.label)}
+          />
+        ) : null}
+
+        <ListingTrustStrip listing={listing} />
+
+        <p className="text-[13px] text-ink-muted dark:text-zinc-300 leading-[1.8] mt-4 whitespace-pre-line">
           {listing.description}
         </p>
 
-        {listing.specs && listing.specs.length > 0 ? (
-          <ListingSpecs specs={listing.specs} />
-        ) : null}
-
-        <p className="mt-3.5 text-[12px] text-ink-muted dark:text-zinc-400 leading-relaxed px-0.5">
-          {[placeDetailLabel(listing.city, listing.area), listing.postedAt]
-            .filter(Boolean)
-            .join(" · ")}
-        </p>
-        <p className="mt-1 text-[11px] text-ink-faint dark:text-zinc-500 leading-relaxed px-0.5">
-          {listingPrivacyAudienceLine(
-            listing.privacy,
-            isMine ? "تو" : seller?.name,
-          )}
-        </p>
         {isMine && inactive ? (
           <p className="mt-3 rounded-2xl bg-stone-100/80 dark:bg-zinc-800/70 px-3.5 py-2.5 text-[12px] text-ink-muted dark:text-zinc-300 leading-relaxed">
             این آگهی غیرفعال است — حلقه آن را در فید نمی‌بیند. در پروفایل تو
             می‌ماند.
           </p>
         ) : null}
+        {listingHidden ? (
+          <p className="mt-3 rounded-2xl bg-stone-100/80 dark:bg-zinc-800/70 px-3.5 py-2.5 text-[12px] text-ink-muted dark:text-zinc-300 leading-relaxed">
+            این آگهی را از فیدت برداشته‌ای. لینک هنوز کار می‌کند. از پروفایل، تب
+            پنهان‌ها، برمی‌گردد.
+          </p>
+        ) : null}
       </div>
 
       {seller && !isMine ? (
-        <section className="px-4 pt-3.5 cv-block">
+        <section className="px-4 pt-3.5">
           <p className="text-[11px] font-semibold text-ink-faint mb-2 px-0.5">
             فروشنده
           </p>
@@ -310,11 +346,15 @@ export default function ListingClassic(_props: { params: { id: string } }) {
               </span>
             </Link>
           </div>
+          <ListingSellerMore
+            sellerId={listing.sellerId}
+            listingId={listing.id}
+          />
         </section>
       ) : null}
 
       {!isMine && !isDirect ? (
-        <section className="px-4 pt-3 cv-block">
+        <section className="px-4 pt-3">
           <div className="card p-4">
             <div className="flex items-center gap-2 mb-3">
               <span className="w-8 h-8 rounded-xl bg-[color:var(--circle-trust)]/12 text-[color:var(--circle-trust)] flex items-center justify-center shrink-0">
@@ -352,7 +392,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         </section>
       ) : null}
 
-      <section className="px-4 pt-3 cv-block">
+      <section className="px-4 pt-3">
         <div className="card px-3.5 py-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -395,7 +435,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
       </section>
 
       {!isMine ? (
-        <section className="px-4 pt-2 pb-4 cv-block">
+        <section className="px-4 pt-2 pb-5">
           <button
             type="button"
             onClick={() => setShowRefer(true)}
@@ -419,6 +459,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
               برای یک آشنا بفرست ‹
             </span>
           </button>
+          <ListingHideControl listingId={listing.id} hidden={listingHidden} />
         </section>
       ) : null}
 
@@ -516,6 +557,51 @@ function ListingHeaderActions({
 const HEADER_ICON =
   "relative inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-visible rounded-lg p-0 leading-none text-ink-faint hover:bg-stone-200/50 dark:hover:bg-zinc-800 transition-colors appearance-none";
 
+function ListingHideControl({
+  listingId,
+  hidden,
+}: {
+  listingId: string;
+  hidden: boolean;
+}) {
+  const toggleHiddenListing = useStore((s) => s.toggleHiddenListing);
+  const { show } = useToast();
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void toggleHiddenListing(listingId)
+          .then(() =>
+            show(
+              hidden
+                ? "دوباره در فید می‌آید"
+                : "از فیدت برداشته شد — در پروفایل، تب پنهان‌ها",
+            ),
+          )
+          .catch((err) =>
+            show(err instanceof ApiError ? err.message : "پنهان نشد"),
+          );
+      }}
+      className="mt-1 w-full flex items-center gap-3 px-1 py-2 rounded-xl text-start active:opacity-80 transition-opacity"
+    >
+      <span className="w-9 h-9 rounded-xl bg-stone-100 dark:bg-zinc-800 text-ink-muted dark:text-zinc-400 flex items-center justify-center shrink-0">
+        <EyeOffIcon className="w-5 h-5" />
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className="block font-bold text-[13px] text-ink dark:text-zinc-100">
+          {hidden ? "برگردان به فید" : "دیگر در فید نبین"}
+        </span>
+        <span className="block text-[11px] text-ink-muted mt-0.5">
+          {hidden
+            ? "فقط برای تو پنهان بود؛ فروشنده خبردار نمی‌شود"
+            : "فقط برای تو پنهان می‌شود؛ فروشنده خبردار نمی‌شود"}
+        </span>
+      </span>
+    </button>
+  );
+}
+
 function ListingSaveButton({ id }: { id: string }) {
   const saved = useStore((s) => s.saved.includes(id));
   const hasNote = useStore((s) => Boolean(s.listingNotes[id]?.trim()));
@@ -583,7 +669,7 @@ function ListingOwnerChrome({
       {menuSlot ? createPortal(menu, menuSlot) : null}
       <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
         <div className="app-shell !min-h-0 !shadow-none bg-transparent">
-          <div className="pointer-events-auto border-t border-stone-200/60 dark:border-zinc-800 bg-[color:var(--circle-surface)]/92 dark:bg-zinc-900/92 backdrop-blur-md px-3 pt-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))]">
+          <div className="pointer-events-auto border-t border-stone-200/60 dark:border-zinc-800 bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-md px-3 pt-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))]">
             {inactive ? (
               <div className="flex gap-2">
                 <button
@@ -592,14 +678,14 @@ function ListingOwnerChrome({
                     void setListingDealStatus(listing.id, "available");
                     show("آگهی دوباره در حلقه دیده می‌شود");
                   }}
-                  className="btn-primary flex-1 !py-3.5"
+                  className="btn-primary flex-1 !py-3.5 min-h-[3.25rem]"
                 >
                   دوباره فعال کن
                 </button>
                 <button
                   type="button"
                   onClick={owner.openEdit}
-                  className="btn-ghost flex-1 !py-3.5"
+                  className="btn-ghost flex-1 !py-3.5 min-h-[3.25rem]"
                 >
                   ویرایش آگهی
                 </button>
@@ -608,7 +694,7 @@ function ListingOwnerChrome({
               <button
                 type="button"
                 onClick={owner.openEdit}
-                className="btn-primary w-full !py-3.5 flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20"
+                className="btn-primary w-full !py-3.5 min-h-[3.25rem] flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20"
               >
                 <PencilIcon className="w-5 h-5" />
                 ویرایش آگهی
@@ -666,16 +752,16 @@ function ListingBuyerFooter({
   return (
     <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
       <div className="app-shell !min-h-0 !shadow-none bg-transparent">
-        <div className="pointer-events-auto border-t border-stone-200/60 dark:border-zinc-800 bg-[color:var(--circle-surface)]/92 dark:bg-zinc-900/92 backdrop-blur-md px-3 pt-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))]">
+        <div className="border-t border-stone-200/60 dark:border-zinc-800 bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-md px-3 pt-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))]">
           {prompts.length > 0 ? (
             <div
               className={`overflow-hidden transition-[max-height,opacity,margin] duration-200 ease-out ${
                 collapsed
-                  ? "max-h-0 opacity-0 mb-0"
+                  ? "max-h-0 opacity-0 mb-0 pointer-events-none"
                   : "max-h-14 opacity-100 mb-2"
               }`}
             >
-              <div className="flex items-center gap-2">
+              <div className="pointer-events-auto flex items-center gap-2">
                 <span className="shrink-0 text-[11px] font-bold text-ink-faint tracking-wide">
                   بپرس
                 </span>
@@ -698,7 +784,7 @@ function ListingBuyerFooter({
                 `/messages/${listing.sellerId}?listing=${encodeURIComponent(listing.id)}`,
               )
             }
-            className="btn-primary w-full !py-3.5 flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20"
+            className="btn-primary pointer-events-auto w-full !py-3.5 min-h-[3.25rem] flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20"
           >
             <ChatIcon className="w-5 h-5" />
             {ctaLabel}
