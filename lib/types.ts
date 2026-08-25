@@ -228,6 +228,8 @@ export interface Listing {
   privatePublish?: boolean;
   /** Viewer cannot see the seller’s name or photo. */
   identityHidden?: boolean;
+  /** Stable private-listing face; assigned by the app, not chosen by the seller. */
+  privateAvatar?: string;
   /** Owner: people this listing is hidden from. */
   excludePersonIds?: string[];
   /** Owner: relation types this listing is hidden from. */

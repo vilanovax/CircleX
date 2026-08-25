@@ -111,7 +111,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
       contextListing.identityHidden,
   );
   const peer = hidePeer
-    ? circleMemberPerson(peerId)
+    ? circleMemberPerson(peerId, activeListingId)
     : storedPeer;
   const dealStatus = contextListing?.dealStatus ?? "available";
 
@@ -525,16 +525,22 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
                           void addMessage(
                             peerId,
                             "این آگهی را موقتاً رزرو کردم تا هماهنگ کنیم.",
+                            contextListing.id,
+                            scoped,
                           ).catch(notifySendError);
                         } else if (id === "agreed") {
                           void addMessage(
                             peerId,
                             "روی این آگهی به توافق رسیدیم ✓",
+                            contextListing.id,
+                            scoped,
                           ).catch(notifySendError);
                         } else {
                           void addMessage(
                             peerId,
                             "آگهی دوباره موجود است.",
+                            contextListing.id,
+                            scoped,
                           ).catch(notifySendError);
                         }
                       }}

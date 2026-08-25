@@ -18,6 +18,7 @@ function ListingCard({
   audienceHint,
   showOpenHint = false,
   imagePriority = false,
+  eagerTrust = false,
 }: {
   listing: Listing;
   /** One-line trust row for feed (default). Full box on detail-adjacent views. */
@@ -30,6 +31,8 @@ function ListingCard({
   showOpenHint?: boolean;
   /** LCP: first visible feed photo. */
   imagePriority?: boolean;
+  /** First-screen avatars should not wait for lazy load. */
+  eagerTrust?: boolean;
 }) {
   const people = useStore((s) =>
     compactTrust || hideTrust ? null : s.people,
@@ -52,6 +55,7 @@ function ListingCard({
             (e) => !e.hidden || e.personId === "me",
           )}
           variant={compactTrust ? "compact" : "default"}
+          eager={eagerTrust || imagePriority}
         />
       )}
 

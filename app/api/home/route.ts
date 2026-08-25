@@ -37,10 +37,12 @@ export async function GET() {
       .filter((r) => r.expiresAt.getTime() <= now)
       .map((r) => r.id);
     if (expiredIds.length > 0) {
-      await prisma.invite.updateMany({
-        where: { id: { in: expiredIds } },
-        data: { status: "expired" },
-      });
+      void prisma.invite
+        .updateMany({
+          where: { id: { in: expiredIds } },
+          data: { status: "expired" },
+        })
+        .catch(() => {});
     }
 
     const pending = live.map(toClientInvite);

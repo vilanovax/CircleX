@@ -152,6 +152,15 @@ export default function ClassicFeed() {
     return { allowed: visible, hidden };
   }, [listings, getPerson]);
 
+  const hiddenListingSet = useMemo(
+    () => new Set(hiddenListings),
+    [hiddenListings],
+  );
+  const hiddenPeopleSet = useMemo(
+    () => new Set(hiddenPeople),
+    [hiddenPeople],
+  );
+
   const visibleRequests = useMemo(() => {
     const q = normalizeFa(deferredQuery);
     return requests.filter((r) => {
@@ -189,8 +198,8 @@ export default function ClassicFeed() {
         return false;
       if (!listingMatchesScope(l, circleScope, getPerson)) return false;
       if (!showOwnListingsInFeed && l.sellerId === "me") return false;
-      if (hiddenListings.includes(l.id)) return false;
-      if (hiddenPeople.includes(l.sellerId)) return false;
+      if (hiddenListingSet.has(l.id)) return false;
+      if (hiddenPeopleSet.has(l.sellerId)) return false;
       return true;
     });
   }, [
@@ -201,13 +210,21 @@ export default function ClassicFeed() {
     getPerson,
     requestsMode,
     showOwnListingsInFeed,
-    hiddenListings,
-    hiddenPeople,
+    hiddenListingSet,
+    hiddenPeopleSet,
   ]);
 
   const feedTotal = requestsMode ? visibleRequests.length : visible.length;
   const feedShown = Math.min(feedPage * FEED_PAGE, feedTotal);
   const feedRemaining = feedTotal - feedShown;
+  const pagedListings = useMemo(
+    () => (requestsMode ? [] : visible.slice(0, feedShown)),
+    [requestsMode, visible, feedShown],
+  );
+  const pagedRequests = useMemo(
+    () => (requestsMode ? visibleRequests.slice(0, feedShown) : []),
+    [requestsMode, visibleRequests, feedShown],
+  );
 
   useEffect(() => {
     setFeedPage(1);
@@ -325,14 +342,8 @@ export default function ClassicFeed() {
                 />
               ) : (
                 <>
-                  {visibleRequests.slice(0, feedShown).map((r, i) => (
-                    <div
-                      key={r.id}
-                      className={i < 4 ? "animate-fade-up" : undefined}
-                      style={
-                        i < 4 ? { animationDelay: `${i * 45}ms` } : undefined
-                      }
-                    >
+                  {pagedRequests.map((r) => (
+                    <div key={r.id} className="cv-card">
                       <RequestCard request={r} feedStyle compactTrust />
                     </div>
                   ))}
@@ -358,18 +369,13 @@ export default function ClassicFeed() {
               />
             ) : (
               <>
-                {visible.slice(0, feedShown).map((l, i) => (
-                  <div
-                    key={l.id}
-                    className={i < 4 ? "animate-fade-up" : undefined}
-                    style={
-                      i < 4 ? { animationDelay: `${i * 45}ms` } : undefined
-                    }
-                  >
+                {pagedListings.map((l, i) => (
+                  <div key={l.id} className="cv-card">
                     <ListingCard
                       listing={l}
                       compactTrust
                       imagePriority={i === 0}
+                      eagerTrust={i < 3}
                     />
                   </div>
                 ))}
@@ -641,8 +647,7 @@ function FeedEmptyState({
 }
 
 function EventStripCard({ event }: { event: CircleEvent }) {
-  const getPerson = useStore((s) => s.getPerson);
-  const host = getPerson(event.hostId);
+  const host = useStore((s) => s.getPerson(event.hostId));
   const count = event.attendees.length;
 
   return (

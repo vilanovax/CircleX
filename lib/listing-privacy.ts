@@ -10,9 +10,29 @@ import type {
 } from "@/lib/types";
 
 export const CIRCLE_MEMBER_NAME = "یکی از اعضای سیرکل";
-export const CIRCLE_MEMBER_AVATAR = "/avatars/01.webp";
 
 export const HIDDEN_SELLER_PREFIX = "hidden:";
+
+/** Dedicated faces for identity-hidden listings — not in the profile picker. */
+export const PRIVATE_LISTING_AVATARS = Array.from(
+  { length: 50 },
+  (_, i) => `/avatars/private/${String(i + 1).padStart(2, "0")}.webp`,
+);
+
+export function privateListingAvatar(listingId: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < listingId.length; i++) {
+    hash ^= listingId.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return PRIVATE_LISTING_AVATARS[(hash >>> 0) % PRIVATE_LISTING_AVATARS.length];
+}
+
+export function listingIdFromHiddenSeller(id: string): string | undefined {
+  if (!id.startsWith(HIDDEN_SELLER_PREFIX)) return undefined;
+  const listingId = id.slice(HIDDEN_SELLER_PREFIX.length);
+  return listingId || undefined;
+}
 
 const RELATION_TYPES: RelationType[] = [
   "family",
@@ -22,11 +42,12 @@ const RELATION_TYPES: RelationType[] = [
   "acquaintance",
 ];
 
-export function circleMemberPerson(id: string): Person {
+export function circleMemberPerson(id: string, listingId?: string): Person {
+  const lid = listingId ?? listingIdFromHiddenSeller(id);
   return {
     id,
     name: CIRCLE_MEMBER_NAME,
-    avatar: CIRCLE_MEMBER_AVATAR,
+    avatar: lid ? privateListingAvatar(lid) : PRIVATE_LISTING_AVATARS[0],
     relation: "acquaintance",
     level: "C",
     deals: 0,
@@ -84,12 +105,12 @@ export function viewerExcludedFromListing(opts: {
   excludeRelationTypes: Iterable<RelationType>;
   sellerToViewerRelation?: RelationType | null;
 }): boolean {
-  for (const id of opts.excludePersonIds) {
+  for (const id of Array.from(opts.excludePersonIds)) {
     if (id === opts.viewerId) return true;
   }
   const relation = opts.sellerToViewerRelation;
   if (!relation) return false;
-  for (const type of opts.excludeRelationTypes) {
+  for (const type of Array.from(opts.excludeRelationTypes)) {
     if (type === relation) return true;
   }
   return false;
@@ -172,6 +193,7 @@ export function applyListingIdentity<
   excludePersonIds?: string[];
   excludeRelationTypes?: RelationType[];
   identityRevealedPeerIds?: string[];
+  privateAvatar?: string;
 } {
   const identityHidden =
     view.hideIdentity && !view.isOwner && !view.revealed;
@@ -187,6 +209,9 @@ export function applyListingIdentity<
     endorsements: identityHidden ? [] : row.endorsements,
     privatePublish: view.hideIdentity,
     identityHidden,
+    ...(view.hideIdentity
+      ? { privateAvatar: privateListingAvatar(row.id) }
+      : {}),
     ...(view.isOwner
       ? {
           excludePersonIds: view.excludePersonIds ?? [],

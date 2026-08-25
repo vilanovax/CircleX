@@ -2,10 +2,7 @@ import { prisma } from "@/lib/db";
 import { jsonError, readJson, withDb } from "@/lib/http";
 import { toClientDirectMessage } from "@/lib/mappers";
 import { isCircloPeer } from "@/lib/circlo";
-import {
-  CIRCLE_MEMBER_AVATAR,
-  CIRCLE_MEMBER_NAME,
-} from "@/lib/listing-privacy";
+import { circleMemberPerson } from "@/lib/listing-privacy";
 import {
   assertCanSendDm,
   DM_TEXT_MAX,
@@ -125,15 +122,7 @@ export async function POST(req: Request) {
 
     let peer: Person | null = null;
     if (peerHidden) {
-      peer = {
-        id: peerId,
-        name: CIRCLE_MEMBER_NAME,
-        avatar: CIRCLE_MEMBER_AVATAR,
-        relation: "acquaintance",
-        level: "C",
-        deals: 0,
-        inMyCircle: false,
-      };
+      peer = circleMemberPerson(peerId, listingId);
     } else {
       const [found] = await peopleForMessagePeers(session.id, [peerId]);
       peer = found ?? null;

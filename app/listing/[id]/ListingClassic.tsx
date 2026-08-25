@@ -37,10 +37,10 @@ import type { Listing } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
 import { canView, listingSellerSubtitle } from "@/lib/trust";
 import {
-  CIRCLE_MEMBER_AVATAR,
   CIRCLE_MEMBER_NAME,
   listingChatHref,
   listingPrivacySummary,
+  privateListingAvatar,
 } from "@/lib/listing-privacy";
 import { useToast } from "@/components/Toast";
 import { ApiError } from "@/lib/api";
@@ -345,7 +345,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
           <div className="card px-3.5 py-3.5 flex items-center gap-3">
             <Avatar
               name={CIRCLE_MEMBER_NAME}
-              src={CIRCLE_MEMBER_AVATAR}
+              src={listing.privateAvatar ?? privateListingAvatar(listing.id)}
               showLevel={false}
               size="md"
             />

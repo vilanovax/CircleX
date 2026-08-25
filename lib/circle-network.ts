@@ -317,25 +317,30 @@ export async function loadHomeFeed(viewerId: string): Promise<{
     ...Array.from(connectorBySeller.keys()),
   ];
 
-  const marketRows =
-    sellerIds.length === 0
-      ? []
-      : await prisma.marketListing.findMany({
-          where: visibleMarketWhere(viewerId, sellerIds),
-          orderBy: { createdAt: "desc" },
-          take: HOME_FEED_LIMIT,
-          select: HOME_LISTING_SELECT,
-        });
-
-  const flags = await listingViewerFlags(viewerId, marketRows);
-  const visibleRows = marketRows.filter((row) => !flags.blockedIds.has(row.id));
-
   const pathCtx = {
     directSet: direct.directSet,
     memberById: direct.memberById,
     connectorBySeller,
     viaRelationBySeller,
   };
+
+  const [marketRows, social] = await Promise.all([
+    sellerIds.length === 0
+      ? Promise.resolve([])
+      : prisma.marketListing.findMany({
+          where: visibleMarketWhere(viewerId, sellerIds),
+          orderBy: { createdAt: "desc" },
+          take: HOME_FEED_LIMIT,
+          select: HOME_LISTING_SELECT,
+        }),
+    loadSocialFeed(viewerId, sellerIds, pathCtx, {
+      requestTake: HOME_FEED_LIMIT,
+      eventTake: 8,
+    }),
+  ]);
+
+  const flags = await listingViewerFlags(viewerId, marketRows);
+  const visibleRows = marketRows.filter((row) => !flags.blockedIds.has(row.id));
 
   const listings = visibleRows.map((row) =>
     toHomeListing(row, viewerId, trustPathForListing(row, viewerId, pathCtx), {
@@ -369,8 +374,6 @@ export async function loadHomeFeed(viewerId: string): Promise<{
       inMyCircle: false,
     });
   });
-
-  const social = await loadSocialFeed(viewerId, sellerIds, pathCtx);
 
   return { members: direct.members, network, listings, ...social };
 }
@@ -482,6 +485,7 @@ export async function loadSocialFeed(
   viewerId: string,
   actorIds: string[],
   pathCtx: PathCtx,
+  opts?: { requestTake?: number; eventTake?: number },
 ): Promise<{ requests: Request[]; offers: Offer[]; events: CircleEvent[] }> {
   if (actorIds.length === 0) {
     return { requests: [], offers: [], events: [] };
@@ -493,6 +497,7 @@ export async function loadSocialFeed(
         OR: [{ hidden: false }, { requesterId: viewerId }],
       },
       orderBy: { createdAt: "desc" },
+      take: opts?.requestTake,
       include: { offers: true },
     }),
     prisma.gathering.findMany({
@@ -501,6 +506,7 @@ export async function loadSocialFeed(
         OR: [{ hidden: false }, { hostId: viewerId }],
       },
       orderBy: { createdAt: "desc" },
+      take: opts?.eventTake,
       include: { rsvps: { select: { personId: true } } },
     }),
   ]);

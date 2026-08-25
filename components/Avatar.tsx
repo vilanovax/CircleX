@@ -54,6 +54,8 @@ export default function Avatar({
           draggable={false}
           loading={eager || size === "lg" ? "eager" : "lazy"}
           decoding="async"
+          sizes={`${px}px`}
+          fetchPriority={eager ? "high" : "auto"}
         />
       </div>
       {level && showLevel && (

@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 import type { Endorsement, TrustHop } from "@/lib/types";
 import { useStore } from "@/lib/store";
@@ -13,9 +14,10 @@ import {
 import { ShieldCheckIcon } from "./Icons";
 import Avatar from "./Avatar";
 import {
-  CIRCLE_MEMBER_AVATAR,
   CIRCLE_MEMBER_NAME,
   isHiddenSellerId,
+  listingIdFromHiddenSeller,
+  privateListingAvatar,
 } from "@/lib/listing-privacy";
 
 const ENDORSED_SHORT: Record<TrustContentKind, string> = {
@@ -28,13 +30,14 @@ const ENDORSED_SHORT: Record<TrustContentKind, string> = {
  * Trust signal for cards — full on detail pages, compact one-line row on feed.
  * Compact: name (ink) · relation (muted) + optional degree for FoF + endorsement chip.
  */
-export default function TrustHighlight({
+function TrustHighlight({
   posterId,
   trustPath,
   endorsements = [],
   posterRole = "فروشنده",
   contentKind = "listing",
   variant = "default",
+  eager = false,
 }: {
   posterId: string;
   trustPath: TrustHop[];
@@ -42,16 +45,36 @@ export default function TrustHighlight({
   posterRole?: string;
   contentKind?: TrustContentKind;
   variant?: "default" | "compact" | "line";
+  /** Above-fold feed faces. */
+  eager?: boolean;
 }) {
-  const getPerson = useStore((s) => s.getPerson);
-  if (isHiddenSellerId(posterId)) {
+  const hidden = isHiddenSellerId(posterId);
+  const poster = useStore((s) => (hidden ? undefined : s.getPerson(posterId)));
+  const endorsementLine = useStore((s) =>
+    hidden
+      ? null
+      : endorsementHighlightLine(endorsements, s.getPerson, contentKind),
+  );
+  const defaultTrustPacked = useStore((s) => {
+    if (hidden || variant !== "default") return "";
+    const t = trustHighlightMessage(
+      posterId,
+      trustPath,
+      s.getPerson,
+      posterRole,
+      contentKind,
+    );
+    return t ? `${t.headline}\n${t.subline ?? ""}` : "";
+  });
+  if (hidden) {
     return (
       <div className="mb-1.5 flex items-center gap-2 min-w-0">
         <Avatar
           name={CIRCLE_MEMBER_NAME}
-          src={CIRCLE_MEMBER_AVATAR}
+          src={privateListingAvatar(listingIdFromHiddenSeller(posterId) ?? posterId)}
           showLevel={false}
           size="sm"
+          eager={eager}
         />
         <div className="min-w-0 leading-tight">
           <p className="text-[13px] truncate">
@@ -70,23 +93,8 @@ export default function TrustHighlight({
       </div>
     );
   }
-  const trust = trustHighlightMessage(
-    posterId,
-    trustPath,
-    getPerson,
-    posterRole,
-    contentKind,
-  );
-  if (!trust) return null;
-
-  const poster = getPerson(posterId);
   if (!poster) return null;
 
-  const endorsementLine = endorsementHighlightLine(
-    endorsements,
-    getPerson,
-    contentKind,
-  );
   const isOwn = posterId === "me";
   const relation = posterCardRelation(poster, { isOwn, contentKind });
   const proximity = isOwn ? null : posterProximityLabel(poster, trustPath);
@@ -101,6 +109,7 @@ export default function TrustHighlight({
           level={isOwn ? undefined : poster.level}
           showLevel={false}
           size="sm"
+          eager={eager}
         />
         <span className="text-[13px] min-w-0 truncate">
           <span className="font-bold text-ink dark:text-zinc-50">
@@ -154,6 +163,7 @@ export default function TrustHighlight({
           level={isOwn ? undefined : poster.level}
           showLevel={false}
           size="sm"
+          eager={eager}
         />
         <div className="min-w-0 flex-1 leading-tight">
           <p className="text-[12.5px] truncate">
@@ -199,6 +209,13 @@ export default function TrustHighlight({
       </div>
     );
   }
+
+  if (!defaultTrustPacked) return null;
+  const nl = defaultTrustPacked.indexOf("\n");
+  const trust = {
+    headline: nl === -1 ? defaultTrustPacked : defaultTrustPacked.slice(0, nl),
+    subline: nl === -1 ? undefined : defaultTrustPacked.slice(nl + 1) || undefined,
+  };
 
   return (
     <div
@@ -253,3 +270,5 @@ export default function TrustHighlight({
     </div>
   );
 }
+
+export default memo(TrustHighlight);

@@ -2,7 +2,6 @@ import { listingAccess, personFromNetworkUser } from "@/lib/circle-network";
 import { isCircloPeer } from "@/lib/circlo";
 import { prisma } from "@/lib/db";
 import { memberFromEdge, toClientDirectMessage } from "@/lib/mappers";
-import { CIRCLE_MEMBER_AVATAR, CIRCLE_MEMBER_NAME } from "@/lib/listing-privacy";
 import { viewerCanSeeListing } from "@/lib/server-listing-visibility";
 import { loadNoticeRows, toClientNotice } from "@/lib/server-notices";
 import type { Message, Person } from "@/lib/types";

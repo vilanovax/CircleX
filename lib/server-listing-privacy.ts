@@ -111,7 +111,9 @@ export async function listingViewerFlags(
     list.push(row.personId);
     excludesByListing.set(row.listingId, list);
   }
-  for (const [id, ids] of excludesByListing) excludeIdsByListing.set(id, ids);
+  for (const [id, ids] of Array.from(excludesByListing.entries())) {
+    excludeIdsByListing.set(id, ids);
+  }
 
   const revealsByListing = new Map<string, string[]>();
   for (const row of revealRows) {
@@ -120,7 +122,9 @@ export async function listingViewerFlags(
     revealsByListing.set(row.listingId, list);
     if (row.viewerId === viewerId) revealedIds.add(row.listingId);
   }
-  for (const [id, ids] of revealsByListing) revealPeersByListing.set(id, ids);
+  for (const [id, ids] of Array.from(revealsByListing.entries())) {
+    revealPeersByListing.set(id, ids);
+  }
 
   const relationBySeller = new Map(
     reverseEdges.map((edge) => [edge.fromUserId, edge.relationType]),

@@ -154,7 +154,7 @@ const MessagesBody = memo(function MessagesBody({
         ? getListing(topicListingId)
         : undefined;
       const peer = last?.peerHidden
-        ? circleMemberPerson(peerId)
+        ? circleMemberPerson(peerId, topicListingId)
         : getPerson(peerId);
       if (!peer) continue;
       if (

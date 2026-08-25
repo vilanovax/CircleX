@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { withBasePath } from "@/lib/avatar";
 import { isListingPhoto, listingImageTint } from "@/lib/listing-image";
 import type { ListingType } from "@/lib/types";
@@ -19,7 +20,7 @@ const emojiSizeClass = {
   hero: "text-7xl",
 } as const;
 
-export default function ListingImage({
+function ListingImage({
   image,
   alt = "",
   size = "md",
@@ -59,13 +60,25 @@ export default function ListingImage({
     : defaultFrame;
 
   if (photo) {
+    const w = photoPx[size];
+    const h = size === "hero" ? 176 : w;
+    const sizes =
+      size === "hero"
+        ? "100vw"
+        : size === "md"
+          ? "96px"
+          : size === "sm"
+            ? "56px"
+            : "48px";
+
     return (
       <div className={`overflow-hidden shrink-0 ${frame} ${className}`}>
         <img
           src={withBasePath(image)}
           alt={alt}
-          width={photoPx[size]}
-          height={size === "hero" ? 176 : photoPx[size]}
+          width={w}
+          height={h}
+          sizes={sizes}
           className="absolute inset-0 h-full w-full object-cover"
           fetchPriority={priority ? "high" : "auto"}
           loading={priority ? "eager" : "lazy"}
@@ -86,3 +99,5 @@ export default function ListingImage({
     </div>
   );
 }
+
+export default memo(ListingImage);

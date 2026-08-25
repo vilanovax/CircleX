@@ -5,8 +5,8 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import { ApiError } from "@/lib/api";
 import {
-  CIRCLE_MEMBER_AVATAR,
   CIRCLE_MEMBER_NAME,
+  privateListingAvatar,
 } from "@/lib/listing-privacy";
 import { useStore } from "@/lib/store";
 import { useToast } from "@/components/Toast";
@@ -63,7 +63,7 @@ export default function ListingThreadEntry() {
         <div className="flex min-h-9 min-w-0 items-center gap-2.5">
           <Avatar
             name={CIRCLE_MEMBER_NAME}
-            src={CIRCLE_MEMBER_AVATAR}
+            src={privateListingAvatar(listingId)}
             size="sm"
             showLevel={false}
           />

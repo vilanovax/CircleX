@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, memo } from "react";
 import { useSheetA11y } from "@/lib/use-sheet-a11y";
 import { listingTypeEmoji, listingTypeLabels } from "@/lib/labels";
 import type { ListingType } from "@/lib/types";
@@ -24,7 +24,7 @@ function filterLabel(key: FeedFilter): string {
   return listingTypeLabels[key];
 }
 
-export default function FeedFilterBar({
+function FeedFilterBar({
   filter,
   onFilter,
 }: {
@@ -132,3 +132,5 @@ export default function FeedFilterBar({
     </>
   );
 }
+
+export default memo(FeedFilterBar);

@@ -252,6 +252,14 @@ export interface StoreValue {
   ) => Promise<void>;
 }
 
+function deferNonUrgent(task: () => void) {
+  if (typeof requestIdleCallback === "function") {
+    requestIdleCallback(() => task(), { timeout: 2500 });
+    return;
+  }
+  setTimeout(task, 80);
+}
+
 const StoreContext = createContext<StoreValue | null>(null);
 
 const STORAGE_KEY = "circle-store-v2";
@@ -446,7 +454,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     async (opts?: { keepGraph?: boolean }) => {
       const data = await api<CirclePayload>("/api/home");
       applyCirclePayload(data, { full: false, keepGraph: opts?.keepGraph });
-      await loadMessages().catch(() => {});
+      // Inbox is not on the home LCP path — don't contend with listing photos.
+      deferNonUrgent(() => void loadMessages().catch(() => {}));
       return data;
     },
     [applyCirclePayload, loadMessages],
@@ -570,7 +579,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             applyCirclePayload(home, { full: false });
           }
           if (cancelled) return;
-          await loadMessages().catch(() => {});
+          deferNonUrgent(() => void loadMessages().catch(() => {}));
         } catch {
           if (cancelled) return;
           setInvites([]);
