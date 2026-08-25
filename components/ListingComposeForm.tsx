@@ -13,7 +13,7 @@ import {
   type ComponentType,
 } from "react";
 import ListingImagePicker from "@/components/ListingImagePicker";
-import PrivacyPicker from "@/components/PrivacyPicker";
+import ListingPrivacySection from "@/components/ListingPrivacySection";
 import AreaPicker from "@/components/AreaPicker";
 import CatalogCategorySelect from "@/components/CatalogCategorySelect";
 import VoiceDictateButton from "@/components/VoiceDictateButton";
@@ -50,7 +50,7 @@ import {
 } from "@/lib/price-suggest";
 import { formatTomanInput, toEnglishDigits, toPersianDigits } from "@/lib/persian";
 import { isListingPhoto } from "@/lib/listing-image";
-import type { ListingSpec, ListingType, Privacy } from "@/lib/types";
+import type { ListingSpec, ListingType, Privacy, RelationType } from "@/lib/types";
 
 const TYPE_ICONS: Record<ListingType, ComponentType<{ className?: string }>> = {
   sale: TagIcon,
@@ -98,6 +98,9 @@ function seedFromListing(input: ListingInput) {
     category: input.category,
     condition: input.condition ?? "",
     privacy: input.privacy,
+    hideIdentity: Boolean(input.hideIdentity),
+    excludePersonIds: input.excludePersonIds ?? [],
+    excludeRelationTypes: input.excludeRelationTypes ?? [],
     area: input.area ?? AREA_CITYWIDE,
     photos,
     emoji,
@@ -139,6 +142,9 @@ export type ListingInput = {
   image: string;
   images?: string[];
   privacy: Privacy;
+  hideIdentity?: boolean;
+  excludePersonIds?: string[];
+  excludeRelationTypes?: RelationType[];
   condition?: string;
   specs?: ListingSpec[];
   area?: string;
@@ -242,6 +248,13 @@ const ListingComposeForm = forwardRef<
   const [photos, setPhotos] = useState<string[]>(seed?.photos ?? []);
   const [emoji, setEmoji] = useState(seed?.emoji ?? "📦");
   const [privacy, setPrivacy] = useState<Privacy>(seed?.privacy ?? "AB");
+  const [hideIdentity, setHideIdentity] = useState(seed?.hideIdentity ?? false);
+  const [excludePersonIds, setExcludePersonIds] = useState<string[]>(
+    seed?.excludePersonIds ?? [],
+  );
+  const [excludeRelationTypes, setExcludeRelationTypes] = useState<
+    RelationType[]
+  >(seed?.excludeRelationTypes ?? []);
   const [area, setArea] = useState(seed?.area ?? AREA_CITYWIDE);
 
   const [exchangeFor, setExchangeFor] = useState(seed?.exchangeFor ?? "");
@@ -535,6 +548,9 @@ const ListingComposeForm = forwardRef<
       image: coverImage,
       images,
       privacy,
+      hideIdentity,
+      excludePersonIds,
+      excludeRelationTypes,
       area,
       condition: type === "service" ? undefined : condition.trim() || undefined,
       specs: specs.length ? specs : undefined,
@@ -572,6 +588,9 @@ const ListingComposeForm = forwardRef<
       photos,
       emoji,
       privacy,
+      hideIdentity,
+      excludePersonIds,
+      excludeRelationTypes,
       area,
       title,
       description,
@@ -844,14 +863,6 @@ const ListingComposeForm = forwardRef<
           {typeFields}
 
           <AreaPicker city={meCity} value={area} onChange={setArea} />
-
-          <div className={hideActions ? "mb-2" : "mb-5"}>
-            <PrivacyPicker
-              value={privacy}
-              onChange={setPrivacy}
-              compact
-            />
-          </div>
         </>
       ) : (
         <>
@@ -988,17 +999,27 @@ const ListingComposeForm = forwardRef<
 
           {typeFields}
 
+          <ListingPrivacySection
+            privacy={privacy}
+            onPrivacy={setPrivacy}
+            hideIdentity={hideIdentity}
+            onHideIdentity={setHideIdentity}
+            excludePersonIds={excludePersonIds}
+            onExcludePersonIds={setExcludePersonIds}
+            excludeRelationTypes={excludeRelationTypes}
+            onExcludeRelationTypes={setExcludeRelationTypes}
+            canHideIdentity={!editMode || Boolean(initial?.hideIdentity)}
+            initialPrivacy={editMode ? initial?.privacy : undefined}
+            initialExcludePersonIds={
+              editMode ? initial?.excludePersonIds : undefined
+            }
+            initialExcludeRelationTypes={
+              editMode ? initial?.excludeRelationTypes : undefined
+            }
+          />
+
           {editMode && (
-            <>
-              <AreaPicker city={meCity} value={area} onChange={setArea} />
-              <div className={hideActions ? "mb-2" : "mb-5"}>
-                <PrivacyPicker
-                  value={privacy}
-                  onChange={setPrivacy}
-                  compact
-                />
-              </div>
-            </>
+            <AreaPicker city={meCity} value={area} onChange={setArea} />
           )}
 
           {draft && draft.questions.length > 0 && (

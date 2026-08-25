@@ -121,7 +121,7 @@ function ListingCard({
             <span className="shrink-0">{listing.postedAt}</span>
             {!hideTrust && !audienceHint && (
               <span
-                className="mr-auto max-w-[9.5rem] truncate text-[10px] text-ink-muted dark:text-zinc-500"
+                className="mr-auto max-w-[9.5rem] truncate text-[11px] text-ink-muted dark:text-zinc-500"
                 title={privacyAudience(listing.privacy, circle)}
               >
                 {privacyLabels[listing.privacy]}

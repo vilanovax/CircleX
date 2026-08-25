@@ -36,6 +36,12 @@ import {
 import type { Listing } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
 import { canView, listingSellerSubtitle } from "@/lib/trust";
+import {
+  CIRCLE_MEMBER_AVATAR,
+  CIRCLE_MEMBER_NAME,
+  listingChatHref,
+  listingPrivacySummary,
+} from "@/lib/listing-privacy";
 import { useToast } from "@/components/Toast";
 import { ApiError } from "@/lib/api";
 import ListingAskPrompts from "@/components/ListingAskPrompts";
@@ -44,15 +50,23 @@ import {
   type BuyerPrompt,
 } from "@/lib/listing-prompts";
 import { listingGalleryImages } from "@/lib/listing-image";
+import { listingThreadPeers } from "@/lib/thread-listing";
 import { pickHeroSpecs } from "@/lib/listing-hero-specs";
 import { AREA_MODES, areaMode, placeDetailLabel } from "@/lib/place";
 import { useOwnerListingFlow } from "@/components/OwnerListingManager";
 import { ListingDetailSkeleton } from "@/components/Skeleton";
+import {
+  hideConfirmListing,
+  hideConfirmPerson,
+  hideListingCopy,
+  hidePersonCopy,
+} from "@/lib/hide-from-feed";
 
 const ReferSheet = lazyUi(() => import("@/components/ReferSheet"));
 const ReportListingSheet = lazyUi(() => import("@/components/ReportListingSheet"));
 const EndorseSheet = lazyUi(() => import("@/components/EndorseSheet"));
 const ListingNoteSheet = lazyUi(() => import("@/components/ListingPersonalNote"));
+const HideFromFeedSheet = lazyUi(() => import("@/components/HideFromFeedSheet"));
 const TrustPath = lazyUi(() => import("@/components/TrustPath"), {
   loading: () => (
     <div className="h-16 rounded-xl bg-stone-100 dark:bg-zinc-800 animate-pulse" />
@@ -129,8 +143,8 @@ export default function ListingClassic(_props: { params: { id: string } }) {
       <main className="min-h-[100dvh]">
         <Header title="جزئیات آگهی" back />
         {hydrated && lookup === "miss" ? (
-          <p className="text-center text-ink-faint py-20 text-sm">
-            آگهی پیدا نشد.
+          <p className="text-center text-ink-faint py-20 text-sm px-6 leading-relaxed">
+            این آگهی برای تو قابل مشاهده نیست.
           </p>
         ) : (
           <ListingDetailSkeleton />
@@ -139,7 +153,9 @@ export default function ListingClassic(_props: { params: { id: string } }) {
     );
   }
 
-  const seller = getPerson(listing.sellerId);
+  const seller = listing.identityHidden
+    ? undefined
+    : getPerson(listing.sellerId);
   const isMine = listing.sellerId === "me";
   const inactive = listing.dealStatus === "inactive";
   const isDirect =
@@ -258,11 +274,15 @@ export default function ListingClassic(_props: { params: { id: string } }) {
             .join(" · ")}
         </p>
         <p className="mt-1 text-[11px] text-ink-faint dark:text-zinc-500 leading-relaxed px-0.5">
-          {listingPrivacyAudienceLine(
-            listing.privacy,
-            isMine ? "تو" : seller?.name,
-          )}
-          {!isMine && !isDirect ? " · از طریق آشنایان می‌رسد" : ""}
+          {listing.identityHidden
+            ? "داخل حلقهٔ تو می‌رسد"
+            : listingPrivacyAudienceLine(
+                listing.privacy,
+                isMine ? "تو" : seller?.name,
+              )}
+          {!isMine && !isDirect && !listing.identityHidden
+            ? " · از طریق آشنایان می‌رسد"
+            : ""}
         </p>
 
         <div className="mt-2.5 flex items-baseline gap-2 flex-wrap">
@@ -307,18 +327,42 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         ) : null}
         {listingHidden && !sellerHidden ? (
           <p className="mt-3 rounded-2xl bg-stone-100/80 dark:bg-zinc-800/70 px-3.5 py-2.5 text-[12px] text-ink-muted dark:text-zinc-300 leading-relaxed">
-            این آگهی را از فیدت برداشته‌ای. لینک هنوز کار می‌کند. از پروفایل، تب
-            پنهان‌ها، برمی‌گردد.
+            {hideListingCopy.banner}
           </p>
         ) : null}
         {sellerHidden ? (
           <p className="mt-3 rounded-2xl bg-stone-100/80 dark:bg-zinc-800/70 px-3.5 py-2.5 text-[12px] text-ink-muted dark:text-zinc-300 leading-relaxed">
-            آگهی‌های این فروشنده از فیدت پنهان است. گفتگو و حلقه سر جایش می‌ماند.
+            {hidePersonCopy(seller?.name ?? "فروشنده").banner}
           </p>
         ) : null}
       </div>
 
-      {seller && !isMine ? (
+      {listing.identityHidden ? (
+        <section className="px-4 pt-3.5">
+          <p className="text-[11px] font-semibold text-ink-faint mb-2 px-0.5">
+            فروشنده
+          </p>
+          <div className="card px-3.5 py-3.5 flex items-center gap-3">
+            <Avatar
+              name={CIRCLE_MEMBER_NAME}
+              src={CIRCLE_MEMBER_AVATAR}
+              showLevel={false}
+              size="md"
+            />
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-[15px] text-ink dark:text-zinc-100">
+                {CIRCLE_MEMBER_NAME}
+              </p>
+              <p className="text-[12px] text-ink-muted mt-0.5">
+                هویت برای اعضا پنهان است
+              </p>
+              <p className="text-[11px] text-ink-faint mt-1">
+                داخل حلقهٔ تو
+              </p>
+            </div>
+          </div>
+        </section>
+      ) : seller && !isMine ? (
         <section className="px-4 pt-3.5">
           <p className="text-[11px] font-semibold text-ink-faint mb-2 px-0.5">
             فروشنده
@@ -363,7 +407,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         </section>
       ) : null}
 
-      {!isMine && !isDirect ? (
+      {!isMine && !isDirect && !listing.identityHidden ? (
         <section className="px-4 pt-3">
           <div className="card p-4">
             <div className="flex items-center gap-2 mb-3">
@@ -408,11 +452,15 @@ export default function ListingClassic(_props: { params: { id: string } }) {
             <div className="min-w-0">
               <h2 className="font-bold text-[14px] text-ink dark:text-zinc-100">
                 آشنایان چه می‌گویند
-                {endorsementCount > 0
+                {endorsementCount > 0 && !listing.identityHidden
                   ? ` · ${toPersianDigits(endorsementCount)}`
                   : ""}
               </h2>
-              {listing.endorsements.length > 0 ? (
+              {listing.identityHidden ? (
+                <p className="text-[12px] text-ink-muted mt-1 leading-relaxed">
+                  در حالت هویت پنهان، نظر آشنایان روی آگهی نشان داده نمی‌شود.
+                </p>
+              ) : listing.endorsements.length > 0 ? (
                 <div className="mt-2">
                   <EndorsementList
                     endorsements={listing.endorsements}
@@ -428,7 +476,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
                 </p>
               )}
             </div>
-            {!isMine ? (
+            {!isMine && !listing.identityHidden ? (
               <button
                 type="button"
                 onClick={() => setShowEndorse(true)}
@@ -446,6 +494,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
 
       {!isMine ? (
         <section className="px-4 pt-2 pb-5">
+          {!listing.privatePublish ? (
           <button
             type="button"
             onClick={() => setShowRefer(true)}
@@ -469,17 +518,27 @@ export default function ListingClassic(_props: { params: { id: string } }) {
               برای یک آشنا بفرست ‹
             </span>
           </button>
-          <ListingHideControl listingId={listing.id} hidden={listingHidden} />
-          <ListingHidePersonControl
-            personId={listing.sellerId}
-            hidden={sellerHidden}
-            name={seller?.name ?? "فروشنده"}
+          ) : null}
+          <ListingHideControl
+            listingId={listing.id}
+            listingTitle={displayTitle}
+            hidden={listingHidden}
           />
+          {!listing.identityHidden ? (
+            <ListingHidePersonControl
+              personId={listing.sellerId}
+              hidden={sellerHidden}
+              name={seller?.name ?? "فروشنده"}
+            />
+          ) : null}
         </section>
       ) : null}
 
       {isMine ? (
-        <ListingOwnerChrome listing={listing} menuSlot={ownerMenuSlot} />
+        <>
+          <ListingOwnerPrivacy listing={listing} />
+          <ListingOwnerChrome listing={listing} menuSlot={ownerMenuSlot} />
+        </>
       ) : (
         <ListingBuyerFooter
           listing={listing}
@@ -518,6 +577,101 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         />
       ) : null}
     </main>
+  );
+}
+
+function ListingOwnerPrivacy({ listing }: { listing: Listing }) {
+  const getPerson = useStore((s) => s.getPerson);
+  const messages = useStore((s) => s.messages);
+  const revealListingIdentity = useStore((s) => s.revealListingIdentity);
+  const { show } = useToast();
+  const peers = listingThreadPeers(messages, listing.id);
+  const names = (listing.excludePersonIds ?? [])
+    .map((id) => getPerson(id)?.name)
+    .filter(Boolean) as string[];
+  const summary = listingPrivacySummary({
+    privacy: listing.privacy,
+    hideIdentity: Boolean(listing.privatePublish),
+    excludePersonNames: names,
+    excludeRelationTypes: listing.excludeRelationTypes ?? [],
+  });
+  const revealed = new Set(listing.identityRevealedPeerIds ?? []);
+
+  return (
+    <section className="px-4 pt-3">
+      <div className="card px-3.5 py-3.5 space-y-3">
+        <div>
+          <p className="text-[13px] font-bold text-ink dark:text-zinc-100">
+            حریم خصوصی این آگهی
+          </p>
+          <div className="mt-1.5 space-y-1">
+            {summary.map((line) => (
+              <p
+                key={line}
+                className="text-[12px] text-ink-muted dark:text-zinc-400 leading-relaxed"
+              >
+                {line}
+              </p>
+            ))}
+          </div>
+        </div>
+        {listing.privatePublish && peers.length > 0 ? (
+          <div>
+            <p className="text-[12px] font-bold text-ink dark:text-zinc-200 mb-1.5">
+              گفتگوها
+            </p>
+            <ul className="space-y-2">
+              {peers.map((peerId) => {
+                const person = getPerson(peerId);
+                const shown = revealed.has(peerId);
+                return (
+                  <li
+                    key={peerId}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <Link
+                      href={listingChatHref(listing, { peerId })}
+                      className="min-w-0 text-[13px] font-semibold text-ink dark:text-zinc-100 truncate"
+                    >
+                      {person?.name ?? "عضو حلقه"}
+                      <span className="block text-[11px] font-medium text-ink-faint">
+                        {shown ? "هویت نمایش داده شده" : "هویت پنهان"}
+                      </span>
+                    </Link>
+                    {!shown ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (
+                            !window.confirm(
+                              `بعد از نمایش هویت، ${person?.name ?? "این نفر"} نام و تصویر تو را خواهد دید و امکان پنهان‌کردن اطلاعاتی که دیده است وجود ندارد.`,
+                            )
+                          ) {
+                            return;
+                          }
+                          void revealListingIdentity(listing.id, peerId)
+                            .then(() => show("هویت در این گفتگو نمایش داده شد"))
+                            .catch((err) =>
+                              show(
+                                err instanceof ApiError
+                                  ? err.message
+                                  : "انجام نشد",
+                              ),
+                            );
+                        }}
+                        className="shrink-0 text-[12px] font-bold text-brand-600 dark:text-brand-400"
+                      >
+                        نمایش هویت
+                      </button>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+    </section>
   );
 }
 
@@ -574,46 +728,69 @@ const HEADER_ICON =
 
 function ListingHideControl({
   listingId,
+  listingTitle,
   hidden,
 }: {
   listingId: string;
+  listingTitle: string;
   hidden: boolean;
 }) {
   const toggleHiddenListing = useStore((s) => s.toggleHiddenListing);
   const { show } = useToast();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  function apply(nextHidden: boolean) {
+    return toggleHiddenListing(listingId)
+      .then(() => show(nextHidden ? hideListingCopy.toastOn : hideListingCopy.toastOff))
+      .catch((err) => {
+        show(err instanceof ApiError ? err.message : hideListingCopy.fail);
+        throw err;
+      });
+  }
 
   return (
-    <button
-      type="button"
-      onClick={() => {
-        void toggleHiddenListing(listingId)
-          .then(() =>
-            show(
-              hidden
-                ? "دوباره در فید می‌آید"
-                : "از فیدت برداشته شد — در پروفایل، تب پنهان‌ها",
-            ),
-          )
-          .catch((err) =>
-            show(err instanceof ApiError ? err.message : "پنهان نشد"),
-          );
-      }}
-      className="mt-1 w-full flex items-center gap-3 px-1 py-2 rounded-xl text-start active:opacity-80 transition-opacity"
-    >
-      <span className="w-9 h-9 rounded-xl bg-stone-100 dark:bg-zinc-800 text-ink-muted dark:text-zinc-400 flex items-center justify-center shrink-0">
-        <EyeOffIcon className="w-5 h-5" />
-      </span>
-      <span className="flex-1 min-w-0">
-        <span className="block font-bold text-[13px] text-ink dark:text-zinc-100">
-          {hidden ? "برگردان به فید" : "دیگر در فید نبین"}
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          if (hidden) {
+            void apply(false);
+            return;
+          }
+          setConfirmOpen(true);
+        }}
+        onPointerEnter={() => {
+          if (!hidden) void import("@/components/HideFromFeedSheet");
+        }}
+        className="mt-1 w-full flex items-center gap-3 px-1 py-2 rounded-xl text-start active:opacity-80 transition-opacity"
+      >
+        <span className="w-9 h-9 rounded-xl bg-stone-100 dark:bg-zinc-800 text-ink-muted dark:text-zinc-400 flex items-center justify-center shrink-0">
+          <EyeOffIcon className="w-5 h-5" />
         </span>
-        <span className="block text-[11px] text-ink-muted mt-0.5">
-          {hidden
-            ? "فقط برای تو پنهان بود؛ فروشنده خبردار نمی‌شود"
-            : "فقط برای تو پنهان می‌شود؛ فروشنده خبردار نمی‌شود"}
+        <span className="flex-1 min-w-0">
+          <span className="block font-bold text-[13px] text-ink dark:text-zinc-100">
+            {hidden ? hideListingCopy.titleHidden : hideListingCopy.title}
+          </span>
+          <span className="block text-[11px] text-ink-muted mt-0.5">
+            {hidden ? hideListingCopy.hintHidden : hideListingCopy.hint}
+          </span>
         </span>
-      </span>
-    </button>
+      </button>
+      {confirmOpen ? (
+        <HideFromFeedSheet
+          kind="listing"
+          subject={listingTitle}
+          title={hideConfirmListing.title}
+          body={hideConfirmListing.body}
+          confirmLabel={hideConfirmListing.confirm}
+          onClose={() => setConfirmOpen(false)}
+          onConfirm={async () => {
+            await apply(true);
+            setConfirmOpen(false);
+          }}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -628,39 +805,62 @@ function ListingHidePersonControl({
 }) {
   const toggleHiddenPerson = useStore((s) => s.toggleHiddenPerson);
   const { show } = useToast();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const copy = hidePersonCopy(name);
+  const confirm = hideConfirmPerson(name);
+
+  function apply(nextHidden: boolean) {
+    return toggleHiddenPerson(personId)
+      .then(() => show(nextHidden ? copy.toastOn : copy.toastOff))
+      .catch((err) => {
+        show(err instanceof ApiError ? err.message : hideListingCopy.fail);
+        throw err;
+      });
+  }
 
   return (
-    <button
-      type="button"
-      onClick={() => {
-        void toggleHiddenPerson(personId)
-          .then(() =>
-            show(
-              hidden
-                ? `آگهی‌های ${name} دوباره در فید می‌آید`
-                : `آگهی‌های ${name} از فیدت برداشته شد`,
-            ),
-          )
-          .catch((err) =>
-            show(err instanceof ApiError ? err.message : "پنهان نشد"),
-          );
-      }}
-      className="mt-1 w-full flex items-center gap-3 px-1 py-2 rounded-xl text-start active:opacity-80 transition-opacity"
-    >
-      <span className="w-9 h-9 rounded-xl bg-stone-100 dark:bg-zinc-800 text-ink-muted dark:text-zinc-400 flex items-center justify-center shrink-0">
-        <EyeOffIcon className="w-5 h-5" />
-      </span>
-      <span className="flex-1 min-w-0">
-        <span className="block font-bold text-[13px] text-ink dark:text-zinc-100">
-          {hidden
-            ? "آگهی‌هایش دوباره در فید بیاید"
-            : "آگهی‌های این فروشنده را نبین"}
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          if (hidden) {
+            void apply(false);
+            return;
+          }
+          setConfirmOpen(true);
+        }}
+        onPointerEnter={() => {
+          if (!hidden) void import("@/components/HideFromFeedSheet");
+        }}
+        className="mt-1 w-full flex items-center gap-3 px-1 py-2 rounded-xl text-start active:opacity-80 transition-opacity"
+      >
+        <span className="w-9 h-9 rounded-xl bg-stone-100 dark:bg-zinc-800 text-ink-muted dark:text-zinc-400 flex items-center justify-center shrink-0">
+          <EyeOffIcon className="w-5 h-5" />
         </span>
-        <span className="block text-[11px] text-ink-muted mt-0.5">
-          حلقه و گفتگو سر جایش می‌ماند؛ فقط فید خلوت می‌شود
+        <span className="flex-1 min-w-0">
+          <span className="block font-bold text-[13px] text-ink dark:text-zinc-100">
+            {hidden ? copy.titleHidden : copy.title}
+          </span>
+          <span className="block text-[11px] text-ink-muted mt-0.5">
+            {hidden ? copy.hintHidden : copy.hint}
+          </span>
         </span>
-      </span>
-    </button>
+      </button>
+      {confirmOpen ? (
+        <HideFromFeedSheet
+          kind="person"
+          subject={name}
+          title={confirm.title}
+          body={confirm.body}
+          confirmLabel={confirm.confirm}
+          onClose={() => setConfirmOpen(false)}
+          onConfirm={async () => {
+            await apply(true);
+            setConfirmOpen(false);
+          }}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -805,10 +1005,7 @@ function ListingBuyerFooter({
   }, []);
 
   function goAsk(prompt: BuyerPrompt) {
-    const q = encodeURIComponent(prompt.draft);
-    router.push(
-      `/messages/${listing.sellerId}?draft=${q}&listing=${encodeURIComponent(listing.id)}`,
-    );
+    router.push(listingChatHref(listing, { draft: prompt.draft }));
   }
 
   return (
@@ -841,11 +1038,7 @@ function ListingBuyerFooter({
           ) : null}
           <button
             type="button"
-            onClick={() =>
-              router.push(
-                `/messages/${listing.sellerId}?listing=${encodeURIComponent(listing.id)}`,
-              )
-            }
+            onClick={() => router.push(listingChatHref(listing))}
             className="btn-primary pointer-events-auto w-full !py-3.5 min-h-[3.25rem] flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20"
           >
             <ChatIcon className="w-5 h-5" />

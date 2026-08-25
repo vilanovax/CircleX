@@ -175,8 +175,12 @@ export interface Message {
   read: boolean;
   /** When set, this message is a referral carrying a listing preview. */
   listingId?: string;
+  /** Listing-scoped thread (private publish); not mixed with the peer inbox. */
+  threadListingId?: string;
+  /** Hide the peer’s real name in this thread (buyer viewing seller). */
+  peerHidden?: boolean;
   /** System inbox (Circlo), not a person-to-person DM. */
-  kind?: "notice";
+  kind?: "notice" | "system";
   actionHref?: string;
   actionLabel?: string;
 }
@@ -220,6 +224,16 @@ export interface Listing {
   postedAt: string;
   condition?: string;
   privacy: Privacy;
+  /** Listing was published with identity hidden from the circle. */
+  privatePublish?: boolean;
+  /** Viewer cannot see the seller’s name or photo. */
+  identityHidden?: boolean;
+  /** Owner: people this listing is hidden from. */
+  excludePersonIds?: string[];
+  /** Owner: relation types this listing is hidden from. */
+  excludeRelationTypes?: RelationType[];
+  /** Owner: buyers who already saw the seller’s identity in chat. */
+  identityRevealedPeerIds?: string[];
   endorsements: Endorsement[];
   /**
    * People connecting the seller to "me", ordered me-side first

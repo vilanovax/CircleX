@@ -11,8 +11,12 @@ export async function POST(req: Request) {
     const session = await getSessionUser();
     if (!session) return jsonError("وارد نشده‌ای", 401, "unauthorized");
 
-    const body = await readJson<{ peerId?: unknown }>(req);
+    const body = await readJson<{ peerId?: unknown; listingId?: unknown }>(req);
     const peerId = typeof body?.peerId === "string" ? body.peerId.trim() : "";
+    const listingId =
+      typeof body?.listingId === "string" && body.listingId.trim()
+        ? body.listingId.trim()
+        : undefined;
     if (!peerId) return jsonError("مخاطب نامعتبر است", 400);
     if (isCircloPeer(peerId)) {
       const updated = await markNoticesRead(session.id);
@@ -28,6 +32,9 @@ export async function POST(req: Request) {
         toUserId: session.id,
         readAt: null,
         hiddenAt: null,
+        ...(listingId
+          ? { listingId, listingScoped: true }
+          : { listingScoped: false }),
       },
       data: { readAt: new Date() },
     });

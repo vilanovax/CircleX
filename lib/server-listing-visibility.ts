@@ -1,6 +1,8 @@
 import { listingAccess } from "@/lib/circle-network";
 import { prisma } from "@/lib/db";
 import { LISTING_PRIVACY } from "@/lib/listing-payload";
+import { parseRelationTypes } from "@/lib/listing-privacy";
+import { listingBlockedForViewer } from "@/lib/server-listing-privacy";
 import { requiredScore } from "@/lib/trust";
 import type { Privacy } from "@/lib/types";
 
@@ -21,9 +23,21 @@ export async function viewerCanSeeListing(opts: {
   sellerId: string;
   privacy: string;
   dealStatus: string | null;
+  listingId?: string;
+  excludeRelationTypes?: string[] | unknown;
 }): Promise<boolean> {
   if (opts.dealStatus === "inactive") return false;
   if (opts.viewerId === opts.sellerId) return false;
+
+  if (opts.listingId) {
+    const blocked = await listingBlockedForViewer({
+      listingId: opts.listingId,
+      sellerId: opts.sellerId,
+      viewerId: opts.viewerId,
+      excludeRelationTypes: parseRelationTypes(opts.excludeRelationTypes),
+    });
+    if (blocked) return false;
+  }
 
   const privacy = asPrivacy(opts.privacy);
   const access = await listingAccess(opts.viewerId, opts.sellerId);

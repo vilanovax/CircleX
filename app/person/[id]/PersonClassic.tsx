@@ -16,7 +16,8 @@ import ListingCard from "@/components/ListingCard";
 import RequestCard from "@/components/RequestCard";
 import EmptyState from "@/components/EmptyState";
 import { ProfileSkeleton } from "@/components/Skeleton";
-import { ChatIcon, EyeOffIcon, MoreIcon, UserPlusIcon } from "@/components/Icons";
+import { ChatIcon, MoreIcon, UserPlusIcon } from "@/components/Icons";
+import PersonHideFromFeedControl from "@/components/PersonHideFromFeedControl";
 import {
   endorsementClaimAfterName,
   levelHint,
@@ -34,7 +35,6 @@ import { toPersianDigits } from "@/lib/persian";
 import { GROUP_PRIVATE_LINE } from "@/lib/invite";
 import { hasPeerThread } from "@/lib/thread-listing";
 import { useToast } from "@/components/Toast";
-import { ApiError } from "@/lib/api";
 import type {
   Listing,
   Person,
@@ -85,7 +85,6 @@ export default function PersonClassic(_props: { params: { id: string } }) {
   const [contentTab, setContentTab] = useState<ContentTab>("listings");
   const hiddenListings = useStore((s) => s.hiddenListings);
   const hiddenPeople = useStore((s) => s.hiddenPeople);
-  const toggleHiddenPerson = useStore((s) => s.toggleHiddenPerson);
 
   const theirListings = useMemo(
     () =>
@@ -251,43 +250,11 @@ export default function PersonClassic(_props: { params: { id: string } }) {
       </div>
 
       <div className="px-4 pt-2">
-        {personHidden ? (
-          <p className="mb-2 rounded-2xl bg-stone-100/80 dark:bg-zinc-800/70 px-3.5 py-2.5 text-[12px] text-ink-muted dark:text-zinc-300 leading-relaxed">
-            آگهی‌های {personName} از فیدت پنهان است. گفتگو و حلقه سر جایش
-            می‌ماند.
-          </p>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => {
-            void toggleHiddenPerson(id)
-              .then(() =>
-                show(
-                  personHidden
-                    ? `آگهی‌های ${personName} دوباره در فید می‌آید`
-                    : `آگهی‌های ${personName} از فیدت برداشته شد`,
-                ),
-              )
-              .catch((err) =>
-                show(err instanceof ApiError ? err.message : "پنهان نشد"),
-              );
-          }}
-          className="w-full flex items-center gap-3 px-1 py-2 rounded-xl text-start active:opacity-80 transition-opacity"
-        >
-          <span className="w-9 h-9 rounded-xl bg-stone-100 dark:bg-zinc-800 text-ink-muted dark:text-zinc-400 flex items-center justify-center shrink-0">
-            <EyeOffIcon className="w-5 h-5" />
-          </span>
-          <span className="flex-1 min-w-0">
-            <span className="block font-bold text-[13px] text-ink dark:text-zinc-100">
-              {personHidden
-                ? "آگهی‌هایش دوباره در فید بیاید"
-                : "آگهی‌هایش در فید نیاید"}
-            </span>
-            <span className="block text-[11px] text-ink-muted mt-0.5">
-              حلقه و پیام سر جایش می‌ماند
-            </span>
-          </span>
-        </button>
+        <PersonHideFromFeedControl
+          personId={id}
+          name={personName}
+          hidden={personHidden}
+        />
       </div>
 
       {/* 2. Activity */}

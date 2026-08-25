@@ -2,6 +2,8 @@ import { listingAccess, personFromNetworkUser } from "@/lib/circle-network";
 import { isCircloPeer } from "@/lib/circlo";
 import { prisma } from "@/lib/db";
 import { memberFromEdge, toClientDirectMessage } from "@/lib/mappers";
+import { CIRCLE_MEMBER_AVATAR, CIRCLE_MEMBER_NAME } from "@/lib/listing-privacy";
+import { viewerCanSeeListing } from "@/lib/server-listing-visibility";
 import { loadNoticeRows, toClientNotice } from "@/lib/server-notices";
 import type { Message, Person } from "@/lib/types";
 
@@ -69,6 +71,7 @@ export async function assertCanSendDm(
   viewerId: string,
   peerId: string,
   listingId?: string | null,
+  listingScoped = false,
 ): Promise<SendAuth> {
   if (!peerId) return { ok: false, error: "مخاطب نامعتبر است", status: 400 };
   if (isCircloPeer(peerId)) {
@@ -119,8 +122,26 @@ export async function assertCanSendDm(
     if (listing.dealStatus === "inactive" && listing.sellerId !== viewerId) {
       return { ok: false, error: "آگهی پیدا نشد", status: 404 };
     }
+    const visible = await viewerCanSeeListing({
+      viewerId,
+      sellerId: listing.sellerId,
+      privacy: listing.privacy,
+      dealStatus: listing.dealStatus,
+      listingId: listing.id,
+      excludeRelationTypes: listing.excludeRelationTypes,
+    });
+    if (listing.sellerId !== viewerId && !visible) {
+      return { ok: false, error: "این آگهی برای شما قابل مشاهده نیست", status: 403 };
+    }
+    if (listing.hideIdentity && !listingScoped) {
+      return {
+        ok: false,
+        error: "گفتگوی این آگهی جدا از چت قبلی است",
+        status: 403,
+      };
+    }
     const access = await listingAccess(viewerId, listing.sellerId);
-    if (!access.ok) {
+    if (!access.ok && listing.sellerId !== viewerId) {
       return { ok: false, error: "این آگهی در حلقه تو نیست", status: 403 };
     }
     const peerIsSeller = listing.sellerId === peerId;
@@ -163,13 +184,45 @@ export async function loadInbox(viewerId: string): Promise<{
     loadNoticeRows(viewerId),
   ]);
   const now = Date.now();
+  const scopedIds = Array.from(
+    new Set(
+      rows
+        .filter((row) => row.listingScoped && row.listingId)
+        .map((row) => row.listingId as string),
+    ),
+  );
+  const [scopedListings, reveals] = scopedIds.length
+    ? await Promise.all([
+        prisma.marketListing.findMany({
+          where: { id: { in: scopedIds } },
+          select: { id: true, sellerId: true, hideIdentity: true },
+        }),
+        prisma.listingIdentityReveal.findMany({
+          where: { listingId: { in: scopedIds }, viewerId },
+          select: { listingId: true },
+        }),
+      ])
+    : [[], []];
+  const listingById = new Map(scopedListings.map((row) => [row.id, row]));
+  const revealed = new Set(reveals.map((row) => row.listingId));
+
   const stamped: { at: number; message: Message }[] = rows
     .slice()
     .reverse()
-    .map((row) => ({
-      at: row.createdAt.getTime(),
-      message: toClientDirectMessage(row, viewerId, now),
-    }));
+    .map((row) => {
+      const listing = row.listingId ? listingById.get(row.listingId) : undefined;
+      const viewerIsSeller = listing?.sellerId === viewerId;
+      const peerHidden = Boolean(
+        row.listingScoped &&
+          listing?.hideIdentity &&
+          !viewerIsSeller &&
+          !revealed.has(listing.id),
+      );
+      return {
+        at: row.createdAt.getTime(),
+        message: toClientDirectMessage(row, viewerId, now, { peerHidden }),
+      };
+    });
   for (const row of noticeRows) {
     stamped.push({
       at: row.createdAt.getTime(),

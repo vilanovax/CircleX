@@ -41,6 +41,7 @@ import { useToast } from "@/components/Toast";
 import { ProfileSkeleton } from "@/components/Skeleton";
 import { lazyUi } from "@/lib/lazy-ui";
 import { listingConversationCountMap } from "@/lib/thread-listing";
+import { hiddenProfileCopy } from "@/lib/hide-from-feed";
 import type { CircleEvent, Listing } from "@/lib/types";
 
 const EditProfileSheet = lazyUi(() => import("@/components/EditProfileSheet"));
@@ -214,7 +215,6 @@ function ProfileActivity() {
   const { show } = useToast();
   const [tab, setTab] = useState<ActivityTab>("listings");
   const [hashSaved, setHashSaved] = useState(false);
-  const [hashHidden, setHashHidden] = useState(false);
 
   const myListings = useMemo(
     () => listings.filter((l) => l.sellerId === "me"),
@@ -247,12 +247,14 @@ function ProfileActivity() {
   }, [saved, listingById]);
 
   const hiddenListingRows = useMemo(() => {
-    const out: Listing[] = [];
+    const found: Listing[] = [];
+    const missing: string[] = [];
     for (const id of hiddenListings) {
       const listing = listingById.get(id);
-      if (listing) out.push(listing);
+      if (listing) found.push(listing);
+      else missing.push(id);
     }
-    return out;
+    return { found, missing };
   }, [hiddenListings, listingById]);
 
   const { hostedEvents, attendingEvents, allMyEvents } = useMemo(() => {
@@ -278,8 +280,11 @@ function ProfileActivity() {
       { id: "saved" as const, label: "نشان‌ها", count: savedListings.length },
       {
         id: "hidden" as const,
-        label: "پنهان‌ها",
-        count: hiddenListingRows.length + hiddenPeople.length,
+        label: hiddenProfileCopy.tab,
+        count:
+          hiddenListingRows.found.length +
+          hiddenListingRows.missing.length +
+          hiddenPeople.length,
       },
       {
         id: "endorsements" as const,
@@ -291,7 +296,8 @@ function ProfileActivity() {
       myListings.length,
       allMyEvents,
       savedListings.length,
-      hiddenListingRows.length,
+      hiddenListingRows.found.length,
+      hiddenListingRows.missing.length,
       hiddenPeople.length,
       myGivenBadges.length,
     ],
@@ -301,11 +307,11 @@ function ProfileActivity() {
     () =>
       activityTabs.filter(
         (t) =>
+          t.id === "hidden" ||
           t.count > 0 ||
-          (hashSaved && t.id === "saved") ||
-          (hashHidden && t.id === "hidden"),
+          (hashSaved && t.id === "saved"),
       ),
-    [activityTabs, hashSaved, hashHidden],
+    [activityTabs, hashSaved],
   );
   const showTabBar = visibleTabs.length >= 2;
   const activeTab = visibleTabs.some((t) => t.id === tab)
@@ -313,34 +319,53 @@ function ProfileActivity() {
     : (visibleTabs[0]?.id ?? "listings");
 
   useEffect(() => {
-    if (window.location.hash === "#saved") {
-      setHashSaved(true);
-      setTab("saved");
-      const el = document.getElementById("activity");
-      if (!el) return;
+    function applyHash() {
+      if (window.location.hash === "#saved") {
+        setHashSaved(true);
+        setTab("saved");
+        return;
+      }
+      if (window.location.hash === "#hidden") {
+        setTab("hidden");
+      }
+    }
+
+    applyHash();
+    window.addEventListener("hashchange", applyHash);
+
+    if (
+      window.location.hash !== "#saved" &&
+      window.location.hash !== "#hidden"
+    ) {
+      if (myListings.length > 0) {
+        /* keep listings */
+      } else if (allMyEvents > 0) setTab("events");
+      else if (savedListings.length > 0) setTab("saved");
+      else if (
+        hiddenListingRows.found.length > 0 ||
+        hiddenListingRows.missing.length > 0 ||
+        hiddenPeople.length > 0
+      )
+        setTab("hidden");
+      else if (myGivenBadges.length > 0) setTab("endorsements");
+    }
+
+    const el = document.getElementById("activity");
+    if (
+      el &&
+      (window.location.hash === "#saved" || window.location.hash === "#hidden")
+    ) {
       const t = window.setTimeout(() => {
         el.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 120);
-      return () => window.clearTimeout(t);
+      return () => {
+        window.removeEventListener("hashchange", applyHash);
+        window.clearTimeout(t);
+      };
     }
 
-    if (window.location.hash === "#hidden") {
-      setHashHidden(true);
-      setTab("hidden");
-      const el = document.getElementById("activity");
-      if (!el) return;
-      const t = window.setTimeout(() => {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 120);
-      return () => window.clearTimeout(t);
-    }
-
-    if (myListings.length > 0) return;
-    if (allMyEvents > 0) setTab("events");
-    else if (savedListings.length > 0) setTab("saved");
-    else if (hiddenListingRows.length > 0 || hiddenPeople.length > 0) setTab("hidden");
-    else if (myGivenBadges.length > 0) setTab("endorsements");
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once after hydrate
+    return () => window.removeEventListener("hashchange", applyHash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate + hash
   }, []);
 
   return (
@@ -483,24 +508,30 @@ function ProfileActivity() {
         ) : null}
 
         {activeTab === "hidden" ? (
-          hiddenListingRows.length === 0 && hiddenPeople.length === 0 ? (
+          hiddenListingRows.found.length === 0 &&
+          hiddenListingRows.missing.length === 0 &&
+          hiddenPeople.length === 0 ? (
             <EmptyCard
-              title="چیزی پنهان نکرده‌ای"
-              text="از آگهی یا پروفایل بزن تا آگهی یا آگهی‌های یک نفر از فیدت کنار برود."
+              title={hiddenProfileCopy.emptyTitle}
+              text={hiddenProfileCopy.emptyText}
               href="/"
               cta="دیدن آگهی‌ها"
               icon="eye"
             />
           ) : (
             <div className="space-y-4">
+              <p className="px-0.5 text-[12px] leading-relaxed text-ink-muted dark:text-zinc-400">
+                این‌ها فقط از فید تو کنار رفته‌اند. فروشنده خبردار نمی‌شود.
+                با «رفع محدودیت نمایش» دوباره در خانه می‌آیند.
+              </p>
               {hiddenPeople.length > 0 ? (
                 <div className="space-y-2">
                   <p className="px-0.5 text-[12px] font-bold text-ink-muted dark:text-zinc-400">
-                    آگهی‌های این افراد در فید نمی‌آید
+                    {hiddenProfileCopy.peopleHeading}
                   </p>
                   {hiddenPeople.map((personId) => {
                     const person = getPerson(personId);
-                    const label = person?.name?.trim() || "فرد پنهان";
+                    const label = person?.name?.trim() || "فرد مخفی";
                     return (
                       <div
                         key={personId}
@@ -524,38 +555,58 @@ function ProfileActivity() {
                           type="button"
                           onClick={() => {
                             void toggleHiddenPerson(personId).then(() =>
-                              show("آگهی‌هایش دوباره در فید می‌آید"),
+                              show(hiddenProfileCopy.restorePersonToast),
                             );
                           }}
                           className="shrink-0 text-[12px] font-bold text-brand-600 dark:text-brand-400"
                         >
-                          برگردان
+                          {hiddenProfileCopy.restore}
                         </button>
                       </div>
                     );
                   })}
                 </div>
               ) : null}
-              {hiddenListingRows.length > 0 ? (
+              {hiddenListingRows.found.length > 0 ||
+              hiddenListingRows.missing.length > 0 ? (
                 <div className="space-y-2.5">
-                  {hiddenPeople.length > 0 ? (
-                    <p className="px-0.5 text-[12px] font-bold text-ink-muted dark:text-zinc-400">
-                      آگهی‌های جدا
-                    </p>
-                  ) : null}
-                  {hiddenListingRows.map((l) => (
+                  <p className="px-0.5 text-[12px] font-bold text-ink-muted dark:text-zinc-400">
+                    {hiddenProfileCopy.listingsHeading}
+                  </p>
+                  {hiddenListingRows.found.map((l) => (
                     <div key={l.id} className="cv-card">
                       <SavedListingCard listing={l} compactTrust />
                       <button
                         type="button"
                         onClick={() => {
                           void toggleHiddenListing(l.id).then(() =>
-                            show("دوباره در فید می‌آید"),
+                            show(hiddenProfileCopy.restoreListingToast),
                           );
                         }}
                         className="mt-1.5 px-1 text-[12px] font-bold text-brand-600 dark:text-brand-400"
                       >
-                        برگردان به فید
+                        {hiddenProfileCopy.restore}
+                      </button>
+                    </div>
+                  ))}
+                  {hiddenListingRows.missing.map((id) => (
+                    <div
+                      key={id}
+                      className="card flex items-center gap-3 px-3.5 py-3"
+                    >
+                      <span className="min-w-0 flex-1 text-[13px] font-bold text-ink-muted">
+                        {hiddenProfileCopy.missingListing}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void toggleHiddenListing(id).then(() =>
+                            show(hiddenProfileCopy.restoreListingToast),
+                          );
+                        }}
+                        className="shrink-0 text-[12px] font-bold text-brand-600 dark:text-brand-400"
+                      >
+                        {hiddenProfileCopy.restore}
                       </button>
                     </div>
                   ))}
@@ -708,6 +759,36 @@ function AccountSheet({ onClose }: { onClose: () => void }) {
         <div className="px-3 py-2.5">
           <OwnListingsFeedSwitch />
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            onClose();
+            const go = () => {
+              const el = document.getElementById("activity");
+              el?.scrollIntoView({ behavior: "smooth", block: "start" });
+            };
+            if (window.location.hash === "#hidden") {
+              window.dispatchEvent(new HashChangeEvent("hashchange"));
+              go();
+              return;
+            }
+            window.location.hash = "hidden";
+            window.setTimeout(go, 80);
+          }}
+          className="w-full flex items-center justify-between gap-3 px-3 py-3 text-right active:bg-stone-50 dark:active:bg-zinc-800/80"
+        >
+          <span className="min-w-0 text-start">
+            <span className="block text-[13px] font-bold text-ink dark:text-zinc-100">
+              {hiddenProfileCopy.accountRow}
+            </span>
+            <span className="mt-0.5 block text-[11px] text-ink-muted">
+              {hiddenProfileCopy.accountHint}
+            </span>
+          </span>
+          <span className="text-ink-faint" aria-hidden>
+            ‹
+          </span>
+        </button>
         <button
           type="button"
           onClick={() => {

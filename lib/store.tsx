@@ -23,6 +23,7 @@ import {
   mergeInboxMessages,
 } from "./demo-requests";
 import { clearThreadListing } from "./thread-listing";
+import { threadKey, parseThreadKey } from "./listing-privacy";
 import {
   buildThreadIndex,
   EMPTY_THREAD,
@@ -59,6 +60,9 @@ interface NewListingInput {
   image: string;
   images?: string[];
   privacy: Privacy;
+  hideIdentity?: boolean;
+  excludePersonIds?: string[];
+  excludeRelationTypes?: RelationType[];
   condition?: string;
   specs?: Listing["specs"];
   area?: string;
@@ -147,14 +151,20 @@ export interface StoreValue {
   isAttending: (eventId: string) => boolean;
   getOffers: (requestId: string) => Offer[];
   hasOffered: (requestId: string) => boolean;
-  getThread: (peerId: string) => Message[];
+  getThread: (peerId: string, listingId?: string | null) => Message[];
   threadIndex: ThreadIndex;
   threadPeers: () => string[];
-  unreadCount: (peerId: string) => number;
+  unreadCount: (peerId: string, listingId?: string | null) => number;
   totalUnread: () => number;
-  addMessage: (peerId: string, text: string, listingId?: string) => Promise<void>;
+  addMessage: (
+    peerId: string,
+    text: string,
+    listingId?: string,
+    listingScoped?: boolean,
+  ) => Promise<Message | void>;
   referListing: (peerId: string, listingId: string, note?: string) => Promise<void>;
-  markThreadRead: (peerId: string) => void;
+  revealListingIdentity: (listingId: string, peerId: string) => Promise<void>;
+  markThreadRead: (peerId: string, listingId?: string | null) => void;
   archiveThread: (peerId: string) => Promise<void>;
   unarchiveThread: (peerId: string) => Promise<void>;
   isThreadArchived: (peerId: string) => boolean;
@@ -717,7 +727,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         });
       }
       return next;
-    } catch {
+    } catch (err) {
+      if (err instanceof ApiError && err.code === "listing_not_visible") {
+        setListings((prev) => prev.filter((row) => row.id !== id));
+        return undefined;
+      }
       return listingsRef.current.find((l) => l.id === id) ?? existing;
     }
   }, []);
@@ -765,7 +779,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const threadIndex = useMemo(() => buildThreadIndex(messages), [messages]);
 
   const getThread = useCallback(
-    (peerId: string) => threadIndex.threadByPeer.get(peerId) ?? EMPTY_THREAD,
+    (peerId: string, listingId?: string | null) =>
+      threadIndex.threadByPeer.get(threadKey(peerId, listingId)) ??
+      EMPTY_THREAD,
     [threadIndex],
   );
 
@@ -775,7 +791,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const unreadCount = useCallback(
-    (peerId: string) => threadIndex.unreadByPeer.get(peerId) ?? 0,
+    (peerId: string, listingId?: string | null) =>
+      threadIndex.unreadByPeer.get(threadKey(peerId, listingId)) ?? 0,
     [threadIndex],
   );
 
@@ -785,39 +802,49 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const addMessage = useCallback(
-    async (peerId: string, text: string, listingId?: string) => {
+    async (
+      peerId: string,
+      text: string,
+      listingId?: string,
+      listingScoped?: boolean,
+    ) => {
       if (isCircloPeer(peerId)) return;
+      if (!peerId && !listingScoped) return;
       const tempId = `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       const optimistic: Message = {
         id: tempId,
-        peerId,
+        peerId: peerId || "pending",
         fromMe: true,
         text,
         postedAt: "همین حالا",
         read: true,
         ...(listingId ? { listingId } : {}),
+        ...(listingScoped && listingId ? { threadListingId: listingId } : {}),
       };
       setMessages((prev) => [...prev, optimistic]);
-      setArchivedThreads((prev) => prev.filter((id) => id !== peerId));
-      setDeletedThreads((prev) => prev.filter((id) => id !== peerId));
+      const key = threadKey(peerId || "pending", listingScoped ? listingId : undefined);
+      setArchivedThreads((prev) => prev.filter((id) => id !== key));
+      setDeletedThreads((prev) => prev.filter((id) => id !== key));
       try {
         const data = await api<{ message: Message; peer: Person | null }>(
           "/api/messages",
           {
             method: "POST",
             body: JSON.stringify({
-              peerId,
+              ...(peerId && !peerId.startsWith("hidden:") ? { peerId } : {}),
               text,
               ...(listingId ? { listingId } : {}),
+              ...(listingScoped ? { listingScoped: true } : {}),
             }),
           },
         );
-        if (data.peer) {
+        if (data.peer && !data.message.peerHidden) {
           setPeople((prev) => overlayPeople(prev, [data.peer as Person]));
         }
         setMessages((prev) =>
           prev.map((msg) => (msg.id === tempId ? data.message : msg)),
         );
+        return data.message;
       } catch (err) {
         setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
         throw err;
@@ -826,39 +853,77 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  // Refer a listing to someone in the trust network (an in-DM recommendation).
+  const revealListingIdentity = useCallback(
+    async (listingId: string, peerId: string) => {
+      const data = await api<{ listing: Listing; message: Message }>(
+        `/api/listings/${encodeURIComponent(listingId)}/reveal`,
+        {
+          method: "POST",
+          body: JSON.stringify({ peerId }),
+        },
+      );
+      setListings((prev) =>
+        prev.map((row) => (row.id === data.listing.id ? data.listing : row)),
+      );
+      setMessages((prev) => [...prev, data.message]);
+    },
+    [],
+  );
+
   const referListing = useCallback(
     async (peerId: string, listingId: string, note?: string) => {
+      const listing = listingsRef.current.find((row) => row.id === listingId);
+      if (listing?.privatePublish) {
+        throw new ApiError(400, "این آگهی را نمی‌توان در چت دیگری فرستاد");
+      }
       await addMessage(peerId, note?.trim() ?? "", listingId);
     },
     [addMessage],
   );
 
-  const markThreadRead = useCallback((peerId: string) => {
-    setMessages((prev) => {
-      // Avoid a state update (and re-render loop) when nothing is unread.
-      if (!prev.some((msg) => msg.peerId === peerId && !msg.fromMe && !msg.read)) {
-        return prev;
-      }
-      return prev.map((msg) =>
-        msg.peerId === peerId ? { ...msg, read: true } : msg,
-      );
-    });
-    void api("/api/messages/read", {
-      method: "POST",
-      body: JSON.stringify({ peerId }),
-    }).catch(() => {});
-  }, []);
+  const markThreadRead = useCallback(
+    (peerId: string, listingId?: string | null) => {
+      const scopedId = listingId?.trim() || undefined;
+      setMessages((prev) => {
+        const unread = prev.some((msg) => {
+          if (msg.peerId !== peerId || msg.fromMe || msg.read) return false;
+          if (scopedId) return msg.threadListingId === scopedId;
+          return !msg.threadListingId;
+        });
+        if (!unread) return prev;
+        return prev.map((msg) => {
+          if (msg.peerId !== peerId || msg.fromMe) return msg;
+          if (scopedId) {
+            return msg.threadListingId === scopedId ? { ...msg, read: true } : msg;
+          }
+          return msg.threadListingId ? msg : { ...msg, read: true };
+        });
+      });
+      void api("/api/messages/read", {
+        method: "POST",
+        body: JSON.stringify({
+          peerId,
+          ...(scopedId ? { listingId: scopedId } : {}),
+        }),
+      }).catch(() => {});
+    },
+    [],
+  );
 
   const persistThread = useCallback(
     async (
-      peerId: string,
+      key: string,
       patch: { archived?: boolean; pinned?: boolean; deleted?: boolean },
     ) => {
+      const { peerId, listingId } = parseThreadKey(key);
       if (isCircloPeer(peerId)) return;
       await api("/api/messages/thread", {
         method: "PUT",
-        body: JSON.stringify({ peerId, ...patch }),
+        body: JSON.stringify({
+          peerId,
+          listingId: listingId ?? "",
+          ...patch,
+        }),
       });
     },
     [],
@@ -892,7 +957,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const deleteThread = useCallback(
     async (peerId: string) => {
       if (isCircloPeer(peerId)) return;
-      setMessages((prev) => prev.filter((msg) => msg.peerId !== peerId));
+      setMessages((prev) =>
+        prev.filter((msg) => threadKey(msg.peerId, msg.threadListingId) !== peerId),
+      );
       setArchivedThreads((prev) => prev.filter((id) => id !== peerId));
       setPinnedThreads((prev) => prev.filter((id) => id !== peerId));
       setDeletedThreads((prev) =>
@@ -1598,6 +1665,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       totalUnread,
       addMessage,
       referListing,
+      revealListingIdentity,
       markThreadRead,
       archiveThread,
       unarchiveThread,
@@ -1687,6 +1755,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       totalUnread,
       addMessage,
       referListing,
+      revealListingIdentity,
       markThreadRead,
       archiveThread,
       unarchiveThread,

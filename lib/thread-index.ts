@@ -1,4 +1,5 @@
 import type { Message } from "./types";
+import { threadKey } from "./listing-privacy";
 
 export type ThreadIndex = {
   peerIds: string[];
@@ -20,6 +21,12 @@ const EMPTY_INDEX: ThreadIndex = {
   totalUnread: 0,
 };
 
+function indexKey(msg: Message): string {
+  return msg.threadListingId
+    ? threadKey(msg.peerId, msg.threadListingId)
+    : msg.peerId;
+}
+
 /** One pass over inbox messages: peers, last message, unread, listing topic. */
 export function buildThreadIndex(messages: Message[]): ThreadIndex {
   if (messages.length === 0) return EMPTY_INDEX;
@@ -33,20 +40,19 @@ export function buildThreadIndex(messages: Message[]): ThreadIndex {
 
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
-    let thread = threadByPeer.get(msg.peerId);
+    const key = indexKey(msg);
+    let thread = threadByPeer.get(key);
     if (!thread) {
       thread = [];
-      threadByPeer.set(msg.peerId, thread);
+      threadByPeer.set(key, thread);
     }
     thread.push(msg);
-    lastIndex.set(msg.peerId, i);
-    lastByPeer.set(msg.peerId, msg);
-    if (msg.listingId) listingIdByPeer.set(msg.peerId, msg.listingId);
+    lastIndex.set(key, i);
+    lastByPeer.set(key, msg);
+    if (msg.listingId) listingIdByPeer.set(key, msg.listingId);
+    if (msg.threadListingId) listingIdByPeer.set(key, msg.threadListingId);
     if (!msg.fromMe && !msg.read) {
-      unreadByPeer.set(
-        msg.peerId,
-        (unreadByPeer.get(msg.peerId) ?? 0) + 1,
-      );
+      unreadByPeer.set(key, (unreadByPeer.get(key) ?? 0) + 1);
       totalUnread += 1;
     }
   }

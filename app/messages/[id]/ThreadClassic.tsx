@@ -20,6 +20,10 @@ import { canOpenThread } from "@/lib/messaging";
 import { isCircloPeer } from "@/lib/circlo";
 import { canView } from "@/lib/trust";
 import {
+  circleMemberPerson,
+  CIRCLE_MEMBER_NAME,
+} from "@/lib/listing-privacy";
+import {
   latestListingIdInThread,
   recalledThreadListing,
   rememberThreadListing,
@@ -43,12 +47,15 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const peerId = String(params.id);
+  const queryListingId = searchParams.get("listing");
+  const scoped = searchParams.get("scoped") === "1";
   const people = useStore((s) => s.people);
   const listings = useStore((s) => s.listings);
   const requests = useStore((s) => s.requests);
   const networkLinks = useStore((s) => s.networkLinks);
   const getPerson = useStore((s) => s.getPerson);
   const getThread = useStore((s) => s.getThread);
+  const revealListingIdentity = useStore((s) => s.revealListingIdentity);
   const getListing = useStore((s) => s.getListing);
   const ensureListing = useStore((s) => s.ensureListing);
   const addMessage = useStore((s) => s.addMessage);
@@ -69,9 +76,8 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const peer = getPerson(peerId);
-  const thread = getThread(peerId);
-  const queryListingId = searchParams.get("listing");
+  const storedPeer = getPerson(peerId);
+  const thread = getThread(peerId, scoped ? queryListingId : undefined);
   const [sessionListingId, setSessionListingId] = useState<string | undefined>(
     undefined,
   );
@@ -98,6 +104,15 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
     ? getListing(activeListingId)
     : undefined;
   const isSellerOfContext = contextListing?.sellerId === "me";
+  const hidePeer = Boolean(
+    scoped &&
+      contextListing?.privatePublish &&
+      !isSellerOfContext &&
+      contextListing.identityHidden,
+  );
+  const peer = hidePeer
+    ? circleMemberPerson(peerId)
+    : storedPeer;
   const dealStatus = contextListing?.dealStatus ?? "available";
 
   useEffect(() => {
@@ -146,17 +161,19 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   );
 
   const canChat = peer
-    ? canOpenThread(peer, {
-        hasThread: thread.length > 0,
-        listing: contextListing,
-        getPerson,
-        hasVisibleOfferings,
-      })
+    ? contextListing?.privatePublish
+      ? canView(contextListing, getPerson) || isSellerOfContext || thread.length > 0
+      : canOpenThread(peer, {
+          hasThread: thread.length > 0,
+          listing: contextListing,
+          getPerson,
+          hasVisibleOfferings,
+        })
     : false;
 
   useEffect(() => {
-    markThreadRead(peerId);
-  }, [peerId, markThreadRead]);
+    markThreadRead(peerId, scoped ? queryListingId : undefined);
+  }, [peerId, markThreadRead, scoped, queryListingId]);
 
   useEffect(() => {
     if (draftApplied.current) return;
@@ -313,7 +330,12 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
     if (activeListingId) rememberThreadListing(peerId, activeListingId);
     setSending(true);
     try {
-      await addMessage(peerId, t, attachListing);
+      await addMessage(
+        peerId,
+        t,
+        scoped ? activeListingId ?? attachListing : attachListing,
+        scoped,
+      );
       setText("");
     } catch (err) {
       show(
@@ -358,20 +380,38 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   return (
     <main className="flex flex-col h-[100dvh]">
       <Header back fallbackHref="/messages">
-        <Link
-          href={`/person/${peerId}`}
-          className="flex min-h-9 min-w-0 items-center gap-2.5 active:opacity-70"
-        >
-          <Avatar name={peer.name} src={peer.avatar} size="sm" showLevel={false} />
-          <div className="flex min-w-0 flex-col justify-center">
-            <p className="m-0 truncate text-[14px] font-extrabold leading-none text-ink dark:text-zinc-100">
-              {peer.name}
-            </p>
-            <p className="m-0 mt-1 truncate text-[11px] leading-none text-ink-muted dark:text-zinc-400">
-              گفتگو · {subtitle}
-            </p>
+        {hidePeer ? (
+          <div className="flex min-h-9 min-w-0 items-center gap-2.5">
+            <Avatar name={peer.name} src={peer.avatar} size="sm" showLevel={false} />
+            <div className="flex min-w-0 flex-col justify-center">
+              <p className="m-0 truncate text-[14px] font-extrabold leading-none text-ink dark:text-zinc-100">
+                {CIRCLE_MEMBER_NAME}
+              </p>
+              <p className="m-0 mt-1 truncate text-[11px] leading-none text-ink-muted dark:text-zinc-400">
+                هویت برای اعضا پنهان است
+              </p>
+            </div>
           </div>
-        </Link>
+        ) : (
+          <Link
+            href={`/person/${peerId}`}
+            className="flex min-h-9 min-w-0 items-center gap-2.5 active:opacity-70"
+          >
+            <Avatar name={peer.name} src={peer.avatar} size="sm" showLevel={false} />
+            <div className="flex min-w-0 flex-col justify-center">
+              <p className="m-0 truncate text-[14px] font-extrabold leading-none text-ink dark:text-zinc-100">
+                {peer.name}
+              </p>
+              <p className="m-0 mt-1 truncate text-[11px] leading-none text-ink-muted dark:text-zinc-400">
+                {isSellerOfContext && scoped && contextListing?.privatePublish
+                  ? contextListing.identityRevealedPeerIds?.includes(peerId)
+                    ? `هویت تو برای ${peer.name} نمایش داده می‌شود`
+                    : `هویت تو برای ${peer.name} پنهان است`
+                  : `گفتگو · ${subtitle}`}
+              </p>
+            </div>
+          </Link>
+        )}
       </Header>
 
       {(contextListing || listingGone) && (
@@ -426,6 +466,37 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
               </span>
             </Link>
           )}
+          {hidePeer ? (
+            <p className="mt-2 text-[12px] text-ink-muted leading-relaxed">
+              هویت آگهی‌دهنده برای تو پنهان است. اگر پیام بفرستی، او تو را با نام
+              واقعی می‌بیند.
+            </p>
+          ) : null}
+          {isSellerOfContext &&
+          scoped &&
+          contextListing?.privatePublish &&
+          !contextListing.identityRevealedPeerIds?.includes(peerId) ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (
+                  !window.confirm(
+                    `بعد از نمایش هویت، ${peer.name} نام و تصویر تو را خواهد دید و امکان پنهان‌کردن اطلاعاتی که دیده است وجود ندارد.`,
+                  )
+                ) {
+                  return;
+                }
+                void revealListingIdentity(contextListing.id, peerId)
+                  .then(() => show("هویت در این گفتگو نمایش داده شد"))
+                  .catch((err) =>
+                    show(err instanceof ApiError ? err.message : "انجام نشد"),
+                  );
+              }}
+              className="mt-2 text-[12px] font-bold text-brand-600 dark:text-brand-400"
+            >
+              نمایش هویت من به این فرد
+            </button>
+          ) : null}
           {contextListing && isSellerOfContext && dealStatus !== "inactive" ? (
             <div className="mt-2">
               <p className="mb-1.5 text-[11px] text-ink-muted">
@@ -518,6 +589,13 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
               return (
                 <div key={msg.id}>
                   {showDay && <DayDivider label={dayKey(msg.postedAt)} />}
+                  {msg.kind === "system" ? (
+                    <p className="text-center text-[12px] text-ink-muted px-6 py-2 leading-relaxed">
+                      {msg.fromMe
+                        ? `هویت تو در این گفتگو برای ${storedPeer?.name ?? peer.name} نمایش داده می‌شود.`
+                        : "آگهی‌دهنده هویت خود را برای تو نمایش داد."}
+                    </p>
+                  ) : (
                   <div
                     // LTR row geometry so justify-end = screen-right (WhatsApp-like),
                     // while bubble text stays RTL via unicode / nested dir.
@@ -550,6 +628,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
                       </button>
                     ) : null}
                   </div>
+                  )}
                 </div>
               );
             })}

@@ -76,7 +76,10 @@ export function listingThreadPeers(
   const order: string[] = [];
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
-    if (msg.listingId !== listingId) continue;
+    const about =
+      msg.threadListingId === listingId ||
+      (!msg.threadListingId && msg.listingId === listingId);
+    if (!about) continue;
     if (seen.has(msg.peerId)) continue;
     seen.add(msg.peerId);
     order.push(msg.peerId);

@@ -13,6 +13,8 @@ import {
   toClientRequest,
   toHomeListing,
 } from "@/lib/mappers";
+import { listingViewerFlags } from "@/lib/server-listing-privacy";
+import { threadKey } from "@/lib/listing-privacy";
 import type {
   CircleEvent,
   Listing,
@@ -206,11 +208,19 @@ export async function loadCircleNetwork(viewerId: string): Promise<{
           include: listingEndorsementsInclude,
         });
 
-  const listings = marketRows.map((row) =>
+  const flags = await listingViewerFlags(viewerId, marketRows);
+  const visibleRows = marketRows.filter((row) => !flags.blockedIds.has(row.id));
+
+  const listings = visibleRows.map((row) =>
     toClientListing(
       row,
       viewerId,
       trustPathForListing(row, viewerId, ctx),
+      {
+        revealed: flags.revealedIds.has(row.id),
+        excludePersonIds: flags.excludeIdsByListing.get(row.id),
+        identityRevealedPeerIds: flags.revealPeersByListing.get(row.id),
+      },
     ),
   );
 
@@ -236,6 +246,8 @@ const HOME_LISTING_SELECT = {
   sellerId: true,
   createdAt: true,
   privacy: true,
+  hideIdentity: true,
+  excludeRelationTypes: true,
   city: true,
   area: true,
   dealStatus: true,
@@ -315,6 +327,9 @@ export async function loadHomeFeed(viewerId: string): Promise<{
           select: HOME_LISTING_SELECT,
         });
 
+  const flags = await listingViewerFlags(viewerId, marketRows);
+  const visibleRows = marketRows.filter((row) => !flags.blockedIds.has(row.id));
+
   const pathCtx = {
     directSet: direct.directSet,
     memberById: direct.memberById,
@@ -322,13 +337,18 @@ export async function loadHomeFeed(viewerId: string): Promise<{
     viaRelationBySeller,
   };
 
-  const listings = marketRows.map((row) =>
-    toHomeListing(row, viewerId, trustPathForListing(row, viewerId, pathCtx)),
+  const listings = visibleRows.map((row) =>
+    toHomeListing(row, viewerId, trustPathForListing(row, viewerId, pathCtx), {
+      revealed: flags.revealedIds.has(row.id),
+      excludePersonIds: flags.excludeIdsByListing.get(row.id),
+      identityRevealedPeerIds: flags.revealPeersByListing.get(row.id),
+    }),
   );
 
   const fofSellerIds = Array.from(
     new Set(
-      marketRows
+      visibleRows
+        .filter((row) => !row.hideIdentity || flags.revealedIds.has(row.id))
         .map((row) => row.sellerId)
         .filter((id) => id !== viewerId && !direct.directSet.has(id)),
     ),
@@ -545,9 +565,11 @@ export async function loadViewerPrefs(viewerId: string): Promise<{
   const pinnedThreads: string[] = [];
   const deletedThreads: string[] = [];
   for (const row of threadRows) {
-    if (row.deletedAt) deletedThreads.push(row.peerId);
-    else if (row.archived) archivedThreads.push(row.peerId);
-    if (row.pinned && !row.deletedAt) pinnedThreads.push(row.peerId);
+    if (row.deletedAt) deletedThreads.push(threadKey(row.peerId, row.listingId));
+    else if (row.archived) archivedThreads.push(threadKey(row.peerId, row.listingId));
+    if (row.pinned && !row.deletedAt) {
+      pinnedThreads.push(threadKey(row.peerId, row.listingId));
+    }
   }
   const listingNotes: Record<string, string> = {};
   for (const row of noteRows) {

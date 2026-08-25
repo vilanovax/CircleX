@@ -5,8 +5,13 @@ import { jsonError, readJson, withDb } from "@/lib/http";
 import { listingEndorsementsInclude, toClientListing } from "@/lib/mappers";
 import { catalogExtraAreas } from "@/lib/app-settings";
 import { parseDealStatus, parseListingWrite } from "@/lib/listing-payload";
-import { getSessionUser } from "@/lib/server-auth";
 import { recordListingView } from "@/lib/listing-stats";
+import { getSessionUser } from "@/lib/server-auth";
+import {
+  assertExcludePeopleInCircle,
+  listingViewerFlags,
+  replaceListingExcludes,
+} from "@/lib/server-listing-privacy";
 import { fanoutListingWatches } from "@/lib/server-watches";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +33,15 @@ export async function GET(
       return jsonError("آگهی پیدا نشد", 404);
     }
 
+    const flags = await listingViewerFlags(session.id, [row]);
+    if (flags.blockedIds.has(row.id)) {
+      return jsonError(
+        "این آگهی برای شما قابل مشاهده نیست",
+        403,
+        "listing_not_visible",
+      );
+    }
+
     const access = await listingAccess(session.id, row.sellerId);
     if (!access.ok) {
       const viaMessage = await prisma.directMessage.findFirst({
@@ -35,6 +49,7 @@ export async function GET(
           listingId: row.id,
           hiddenAt: null,
           OR: [{ toUserId: session.id }, { fromUserId: session.id }],
+          ...(row.hideIdentity ? { listingScoped: true } : {}),
         },
         select: { id: true },
       });
@@ -65,7 +80,11 @@ export async function GET(
           });
 
     return Response.json({
-      listing: toClientListing(row, session.id, access.trustPath),
+      listing: toClientListing(row, session.id, access.trustPath, {
+        revealed: flags.revealedIds.has(row.id),
+        excludePersonIds: flags.excludeIdsByListing.get(row.id),
+        identityRevealedPeerIds: flags.revealPeersByListing.get(row.id),
+      }),
       personalNote: noteRow?.body?.trim() ? noteRow.body : null,
     });
   });
@@ -98,11 +117,27 @@ export async function PATCH(
     body.title != null ||
     body.description != null ||
     body.type != null ||
-    body.image != null;
+    body.image != null ||
+    body.privacy != null ||
+    body.hideIdentity != null ||
+    body.excludePersonIds != null ||
+    body.excludeRelationTypes != null;
 
   if (isWrite) {
     const parsed = parseListingWrite(body, await catalogExtraAreas());
     if (!parsed.ok) return jsonError(parsed.error, 400);
+    if (!row.hideIdentity && parsed.data.hideIdentity) {
+      return jsonError(
+        "بعد از نمایش هویت روی آگهی نمی‌توانی دوباره پنهان کنی",
+        400,
+      );
+    }
+    const peopleOk = await assertExcludePeopleInCircle(
+      session.id,
+      parsed.data.excludePersonIds ?? [],
+    );
+    if (!peopleOk.ok) return jsonError(peopleOk.error, 400);
+
     const updated = await prisma.marketListing.update({
       where: { id: row.id },
       data: {
@@ -115,6 +150,8 @@ export async function PATCH(
         images: parsed.data.images,
         condition: parsed.data.condition ?? null,
         privacy: parsed.data.privacy,
+        hideIdentity: parsed.data.hideIdentity ?? false,
+        excludeRelationTypes: parsed.data.excludeRelationTypes ?? [],
         specs: parsed.data.specs
           ? (parsed.data.specs as unknown as Prisma.InputJsonValue)
           : Prisma.JsonNull,
@@ -123,6 +160,8 @@ export async function PATCH(
       },
       include: listingEndorsementsInclude,
     });
+    await replaceListingExcludes(row.id, parsed.data.excludePersonIds ?? []);
+    const flags = await listingViewerFlags(session.id, [updated]);
     if (republish) {
       void fanoutListingWatches({
         id: updated.id,
@@ -131,9 +170,17 @@ export async function PATCH(
         description: updated.description,
         privacy: updated.privacy,
         dealStatus: updated.dealStatus,
+        hideIdentity: updated.hideIdentity,
+        excludeRelationTypes: updated.excludeRelationTypes,
       }).catch(() => {});
     }
-    return Response.json({ listing: toClientListing(updated, session.id) });
+    return Response.json({
+      listing: toClientListing(updated, session.id, [], {
+        revealed: flags.revealedIds.has(updated.id),
+        excludePersonIds: flags.excludeIdsByListing.get(updated.id),
+        identityRevealedPeerIds: flags.revealPeersByListing.get(updated.id),
+      }),
+    });
   }
 
   if (!dealStatus) return jsonError("وضعیت معامله نامعتبر است", 400);
@@ -145,17 +192,26 @@ export async function PATCH(
   });
 
   if (republish) {
-    void fanoutListingWatches({
-      id: updated.id,
-      sellerId: updated.sellerId,
-      title: updated.title,
-      description: updated.description,
-      privacy: updated.privacy,
-      dealStatus: updated.dealStatus,
-    }).catch(() => {});
+      void fanoutListingWatches({
+        id: updated.id,
+        sellerId: updated.sellerId,
+        title: updated.title,
+        description: updated.description,
+        privacy: updated.privacy,
+        dealStatus: updated.dealStatus,
+        hideIdentity: updated.hideIdentity,
+        excludeRelationTypes: updated.excludeRelationTypes,
+      }).catch(() => {});
   }
 
-  return Response.json({ listing: toClientListing(updated, session.id) });
+  const flags = await listingViewerFlags(session.id, [updated]);
+  return Response.json({
+    listing: toClientListing(updated, session.id, [], {
+      revealed: flags.revealedIds.has(updated.id),
+      excludePersonIds: flags.excludeIdsByListing.get(updated.id),
+      identityRevealedPeerIds: flags.revealPeersByListing.get(updated.id),
+    }),
+  });
 }
 
 export async function DELETE(

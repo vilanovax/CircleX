@@ -42,6 +42,8 @@ const TABLE_LABELS: Record<string, string> = {
   savedListings: "نشان آگهی",
   hiddenListings: "پنهان از فید",
   hiddenPeople: "پنهان فرد از فید",
+  listingExcludePeople: "استثنای مخاطب آگهی",
+  listingIdentityReveals: "نمایش هویت آگهی",
   listingPersonalNotes: "یادداشت آگهی",
   listingViews: "نمایش آگهی",
   listingWatches: "گوش‌به‌زنگ",

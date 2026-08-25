@@ -1,0 +1,198 @@
+import { privacyLabels, relationLabels } from "@/lib/labels";
+import { requiredScore } from "@/lib/trust";
+import type {
+  Endorsement,
+  Listing,
+  Person,
+  Privacy,
+  RelationType,
+  TrustHop,
+} from "@/lib/types";
+
+export const CIRCLE_MEMBER_NAME = "یکی از اعضای سیرکل";
+export const CIRCLE_MEMBER_AVATAR = "/avatars/01.webp";
+
+export const HIDDEN_SELLER_PREFIX = "hidden:";
+
+const RELATION_TYPES: RelationType[] = [
+  "family",
+  "friend",
+  "colleague",
+  "neighbor",
+  "acquaintance",
+];
+
+export function circleMemberPerson(id: string): Person {
+  return {
+    id,
+    name: CIRCLE_MEMBER_NAME,
+    avatar: CIRCLE_MEMBER_AVATAR,
+    relation: "acquaintance",
+    level: "C",
+    deals: 0,
+    inMyCircle: false,
+  };
+}
+
+export function isHiddenSellerId(id: string): boolean {
+  return id.startsWith(HIDDEN_SELLER_PREFIX);
+}
+
+export function hiddenSellerId(listingId: string): string {
+  return `${HIDDEN_SELLER_PREFIX}${listingId}`;
+}
+
+export function threadKey(peerId: string, listingId?: string | null): string {
+  const listing = listingId?.trim();
+  return listing ? `${peerId}::${listing}` : peerId;
+}
+
+export function parseThreadKey(key: string): {
+  peerId: string;
+  listingId?: string;
+} {
+  const at = key.indexOf("::");
+  if (at <= 0) return { peerId: key };
+  return { peerId: key.slice(0, at), listingId: key.slice(at + 2) };
+}
+
+export function listingChatHref(
+  listing: Pick<Listing, "id" | "sellerId" | "privatePublish">,
+  extra?: { draft?: string; peerId?: string },
+): string {
+  const listingQ = encodeURIComponent(listing.id);
+  const draft = extra?.draft
+    ? `&draft=${encodeURIComponent(extra.draft)}`
+    : "";
+  if (listing.privatePublish) {
+    if (extra?.peerId && extra.peerId !== "me" && !isHiddenSellerId(extra.peerId)) {
+      return `/messages/${encodeURIComponent(extra.peerId)}?listing=${listingQ}&scoped=1${draft.replace(/^&/, "&")}`;
+    }
+    return `/messages/listing/${encodeURIComponent(listing.id)}${extra?.draft ? `?draft=${encodeURIComponent(extra.draft)}` : ""}`;
+  }
+  const peer = extra?.peerId ?? listing.sellerId;
+  return `/messages/${encodeURIComponent(peer)}?listing=${listingQ}${draft}`;
+}
+
+export function audienceIsWider(from: Privacy, to: Privacy): boolean {
+  return requiredScore(to) < requiredScore(from);
+}
+
+export function viewerExcludedFromListing(opts: {
+  viewerId: string;
+  excludePersonIds: Iterable<string>;
+  excludeRelationTypes: Iterable<RelationType>;
+  sellerToViewerRelation?: RelationType | null;
+}): boolean {
+  for (const id of opts.excludePersonIds) {
+    if (id === opts.viewerId) return true;
+  }
+  const relation = opts.sellerToViewerRelation;
+  if (!relation) return false;
+  for (const type of opts.excludeRelationTypes) {
+    if (type === relation) return true;
+  }
+  return false;
+}
+
+export function parseRelationTypes(value: unknown): RelationType[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<RelationType>();
+  const out: RelationType[] = [];
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    if (!RELATION_TYPES.includes(item as RelationType)) continue;
+    const type = item as RelationType;
+    if (seen.has(type)) continue;
+    seen.add(type);
+    out.push(type);
+  }
+  return out;
+}
+
+export function parsePersonIds(value: unknown, max = 40): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    const id = item.trim();
+    if (id.length < 8 || id === "me" || isHiddenSellerId(id)) continue;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+export function listingPrivacySummary(opts: {
+  privacy: Privacy;
+  hideIdentity: boolean;
+  excludePersonNames: string[];
+  excludeRelationTypes: RelationType[];
+}): string[] {
+  const lines = [`این آگهی را ${privacyLabels[opts.privacy]} می‌بینند.`];
+  const blocks: string[] = opts.excludeRelationTypes.map(
+    (type) => relationLabels[type],
+  );
+  if (opts.excludePersonNames.length) {
+    blocks.push(opts.excludePersonNames.join(" و "));
+  }
+  if (blocks.length) {
+    lines.push(`${blocks.join(" و ")} آن را نمی‌بینند.`);
+  }
+  lines.push(
+    opts.hideIdentity
+      ? "هویت تو برای همه پنهان است."
+      : "نام و تصویر تو روی آگهی دیده می‌شود.",
+  );
+  return lines;
+}
+
+export type ListingIdentityView = {
+  hideIdentity: boolean;
+  revealed: boolean;
+  isOwner: boolean;
+  excludePersonIds?: string[];
+  excludeRelationTypes?: RelationType[];
+  identityRevealedPeerIds?: string[];
+};
+
+export function applyListingIdentity<
+  T extends {
+    id: string;
+    sellerId: string;
+    trustPath: TrustHop[];
+    endorsements: Endorsement[];
+  },
+>(row: T, view: ListingIdentityView): T & {
+  privatePublish: boolean;
+  identityHidden: boolean;
+  excludePersonIds?: string[];
+  excludeRelationTypes?: RelationType[];
+  identityRevealedPeerIds?: string[];
+} {
+  const identityHidden =
+    view.hideIdentity && !view.isOwner && !view.revealed;
+  const sellerId = view.isOwner
+    ? "me"
+    : identityHidden
+      ? hiddenSellerId(row.id)
+      : row.sellerId;
+  return {
+    ...row,
+    sellerId,
+    trustPath: identityHidden ? [] : row.trustPath,
+    endorsements: identityHidden ? [] : row.endorsements,
+    privatePublish: view.hideIdentity,
+    identityHidden,
+    ...(view.isOwner
+      ? {
+          excludePersonIds: view.excludePersonIds ?? [],
+          excludeRelationTypes: view.excludeRelationTypes ?? [],
+          identityRevealedPeerIds: view.identityRevealedPeerIds ?? [],
+        }
+      : {}),
+  };
+}

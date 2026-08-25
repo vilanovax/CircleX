@@ -93,7 +93,7 @@ export function useOwnerListingFlow(
             if (peers.length === 1) {
               setPanel(null);
               router.push(
-                `/messages/${encodeURIComponent(peers[0]!)}?listing=${encodeURIComponent(listing.id)}`,
+                `/messages/${encodeURIComponent(peers[0]!)}?listing=${encodeURIComponent(listing.id)}${listing.privatePublish ? "&scoped=1" : ""}`,
               );
               return;
             }

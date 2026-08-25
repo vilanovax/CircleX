@@ -6,7 +6,17 @@ import {
 } from "./labels";
 import { isAllowedListingImage } from "./listing-photo";
 import { parseArea } from "./place";
-import type { BadgeType, ListingSpec, ListingType, Privacy } from "./types";
+import {
+  parsePersonIds,
+  parseRelationTypes,
+} from "./listing-privacy";
+import type {
+  BadgeType,
+  ListingSpec,
+  ListingType,
+  Privacy,
+  RelationType,
+} from "./types";
 
 export const LISTING_TYPES: ListingType[] = [
   "sale",
@@ -42,6 +52,9 @@ export type ListingWriteInput = {
   image: string;
   images: string[];
   privacy: Privacy;
+  hideIdentity?: boolean;
+  excludePersonIds?: string[];
+  excludeRelationTypes?: RelationType[];
   condition?: string;
   specs?: ListingSpec[];
   area?: string;
@@ -134,6 +147,9 @@ export function parseListingWrite(
   const condition = asTrimmed(raw.condition, 40) || undefined;
   const specs = parseSpecs(raw.specs);
   const area = parseArea(raw.area, extraAreas);
+  const hideIdentity = raw.hideIdentity === true;
+  const excludePersonIds = parsePersonIds(raw.excludePersonIds);
+  const excludeRelationTypes = parseRelationTypes(raw.excludeRelationTypes);
 
   return {
     ok: true,
@@ -146,6 +162,9 @@ export function parseListingWrite(
       image,
       images,
       privacy,
+      hideIdentity,
+      excludePersonIds,
+      excludeRelationTypes,
       condition,
       specs,
       area,

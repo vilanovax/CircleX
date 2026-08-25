@@ -5,6 +5,11 @@ import { jsonError, readJson } from "@/lib/http";
 import { toClientListing } from "@/lib/mappers";
 import { parseListingWrite } from "@/lib/listing-payload";
 import { getSessionUser } from "@/lib/server-auth";
+import {
+  assertExcludePeopleInCircle,
+  listingViewerFlags,
+  replaceListingExcludes,
+} from "@/lib/server-listing-privacy";
 import { fanoutListingWatches } from "@/lib/server-watches";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +23,11 @@ export async function POST(req: Request) {
     await catalogExtraAreas(),
   );
   if (!parsed.ok) return jsonError(parsed.error, 400);
+  const peopleOk = await assertExcludePeopleInCircle(
+    session.id,
+    parsed.data.excludePersonIds ?? [],
+  );
+  if (!peopleOk.ok) return jsonError(peopleOk.error, 400);
 
   const row = await prisma.marketListing.create({
     data: {
@@ -31,6 +41,8 @@ export async function POST(req: Request) {
       images: parsed.data.images,
       condition: parsed.data.condition ?? null,
       privacy: parsed.data.privacy,
+      hideIdentity: parsed.data.hideIdentity ?? false,
+      excludeRelationTypes: parsed.data.excludeRelationTypes ?? [],
       city: session.city || "تهران",
       area: parsed.data.area ?? null,
       dealStatus: "available",
@@ -39,6 +51,8 @@ export async function POST(req: Request) {
         : undefined,
     },
   });
+  await replaceListingExcludes(row.id, parsed.data.excludePersonIds ?? []);
+  const flags = await listingViewerFlags(session.id, [row]);
 
   void fanoutListingWatches({
     id: row.id,
@@ -47,7 +61,15 @@ export async function POST(req: Request) {
     description: row.description,
     privacy: row.privacy,
     dealStatus: row.dealStatus,
+    hideIdentity: row.hideIdentity,
+    excludeRelationTypes: row.excludeRelationTypes,
   }).catch(() => {});
 
-  return Response.json({ listing: toClientListing(row, session.id) });
+  return Response.json({
+    listing: toClientListing(row, session.id, [], {
+      revealed: flags.revealedIds.has(row.id),
+      excludePersonIds: flags.excludeIdsByListing.get(row.id),
+      identityRevealedPeerIds: flags.revealPeersByListing.get(row.id),
+    }),
+  });
 }

@@ -39,6 +39,9 @@ export function canMessageAboutListing(
 ): boolean {
   if (peer.id === "me") return false;
 
+  if (listing.privatePublish && listing.sellerId !== "me") {
+    return canView(listing, getPerson);
+  }
   // Buyer → seller about this listing
   if (listing.sellerId === peer.id) {
     return canView(listing, getPerson);

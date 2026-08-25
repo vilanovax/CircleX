@@ -63,6 +63,8 @@ model User {
   edgesFrom          CircleEdge[]       @relation("EdgeFrom")
   edgesTo            CircleEdge[]       @relation("EdgeTo")
   listings            MarketListing[]
+  listingExcludes     ListingExcludePerson[]
+  listingIdentityViews ListingIdentityReveal[]
   listingReports      ListingReport[]
   messageReportsFiled    MessageReport[] @relation("MessageReporter")
   messageReportsAgainst  MessageReport[] @relation("MessageAccused")
@@ -228,6 +230,8 @@ model MarketListing {
   images      String[] @default([])
   condition   String?
   privacy     String   @default("ABC")
+  hideIdentity Boolean @default(false)
+  excludeRelationTypes RelationType[] @default([])
   city        String?
   area        String?
   specs       Json?
@@ -241,6 +245,8 @@ model MarketListing {
   hides        HiddenListing[]
   notes        ListingPersonalNote[]
   views        ListingView[]
+  excludes     ListingExcludePerson[]
+  identityReveals ListingIdentityReveal[]
 
   @@index([sellerId])
   @@index([createdAt])
@@ -301,6 +307,8 @@ model DirectMessage {
   toUserId   String
   text       String    @default("")
   listingId  String?
+  listingScoped Boolean @default(false)
+  kind       String    @default("chat")
   readAt     DateTime?
   hiddenAt   DateTime?
   createdAt  DateTime  @default(now())
@@ -317,6 +325,35 @@ model DirectMessage {
   @@index([toUserId, readAt])
   @@index([listingId])
   @@index([hiddenAt])
+  @@index([listingId, listingScoped])
+}
+
+/** Seller hid this person from a listing; relationship is unchanged. */
+model ListingExcludePerson {
+  id        String        @id @default(cuid())
+  listingId String
+  listing   MarketListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  personId  String
+  person    User          @relation(fields: [personId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@unique([listingId, personId])
+  @@index([listingId])
+  @@index([personId])
+}
+
+/** Seller revealed their identity to this viewer on a private-publish listing. */
+model ListingIdentityReveal {
+  id        String        @id @default(cuid())
+  listingId String
+  listing   MarketListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  viewerId  String
+  viewer    User          @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@unique([listingId, viewerId])
+  @@index([listingId])
+  @@index([viewerId])
 }
 
 model MessageReport {
@@ -534,13 +571,14 @@ model ThreadPreference {
   user      User      @relation("ThreadOwner", fields: [userId], references: [id], onDelete: Cascade)
   peerId    String
   peer      User      @relation("ThreadPeer", fields: [peerId], references: [id], onDelete: Cascade)
+  listingId String    @default("")
   archived  Boolean   @default(false)
   pinned    Boolean   @default(false)
   deletedAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  @@unique([userId, peerId])
+  @@unique([userId, peerId, listingId])
   @@index([userId])
 }
 

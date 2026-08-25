@@ -14,6 +14,7 @@ import type {
   WantRequest,
 } from "@prisma/client";
 import { relationLabels } from "./labels";
+import { applyListingIdentity, parseRelationTypes } from "./listing-privacy";
 import { localListingSrc, localListingSrcs } from "./listing-photo";
 import { parseDealStatus, parseSpecs } from "./listing-payload";
 import { toPersianDigits } from "./persian";
@@ -208,10 +209,19 @@ export function pendingPersonFromInvite(invite: Invite): Person {
 export function toClientDirectMessage(
   row: Pick<
     DirectMessage,
-    "id" | "fromUserId" | "toUserId" | "text" | "listingId" | "readAt" | "createdAt"
+    | "id"
+    | "fromUserId"
+    | "toUserId"
+    | "text"
+    | "listingId"
+    | "listingScoped"
+    | "kind"
+    | "readAt"
+    | "createdAt"
   >,
   viewerId: string,
   now = Date.now(),
+  extra?: { peerHidden?: boolean },
 ): Message {
   const fromMe = row.fromUserId === viewerId;
   return {
@@ -222,6 +232,11 @@ export function toClientDirectMessage(
     postedAt: relativePostedAt(row.createdAt, now),
     read: fromMe ? true : Boolean(row.readAt),
     ...(row.listingId ? { listingId: row.listingId } : {}),
+    ...(row.listingScoped && row.listingId
+      ? { threadListingId: row.listingId }
+      : {}),
+    ...(row.kind === "system" ? { kind: "system" as const } : {}),
+    ...(extra?.peerHidden ? { peerHidden: true } : {}),
   };
 }
 
@@ -256,6 +271,8 @@ export function toHomeListing(
     | "sellerId"
     | "createdAt"
     | "privacy"
+    | "hideIdentity"
+    | "excludeRelationTypes"
     | "city"
     | "area"
     | "dealStatus"
@@ -263,57 +280,99 @@ export function toHomeListing(
     ListingEndorsementSource,
   viewerId?: string,
   trustPath: TrustHop[] = [],
+  identity?: {
+    revealed?: boolean;
+    excludePersonIds?: string[];
+    identityRevealedPeerIds?: string[];
+  },
 ): Listing {
   const description = row.description.trim();
-  return {
-    id: row.id,
-    title: row.title,
-    description:
-      description.length > 180 ? `${description.slice(0, 180).trim()}…` : description,
-    type: row.type as ListingType,
-    price: row.price ?? undefined,
-    category: row.category,
-    image: localListingSrc(row.image),
-    sellerId: viewerId && row.sellerId === viewerId ? "me" : row.sellerId,
-    postedAt: relativePostedAt(row.createdAt),
-    privacy: (row.privacy as Privacy) || "ABC",
-    endorsements: toClientEndorsements(row.endorsements, viewerId, row.sellerId),
-    trustPath,
-    city: row.city ?? undefined,
-    area: row.area ?? undefined,
-    dealStatus: parseDealStatus(row.dealStatus),
-    feedPreview: true,
-  };
+  const isOwner = Boolean(viewerId && row.sellerId === viewerId);
+  return applyListingIdentity(
+    {
+      id: row.id,
+      title: row.title,
+      description:
+        description.length > 180
+          ? `${description.slice(0, 180).trim()}…`
+          : description,
+      type: row.type as ListingType,
+      price: row.price ?? undefined,
+      category: row.category,
+      image: localListingSrc(row.image),
+      sellerId: isOwner ? "me" : row.sellerId,
+      postedAt: relativePostedAt(row.createdAt),
+      privacy: (row.privacy as Privacy) || "ABC",
+      endorsements: toClientEndorsements(
+        row.endorsements,
+        viewerId,
+        row.sellerId,
+      ),
+      trustPath,
+      city: row.city ?? undefined,
+      area: row.area ?? undefined,
+      dealStatus: parseDealStatus(row.dealStatus),
+      feedPreview: true,
+    },
+    {
+      hideIdentity: Boolean(row.hideIdentity),
+      revealed: Boolean(identity?.revealed),
+      isOwner,
+      excludePersonIds: identity?.excludePersonIds,
+      excludeRelationTypes: parseRelationTypes(row.excludeRelationTypes),
+      identityRevealedPeerIds: identity?.identityRevealedPeerIds,
+    },
+  );
 }
 
 export function toClientListing(
   row: MarketListing & ListingEndorsementSource,
   viewerId?: string,
   trustPath: TrustHop[] = [],
+  identity?: {
+    revealed?: boolean;
+    excludePersonIds?: string[];
+    identityRevealedPeerIds?: string[];
+  },
 ): Listing {
   const images = localListingSrcs(
     row.images.length > 0 ? row.images : [row.image],
   );
-  return {
-    id: row.id,
-    title: row.title,
-    description: row.description,
-    type: row.type as ListingType,
-    price: row.price ?? undefined,
-    category: row.category,
-    image: localListingSrc(row.image),
-    images,
-    sellerId: viewerId && row.sellerId === viewerId ? "me" : row.sellerId,
-    postedAt: relativePostedAt(row.createdAt),
-    condition: row.condition ?? undefined,
-    privacy: (row.privacy as Privacy) || "ABC",
-    endorsements: toClientEndorsements(row.endorsements, viewerId, row.sellerId),
-    trustPath,
-    city: row.city ?? undefined,
-    area: row.area ?? undefined,
-    specs: parseSpecs(row.specs),
-    dealStatus: parseDealStatus(row.dealStatus),
-  };
+  const isOwner = Boolean(viewerId && row.sellerId === viewerId);
+  return applyListingIdentity(
+    {
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      type: row.type as ListingType,
+      price: row.price ?? undefined,
+      category: row.category,
+      image: localListingSrc(row.image),
+      images,
+      sellerId: isOwner ? "me" : row.sellerId,
+      postedAt: relativePostedAt(row.createdAt),
+      condition: row.condition ?? undefined,
+      privacy: (row.privacy as Privacy) || "ABC",
+      endorsements: toClientEndorsements(
+        row.endorsements,
+        viewerId,
+        row.sellerId,
+      ),
+      trustPath,
+      city: row.city ?? undefined,
+      area: row.area ?? undefined,
+      specs: parseSpecs(row.specs),
+      dealStatus: parseDealStatus(row.dealStatus),
+    },
+    {
+      hideIdentity: Boolean(row.hideIdentity),
+      revealed: Boolean(identity?.revealed),
+      isOwner,
+      excludePersonIds: identity?.excludePersonIds,
+      excludeRelationTypes: parseRelationTypes(row.excludeRelationTypes),
+      identityRevealedPeerIds: identity?.identityRevealedPeerIds,
+    },
+  );
 }
 
 export function toClientJoinRequest(

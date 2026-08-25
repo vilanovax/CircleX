@@ -23,6 +23,10 @@ import { CIRCLO_PEER_ID, CIRCLO_PERSON, isCircloPeer } from "@/lib/circlo";
 import { toPersianDigits } from "@/lib/persian";
 import { listingSubject } from "@/lib/listing-prompts";
 import { recalledThreadListing } from "@/lib/thread-listing";
+import {
+  circleMemberPerson,
+  parseThreadKey,
+} from "@/lib/listing-privacy";
 import { chatPeerSubtitle, viaConnectorName } from "@/lib/trust";
 import type { Listing, Message, Person } from "@/lib/types";
 
@@ -139,31 +143,45 @@ const MessagesBody = memo(function MessagesBody({
           : inboxPeers;
 
     const mapped = [];
-    for (const peerId of source) {
-      const peer = getPerson(peerId);
-      if (!peer) continue;
-      if (q && !peer.name.includes(q)) continue;
-      const last = threadIndex.lastByPeer.get(peerId);
+    for (const key of source) {
+      const { peerId, listingId } = parseThreadKey(key);
+      const last = threadIndex.lastByPeer.get(key);
       const topicListingId =
-        threadIndex.listingIdByPeer.get(peerId) ??
+        listingId ??
+        threadIndex.listingIdByPeer.get(key) ??
         recalledThreadListing(peerId);
       const topicListing = topicListingId
         ? getListing(topicListingId)
         : undefined;
+      const peer = last?.peerHidden
+        ? circleMemberPerson(peerId)
+        : getPerson(peerId);
+      if (!peer) continue;
+      if (
+        q &&
+        !peer.name.includes(q) &&
+        !(topicListing && topicListing.title.includes(q))
+      ) {
+        continue;
+      }
       mapped.push({
+        rowKey: key,
         peerId,
         peer,
         last,
-        unread: threadIndex.unreadByPeer.get(peerId) ?? 0,
+        unread: threadIndex.unreadByPeer.get(key) ?? 0,
         preview: threadPreview(last, getListing),
         topicListingId,
         topicListing,
-        relationLine: chatPeerSubtitle(
-          peer,
-          viaConnectorName(peerId, getPerson, networkLinks, people),
-        ),
-        pinned: pinnedSet.has(peerId),
-        archived: archivedSet.has(peerId),
+        scoped: Boolean(listingId),
+        relationLine: last?.peerHidden
+          ? "هویت برای اعضا پنهان است"
+          : chatPeerSubtitle(
+              peer,
+              viaConnectorName(peerId, getPerson, networkLinks, people),
+            ),
+        pinned: pinnedSet.has(key),
+        archived: archivedSet.has(key),
         official: false,
       });
     }
@@ -186,13 +204,15 @@ const MessagesBody = memo(function MessagesBody({
       .filter((r) => r.pinned)
       .sort(
         (a, b) =>
-          pinnedThreads.indexOf(a.peerId) - pinnedThreads.indexOf(b.peerId),
+          pinnedThreads.indexOf(a.rowKey) - pinnedThreads.indexOf(b.rowKey),
       );
     const rest = mapped.filter((r) => !r.pinned);
     const circloRow = showCirclo
       ? [
           {
             peerId: CIRCLO_PEER_ID,
+            rowKey: CIRCLO_PEER_ID,
+            scoped: false,
             peer: circloPeer,
             last: circloLast,
             unread: circloUnread,
@@ -360,14 +380,16 @@ const MessagesBody = memo(function MessagesBody({
           <div className="card overflow-hidden divide-y divide-stone-100 dark:divide-zinc-800">
             {rows.map((row, idx) => (
               <InboxThreadRow
-                key={row.peerId}
+                key={row.rowKey ?? row.peerId}
                 peer={row.peer}
                 peerId={row.peerId}
+                rowKey={row.rowKey ?? row.peerId}
                 last={row.last}
                 unread={row.unread}
                 preview={row.preview}
                 topicListingId={row.topicListingId}
                 topicListing={row.topicListing}
+                scoped={Boolean(row.scoped)}
                 relationLine={row.relationLine}
                 pinned={row.pinned}
                 archived={row.archived}
@@ -414,11 +436,13 @@ const MessagesBody = memo(function MessagesBody({
 const InboxThreadRow = memo(function InboxThreadRow({
   peer,
   peerId,
+  rowKey,
   last,
   unread,
   preview,
   topicListingId,
   topicListing,
+  scoped,
   relationLine,
   pinned,
   archived,
@@ -432,11 +456,13 @@ const InboxThreadRow = memo(function InboxThreadRow({
 }: {
   peer: Person;
   peerId: string;
+  rowKey: string;
   last: Message | undefined;
   unread: number;
   preview: string;
   topicListingId?: string;
   topicListing?: Listing;
+  scoped?: boolean;
   relationLine: string;
   pinned: boolean;
   archived: boolean;
@@ -454,10 +480,10 @@ const InboxThreadRow = memo(function InboxThreadRow({
         archived={archived}
         pinned={pinned}
         disabled={official}
-        onArchive={() => onArchive(peerId, peer.name)}
-        onUnarchive={() => onUnarchive(peerId, peer.name)}
-        onDelete={() => onDelete(peerId, peer.name)}
-        onTogglePin={() => onPin(peerId, peer.name, pinned)}
+        onArchive={() => onArchive(rowKey, peer.name)}
+        onUnarchive={() => onUnarchive(rowKey, peer.name)}
+        onDelete={() => onDelete(rowKey, peer.name)}
+        onTogglePin={() => onPin(rowKey, peer.name, pinned)}
       >
         <ThreadRow
           peer={peer}
@@ -467,6 +493,7 @@ const InboxThreadRow = memo(function InboxThreadRow({
           preview={preview}
           topicListingId={topicListingId}
           topicListing={topicListing}
+          scoped={scoped}
           relationLine={relationLine}
           pinned={pinned}
           official={official}
@@ -476,7 +503,7 @@ const InboxThreadRow = memo(function InboxThreadRow({
               ? undefined
               : () =>
                   onMore({
-                    peerId,
+                    peerId: rowKey,
                     name: peer.name,
                     avatar: peer.avatar,
                     pinned,
@@ -497,6 +524,7 @@ const ThreadRow = memo(function ThreadRow({
   preview,
   topicListingId,
   topicListing,
+  scoped,
   relationLine,
   pinned,
   official,
@@ -510,6 +538,7 @@ const ThreadRow = memo(function ThreadRow({
   preview: string;
   topicListingId?: string;
   topicListing?: Listing;
+  scoped?: boolean;
   relationLine: string;
   pinned?: boolean;
   official?: boolean;
@@ -517,9 +546,12 @@ const ThreadRow = memo(function ThreadRow({
   onMore?: () => void;
 }) {
   const hasUnread = unread > 0;
-  const href = topicListingId
-    ? `/messages/${peerId}?listing=${encodeURIComponent(topicListingId)}`
-    : `/messages/${peerId}`;
+  const href =
+    scoped && topicListingId
+      ? `/messages/${peerId}?listing=${encodeURIComponent(topicListingId)}&scoped=1`
+      : topicListingId
+        ? `/messages/${peerId}?listing=${encodeURIComponent(topicListingId)}`
+        : `/messages/${peerId}`;
   const topicLine = topicListing
     ? `دربارهٔ ${listingSubject(topicListing)}`
     : null;
@@ -593,7 +625,7 @@ const ThreadRow = memo(function ThreadRow({
               {preview}
             </p>
             {hasUnread ? (
-              <span className="shrink-0 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-brand-600 text-white text-[10px] font-bold flex items-center justify-center nums shadow-sm shadow-brand-600/25">
+              <span className="shrink-0 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-brand-600 text-white text-[11px] font-bold flex items-center justify-center nums shadow-sm shadow-brand-600/25">
                 {toPersianDigits(unread)}
               </span>
             ) : null}

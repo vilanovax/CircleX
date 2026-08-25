@@ -79,6 +79,16 @@ const TABLES = [
     () => prisma.hiddenPerson.findMany({ orderBy: { createdAt: "asc" } }),
   ],
   [
+    "listingExcludePeople",
+    () =>
+      prisma.listingExcludePerson.findMany({ orderBy: { createdAt: "asc" } }),
+  ],
+  [
+    "listingIdentityReveals",
+    () =>
+      prisma.listingIdentityReveal.findMany({ orderBy: { createdAt: "asc" } }),
+  ],
+  [
     "listingPersonalNotes",
     () =>
       prisma.listingPersonalNote.findMany({ orderBy: { createdAt: "asc" } }),
@@ -202,6 +212,12 @@ export async function backupSummary(): Promise<BackupSummary> {
     prisma.savedListing.count().then((n) => ["savedListings", n] as const),
     prisma.hiddenListing.count().then((n) => ["hiddenListings", n] as const),
     prisma.hiddenPerson.count().then((n) => ["hiddenPeople", n] as const),
+    prisma.listingExcludePerson
+      .count()
+      .then((n) => ["listingExcludePeople", n] as const),
+    prisma.listingIdentityReveal
+      .count()
+      .then((n) => ["listingIdentityReveals", n] as const),
     prisma.listingPersonalNote
       .count()
       .then((n) => ["listingPersonalNotes", n] as const),

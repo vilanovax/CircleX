@@ -12,6 +12,11 @@ import {
 } from "@/lib/trust";
 import { ShieldCheckIcon } from "./Icons";
 import Avatar from "./Avatar";
+import {
+  CIRCLE_MEMBER_AVATAR,
+  CIRCLE_MEMBER_NAME,
+  isHiddenSellerId,
+} from "@/lib/listing-privacy";
 
 const ENDORSED_SHORT: Record<TrustContentKind, string> = {
   listing: "تأیید آگهی",
@@ -39,6 +44,32 @@ export default function TrustHighlight({
   variant?: "default" | "compact" | "line";
 }) {
   const getPerson = useStore((s) => s.getPerson);
+  if (isHiddenSellerId(posterId)) {
+    return (
+      <div className="mb-1.5 flex items-center gap-2 min-w-0">
+        <Avatar
+          name={CIRCLE_MEMBER_NAME}
+          src={CIRCLE_MEMBER_AVATAR}
+          showLevel={false}
+          size="sm"
+        />
+        <div className="min-w-0 leading-tight">
+          <p className="text-[13px] truncate">
+            <span className="font-extrabold text-ink dark:text-zinc-50">
+              {CIRCLE_MEMBER_NAME}
+            </span>
+            <span className="font-medium text-ink-muted dark:text-zinc-300">
+              {" · "}
+              داخل حلقهٔ تو
+            </span>
+          </p>
+          <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 truncate">
+            هویت برای اعضا پنهان است
+          </p>
+        </div>
+      </div>
+    );
+  }
   const trust = trustHighlightMessage(
     posterId,
     trustPath,
@@ -142,7 +173,7 @@ export default function TrustHighlight({
         </div>
         {endorsementLine && !isOwn && (
           <span
-            className="shrink-0 inline-flex items-center gap-1 rounded-md bg-levelA/10 text-levelA px-1.5 py-0.5 text-[10px] font-bold"
+            className="shrink-0 inline-flex items-center gap-1 rounded-md bg-levelA/10 text-levelA px-1.5 py-0.5 text-[11px] font-bold"
             title={endorsementLine}
             aria-label={endorsementLine}
           >

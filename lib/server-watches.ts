@@ -30,6 +30,8 @@ type WatchListing = {
   description: string;
   privacy: string;
   dealStatus: string | null;
+  hideIdentity?: boolean;
+  excludeRelationTypes?: unknown;
 };
 
 export async function fanoutListingWatches(listing: WatchListing): Promise<void> {
@@ -71,7 +73,9 @@ export async function fanoutListingWatches(listing: WatchListing): Promise<void>
     new Set([...Array.from(personByUser.keys()), ...Array.from(phrasesByUser.keys())]),
   );
 
-  const sellerName = seller?.name.trim() || "یکی از حلقه";
+  const sellerName = listing.hideIdentity
+    ? "یکی از اعضای سیرکل"
+    : seller?.name.trim() || "یکی از حلقه";
   const body = shortTitle(listing.title);
   const dayStart = tehranDayStart();
 
@@ -85,7 +89,9 @@ export async function fanoutListingWatches(listing: WatchListing): Promise<void>
         phraseNorm: w.phraseNorm ?? "",
       })),
     );
-    const chosen = personWatch ?? phraseWatch;
+    const chosen = listing.hideIdentity
+      ? phraseWatch
+      : personWatch ?? phraseWatch;
     if (!chosen) continue;
 
     const visible = await viewerCanSeeListing({
@@ -93,6 +99,8 @@ export async function fanoutListingWatches(listing: WatchListing): Promise<void>
       sellerId: listing.sellerId,
       privacy: listing.privacy,
       dealStatus: listing.dealStatus,
+      listingId: listing.id,
+      excludeRelationTypes: listing.excludeRelationTypes,
     });
     if (!visible) continue;
 
@@ -128,7 +136,7 @@ export async function fanoutListingWatches(listing: WatchListing): Promise<void>
         body,
         actionHref: `/listing/${listing.id}`,
         actionLabel: "دیدن آگهی",
-        actorUserId: listing.sellerId,
+        actorUserId: listing.hideIdentity ? null : listing.sellerId,
         listingId: listing.id,
         watchId: chosen.id,
       },
