@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from "react";
 import PrivacyPicker from "@/components/PrivacyPicker";
+import ListingAudienceSheet from "@/components/ListingAudienceSheet";
 import { activeCircle } from "@/lib/circle-member";
 import {
   audienceIsWider,
+  listingAudienceLine,
   listingPrivacySummary,
 } from "@/lib/listing-privacy";
 import { relationLabels } from "@/lib/labels";
@@ -50,6 +52,7 @@ export default function ListingPrivacySection({
   const circle = useMemo(() => activeCircle(people), [people]);
   const [query, setQuery] = useState("");
   const [showPeople, setShowPeople] = useState(false);
+  const [showAudience, setShowAudience] = useState(false);
 
   const excludedPeople = useMemo(
     () => circle.filter((p) => excludePersonIds.includes(p.id)),
@@ -180,53 +183,69 @@ export default function ListingPrivacySection({
         ) : null}
       </div>
 
-      <div className="mt-4 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[13px] font-bold text-ink dark:text-zinc-200">
-            نمایش هویت من
-          </p>
-          <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
-            {hideIdentity
-              ? "آگهی با عنوان «یکی از اعضای سیرکل» و تصویر عمومی نمایش داده می‌شود. سیرکل هویت تو را برای حفظ امنیت می‌داند."
-              : "نام و تصویر تو روی آگهی دیده می‌شود."}
-          </p>
-          {!canHideIdentity ? (
-            <p className="text-[11px] text-ink-faint mt-1 leading-relaxed">
-              بعد از نمایش هویت روی آگهی نمی‌توان دوباره پنهان کرد.
-            </p>
-          ) : null}
-        </div>
+      <div className="mt-4">
+        <p className="text-[13px] font-bold text-ink dark:text-zinc-200 mb-1.5">
+          هویت روی آگهی
+        </p>
+        <p className="text-[11px] text-ink-muted dark:text-zinc-400 mb-2 leading-relaxed">
+          پیش‌فرض نام و تصویر خودت است. اگر بخواهی کسی روی آگهی تو را نشناسد، این
+          گزینه را بزن.
+        </p>
         <button
           type="button"
-          role="switch"
-          aria-checked={hideIdentity}
+          aria-pressed={hideIdentity}
           disabled={!canHideIdentity && !hideIdentity}
           onClick={() => {
             if (!canHideIdentity && !hideIdentity) return;
             onHideIdentity(!hideIdentity);
           }}
-          className={`shrink-0 w-11 h-7 rounded-full transition-colors ${
-            hideIdentity ? "bg-brand-600" : "bg-stone-300 dark:bg-zinc-600"
+          className={`chip !text-[11px] !py-1 ${
+            hideIdentity
+              ? "bg-stone-800 text-white dark:bg-zinc-100 dark:text-zinc-900"
+              : "bg-stone-100 text-ink-muted dark:bg-zinc-800"
           } disabled:opacity-40`}
         >
-          <span
-            className={`block w-5 h-5 rounded-full bg-white shadow mt-1 transition-transform ${
-              hideIdentity ? "-translate-x-5" : "-translate-x-1"
-            }`}
-          />
+          هویت من پنهان باشد
         </button>
+        <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-2 leading-relaxed">
+          {hideIdentity
+            ? "آگهی با عنوان «یکی از اعضای سیرکل» و آواتار مخصوص همین آگهی دیده می‌شود. سیرکل هویت تو را برای حفظ امنیت می‌داند."
+            : "نام و تصویر پروفایل تو روی آگهی دیده می‌شود."}
+        </p>
+        {!canHideIdentity ? (
+          <p className="text-[11px] text-ink-faint mt-1 leading-relaxed">
+            بعد از نمایش هویت روی آگهی نمی‌توان دوباره پنهان کرد.
+          </p>
+        ) : null}
       </div>
 
       <div className="mt-4 rounded-xl bg-stone-50 dark:bg-zinc-800/60 px-3 py-2.5 space-y-1">
-        {summary.map((line) => (
-          <p
-            key={line}
-            className="text-[12px] text-ink-muted dark:text-zinc-300 leading-relaxed"
-          >
-            {line}
-          </p>
-        ))}
+        <button
+          type="button"
+          onClick={() => setShowAudience(true)}
+          className="block w-full text-right text-[12px] font-semibold text-brand-600 dark:text-brand-400 leading-relaxed underline-offset-2 hover:underline"
+        >
+          {listingAudienceLine(privacy)}
+        </button>
+        {summary
+          .filter((line) => line !== listingAudienceLine(privacy))
+          .map((line) => (
+            <p
+              key={line}
+              className="text-[12px] text-ink-muted dark:text-zinc-300 leading-relaxed"
+            >
+              {line}
+            </p>
+          ))}
       </div>
+      {showAudience ? (
+        <ListingAudienceSheet
+          privacy={privacy}
+          excludePersonIds={excludePersonIds}
+          excludeRelationTypes={excludeRelationTypes}
+          onClose={() => setShowAudience(false)}
+        />
+      ) : null}
       {widened ? (
         <p className="mt-2 text-[12px] font-semibold text-amber-800 dark:text-amber-200 leading-relaxed">
           با این تغییر، افراد بیشتری می‌توانند آگهی را ببینند. کسانی که قبلاً

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { jsonError, readJson } from "@/lib/http";
 import { memberFromEdge } from "@/lib/mappers";
 import { getSessionUser } from "@/lib/server-auth";
+import { ensureFamilyReciprocal } from "@/lib/server-family-reciprocal";
 import type { RelationType, TrustGroup } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -68,6 +69,15 @@ export async function POST(req: Request) {
     },
     include: { to: true },
   });
+
+  if (edge.relationType === "family") {
+    await ensureFamilyReciprocal(
+      prisma,
+      session.id,
+      toUserId,
+      edge.trustGroup,
+    );
+  }
 
   return Response.json({ member: memberFromEdge(edge) });
 }

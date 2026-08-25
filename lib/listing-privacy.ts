@@ -1,3 +1,4 @@
+import { activeCircle } from "@/lib/circle-member";
 import { privacyLabels, relationLabels } from "@/lib/labels";
 import { requiredScore } from "@/lib/trust";
 import type {
@@ -8,6 +9,8 @@ import type {
   RelationType,
   TrustHop,
 } from "@/lib/types";
+
+const LEVEL_VALUE = { A: 3, B: 2, C: 1 } as const;
 
 export const CIRCLE_MEMBER_NAME = "یکی از اعضای سیرکل";
 
@@ -147,13 +150,34 @@ export function parsePersonIds(value: unknown, max = 40): string[] {
   return out;
 }
 
+export function listingAudienceLine(privacy: Privacy): string {
+  return `این آگهی را ${privacyLabels[privacy]} می‌بینند.`;
+}
+
+/** People in the owner’s circle who can see this listing under current rules. */
+export function listingVisibleCircleMembers(opts: {
+  people: Person[];
+  privacy: Privacy;
+  excludePersonIds?: string[];
+  excludeRelationTypes?: RelationType[];
+}): Person[] {
+  const need = requiredScore(opts.privacy);
+  const excludedIds = new Set(opts.excludePersonIds ?? []);
+  const excludedRelations = new Set(opts.excludeRelationTypes ?? []);
+  return activeCircle(opts.people)
+    .filter((person) => LEVEL_VALUE[person.level] >= need)
+    .filter((person) => !excludedIds.has(person.id))
+    .filter((person) => !excludedRelations.has(person.relation))
+    .sort((a, b) => a.name.localeCompare(b.name, "fa"));
+}
+
 export function listingPrivacySummary(opts: {
   privacy: Privacy;
   hideIdentity: boolean;
   excludePersonNames: string[];
   excludeRelationTypes: RelationType[];
 }): string[] {
-  const lines = [`این آگهی را ${privacyLabels[opts.privacy]} می‌بینند.`];
+  const lines = [listingAudienceLine(opts.privacy)];
   const blocks: string[] = opts.excludeRelationTypes.map(
     (type) => relationLabels[type],
   );

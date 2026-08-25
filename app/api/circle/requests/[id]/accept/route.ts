@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { jsonError, readJson } from "@/lib/http";
 import { memberFromEdge, toClientJoinRequest } from "@/lib/mappers";
 import { getSessionUser } from "@/lib/server-auth";
+import { ensureFamilyReciprocal } from "@/lib/server-family-reciprocal";
 import type { RelationType, TrustGroup } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -59,6 +60,14 @@ export async function POST(
     },
   });
   if (existing) {
+    if (existing.relationType === "family") {
+      await ensureFamilyReciprocal(
+        prisma,
+        session.id,
+        row.guestUserId,
+        existing.trustGroup,
+      );
+    }
     await prisma.circleJoinRequest.update({
       where: { id: row.id },
       data: { status: "accepted", resolvedAt: new Date() },
@@ -82,6 +91,15 @@ export async function POST(
       data: { status: "accepted", resolvedAt: new Date() },
     }),
   ]);
+
+  if (relationType === "family") {
+    await ensureFamilyReciprocal(
+      prisma,
+      session.id,
+      row.guestUserId,
+      trustGroup,
+    );
+  }
 
   return Response.json({
     member: memberFromEdge(edge),

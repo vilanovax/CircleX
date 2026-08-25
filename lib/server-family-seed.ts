@@ -8,6 +8,10 @@ import {
   loadTehranHoods,
   pickTehranHood,
 } from "@/lib/seed-tehran-area";
+import {
+  backfillFamilyReciprocals,
+  ensureFamilyReciprocal,
+} from "@/lib/server-family-reciprocal";
 import type { InviteKind } from "@prisma/client";
 
 const AVATAR_POOL = AVATAR_IMAGES.filter((src) => src !== "/avatars/01.webp");
@@ -40,6 +44,7 @@ function avatarFor(phone: string, used: Set<string>): string {
 }
 
 export async function seedFamilyCircle(inviterId: string, inviterPhone: string) {
+  await backfillFamilyReciprocals(inviterId);
   const hoods = await loadTehranHoods();
   const invites = await prisma.invite.findMany({
     where: {
@@ -150,6 +155,9 @@ export async function seedFamilyCircle(inviterId: string, inviterPhone: string) 
           trustGroup: "B",
         },
       });
+      await ensureFamilyReciprocal(prisma, inviterId, user.id, "B");
+    } else if (edge.relationType === "family") {
+      await ensureFamilyReciprocal(prisma, inviterId, user.id, edge.trustGroup);
     }
 
     await prisma.inviteAcceptance.upsert({

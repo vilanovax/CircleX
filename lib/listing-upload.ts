@@ -15,7 +15,8 @@ export function uploadDir(): string {
 }
 
 export function uploadPublicPath(filename: string): string {
-  return `/api/uploads/${filename}`;
+  const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+  return `${base}/api/uploads/${filename}`;
 }
 
 export function safeUploadName(name: string): string | null {

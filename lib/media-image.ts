@@ -152,7 +152,7 @@ export async function uploadUserPhoto(file: File): Promise<string> {
     method: "POST",
     body: form,
   });
-  if (!url?.startsWith("/api/uploads/")) {
+  if (!url?.includes("/api/uploads/")) {
     throw new Error("ذخیرهٔ عکس نشد.");
   }
   return url;

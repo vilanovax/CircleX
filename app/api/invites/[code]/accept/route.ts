@@ -12,6 +12,7 @@ import {
   notifyInviteAccepted,
   notifyJoinRequest,
 } from "@/lib/server-notices";
+import { ensureFamilyReciprocal } from "@/lib/server-family-reciprocal";
 import { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -57,6 +58,14 @@ export async function POST(
     },
   });
   if (existingEdge) {
+    if (existingEdge.relationType === "family") {
+      await ensureFamilyReciprocal(
+        prisma,
+        row.inviterUserId,
+        session.id,
+        existingEdge.trustGroup,
+      );
+    }
     return jsonError("تو از قبل در این حلقه هستی", 409, "already");
   }
 
@@ -147,6 +156,14 @@ export async function POST(
             relationType: current.relationType,
           },
         });
+        if (current.relationType === "family") {
+          await ensureFamilyReciprocal(
+            tx,
+            current.inviterUserId,
+            session.id,
+            current.trustGroup,
+          );
+        }
         await markExpectedJoined(tx, current.id, session.id, session.phoneNormalized);
         await resolveJoinRequest(tx, current.inviterUserId, session.id);
         return tx.invite.findUniqueOrThrow({
@@ -175,6 +192,14 @@ export async function POST(
           relationType: current.relationType,
         },
       });
+      if (current.relationType === "family") {
+        await ensureFamilyReciprocal(
+          tx,
+          current.inviterUserId,
+          session.id,
+          current.trustGroup,
+        );
+      }
       await markExpectedJoined(tx, current.id, session.id, session.phoneNormalized);
       await resolveJoinRequest(tx, current.inviterUserId, session.id);
       return tx.invite.findUniqueOrThrow({

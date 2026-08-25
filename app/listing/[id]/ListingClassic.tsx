@@ -38,6 +38,7 @@ import { toPersianDigits } from "@/lib/persian";
 import { canView, listingSellerSubtitle } from "@/lib/trust";
 import {
   CIRCLE_MEMBER_NAME,
+  listingAudienceLine,
   listingChatHref,
   listingPrivacySummary,
   privateListingAvatar,
@@ -67,6 +68,9 @@ const ReportListingSheet = lazyUi(() => import("@/components/ReportListingSheet"
 const EndorseSheet = lazyUi(() => import("@/components/EndorseSheet"));
 const ListingNoteSheet = lazyUi(() => import("@/components/ListingPersonalNote"));
 const HideFromFeedSheet = lazyUi(() => import("@/components/HideFromFeedSheet"));
+const ListingAudienceSheet = lazyUi(
+  () => import("@/components/ListingAudienceSheet"),
+);
 const TrustPath = lazyUi(() => import("@/components/TrustPath"), {
   loading: () => (
     <div className="h-16 rounded-xl bg-stone-100 dark:bg-zinc-800 animate-pulse" />
@@ -589,6 +593,7 @@ function ListingOwnerPrivacy({ listing }: { listing: Listing }) {
   );
   const revealListingIdentity = useStore((s) => s.revealListingIdentity);
   const { show } = useToast();
+  const [showAudience, setShowAudience] = useState(false);
   const peers = listingThreadPeers(messages, listing.id);
   const names = (listing.excludePersonIds ?? [])
     .map((id) => getPerson(id)?.name)
@@ -599,6 +604,7 @@ function ListingOwnerPrivacy({ listing }: { listing: Listing }) {
     excludePersonNames: names,
     excludeRelationTypes: listing.excludeRelationTypes ?? [],
   });
+  const audienceLine = listingAudienceLine(listing.privacy);
   const revealed = new Set(listing.identityRevealedPeerIds ?? []);
 
   return (
@@ -609,14 +615,23 @@ function ListingOwnerPrivacy({ listing }: { listing: Listing }) {
             حریم خصوصی این آگهی
           </p>
           <div className="mt-1.5 space-y-1">
-            {summary.map((line) => (
-              <p
-                key={line}
-                className="text-[12px] text-ink-muted dark:text-zinc-400 leading-relaxed"
-              >
-                {line}
-              </p>
-            ))}
+            <button
+              type="button"
+              onClick={() => setShowAudience(true)}
+              className="block w-full text-right text-[12px] font-semibold text-brand-600 dark:text-brand-400 leading-relaxed underline-offset-2 hover:underline"
+            >
+              {audienceLine}
+            </button>
+            {summary
+              .filter((line) => line !== audienceLine)
+              .map((line) => (
+                <p
+                  key={line}
+                  className="text-[12px] text-ink-muted dark:text-zinc-400 leading-relaxed"
+                >
+                  {line}
+                </p>
+              ))}
           </div>
         </div>
         {listing.privatePublish && peers.length > 0 ? (
@@ -675,6 +690,14 @@ function ListingOwnerPrivacy({ listing }: { listing: Listing }) {
           </div>
         ) : null}
       </div>
+      {showAudience ? (
+        <ListingAudienceSheet
+          privacy={listing.privacy}
+          excludePersonIds={listing.excludePersonIds}
+          excludeRelationTypes={listing.excludeRelationTypes}
+          onClose={() => setShowAudience(false)}
+        />
+      ) : null}
     </section>
   );
 }
