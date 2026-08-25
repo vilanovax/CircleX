@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { memo, useMemo, useState } from "react";
+import { memo, useState } from "react";
 import { privacyEmoji, privacyLabels } from "@/lib/labels";
-import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import { privacyAudience } from "@/lib/trust";
 import type { Privacy } from "@/lib/types";
@@ -24,7 +23,6 @@ function PrivacyPicker({
   compact?: boolean;
 }) {
   const people = useStore((s) => s.people);
-  const circle = useMemo(() => activeCircle(people), [people]);
   const advancedSelected = ADVANCED.includes(value);
   const [showAdvanced, setShowAdvanced] = useState(advancedSelected);
 
@@ -96,7 +94,7 @@ function PrivacyPicker({
                   {privacyLabels[p]}
                 </span>
                 <span className="block text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-snug">
-                  {privacyAudience(p, circle)}
+                  {privacyAudience(p, people)}
                 </span>
               </span>
               <span

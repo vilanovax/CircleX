@@ -1,4 +1,5 @@
 import { LISTING_PRIVACY } from "./listing-payload";
+import { isAllowedListingImage } from "./listing-photo";
 import { parseArea } from "./place";
 import type {
   BudgetUnit,
@@ -21,6 +22,16 @@ const EVENT_KINDS: EventKind[] = [
   "trip",
   "social",
 ];
+
+function parseSocialImage(value: unknown, fallback: string): string | null {
+  if (typeof value !== "string" || !value.trim()) return fallback;
+  const raw = value.trim();
+  const image = raw.startsWith("data:image/")
+    ? raw.slice(0, 2_000_000)
+    : raw.slice(0, 240);
+  if (!isAllowedListingImage(image)) return null;
+  return image;
+}
 
 function asTrimmed(value: unknown, max: number): string {
   return String(value ?? "")
@@ -76,7 +87,8 @@ export function parseRequestWrite(
     return { ok: false, error: "محدوده نمایش نامعتبر است" };
   }
   const category = asTrimmed(raw.category, 40) || "متفرقه";
-  const image = asTrimmed(raw.image, 80) || "🔎";
+  const image = parseSocialImage(raw.image, "🔎");
+  if (!image) return { ok: false, error: "عکس درخواست باید روی همین اپ باشد" };
   let budget: number | undefined;
   if (raw.budget !== undefined && raw.budget !== null && raw.budget !== "") {
     const n = Number(raw.budget);
@@ -124,7 +136,8 @@ export function parseEventWrite(
   if (date.length < 2) return { ok: false, error: "تاریخ رویداد را بنویس" };
   const location = asTrimmed(raw.location, 120);
   if (location.length < 2) return { ok: false, error: "مکان رویداد را بنویس" };
-  const image = asTrimmed(raw.image, 80) || "🎉";
+  const image = parseSocialImage(raw.image, "🎉");
+  if (!image) return { ok: false, error: "عکس رویداد باید روی همین اپ باشد" };
   const time = asTrimmed(raw.time, 20) || undefined;
   let capacity: number | undefined;
   if (

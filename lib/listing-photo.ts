@@ -1,3 +1,5 @@
+import { PHOTO_MAX_BYTES, UPLOAD_PATH_RE } from "./media";
+
 /** Unsplash photo id in a leftover URL → local Commons-hosted stock file. */
 const UNSPLASH_PHOTO =
   /(?:https?:\/\/)?images\.unsplash\.com\/(photo-[0-9a-zA-Z-]+)/i;
@@ -65,10 +67,13 @@ const FROM_UNSPLASH: Record<string, string> = {
 };
 
 const STOCK = /^\/listings\/[a-zA-Z0-9._-]+\.jpe?g$/i;
-const UPLOAD = /^\/api\/uploads\/[a-zA-Z0-9._-]+\.jpe?g$/i;
 
 /** Max JPEG bytes after compress, written to app disk. */
-export const LISTING_PHOTO_MAX_BYTES = 900_000;
+export const LISTING_PHOTO_MAX_BYTES = PHOTO_MAX_BYTES;
+
+export function isStoredUploadSrc(value: string): boolean {
+  return UPLOAD_PATH_RE.test(value.trim());
+}
 
 export function listingStockPath(photoId: string): string {
   const id = photoId.startsWith("photo-") ? photoId : `photo-${photoId}`;
@@ -93,7 +98,7 @@ export function isAllowedListingImage(value: string): boolean {
   const v = value.trim();
   if (!v) return false;
   if (/^https?:\/\//i.test(v)) return false;
-  if (STOCK.test(v) || UPLOAD.test(v)) return true;
+  if (STOCK.test(v) || UPLOAD_PATH_RE.test(v)) return true;
   if (v.startsWith("data:image/jpeg") || v.startsWith("data:image/webp")) {
     return v.length < 2_000_000;
   }

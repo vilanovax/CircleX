@@ -1,4 +1,8 @@
-import { listingAccess, personFromNetworkUser } from "@/lib/circle-network";
+import {
+  listingAccess,
+  loadThreadPrefs,
+  personFromNetworkUser,
+} from "@/lib/circle-network";
 import { isCircloPeer } from "@/lib/circlo";
 import { prisma } from "@/lib/db";
 import { memberFromEdge, toClientDirectMessage } from "@/lib/mappers";
@@ -170,8 +174,11 @@ export async function assertCanSendDm(
 export async function loadInbox(viewerId: string): Promise<{
   messages: Message[];
   people: Person[];
+  archivedThreads: string[];
+  pinnedThreads: string[];
+  deletedThreads: string[];
 }> {
-  const [rows, noticeRows] = await Promise.all([
+  const [rows, noticeRows, threads] = await Promise.all([
     prisma.directMessage.findMany({
       where: {
         hiddenAt: null,
@@ -181,6 +188,7 @@ export async function loadInbox(viewerId: string): Promise<{
       take: DM_INBOX_CAP,
     }),
     loadNoticeRows(viewerId),
+    loadThreadPrefs(viewerId),
   ]);
   const now = Date.now();
   const scopedIds = Array.from(
@@ -232,5 +240,5 @@ export async function loadInbox(viewerId: string): Promise<{
   const messages = stamped.map((s) => s.message);
   const peerIds = Array.from(new Set(messages.map((m) => m.peerId)));
   const people = await peopleForMessagePeers(viewerId, peerIds);
-  return { messages, people };
+  return { messages, people, ...threads };
 }

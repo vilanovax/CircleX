@@ -9,6 +9,7 @@ import { toPersianDigits } from "@/lib/persian";
 
 const HERO_W = 480;
 const HERO_H = 280;
+const HERO_SIZES = "(max-width: 480px) 100vw, 480px";
 
 function slideIndex(el: HTMLElement, total: number): number {
   const w = el.clientWidth;
@@ -80,7 +81,7 @@ export default function ListingGallery({
   };
 
   return (
-    <div className="relative z-0 overflow-hidden listing-detail-hero">
+    <div className="relative z-0 overflow-hidden listing-detail-hero h-[17.5rem]">
       <div
         ref={scrollerRef}
         onScroll={multi ? onScroll : undefined}
@@ -114,8 +115,8 @@ export default function ListingGallery({
                   className="absolute inset-0 h-full w-full object-cover"
                   fetchPriority={eager ? "high" : "auto"}
                   loading={eager ? "eager" : "lazy"}
-                  decoding={eager ? "sync" : "async"}
-                  sizes="(max-width: 480px) 100vw, 480px"
+                  decoding="async"
+                  sizes={HERO_SIZES}
                   draggable={false}
                 />
               ) : photo ? null : (

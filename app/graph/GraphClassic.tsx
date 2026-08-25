@@ -106,21 +106,17 @@ function relationsForId(
 
 export default function GraphClassic() {
   const circleReady = useStore((s) => s.circleReady);
+  const circleFull = useStore((s) => s.circleFull);
   const refreshGraph = useStore((s) => s.refreshGraph);
   const [view, setView] = useState<ViewMode>("list");
   const [mapFocus, setMapFocus] = useState<string | null>(null);
-  const [wantLayout, setWantLayout] = useState(false);
 
   useEffect(() => {
-    if (!circleReady) return;
+    if (!circleReady || circleFull) return;
     void refreshGraph();
-  }, [circleReady, refreshGraph]);
+  }, [circleReady, circleFull, refreshGraph]);
 
   useEffect(() => {
-    const warm = () => {
-      startTransition(() => setWantLayout(true));
-      preloadTrustGraph();
-    };
     const ric = (
       window as Window & {
         requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
@@ -128,13 +124,13 @@ export default function GraphClassic() {
       }
     ).requestIdleCallback;
     if (ric) {
-      const id = ric(warm, { timeout: 700 });
+      const id = ric(preloadTrustGraph, { timeout: 700 });
       return () =>
         (
           window as Window & { cancelIdleCallback?: (id: number) => void }
         ).cancelIdleCallback?.(id);
     }
-    const t = window.setTimeout(warm, 280);
+    const t = window.setTimeout(preloadTrustGraph, 280);
     return () => window.clearTimeout(t);
   }, []);
 
@@ -159,7 +155,6 @@ export default function GraphClassic() {
       <GraphChrome
         view={showMap ? "map" : "list"}
         mapFocus={mapFocus}
-        wantLayout={wantLayout || showMap}
         onList={onList}
         onMap={onMap}
         onShowHub={onShowHub}
@@ -172,14 +167,12 @@ export default function GraphClassic() {
 const GraphChrome = memo(function GraphChrome({
   view,
   mapFocus,
-  wantLayout,
   onList,
   onMap,
   onShowHub,
 }: {
   view: ViewMode;
   mapFocus: string | null;
-  wantLayout: boolean;
   onList: () => void;
   onMap: () => void;
   onShowHub: (id: string) => void;
@@ -244,10 +237,19 @@ const GraphChrome = memo(function GraphChrome({
   }, [relationFilter, relationsById]);
 
   const listNodes = useMemo(() => {
-    const direct: { id: string; name: string; avatar?: string; depth: number }[] =
-      [];
-    const via: { id: string; name: string; avatar?: string; depth: number }[] =
-      [];
+    const direct: {
+      id: string;
+      name: string;
+      avatar?: string;
+      relation: string;
+    }[] = [];
+    const via: {
+      id: string;
+      name: string;
+      avatar?: string;
+      relation: string;
+      depth: number;
+    }[] = [];
     walk.depth.forEach((d, id) => {
       if (id === "me") return;
       const person = getPerson(id);
@@ -256,31 +258,43 @@ const GraphChrome = memo(function GraphChrome({
         const rels = relationsById.get(id);
         if (!rels?.has(relationFilter)) return;
       }
+      const relation =
+        d === 1
+          ? viewerRelationPhrase(person)
+          : viaPathLabel(pathToMe(id, walk.parent), nameOf);
       const row = {
         id,
         name: person.name,
         avatar: person.avatar,
-        depth: d,
+        relation,
       };
       if (d === 1) direct.push(row);
-      else if (d >= 2) via.push(row);
+      else if (d >= 2) via.push({ ...row, depth: d });
     });
     direct.sort((a, b) => a.name.localeCompare(b.name, "fa"));
     via.sort(
       (a, b) => a.depth - b.depth || a.name.localeCompare(b.name, "fa"),
     );
     return { direct, via };
-  }, [walk, getPerson, relationFilter, relationsById]);
+  }, [walk, getPerson, relationFilter, relationsById, nameOf]);
 
   const graph = useMemo(
-    () => (wantLayout ? layoutTrustGraph(walk, getPerson) : null),
-    [wantLayout, walk, getPerson],
+    () => (view === "map" ? layoutTrustGraph(walk, getPerson) : null),
+    [view, walk, getPerson],
   );
 
   const chipRelations = useMemo(
     () => RELATION_ORDER.filter((rel) => (relationCounts[rel] ?? 0) > 0),
     [relationCounts],
   );
+
+  const onFilterAll = useCallback(
+    () => startTransition(() => setRelationFilter("all")),
+    [],
+  );
+  const onPickRelation = useCallback((rel: RelationType) => {
+    startTransition(() => setRelationFilter(rel));
+  }, []);
 
   const subtitle = circleFull
     ? `${toPersianDigits(insights.reach)} نفر · ${toPersianDigits(insights.direct)} ارتباط مستقیم`
@@ -290,7 +304,7 @@ const GraphChrome = memo(function GraphChrome({
     <>
       <Header title="نقشه ارتباط‌ها" subtitle={subtitle} back />
 
-      <div className="px-4 pt-3 space-y-3 listing-detail-rise">
+      <div className="px-4 pt-3 space-y-3">
         <div
           className="flex gap-1 bg-stone-100/80 dark:bg-zinc-800 rounded-xl p-1"
           role="tablist"
@@ -316,9 +330,7 @@ const GraphChrome = memo(function GraphChrome({
               active={relationFilter === "all"}
               label="همه"
               count={insights.reach}
-              onClick={() =>
-                startTransition(() => setRelationFilter("all"))
-              }
+              onClick={onFilterAll}
             />
             {chipRelations.map((rel) => (
               <RelationChip
@@ -326,9 +338,8 @@ const GraphChrome = memo(function GraphChrome({
                 active={relationFilter === rel}
                 label={relationLabels[rel]}
                 count={relationCounts[rel] ?? 0}
-                onClick={() =>
-                  startTransition(() => setRelationFilter(rel))
-                }
+                relation={rel}
+                onPick={onPickRelation}
               />
             ))}
           </div>
@@ -394,21 +405,16 @@ const GraphChrome = memo(function GraphChrome({
                   : `در «${relationLabels[relationFilter]}» ارتباط مستقیمی نیست.`
               }
             >
-              {listNodes.direct.map((n, idx) => {
-                const person = getPerson(n.id);
-                return (
+              {listNodes.direct.map((n, idx) => (
                   <PersonRow
                     key={n.id}
                     id={n.id}
                     name={n.name}
                     avatar={n.avatar}
-                    relation={
-                      person ? viewerRelationPhrase(person) : "مستقیم"
-                    }
+                    relation={n.relation}
                     eager={idx < ABOVE_FOLD_AVATARS}
                   />
-                );
-              })}
+              ))}
             </PeopleGroup>
 
             {!circleFull ? (
@@ -450,7 +456,7 @@ const GraphChrome = memo(function GraphChrome({
                     id={n.id}
                     name={n.name}
                     avatar={n.avatar}
-                    relation={viaPathLabel(pathToMe(n.id, walk.parent), nameOf)}
+                    relation={n.relation}
                   />
                 ))}
               </PeopleGroup>
@@ -462,21 +468,29 @@ const GraphChrome = memo(function GraphChrome({
   );
 });
 
-function RelationChip({
+const RelationChip = memo(function RelationChip({
   active,
   label,
   count,
   onClick,
+  onPick,
+  relation,
 }: {
   active: boolean;
   label: string;
   count: number;
-  onClick: () => void;
+  onClick?: () => void;
+  onPick?: (rel: RelationType) => void;
+  relation?: RelationType;
 }) {
+  const handleClick = useCallback(() => {
+    if (relation && onPick) onPick(relation);
+    else onClick?.();
+  }, [relation, onPick, onClick]);
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={handleClick}
       className={`chip whitespace-nowrap !px-2.5 !py-1.5 border text-[12px] nums shrink-0 ${
         active
           ? "bg-brand-600 text-white border-brand-600 shadow-sm shadow-brand-600/20"
@@ -490,9 +504,9 @@ function RelationChip({
       </span>
     </button>
   );
-}
+});
 
-function ViewTab({
+const ViewTab = memo(function ViewTab({
   selected,
   onClick,
   label,
@@ -522,7 +536,7 @@ function ViewTab({
       {label}
     </button>
   );
-}
+});
 
 function PeopleGroup({
   title,
@@ -544,7 +558,7 @@ function PeopleGroup({
           <h2 className="text-[13px] font-bold text-ink dark:text-zinc-100">
             {title}
           </h2>
-          <span className="inline-flex min-w-[1.2rem] h-5 px-1.5 items-center justify-center rounded-full bg-stone-100 dark:bg-zinc-800 text-[10px] font-extrabold text-ink-muted nums">
+          <span className="inline-flex min-w-[1.2rem] h-5 px-1.5 items-center justify-center rounded-full bg-stone-100 dark:bg-zinc-800 text-[11px] font-extrabold text-ink-muted nums">
             {toPersianDigits(count)}
           </span>
         </div>

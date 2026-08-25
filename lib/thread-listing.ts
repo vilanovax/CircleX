@@ -147,6 +147,7 @@ export function listingThreadPreview(
   if (!last) return "درباره این آگهی";
   const prefix = last.fromMe ? "شما: " : "";
   const text = last.text.trim();
+  if (!text && last.imageUrl) return `${prefix}عکس`;
   if (!text) return last.fromMe ? "شما پیام دادید" : "پیام جدید";
   return `${prefix}${text.length > 72 ? `${text.slice(0, 72)}…` : text}`;
 }

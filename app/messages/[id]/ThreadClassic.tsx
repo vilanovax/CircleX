@@ -2,14 +2,30 @@
 
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useStore } from "@/lib/store";
+import { EMPTY_THREAD } from "@/lib/thread-index";
+import {
+  circleMemberPerson,
+  CIRCLE_MEMBER_NAME,
+  threadKey,
+} from "@/lib/listing-privacy";
 import Avatar from "@/components/Avatar";
 import ListingImage from "@/components/ListingImage";
 import ListingAskPrompts from "@/components/ListingAskPrompts";
 import Header from "@/components/Header";
 import LockedMessaging from "@/components/LockedMessaging";
-import { SendIcon, FlagIcon } from "@/components/Icons";
+import { CameraIcon, SendIcon, FlagIcon } from "@/components/Icons";
+import { withBasePath } from "@/lib/avatar";
+import { uploadUserPhoto } from "@/lib/media-image";
 import { formatPrice } from "@/lib/labels";
 import {
   listingSubject,
@@ -20,18 +36,13 @@ import { canOpenThread } from "@/lib/messaging";
 import { isCircloPeer } from "@/lib/circlo";
 import { canView } from "@/lib/trust";
 import {
-  circleMemberPerson,
-  CIRCLE_MEMBER_NAME,
-} from "@/lib/listing-privacy";
-import {
-  latestListingIdInThread,
   recalledThreadListing,
   rememberThreadListing,
   resolveThreadListingId,
   shouldAttachListingOnSend,
 } from "@/lib/thread-listing";
 import { chatPeerSubtitle, viaConnectorName } from "@/lib/trust";
-import type { Message } from "@/lib/types";
+import type { Listing, Message } from "@/lib/types";
 import { ApiError } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { lazyUi } from "@/lib/lazy-ui";
@@ -49,35 +60,44 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   const peerId = String(params.id);
   const queryListingId = searchParams.get("listing");
   const scoped = searchParams.get("scoped") === "1";
-  const people = useStore((s) => s.people);
-  const listings = useStore((s) => s.listings);
-  const requests = useStore((s) => s.requests);
-  const networkLinks = useStore((s) => s.networkLinks);
+  const inboxKey = threadKey(peerId, scoped ? queryListingId : undefined);
+  const thread = useStore(
+    (s) => s.threadIndex.threadByPeer.get(inboxKey) ?? EMPTY_THREAD,
+  );
+  const storedPeer = useStore((s) => s.getPerson(peerId));
   const getPerson = useStore((s) => s.getPerson);
-  const getThread = useStore((s) => s.getThread);
   const revealListingIdentity = useStore((s) => s.revealListingIdentity);
   const getListing = useStore((s) => s.getListing);
   const ensureListing = useStore((s) => s.ensureListing);
   const addMessage = useStore((s) => s.addMessage);
   const markThreadRead = useStore((s) => s.markThreadRead);
   const setListingDealStatus = useStore((s) => s.setListingDealStatus);
-  const joinRequests = useStore((s) => s.joinRequests);
+  const joinCount = useStore((s) => s.joinRequests.length);
+  const hasOwnListing = useStore((s) =>
+    s.listings.some((row) => row.sellerId === "me"),
+  );
+  const hasVisibleOfferings = useStore((s) => {
+    const len = s.threadIndex.threadByPeer.get(inboxKey)?.length ?? 0;
+    if (len > 0) return true;
+    const gp = s.getPerson;
+    for (const listing of s.listings) {
+      if (listing.sellerId === peerId && canView(listing, gp)) return true;
+    }
+    for (const request of s.requests) {
+      if (request.requesterId === peerId && canView(request, gp)) return true;
+    }
+    return false;
+  });
   const { show } = useToast();
   const watchesOn = useCatalog().flags.watches;
-  const [text, setText] = useState("");
-  const [sending, setSending] = useState(false);
   const [showCircloWatches, setShowCircloWatches] = useState(false);
   const [showCircloInvite, setShowCircloInvite] = useState(false);
   const [reportMsg, setReportMsg] = useState<Message | null>(null);
   const [listingLoadState, setListingLoadState] = useState<
     "idle" | "loading" | "ready" | "missing"
   >("idle");
-  const draftApplied = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const storedPeer = getPerson(peerId);
-  const thread = getThread(peerId, scoped ? queryListingId : undefined);
   const [sessionListingId, setSessionListingId] = useState<string | undefined>(
     undefined,
   );
@@ -137,28 +157,11 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   }, [activeListingId, contextListing, ensureListing, peerId]);
 
   const viaName = useMemo(
-    () => viaConnectorName(peerId, getPerson, networkLinks, people),
-    [peerId, getPerson, networkLinks, people],
+    () => viaConnectorName(peerId, getPerson),
+    [peerId, getPerson],
   );
 
   const subtitle = peer ? chatPeerSubtitle(peer, viaName) : "";
-
-  const chips = useMemo(
-    () =>
-      suggestThreadChips({
-        listing: contextListing,
-        isSeller: isSellerOfContext,
-        threadLength: thread.length,
-      }),
-    [contextListing, isSellerOfContext, thread.length],
-  );
-
-  const hasVisibleOfferings = useMemo(
-    () =>
-      listings.some((l) => l.sellerId === peerId && canView(l, getPerson)) ||
-      requests.some((r) => r.requesterId === peerId && canView(r, getPerson)),
-    [listings, requests, peerId, getPerson],
-  );
 
   const canChat = peer
     ? contextListing?.privatePublish
@@ -175,25 +178,9 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
     markThreadRead(peerId, scoped ? queryListingId : undefined);
   }, [peerId, markThreadRead, scoped, queryListingId]);
 
-  useEffect(() => {
-    if (draftApplied.current) return;
-    const draft = searchParams.get("draft");
-    if (!draft) return;
-    draftApplied.current = true;
-    setText(draft);
-    requestAnimationFrame(() => inputRef.current?.focus());
-  }, [searchParams]);
-
   useLayoutEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [thread.length]);
-
-  useEffect(() => {
-    const el = inputRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 112)}px`;
-  }, [text]);
 
   if (!peer) {
     return (
@@ -204,8 +191,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   }
 
   if (isCircloPeer(peerId)) {
-    const joins = joinRequests.length;
-    const hasOwnListing = listings.some((l) => l.sellerId === "me");
+    const joins = joinCount;
     return (
       <main className="flex flex-col h-[100dvh]">
         <Header back fallbackHref="/messages">
@@ -296,7 +282,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
     );
   }
 
-  if (activeListingId && listingLoadState === "loading") {
+  if (!thread.length && activeListingId && listingLoadState === "loading") {
     return (
       <main className="min-h-[100dvh] flex items-center justify-center">
         <p className="text-sm text-ink-faint">در حال باز کردن گفتگو…</p>
@@ -321,59 +307,13 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
     );
   }
 
-  async function send() {
-    const t = text.trim();
-    if (!t || sending) return;
-    const attachListing = shouldAttachListingOnSend(thread, activeListingId)
-      ? activeListingId
-      : undefined;
-    if (activeListingId) rememberThreadListing(peerId, activeListingId);
-    setSending(true);
-    try {
-      await addMessage(
-        peerId,
-        t,
-        scoped ? activeListingId ?? attachListing : attachListing,
-        scoped,
-      );
-      setText("");
-    } catch (err) {
-      show(
-        err instanceof ApiError ? err.message : "ارسال نشد. دوباره بزن.",
-      );
-    } finally {
-      setSending(false);
-      inputRef.current?.focus();
-    }
-  }
-
   function notifySendError(err: unknown) {
     show(err instanceof ApiError ? err.message : "ارسال نشد. دوباره بزن.");
-  }
-
-  function applyChip(prompt: BuyerPrompt) {
-    setText(prompt.draft);
-    requestAnimationFrame(() => {
-      const el = inputRef.current;
-      if (!el) return;
-      el.focus();
-      const len = prompt.draft.length;
-      el.setSelectionRange(len, len);
-    });
   }
 
   const emptyHint = contextListing
     ? `دربارهٔ ${listingSubject(contextListing)} — اولین پیام را بفرست.`
     : "اولین پیام را بفرست.";
-
-  const chipTitle =
-    thread.length === 0
-      ? isSellerOfContext
-        ? "برای پاسخ سریع:"
-        : "برای شروع می‌تونی بپرسی:"
-      : isSellerOfContext
-        ? "پاسخ پیشنهادی:"
-        : "می‌تونی بپرسی:";
 
   const listingGone = Boolean(activeListingId) && listingLoadState === "missing";
 
@@ -643,47 +583,19 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
         <div ref={bottomRef} />
       </div>
 
-      <div className="shrink-0 bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-xl border-t border-stone-200/70 dark:border-zinc-800 px-2.5 pt-2 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
-        {chips.length > 0 ? (
-          <div className="mb-2">
-            <ListingAskPrompts
-              prompts={chips}
-              onPick={applyChip}
-              title={chipTitle}
-              compact
-            />
-          </div>
-        ) : null}
-        <div className="flex items-end gap-2">
-          <textarea
-            ref={inputRef}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
-            }}
-            rows={1}
-            placeholder="پیام بنویس…"
-            className="flex-1 resize-none max-h-28 min-h-[44px] rounded-2xl border border-stone-200 dark:border-zinc-700 bg-stone-50/80 dark:bg-zinc-800/80 px-3.5 py-2.5 text-[13px] text-ink dark:text-zinc-100 placeholder:text-ink-faint outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/15 leading-relaxed"
-          />
-          <button
-            type="button"
-            onClick={send}
-            disabled={!text.trim() || sending}
-            aria-label="ارسال"
-            className="shrink-0 w-11 h-11 rounded-full bg-brand-600 text-white flex items-center justify-center active:scale-95 disabled:opacity-35 shadow-md shadow-brand-600/25 transition-transform duration-150"
-          >
-            <SendIcon className="w-5 h-5 -ms-0.5" />
-          </button>
-        </div>
-      </div>
+      <ThreadComposer
+        peerId={peerId}
+        scoped={scoped}
+        activeListingId={activeListingId}
+        inboxKey={inboxKey}
+        contextListing={contextListing}
+        isSellerOfContext={isSellerOfContext}
+        searchParams={searchParams}
+      />
       {reportMsg ? (
         <ReportMessageSheet
           messageId={reportMsg.id}
-          preview={reportMsg.text}
+          preview={reportMsg.text.trim() || (reportMsg.imageUrl ? "عکس" : "")}
           onClose={() => setReportMsg(null)}
         />
       ) : null}
@@ -691,7 +603,209 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   );
 }
 
-function CircloChip({
+const ThreadComposer = memo(function ThreadComposer({
+  peerId,
+  scoped,
+  activeListingId,
+  inboxKey,
+  contextListing,
+  isSellerOfContext,
+  searchParams,
+}: {
+  peerId: string;
+  scoped: boolean;
+  activeListingId?: string;
+  inboxKey: string;
+  contextListing?: Listing;
+  isSellerOfContext: boolean;
+  searchParams: ReturnType<typeof useSearchParams>;
+}) {
+  const addMessage = useStore((s) => s.addMessage);
+  const thread = useStore(
+    (s) => s.threadIndex.threadByPeer.get(inboxKey) ?? EMPTY_THREAD,
+  );
+  const { show } = useToast();
+  const [text, setText] = useState("");
+  const [pendingPhoto, setPendingPhoto] = useState<string | null>(null);
+  const pendingFileRef = useRef<File | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [sending, setSending] = useState(false);
+  const draftApplied = useRef(false);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const chips = useMemo(
+    () =>
+      suggestThreadChips({
+        listing: contextListing,
+        isSeller: isSellerOfContext,
+        threadLength: thread.length,
+      }),
+    [contextListing, isSellerOfContext, thread.length],
+  );
+
+  const chipTitle =
+    thread.length === 0
+      ? isSellerOfContext
+        ? "برای پاسخ سریع:"
+        : "برای شروع می‌تونی بپرسی:"
+      : isSellerOfContext
+        ? "پاسخ پیشنهادی:"
+        : "می‌تونی بپرسی:";
+
+  useEffect(() => {
+    return () => {
+      if (pendingPhoto) URL.revokeObjectURL(pendingPhoto);
+    };
+  }, [pendingPhoto]);
+
+  useEffect(() => {
+    if (draftApplied.current) return;
+    const draft = searchParams.get("draft");
+    if (!draft) return;
+    draftApplied.current = true;
+    setText(draft);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, [searchParams]);
+
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 112)}px`;
+  }, [text]);
+
+  const clearPendingPhoto = useCallback(() => {
+    setPendingPhoto((url) => {
+      if (url) URL.revokeObjectURL(url);
+      return null;
+    });
+    pendingFileRef.current = null;
+    if (photoInputRef.current) photoInputRef.current.value = "";
+  }, []);
+
+  function onPickPhoto(fileList: FileList | null) {
+    const file = fileList?.[0];
+    if (!file) return;
+    setPendingPhoto((url) => {
+      if (url) URL.revokeObjectURL(url);
+      return URL.createObjectURL(file);
+    });
+    pendingFileRef.current = file;
+  }
+
+  async function send() {
+    const t = text.trim();
+    const file = pendingFileRef.current;
+    if ((!t && !file) || sending) return;
+    const attachListing = shouldAttachListingOnSend(thread, activeListingId)
+      ? activeListingId
+      : undefined;
+    if (activeListingId) rememberThreadListing(peerId, activeListingId);
+    setSending(true);
+    try {
+      const imageUrl = file ? await uploadUserPhoto(file) : undefined;
+      await addMessage(
+        peerId,
+        t,
+        scoped ? activeListingId ?? attachListing : attachListing,
+        scoped,
+        imageUrl,
+      );
+      setText("");
+      clearPendingPhoto();
+    } catch (err) {
+      show(err instanceof ApiError ? err.message : "ارسال نشد. دوباره بزن.");
+    } finally {
+      setSending(false);
+      inputRef.current?.focus();
+    }
+  }
+
+  function applyChip(prompt: BuyerPrompt) {
+    setText(prompt.draft);
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.focus();
+      const len = prompt.draft.length;
+      el.setSelectionRange(len, len);
+    });
+  }
+
+  return (
+    <div className="shrink-0 bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-xl border-t border-stone-200/70 dark:border-zinc-800 px-2.5 pt-2 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
+      {chips.length > 0 ? (
+        <div className="mb-2">
+          <ListingAskPrompts
+            prompts={chips}
+            onPick={applyChip}
+            title={chipTitle}
+            compact
+          />
+        </div>
+      ) : null}
+      {pendingPhoto ? (
+        <div className="mb-2 flex items-center gap-2">
+          <img
+            src={pendingPhoto}
+            alt=""
+            className="h-16 w-16 rounded-xl object-cover ring-1 ring-stone-200/80 dark:ring-zinc-700"
+          />
+          <button
+            type="button"
+            onClick={clearPendingPhoto}
+            className="text-[12px] font-bold text-ink-muted dark:text-zinc-400"
+          >
+            حذف عکس
+          </button>
+        </div>
+      ) : null}
+      <div className="flex items-end gap-2">
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => onPickPhoto(e.target.files)}
+        />
+        <button
+          type="button"
+          disabled={sending}
+          onClick={() => photoInputRef.current?.click()}
+          aria-label="افزودن عکس"
+          className="shrink-0 w-11 h-11 rounded-full border border-stone-200 dark:border-zinc-700 bg-stone-50/80 dark:bg-zinc-800/80 text-ink-muted dark:text-zinc-300 flex items-center justify-center active:scale-95 disabled:opacity-35"
+        >
+          <CameraIcon className="w-5 h-5" />
+        </button>
+        <textarea
+          ref={inputRef}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              void send();
+            }
+          }}
+          rows={1}
+          placeholder="پیام بنویس…"
+          className="flex-1 resize-none max-h-28 min-h-[44px] rounded-2xl border border-stone-200 dark:border-zinc-700 bg-stone-50/80 dark:bg-zinc-800/80 px-3.5 py-2.5 text-[13px] text-ink dark:text-zinc-100 placeholder:text-ink-faint outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/15 leading-relaxed"
+        />
+        <button
+          type="button"
+          onClick={() => void send()}
+          disabled={(!text.trim() && !pendingPhoto) || sending}
+          aria-label="ارسال"
+          className="shrink-0 w-11 h-11 rounded-full bg-brand-600 text-white flex items-center justify-center active:scale-95 disabled:opacity-35 shadow-md shadow-brand-600/25 transition-transform duration-150"
+        >
+          <SendIcon className="w-5 h-5 -ms-0.5" />
+        </button>
+      </div>
+    </div>
+  );
+});
+
+const CircloChip = memo(function CircloChip({
   label,
   onClick,
 }: {
@@ -707,7 +821,7 @@ function CircloChip({
       {label}
     </button>
   );
-}
+});
 
 function dayKey(postedAt: string): string {
   // Mock data uses relative Persian labels; treat each label as a day bucket.
@@ -718,7 +832,7 @@ function isClockStamp(postedAt: string): boolean {
   return /[:：]/.test(postedAt) || postedAt.includes("همین");
 }
 
-function DayDivider({ label }: { label: string }) {
+const DayDivider = memo(function DayDivider({ label }: { label: string }) {
   return (
     <div className="flex items-center justify-center my-3">
       <span className="text-[11px] font-semibold text-ink-muted dark:text-zinc-400 bg-[color:var(--circle-surface)]/90 dark:bg-zinc-900/90 border border-stone-200/60 dark:border-zinc-700 px-2.5 py-0.5 rounded-full shadow-sm" dir="rtl">
@@ -726,9 +840,9 @@ function DayDivider({ label }: { label: string }) {
       </span>
     </div>
   );
-}
+});
 
-function Bubble({
+const Bubble = memo(function Bubble({
   msg,
   clusteredTop,
   clusteredBottom,
@@ -771,12 +885,20 @@ function Bubble({
             {msg.fromMe ? "آگهی‌ای که فرستادید:" : "آگهی معرفی‌شده:"}
           </p>
           <ReferralCard listingId={msg.listingId} fromMe={msg.fromMe} />
+          {msg.imageUrl ? <ChatPhoto src={msg.imageUrl} /> : null}
           {msg.text.trim() && (
             <p className="whitespace-pre-line mt-2 opacity-95">{msg.text}</p>
           )}
         </>
       ) : (
-        <p className="whitespace-pre-line">{msg.text}</p>
+        <>
+          {msg.imageUrl ? <ChatPhoto src={msg.imageUrl} /> : null}
+          {msg.text.trim() ? (
+            <p className={`whitespace-pre-line ${msg.imageUrl ? "mt-2" : ""}`}>
+              {msg.text}
+            </p>
+          ) : null}
+        </>
       )}
       {showTime && (
         <span
@@ -790,7 +912,24 @@ function Bubble({
       )}
     </div>
   );
-}
+});
+
+const ChatPhoto = memo(function ChatPhoto({ src }: { src: string }) {
+  return (
+    <a
+      href={withBasePath(src)}
+      target="_blank"
+      rel="noreferrer"
+      className="block overflow-hidden rounded-xl -mx-1"
+    >
+      <img
+        src={withBasePath(src)}
+        alt="عکس پیام"
+        className="max-h-64 w-full object-cover"
+      />
+    </a>
+  );
+});
 
 function ReferralCard({
   listingId,

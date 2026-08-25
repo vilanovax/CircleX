@@ -23,7 +23,7 @@ import type {
   Request,
   TrustHop,
 } from "@/lib/types";
-import type { CircleEdge, Prisma, RelationType, User } from "@prisma/client";
+import { Prisma, type CircleEdge, type RelationType, type User } from "@prisma/client";
 
 export type NetworkLink = {
   fromId: string;
@@ -238,7 +238,6 @@ export async function loadCircleNetwork(viewerId: string): Promise<{
 const HOME_LISTING_SELECT = {
   id: true,
   title: true,
-  description: true,
   type: true,
   price: true,
   category: true,
@@ -278,6 +277,112 @@ function visibleMarketWhere(
 
 /** First paint shows a page of listing cards; keep a buffer for filters. */
 const HOME_FEED_LIMIT = 24;
+const HOME_EVENT_LIMIT = 8;
+
+/** Viewer, direct circle, or one hop — same set as the old JS FoF scan. */
+function sqlInViewerNetwork(
+  viewerId: string,
+  personCol: Prisma.Sql,
+): Prisma.Sql {
+  return Prisma.sql`(
+    ${personCol} = ${viewerId}
+    OR EXISTS (
+      SELECT 1 FROM "CircleEdge" AS d
+      WHERE d."fromUserId" = ${viewerId}
+        AND d."toUserId" = ${personCol}
+    )
+    OR (
+      ${personCol} <> ${viewerId}
+      AND EXISTS (
+        SELECT 1 FROM "CircleEdge" AS d
+        INNER JOIN "CircleEdge" AS h ON h."fromUserId" = d."toUserId"
+        WHERE d."fromUserId" = ${viewerId}
+          AND h."toUserId" = ${personCol}
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM "CircleEdge" AS me
+        WHERE me."fromUserId" = ${viewerId}
+          AND me."toUserId" = ${personCol}
+      )
+    )
+  )`;
+}
+
+function orderByIds<T extends { id: string }>(rows: T[], ids: string[]): T[] {
+  const map = new Map(rows.map((row) => [row.id, row]));
+  const out: T[] = [];
+  for (const id of ids) {
+    const row = map.get(id);
+    if (row) out.push(row);
+  }
+  return out;
+}
+
+async function homeFeedListingIds(viewerId: string): Promise<string[]> {
+  const rows = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT m.id FROM "MarketListing" AS m
+    WHERE ${sqlInViewerNetwork(viewerId, Prisma.raw('m."sellerId"'))}
+      AND (
+        m."sellerId" = ${viewerId}
+        OR m."dealStatus" IS NULL
+        OR m."dealStatus" <> 'inactive'
+      )
+    ORDER BY m."createdAt" DESC
+    LIMIT ${HOME_FEED_LIMIT}
+  `;
+  return rows.map((row) => row.id);
+}
+
+async function homeFeedRequestIds(viewerId: string): Promise<string[]> {
+  const rows = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT w.id FROM "WantRequest" AS w
+    WHERE (w.hidden = false OR w."requesterId" = ${viewerId})
+      AND ${sqlInViewerNetwork(viewerId, Prisma.raw('w."requesterId"'))}
+    ORDER BY w."createdAt" DESC
+    LIMIT ${HOME_FEED_LIMIT}
+  `;
+  return rows.map((row) => row.id);
+}
+
+async function homeFeedEventIds(viewerId: string): Promise<string[]> {
+  const rows = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT g.id FROM "Gathering" AS g
+    WHERE (g.hidden = false OR g."hostId" = ${viewerId})
+      AND ${sqlInViewerNetwork(viewerId, Prisma.raw('g."hostId"'))}
+    ORDER BY g."createdAt" DESC
+    LIMIT ${HOME_EVENT_LIMIT}
+  `;
+  return rows.map((row) => row.id);
+}
+
+async function connectorsForFoF(
+  direct: DirectCircle,
+  fofIds: string[],
+): Promise<{
+  connectorBySeller: Map<string, Person>;
+  viaRelationBySeller: Map<string, RelationType>;
+}> {
+  const connectorBySeller = new Map<string, Person>();
+  const viaRelationBySeller = new Map<string, RelationType>();
+  if (fofIds.length === 0 || direct.directIds.length === 0) {
+    return { connectorBySeller, viaRelationBySeller };
+  }
+  const hopEdges = await prisma.circleEdge.findMany({
+    where: {
+      fromUserId: { in: direct.directIds },
+      toUserId: { in: fofIds },
+    },
+    select: { fromUserId: true, toUserId: true, relationType: true },
+  });
+  for (const edge of hopEdges) {
+    if (direct.directSet.has(edge.toUserId)) continue;
+    const bridge = direct.memberById.get(edge.fromUserId);
+    if (!bridge || connectorBySeller.has(edge.toUserId)) continue;
+    connectorBySeller.set(edge.toUserId, bridge);
+    viaRelationBySeller.set(edge.toUserId, edge.relationType);
+  }
+  return { connectorBySeller, viaRelationBySeller };
+}
 
 /** Home feed: capped cards, FoF users only for sellers on those cards. */
 export async function loadHomeFeed(viewerId: string): Promise<{
@@ -290,32 +395,62 @@ export async function loadHomeFeed(viewerId: string): Promise<{
 }> {
   const direct = await loadDirectCircle(viewerId);
 
-  const hopEdges =
-    direct.directIds.length === 0
-      ? []
-      : await prisma.circleEdge.findMany({
-          where: {
-            fromUserId: { in: direct.directIds },
-            toUserId: { not: viewerId },
+  const [listingIds, requestIds, eventIds] = await Promise.all([
+    homeFeedListingIds(viewerId),
+    homeFeedRequestIds(viewerId),
+    homeFeedEventIds(viewerId),
+  ]);
+
+  const [marketUnsorted, requestUnsorted, eventUnsorted] = await Promise.all([
+    listingIds.length === 0
+      ? Promise.resolve([])
+      : prisma.marketListing.findMany({
+          where: { id: { in: listingIds } },
+          select: HOME_LISTING_SELECT,
+        }),
+    requestIds.length === 0
+      ? Promise.resolve([])
+      : prisma.wantRequest.findMany({
+          where: { id: { in: requestIds } },
+          include: {
+            offers: {
+              select: {
+                id: true,
+                requestId: true,
+                fromId: true,
+                price: true,
+                createdAt: true,
+              },
+            },
           },
-          select: { fromUserId: true, toUserId: true, relationType: true },
-        });
+        }),
+    eventIds.length === 0
+      ? Promise.resolve([])
+      : prisma.gathering.findMany({
+          where: { id: { in: eventIds } },
+          include: { rsvps: { select: { personId: true } } },
+        }),
+  ]);
 
-  const connectorBySeller = new Map<string, Person>();
-  const viaRelationBySeller = new Map<string, RelationType>();
-  for (const edge of hopEdges) {
-    if (direct.directSet.has(edge.toUserId)) continue;
-    const bridge = direct.memberById.get(edge.fromUserId);
-    if (!bridge || connectorBySeller.has(edge.toUserId)) continue;
-    connectorBySeller.set(edge.toUserId, bridge);
-    viaRelationBySeller.set(edge.toUserId, edge.relationType);
-  }
+  const marketRows = orderByIds(marketUnsorted, listingIds);
+  const requestRows = orderByIds(requestUnsorted, requestIds);
+  const eventRows = orderByIds(eventUnsorted, eventIds);
 
-  const sellerIds = [
-    viewerId,
-    ...direct.directIds,
-    ...Array.from(connectorBySeller.keys()),
-  ];
+  const fofIds: string[] = [];
+  const seenFof = new Set<string>();
+  const addFof = (id: string) => {
+    if (id === viewerId || direct.directSet.has(id) || seenFof.has(id)) return;
+    seenFof.add(id);
+    fofIds.push(id);
+  };
+  for (const row of marketRows) addFof(row.sellerId);
+  for (const row of requestRows) addFof(row.requesterId);
+  for (const row of eventRows) addFof(row.hostId);
+
+  const { connectorBySeller, viaRelationBySeller } = await connectorsForFoF(
+    direct,
+    fofIds,
+  );
 
   const pathCtx = {
     directSet: direct.directSet,
@@ -323,21 +458,6 @@ export async function loadHomeFeed(viewerId: string): Promise<{
     connectorBySeller,
     viaRelationBySeller,
   };
-
-  const [marketRows, social] = await Promise.all([
-    sellerIds.length === 0
-      ? Promise.resolve([])
-      : prisma.marketListing.findMany({
-          where: visibleMarketWhere(viewerId, sellerIds),
-          orderBy: { createdAt: "desc" },
-          take: HOME_FEED_LIMIT,
-          select: HOME_LISTING_SELECT,
-        }),
-    loadSocialFeed(viewerId, sellerIds, pathCtx, {
-      requestTake: HOME_FEED_LIMIT,
-      eventTake: 8,
-    }),
-  ]);
 
   const flags = await listingViewerFlags(viewerId, marketRows);
   const visibleRows = marketRows.filter((row) => !flags.blockedIds.has(row.id));
@@ -349,6 +469,30 @@ export async function loadHomeFeed(viewerId: string): Promise<{
       identityRevealedPeerIds: flags.revealPeersByListing.get(row.id),
     }),
   );
+
+  const requests = requestRows.map((row) => {
+    const mapped = toClientRequest(
+      row,
+      viewerId,
+      trustPathForListing({ sellerId: row.requesterId }, viewerId, pathCtx),
+    );
+    if (mapped.description.length <= 180) return mapped;
+    return {
+      ...mapped,
+      description: `${mapped.description.slice(0, 180).trim()}…`,
+    };
+  });
+  const offers = requestRows.flatMap((row) =>
+    row.offers.map((offer) => toClientOffer(offer, viewerId)),
+  );
+  const events = eventRows.map((row) => {
+    const mapped = toClientEvent(
+      row,
+      viewerId,
+      trustPathForListing({ sellerId: row.hostId }, viewerId, pathCtx),
+    );
+    return { ...mapped, description: "" };
+  });
 
   const fofSellerIds = Array.from(
     new Set(
@@ -375,7 +519,7 @@ export async function loadHomeFeed(viewerId: string): Promise<{
     });
   });
 
-  return { members: direct.members, network, listings, ...social };
+  return { members: direct.members, network, listings, requests, offers, events };
 }
 
 export type ListingAccess = {
@@ -485,11 +629,12 @@ export async function loadSocialFeed(
   viewerId: string,
   actorIds: string[],
   pathCtx: PathCtx,
-  opts?: { requestTake?: number; eventTake?: number },
+  opts?: { requestTake?: number; eventTake?: number; compact?: boolean },
 ): Promise<{ requests: Request[]; offers: Offer[]; events: CircleEvent[] }> {
   if (actorIds.length === 0) {
     return { requests: [], offers: [], events: [] };
   }
+  const compact = Boolean(opts?.compact);
   const [requestRows, eventRows] = await Promise.all([
     prisma.wantRequest.findMany({
       where: {
@@ -498,7 +643,19 @@ export async function loadSocialFeed(
       },
       orderBy: { createdAt: "desc" },
       take: opts?.requestTake,
-      include: { offers: true },
+      include: compact
+        ? {
+            offers: {
+              select: {
+                id: true,
+                requestId: true,
+                fromId: true,
+                price: true,
+                createdAt: true,
+              },
+            },
+          }
+        : { offers: true },
     }),
     prisma.gathering.findMany({
       where: {
@@ -510,24 +667,99 @@ export async function loadSocialFeed(
       include: { rsvps: { select: { personId: true } } },
     }),
   ]);
-  const requests = requestRows.map((row) =>
-    toClientRequest(
+  const requests = requestRows.map((row) => {
+    const mapped = toClientRequest(
       row,
       viewerId,
       trustPathForListing({ sellerId: row.requesterId }, viewerId, pathCtx),
-    ),
-  );
+    );
+    if (!compact || mapped.description.length <= 180) return mapped;
+    return {
+      ...mapped,
+      description: `${mapped.description.slice(0, 180).trim()}…`,
+    };
+  });
   const offers = requestRows.flatMap((row) =>
     row.offers.map((offer) => toClientOffer(offer, viewerId)),
   );
-  const events = eventRows.map((row) =>
-    toClientEvent(
+  const events = eventRows.map((row) => {
+    const mapped = toClientEvent(
       row,
       viewerId,
       trustPathForListing({ sellerId: row.hostId }, viewerId, pathCtx),
-    ),
-  );
+    );
+    if (!compact) return mapped;
+    return { ...mapped, description: "" };
+  });
   return { requests, offers, events };
+}
+
+export async function loadThreadPrefs(viewerId: string): Promise<{
+  archivedThreads: string[];
+  pinnedThreads: string[];
+  deletedThreads: string[];
+}> {
+  const threadRows = await prisma.threadPreference.findMany({
+    where: { userId: viewerId },
+  });
+  const archivedThreads: string[] = [];
+  const pinnedThreads: string[] = [];
+  const deletedThreads: string[] = [];
+  for (const row of threadRows) {
+    if (row.deletedAt) deletedThreads.push(threadKey(row.peerId, row.listingId));
+    else if (row.archived) archivedThreads.push(threadKey(row.peerId, row.listingId));
+    if (row.pinned && !row.deletedAt) {
+      pinnedThreads.push(threadKey(row.peerId, row.listingId));
+    }
+  }
+  return { archivedThreads, pinnedThreads, deletedThreads };
+}
+
+/** Feed hide/save + notes. Thread archive lives on /api/messages. */
+export async function loadFeedPrefs(viewerId: string): Promise<{
+  showOwnListingsInFeed: boolean;
+  saved: string[];
+  hiddenListings: string[];
+  hiddenPeople: string[];
+  listingNotes: Record<string, string>;
+}> {
+  const [user, savedRows, hiddenRows, hiddenPeopleRows, noteRows] =
+    await Promise.all([
+      prisma.user.findUnique({
+        where: { id: viewerId },
+        select: { showOwnListingsInFeed: true },
+      }),
+      prisma.savedListing.findMany({
+        where: { userId: viewerId },
+        orderBy: { createdAt: "desc" },
+        select: { listingId: true },
+      }),
+      prisma.hiddenListing.findMany({
+        where: { userId: viewerId },
+        orderBy: { createdAt: "desc" },
+        select: { listingId: true },
+      }),
+      prisma.hiddenPerson.findMany({
+        where: { userId: viewerId },
+        orderBy: { createdAt: "desc" },
+        select: { personId: true },
+      }),
+      prisma.listingPersonalNote.findMany({
+        where: { userId: viewerId },
+        select: { listingId: true, body: true },
+      }),
+    ]);
+  const listingNotes: Record<string, string> = {};
+  for (const row of noteRows) {
+    if (row.body.trim()) listingNotes[row.listingId] = row.body;
+  }
+  return {
+    showOwnListingsInFeed: user?.showOwnListingsInFeed ?? true,
+    saved: savedRows.map((row) => row.listingId),
+    hiddenListings: hiddenRows.map((row) => row.listingId),
+    hiddenPeople: hiddenPeopleRows.map((row) => row.personId),
+    listingNotes,
+  };
 }
 
 export async function loadViewerPrefs(viewerId: string): Promise<{
@@ -540,55 +772,9 @@ export async function loadViewerPrefs(viewerId: string): Promise<{
   pinnedThreads: string[];
   deletedThreads: string[];
 }> {
-  const [user, savedRows, hiddenRows, hiddenPeopleRows, noteRows, threadRows] =
-    await Promise.all([
-    prisma.user.findUnique({
-      where: { id: viewerId },
-      select: { showOwnListingsInFeed: true },
-    }),
-    prisma.savedListing.findMany({
-      where: { userId: viewerId },
-      orderBy: { createdAt: "desc" },
-      select: { listingId: true },
-    }),
-    prisma.hiddenListing.findMany({
-      where: { userId: viewerId },
-      orderBy: { createdAt: "desc" },
-      select: { listingId: true },
-    }),
-    prisma.hiddenPerson.findMany({
-      where: { userId: viewerId },
-      orderBy: { createdAt: "desc" },
-      select: { personId: true },
-    }),
-    prisma.listingPersonalNote.findMany({
-      where: { userId: viewerId },
-      select: { listingId: true, body: true },
-    }),
-    prisma.threadPreference.findMany({ where: { userId: viewerId } }),
+  const [feed, threads] = await Promise.all([
+    loadFeedPrefs(viewerId),
+    loadThreadPrefs(viewerId),
   ]);
-  const archivedThreads: string[] = [];
-  const pinnedThreads: string[] = [];
-  const deletedThreads: string[] = [];
-  for (const row of threadRows) {
-    if (row.deletedAt) deletedThreads.push(threadKey(row.peerId, row.listingId));
-    else if (row.archived) archivedThreads.push(threadKey(row.peerId, row.listingId));
-    if (row.pinned && !row.deletedAt) {
-      pinnedThreads.push(threadKey(row.peerId, row.listingId));
-    }
-  }
-  const listingNotes: Record<string, string> = {};
-  for (const row of noteRows) {
-    if (row.body.trim()) listingNotes[row.listingId] = row.body;
-  }
-  return {
-    showOwnListingsInFeed: user?.showOwnListingsInFeed ?? true,
-    saved: savedRows.map((row) => row.listingId),
-    hiddenListings: hiddenRows.map((row) => row.listingId),
-    hiddenPeople: hiddenPeopleRows.map((row) => row.personId),
-    listingNotes,
-    archivedThreads,
-    pinnedThreads,
-    deletedThreads,
-  };
+  return { ...feed, ...threads };
 }

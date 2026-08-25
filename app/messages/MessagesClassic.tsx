@@ -9,6 +9,7 @@ import {
   useDeferredValue,
   useMemo,
   useState,
+  type ReactNode,
 } from "react";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
@@ -85,8 +86,6 @@ const MessagesBody = memo(function MessagesBody({
 }) {
   const hydrated = useStore((s) => s.hydrated);
   const threadIndex = useStore((s) => s.threadIndex);
-  const people = useStore((s) => s.people);
-  const networkLinks = useStore((s) => s.networkLinks);
   const getPerson = useStore((s) => s.getPerson);
   const getListing = useStore((s) => s.getListing);
   const archivedThreads = useStore((s) => s.archivedThreads);
@@ -102,7 +101,10 @@ const MessagesBody = memo(function MessagesBody({
   const [menu, setMenu] = useState<ThreadMenu | null>(null);
   const deferredQuery = useDeferredValue(query);
 
-  const peers = threadIndex.peerIds.filter((id) => !isCircloPeer(id));
+  const peers = useMemo(
+    () => threadIndex.peerIds.filter((id) => !isCircloPeer(id)),
+    [threadIndex.peerIds],
+  );
   const archivedSet = useMemo(
     () => new Set(archivedThreads),
     [archivedThreads],
@@ -176,10 +178,7 @@ const MessagesBody = memo(function MessagesBody({
         scoped: Boolean(listingId),
         relationLine: last?.peerHidden
           ? "هویت برای اعضا پنهان است"
-          : chatPeerSubtitle(
-              peer,
-              viaConnectorName(peerId, getPerson, networkLinks, people),
-            ),
+          : chatPeerSubtitle(peer, viaConnectorName(peerId, getPerson)),
         pinned: pinnedSet.has(key),
         archived: archivedSet.has(key),
         official: false,
@@ -240,8 +239,6 @@ const MessagesBody = memo(function MessagesBody({
     pinnedSet,
     archivedSet,
     pinnedThreads,
-    networkLinks,
-    people,
   ]);
 
   const handleArchive = useCallback(
@@ -292,6 +289,18 @@ const MessagesBody = memo(function MessagesBody({
     [togglePinThread, show],
   );
 
+  const onFilterAll = useCallback(
+    () => startTransition(() => setFilter("all")),
+    [],
+  );
+  const onFilterUnread = useCallback(
+    () => startTransition(() => setFilter("unread")),
+    [],
+  );
+  const onFilterArchive = useCallback(
+    () => startTransition(() => setFilter("archive")),
+    [],
+  );
   const onMore = useCallback((next: ThreadMenu) => setMenu(next), []);
 
   return (
@@ -313,25 +322,25 @@ const MessagesBody = memo(function MessagesBody({
         }
       />
 
-      <div className="px-4 pt-3 space-y-3 listing-detail-rise">
+      <div className="px-4 pt-3 space-y-3">
         {hydrated ? (
           <div className="space-y-2">
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
               <FilterChip
                 active={filter === "all"}
-                onClick={() => startTransition(() => setFilter("all"))}
+                onClick={onFilterAll}
                 label="همه"
                 count={inboxPeers.length + 1}
               />
               <FilterChip
                 active={filter === "unread"}
-                onClick={() => startTransition(() => setFilter("unread"))}
+                onClick={onFilterUnread}
                 label="خوانده‌نشده"
                 count={inboxUnread}
               />
               <FilterChip
                 active={filter === "archive"}
-                onClick={() => startTransition(() => setFilter("archive"))}
+                onClick={onFilterArchive}
                 label="آرشیو"
                 count={archivedPeers.length}
               />
@@ -498,17 +507,17 @@ const InboxThreadRow = memo(function InboxThreadRow({
           pinned={pinned}
           official={official}
           eager={eager}
-          onMore={
-            official
-              ? undefined
-              : () =>
-                  onMore({
-                    peerId: rowKey,
-                    name: peer.name,
-                    avatar: peer.avatar,
-                    pinned,
-                    archived,
-                  })
+          moreSlot={
+            official ? undefined : (
+              <ThreadMoreButton
+                rowKey={rowKey}
+                name={peer.name}
+                avatar={peer.avatar}
+                pinned={pinned}
+                archived={archived}
+                onMore={onMore}
+              />
+            )
           }
         />
       </SwipeThreadRow>
@@ -529,7 +538,7 @@ const ThreadRow = memo(function ThreadRow({
   pinned,
   official,
   eager,
-  onMore,
+  moreSlot,
 }: {
   peer: Person;
   peerId: string;
@@ -543,7 +552,7 @@ const ThreadRow = memo(function ThreadRow({
   pinned?: boolean;
   official?: boolean;
   eager?: boolean;
-  onMore?: () => void;
+  moreSlot?: ReactNode;
 }) {
   const hasUnread = unread > 0;
   const href =
@@ -632,25 +641,45 @@ const ThreadRow = memo(function ThreadRow({
           </div>
         </div>
       </Link>
-      {onMore ? (
-      <button
-        type="button"
-        onClick={onMore}
-        onPointerEnter={preloadMessageSheets}
-        onFocus={preloadMessageSheets}
-        aria-label={`گزینه‌های گفتگو با ${peer.name}`}
-        className="shrink-0 w-11 flex items-center justify-center text-ink-muted hover:text-ink dark:hover:text-zinc-200 active:bg-stone-100/80 dark:active:bg-zinc-800"
-      >
-        <MoreIcon className="w-5 h-5" />
-      </button>
-      ) : (
-        <span className="w-3 shrink-0" aria-hidden />
-      )}
+      {moreSlot ?? <span className="w-3 shrink-0" aria-hidden />}
     </div>
   );
 });
 
-function FilterChip({
+const ThreadMoreButton = memo(function ThreadMoreButton({
+  rowKey,
+  name,
+  avatar,
+  pinned,
+  archived,
+  onMore,
+}: {
+  rowKey: string;
+  name: string;
+  avatar: string;
+  pinned: boolean;
+  archived: boolean;
+  onMore: (menu: ThreadMenu) => void;
+}) {
+  const onClick = useCallback(() => {
+    onMore({ peerId: rowKey, name, avatar, pinned, archived });
+  }, [onMore, rowKey, name, avatar, pinned, archived]);
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onPointerEnter={preloadMessageSheets}
+      onFocus={preloadMessageSheets}
+      aria-label={`گزینه‌های گفتگو با ${name}`}
+      className="shrink-0 w-11 flex items-center justify-center text-ink-muted hover:text-ink dark:hover:text-zinc-200 active:bg-stone-100/80 dark:active:bg-zinc-800"
+    >
+      <MoreIcon className="w-5 h-5" />
+    </button>
+  );
+});
+
+const FilterChip = memo(function FilterChip({
   active,
   onClick,
   label,
@@ -681,4 +710,4 @@ function FilterChip({
       </span>
     </button>
   );
-}
+});

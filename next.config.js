@@ -6,6 +6,7 @@ const basePath = "/circle";
 const nextConfig = {
   reactStrictMode: true,
   basePath,
+  serverExternalPackages: ["sharp"],
   env: {
     NEXT_PUBLIC_BASE_PATH: basePath,
   },

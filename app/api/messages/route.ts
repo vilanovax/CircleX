@@ -9,6 +9,7 @@ import {
   loadInbox,
   peopleForMessagePeers,
 } from "@/lib/server-messages";
+import { isStoredUploadSrc } from "@/lib/listing-photo";
 import { getSessionUser } from "@/lib/server-auth";
 import type { Person } from "@/lib/types";
 
@@ -33,9 +34,16 @@ export async function POST(req: Request) {
       text?: unknown;
       listingId?: unknown;
       listingScoped?: unknown;
+      imageUrl?: unknown;
     }>(req);
     let peerId = typeof body?.peerId === "string" ? body.peerId.trim() : "";
     const text = typeof body?.text === "string" ? body.text : "";
+    const imageRaw =
+      typeof body?.imageUrl === "string" ? body.imageUrl.trim() : "";
+    if (imageRaw && !isStoredUploadSrc(imageRaw)) {
+      return jsonError("عکس نامعتبر است", 400);
+    }
+    const imageUrl = imageRaw || undefined;
     const listingId =
       typeof body?.listingId === "string" && body.listingId.trim()
         ? body.listingId.trim()
@@ -62,7 +70,7 @@ export async function POST(req: Request) {
     if (text.length > DM_TEXT_MAX) {
       return jsonError("پیام خیلی بلند است", 400);
     }
-    if (!text.trim() && !listingId) {
+    if (!text.trim() && !listingId && !imageUrl) {
       return jsonError("متن پیام خالی است", 400);
     }
 
@@ -81,6 +89,7 @@ export async function POST(req: Request) {
         text: text.trim(),
         listingId: listingId ?? null,
         listingScoped,
+        imageUrl: imageUrl ?? null,
       },
     });
 

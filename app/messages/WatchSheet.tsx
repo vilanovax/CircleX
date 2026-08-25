@@ -57,14 +57,22 @@ export default function WatchSheet({ onClose }: { onClose: () => void }) {
     };
   }, [load, show]);
 
-  const phrases = watches.filter((w) => w.kind === WATCH_KIND.phrase);
-  const persons = watches.filter((w) => w.kind === WATCH_KIND.person);
-  const watchedIds = new Set(
-    persons
-      .map((w) => w.target?.id)
-      .filter((id): id is string => Boolean(id)),
+  const phrases = useMemo(
+    () => watches.filter((w) => w.kind === WATCH_KIND.phrase),
+    [watches],
   );
-  const addablePeople = circle.filter((p) => !watchedIds.has(p.id));
+  const persons = useMemo(
+    () => watches.filter((w) => w.kind === WATCH_KIND.person),
+    [watches],
+  );
+  const addablePeople = useMemo(() => {
+    const watchedIds = new Set(
+      persons
+        .map((w) => w.target?.id)
+        .filter((id): id is string => Boolean(id)),
+    );
+    return circle.filter((p) => !watchedIds.has(p.id));
+  }, [circle, persons]);
 
   async function addPhrase() {
     if (busy) return;

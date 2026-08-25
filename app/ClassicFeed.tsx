@@ -1,7 +1,9 @@
 "use client";
 
 import {
+  memo,
   startTransition,
+  useCallback,
   useDeferredValue,
   useEffect,
   useMemo,
@@ -9,7 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
-import { activeCircle } from "@/lib/circle-member";
+import { activeCircleCount } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import ListingCard from "@/components/ListingCard";
 import BottomNav from "@/components/BottomNav";
@@ -113,38 +115,142 @@ function readShowConceptTip() {
 }
 
 export default function ClassicFeed() {
-  const listings = useStore((s) => s.listings);
-  const requests = useStore((s) => s.requests);
-  const events = useStore((s) => s.events);
-  const people = useStore((s) => s.people);
-  const getPerson = useStore((s) => s.getPerson);
   const hydrated = useStore((s) => s.hydrated);
   const circleReady = useStore((s) => s.circleReady);
   const onboarded = useStore((s) => s.onboarded);
-  const showOwnListingsInFeed = useStore((s) => s.showOwnListingsInFeed);
-  const hiddenListings = useStore((s) => s.hiddenListings);
-  const hiddenPeople = useStore((s) => s.hiddenPeople);
+  const circleCount = useStore((s) => activeCircleCount(s.people));
   const catalog = useCatalog();
   const [filter, setFilter] = useState<FeedFilter>("all");
   const [circleScope, setCircleScope] = useState<CircleScope>("network");
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const [showConceptTip, setShowConceptTip] = useState(readShowConceptTip);
-  const [feedPage, setFeedPage] = useState(1);
 
-  function dismissConceptTip() {
+  const dismissConceptTip = useCallback(() => {
     try {
       localStorage.setItem(CONCEPT_TIP_KEY, "1");
     } catch {
       /* ignore */
     }
     setShowConceptTip(false);
-  }
+  }, []);
 
-  const circleCount = activeCircle(people).length;
   const isNewUser = hydrated && !onboarded;
   const emptyCircle = circleReady && onboarded && circleCount === 0;
   const quietChrome = isNewUser || emptyCircle;
+  const requestsMode = filter === "requests";
+  const onFilter = useCallback((next: FeedFilter) => {
+    startTransition(() => setFilter(next));
+  }, []);
+  const onScope = useCallback((next: CircleScope) => {
+    startTransition(() => setCircleScope(next));
+  }, []);
+  const onClearSearch = useCallback(() => {
+    setFilter("all");
+    setCircleScope("network");
+    setQuery("");
+  }, []);
+
+  return (
+    <main className="pb-24 min-h-[100dvh]">
+      <header className="sticky top-0 z-20 border-b border-stone-200/70 bg-[color:var(--circle-surface)] before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-[50vh] before:bg-[color:var(--circle-surface)] dark:border-zinc-800 dark:bg-zinc-950 dark:before:bg-zinc-950">
+        <div className="px-4 pt-[max(0.85rem,env(safe-area-inset-top))] pb-1.5">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-brand-600 text-white flex items-center justify-center shadow-sm shadow-brand-600/20">
+                <ShieldCheckIcon className="w-4 h-4" />
+              </div>
+              <h1 className="text-[15px] font-extrabold text-ink dark:text-zinc-50 tracking-tight">
+                سیرکل
+              </h1>
+            </div>
+            {!quietChrome && (
+              <div className="relative flex-1 min-w-0">
+                <SearchIcon className="w-[16px] h-[16px] text-ink-faint absolute top-1/2 -translate-y-1/2 right-2.5" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={requestsMode ? "جستجو در درخواست‌ها…" : "جستجو…"}
+                  aria-label={
+                    requestsMode ? "جستجو در درخواست‌ها" : "جستجو در حلقه‌ات"
+                  }
+                  className="field !pr-9 !py-2 !px-3 text-sm !border-stone-200/80 dark:!border-zinc-700"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {!quietChrome && (
+          <FeedFilterBar filter={filter} onFilter={onFilter} />
+        )}
+      </header>
+
+      {isNewUser ? (
+        <NewUserHomePlaceholder />
+      ) : emptyCircle ? (
+        <HomeEmptyCircle />
+      ) : (
+        <HomeFeedBody
+          filter={filter}
+          deferredQuery={deferredQuery}
+          circleScope={circleScope}
+          circleCount={circleCount}
+          circleReady={circleReady}
+          onboarded={onboarded}
+          hydrated={hydrated}
+          showConceptTip={showConceptTip}
+          requestsEnabled={catalog.flags.requests}
+          onDismissTip={dismissConceptTip}
+          onScope={onScope}
+          onFilter={onFilter}
+          onClearSearch={onClearSearch}
+        />
+      )}
+
+      {isNewUser ? <Onboarding /> : null}
+      <BottomNav />
+    </main>
+  );
+}
+
+const HomeFeedBody = memo(function HomeFeedBody({
+  filter,
+  deferredQuery,
+  circleScope,
+  circleCount,
+  circleReady,
+  onboarded,
+  hydrated,
+  showConceptTip,
+  requestsEnabled,
+  onDismissTip,
+  onScope,
+  onFilter,
+  onClearSearch,
+}: {
+  filter: FeedFilter;
+  deferredQuery: string;
+  circleScope: CircleScope;
+  circleCount: number;
+  circleReady: boolean;
+  onboarded: boolean;
+  hydrated: boolean;
+  showConceptTip: boolean;
+  requestsEnabled: boolean;
+  onDismissTip: () => void;
+  onScope: (next: CircleScope) => void;
+  onFilter: (next: FeedFilter) => void;
+  onClearSearch: () => void;
+}) {
+  const listings = useStore((s) => s.listings);
+  const requests = useStore((s) => s.requests);
+  const events = useStore((s) => s.events);
+  const getPerson = useStore((s) => s.getPerson);
+  const showOwnListingsInFeed = useStore((s) => s.showOwnListingsInFeed);
+  const hiddenListings = useStore((s) => s.hiddenListings);
+  const hiddenPeople = useStore((s) => s.hiddenPeople);
+  const [feedPage, setFeedPage] = useState(1);
   const requestsMode = filter === "requests";
 
   const { allowed, hidden } = useMemo(() => {
@@ -191,10 +297,7 @@ export default function ClassicFeed() {
     const q = normalizeFa(deferredQuery);
     return allowed.filter((l) => {
       if (filter !== "all" && l.type !== filter) return false;
-      if (
-        q &&
-        !normalizeFa(`${l.title} ${l.description} ${l.category}`).includes(q)
-      )
+      if (q && !normalizeFa(`${l.title} ${l.category}`).includes(q))
         return false;
       if (!listingMatchesScope(l, circleScope, getPerson)) return false;
       if (!showOwnListingsInFeed && l.sellerId === "me") return false;
@@ -228,61 +331,26 @@ export default function ClassicFeed() {
 
   useEffect(() => {
     setFeedPage(1);
-  }, [filter, deferredQuery, circleScope, showOwnListingsInFeed, hiddenListings, hiddenPeople]);
+  }, [
+    filter,
+    deferredQuery,
+    circleScope,
+    showOwnListingsInFeed,
+    hiddenListings,
+    hiddenPeople,
+  ]);
 
   const browsingAll =
     filter === "all" &&
-    query.trim().length === 0 &&
+    deferredQuery.trim().length === 0 &&
     circleScope === "network";
-  const showSecondary = browsingAll && circleReady && onboarded && !emptyCircle;
+  const showSecondary = browsingAll && circleReady && onboarded;
   const scopeLabel =
     SCOPE_OPTIONS.find((o) => o.key === circleScope)?.label ??
     "حلقه + وابسته‌ها";
 
   return (
-    <main className="pb-24 min-h-[100dvh]">
-      <header className="sticky top-0 z-20 border-b border-stone-200/70 bg-[color:var(--circle-surface)] before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-[50vh] before:bg-[color:var(--circle-surface)] dark:border-zinc-800 dark:bg-zinc-950 dark:before:bg-zinc-950">
-        <div className="px-4 pt-[max(0.85rem,env(safe-area-inset-top))] pb-1.5">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 shrink-0">
-              <div className="w-8 h-8 rounded-xl bg-brand-600 text-white flex items-center justify-center shadow-sm shadow-brand-600/20">
-                <ShieldCheckIcon className="w-4 h-4" />
-              </div>
-              <h1 className="text-[15px] font-extrabold text-ink dark:text-zinc-50 tracking-tight">
-                سیرکل
-              </h1>
-            </div>
-            {!quietChrome && (
-              <div className="relative flex-1 min-w-0">
-                <SearchIcon className="w-[16px] h-[16px] text-ink-faint absolute top-1/2 -translate-y-1/2 right-2.5" />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder={requestsMode ? "جستجو در درخواست‌ها…" : "جستجو…"}
-                  aria-label={
-                    requestsMode ? "جستجو در درخواست‌ها" : "جستجو در حلقه‌ات"
-                  }
-                  className="field !pr-9 !py-2 !px-3 text-sm !border-stone-200/80 dark:!border-zinc-700"
-                />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {!quietChrome && (
-          <FeedFilterBar
-            filter={filter}
-            onFilter={(next) => startTransition(() => setFilter(next))}
-          />
-        )}
-      </header>
-
-      {isNewUser ? (
-        <NewUserHomePlaceholder />
-      ) : emptyCircle ? (
-        <HomeEmptyCircle />
-      ) : (
-        <>
+    <>
           {showConceptTip && (
             <div className="px-4 pt-3">
               <div className="relative rounded-2xl bg-brand-50/80 dark:bg-brand-500/10 ring-1 ring-brand-100/70 dark:ring-brand-500/20 px-3.5 py-2.5">
@@ -294,7 +362,7 @@ export default function ClassicFeed() {
                 </p>
                 <button
                   type="button"
-                  onClick={dismissConceptTip}
+                  onClick={onDismissTip}
                   className="absolute top-2 left-2 w-7 h-7 rounded-full text-ink-faint hover:bg-stone-200/60 dark:hover:bg-zinc-800 flex items-center justify-center text-sm"
                   aria-label="بستن راهنما"
                 >
@@ -304,7 +372,6 @@ export default function ClassicFeed() {
             </div>
           )}
 
-          {/* Listings — or requests when that filter is on */}
           <FeedSection
             title={requestsMode ? "درخواست‌ها" : "آگهی‌ها"}
             count={
@@ -319,9 +386,7 @@ export default function ClassicFeed() {
                 <CircleScopeControl
                   value={circleScope}
                   label={scopeLabel}
-                  onChange={(next) =>
-                    startTransition(() => setCircleScope(next))
-                  }
+                  onChange={onScope}
                 />
               ) : undefined
             }
@@ -333,12 +398,8 @@ export default function ClassicFeed() {
                 <FeedEmptyState
                   hasFilter
                   requestsMode
-                  canCompose={catalog.flags.requests}
-                  onClear={() => {
-                    setFilter("all");
-                    setCircleScope("network");
-                    setQuery("");
-                  }}
+                  canCompose={requestsEnabled}
+                  onClear={onClearSearch}
                 />
               ) : (
                 <>
@@ -361,11 +422,7 @@ export default function ClassicFeed() {
             ) : visible.length === 0 ? (
               <FeedEmptyState
                 hasFilter={!browsingAll}
-                onClear={() => {
-                  setFilter("all");
-                  setCircleScope("network");
-                  setQuery("");
-                }}
+                onClear={onClearSearch}
               />
             ) : (
               <>
@@ -406,7 +463,6 @@ export default function ClassicFeed() {
             )}
           </FeedSection>
 
-          {/* Secondary: events + requests only when browsing the full feed */}
           {showSecondary && visibleEvents.length > 0 && (
             <StripSection title="رویدادهای پیش‌رو" href="/events">
               {visibleEvents.slice(0, 4).map((ev) => (
@@ -423,7 +479,7 @@ export default function ClassicFeed() {
                 </h2>
                 <button
                   type="button"
-                  onClick={() => startTransition(() => setFilter("requests"))}
+                  onClick={() => onFilter("requests")}
                   className="text-[11px] text-ink-muted dark:text-zinc-500 font-medium"
                 >
                   همه
@@ -440,14 +496,9 @@ export default function ClassicFeed() {
               </div>
             </section>
           )}
-        </>
-      )}
-
-      {isNewUser ? <Onboarding /> : null}
-      <BottomNav />
-    </main>
+    </>
   );
-}
+});
 
 function FeedSection({
   title,
@@ -488,7 +539,7 @@ function FeedSection({
   );
 }
 
-function CircleScopeControl({
+const CircleScopeControl = memo(function CircleScopeControl({
   value,
   label,
   onChange,
@@ -567,7 +618,7 @@ function CircleScopeControl({
       )}
     </div>
   );
-}
+});
 
 function StripSection({
   title,

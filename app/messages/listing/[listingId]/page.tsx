@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { CameraIcon } from "@/components/Icons";
+import { uploadUserPhoto } from "@/lib/media-image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import { ApiError } from "@/lib/api";
@@ -23,6 +25,9 @@ export default function ListingThreadEntry() {
   const messages = useStore((s) => s.messages);
   const { show } = useToast();
   const [text, setText] = useState(searchParams.get("draft") ?? "");
+  const [pendingPhoto, setPendingPhoto] = useState<string | null>(null);
+  const pendingFileRef = useRef<File | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
@@ -41,10 +46,12 @@ export default function ListingThreadEntry() {
 
   async function send() {
     const t = text.trim();
-    if (!t || sending) return;
+    const file = pendingFileRef.current;
+    if ((!t && !file) || sending) return;
     setSending(true);
     try {
-      const msg = await addMessage("", t, listingId, true);
+      const imageUrl = file ? await uploadUserPhoto(file) : undefined;
+      const msg = await addMessage("", t, listingId, true, imageUrl);
       if (msg?.peerId) {
         router.replace(
           `/messages/${encodeURIComponent(msg.peerId)}?listing=${encodeURIComponent(listingId)}&scoped=1`,
@@ -55,6 +62,21 @@ export default function ListingThreadEntry() {
     } finally {
       setSending(false);
     }
+  }
+
+  function clearPendingPhoto() {
+    if (pendingPhoto) URL.revokeObjectURL(pendingPhoto);
+    pendingFileRef.current = null;
+    setPendingPhoto(null);
+    if (photoInputRef.current) photoInputRef.current.value = "";
+  }
+
+  function onPickPhoto(files: FileList | null) {
+    const file = files?.[0];
+    if (!file) return;
+    if (pendingPhoto) URL.revokeObjectURL(pendingPhoto);
+    pendingFileRef.current = file;
+    setPendingPhoto(URL.createObjectURL(file));
   }
 
   return (
@@ -84,7 +106,39 @@ export default function ListingThreadEntry() {
         </p>
       </div>
       <div className="border-t border-stone-200/70 dark:border-zinc-800 px-3 pt-2 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
+        {pendingPhoto ? (
+          <div className="mb-2 flex items-center gap-2">
+            <img
+              src={pendingPhoto}
+              alt=""
+              className="h-16 w-16 rounded-xl object-cover"
+            />
+            <button
+              type="button"
+              onClick={clearPendingPhoto}
+              className="text-[12px] font-bold text-ink-muted"
+            >
+              حذف عکس
+            </button>
+          </div>
+        ) : null}
         <div className="flex items-end gap-2">
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => onPickPhoto(e.target.files)}
+          />
+          <button
+            type="button"
+            disabled={sending}
+            onClick={() => photoInputRef.current?.click()}
+            aria-label="افزودن عکس"
+            className="shrink-0 flex h-11 w-11 items-center justify-center rounded-full border border-stone-200 text-ink-muted dark:border-zinc-700"
+          >
+            <CameraIcon className="h-5 w-5" />
+          </button>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -94,7 +148,7 @@ export default function ListingThreadEntry() {
           />
           <button
             type="button"
-            disabled={!text.trim() || sending}
+            disabled={(!text.trim() && !pendingPhoto) || sending}
             onClick={() => void send()}
             className="btn-primary !px-4 !py-2.5 disabled:opacity-50"
           >

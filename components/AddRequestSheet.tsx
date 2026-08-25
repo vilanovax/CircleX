@@ -11,6 +11,7 @@ import AreaPicker from "@/components/AreaPicker";
 import SheetShell from "@/components/SheetShell";
 import VoiceDictateButton from "@/components/VoiceDictateButton";
 import { BackIcon, CloseIcon } from "@/components/Icons";
+import UserPhotoField from "@/components/UserPhotoField";
 import { useToast } from "@/components/Toast";
 import type { BudgetUnit, Privacy } from "@/lib/types";
 import { formatTomanInput, toEnglishDigits } from "@/lib/persian";
@@ -77,7 +78,6 @@ export default function AddRequestSheet({
   const [category, setCategory] = useState("");
   const [customCategory, setCustomCategory] = useState(false);
   const [image, setImage] = useState("🔎");
-  const [showEmojis, setShowEmojis] = useState(false);
   const [budgetUnit, setBudgetUnit] = useState<BudgetUnit>("total");
   const [privacy, setPrivacy] = useState<Privacy>("ABC");
   const [area, setArea] = useState(AREA_CITYWIDE);
@@ -239,11 +239,13 @@ export default function AddRequestSheet({
         ) : null}
       </section>
 
-      <RequestEmojiBlock
-        image={image}
-        showEmojis={showEmojis}
-        onImageChange={setImage}
-        onToggle={setShowEmojis}
+      <UserPhotoField
+        label="عکس درخواست"
+        value={image}
+        onChange={setImage}
+        emojis={EMOJIS}
+        category={category}
+        onError={(msg) => show(msg)}
       />
 
       <AreaPicker city={meCity} value={area} onChange={setArea} />
@@ -411,77 +413,6 @@ const RequestBudgetBlock = memo(function RequestBudgetBlock({
         <p className="text-[11px] text-ink-faint leading-relaxed px-0.5">
           مبلغ را با پیشنهاددهنده‌ها هماهنگ می‌کنی.
         </p>
-      )}
-    </section>
-  );
-});
-
-const RequestEmojiBlock = memo(function RequestEmojiBlock({
-  image,
-  showEmojis,
-  onImageChange,
-  onToggle,
-}: {
-  image: string;
-  showEmojis: boolean;
-  onImageChange: (emoji: string) => void;
-  onToggle: (open: boolean) => void;
-}) {
-  return (
-    <section className="mb-4">
-      <p className="block text-[12px] font-medium mb-1.5 text-ink-muted">
-        شکلک
-      </p>
-      {!showEmojis ? (
-        <button
-          type="button"
-          onClick={() => onToggle(true)}
-          className="w-full flex items-center gap-3 rounded-xl border border-stone-200/80 dark:border-zinc-700 bg-stone-50/70 dark:bg-zinc-800/40 px-3 py-2 text-right"
-        >
-          <span className="text-[1.65rem] leading-none shrink-0" aria-hidden>
-            {image}
-          </span>
-          <span className="min-w-0 flex-1 text-[13px] font-semibold text-ink dark:text-zinc-200">
-            تصویر نمادین
-          </span>
-          <span className="text-[12px] font-semibold text-brand-600 dark:text-brand-400">
-            تغییر
-          </span>
-        </button>
-      ) : (
-        <div>
-          <div className="grid grid-cols-6 gap-1.5">
-            {EMOJIS.map((e) => {
-              const active = image === e;
-              return (
-                <button
-                  key={e}
-                  type="button"
-                  onClick={() => {
-                    onImageChange(e);
-                    onToggle(false);
-                  }}
-                  aria-label={`انتخاب شکلک ${e}`}
-                  aria-pressed={active}
-                  className={`h-11 rounded-xl text-xl flex items-center justify-center border transition-[transform,colors] duration-150 active:scale-95 ${
-                    active
-                      ? "border-brand-500 bg-brand-50 dark:bg-brand-500/20"
-                      : "border-stone-200/80 dark:border-zinc-700 bg-stone-50/60 dark:bg-zinc-900"
-                  }`}
-                >
-                  {e}
-                </button>
-              );
-            })}
-          </div>
-          <button
-            type="button"
-            onClick={() => onToggle(false)}
-            className="mt-1.5 text-[12px] font-semibold text-ink-muted"
-          >
-            بستن
-          </button>
-        </div>
       )}
     </section>
   );

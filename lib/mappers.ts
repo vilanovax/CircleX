@@ -216,6 +216,7 @@ export function toClientDirectMessage(
     | "listingId"
     | "listingScoped"
     | "kind"
+    | "imageUrl"
     | "readAt"
     | "createdAt"
   >,
@@ -229,6 +230,7 @@ export function toClientDirectMessage(
     peerId: fromMe ? row.toUserId : row.fromUserId,
     fromMe,
     text: row.text,
+    ...(row.imageUrl ? { imageUrl: row.imageUrl } : {}),
     postedAt: relativePostedAt(row.createdAt, now),
     read: fromMe ? true : Boolean(row.readAt),
     ...(row.listingId ? { listingId: row.listingId } : {}),
@@ -263,7 +265,6 @@ export function toHomeListing(
     MarketListing,
     | "id"
     | "title"
-    | "description"
     | "type"
     | "price"
     | "category"
@@ -277,7 +278,7 @@ export function toHomeListing(
     | "area"
     | "dealStatus"
   > &
-    ListingEndorsementSource,
+    ListingEndorsementSource & { description?: string },
   viewerId?: string,
   trustPath: TrustHop[] = [],
   identity?: {
@@ -286,7 +287,7 @@ export function toHomeListing(
     identityRevealedPeerIds?: string[];
   },
 ): Listing {
-  const description = row.description.trim();
+  const description = (row.description ?? "").trim();
   const isOwner = Boolean(viewerId && row.sellerId === viewerId);
   return applyListingIdentity(
     {
@@ -418,7 +419,7 @@ export function toClientRequest(
     title: row.title,
     description: row.description,
     category: row.category,
-    image: row.image,
+    image: localListingSrc(row.image),
     requesterId: viewerId && row.requesterId === viewerId ? "me" : row.requesterId,
     postedAt: relativePostedAt(row.createdAt),
     budget: row.budget ?? undefined,
@@ -431,12 +432,17 @@ export function toClientRequest(
   };
 }
 
-export function toClientOffer(row: WantOffer, viewerId?: string): Offer {
+export function toClientOffer(
+  row: Pick<WantOffer, "id" | "requestId" | "fromId" | "price" | "createdAt"> & {
+    message?: string;
+  },
+  viewerId?: string,
+): Offer {
   return {
     id: row.id,
     requestId: row.requestId,
     fromId: viewerId && row.fromId === viewerId ? "me" : row.fromId,
-    message: row.message,
+    message: row.message ?? "",
     price: row.price ?? undefined,
     postedAt: relativePostedAt(row.createdAt),
   };
@@ -452,7 +458,7 @@ export function toClientEvent(
     title: row.title,
     description: row.description,
     kind: row.kind as EventKind,
-    image: row.image,
+    image: localListingSrc(row.image),
     hostId: viewerId && row.hostId === viewerId ? "me" : row.hostId,
     date: row.dateLabel,
     time: row.timeLabel ?? undefined,

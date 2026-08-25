@@ -28,7 +28,7 @@ export default function BottomNav() {
   const pathname = useClientPathname();
   // Hide until logged-in + onboarded so new users never see seeded unread (۴).
   const unread = useStore((s) =>
-    s.hydrated && s.sessionPhone && s.onboarded ? s.totalUnread() : 0,
+    s.hydrated && s.sessionPhone && s.onboarded ? s.threadIndex.totalUnread : 0,
   );
   const [showCreate, setShowCreate] = useState(false);
 
@@ -73,7 +73,7 @@ export default function BottomNav() {
                     <span className="relative">
                       <Icon className="w-6 h-6" />
                       {badge > 0 && (
-                        <span className="absolute -top-1.5 -left-2 min-w-[16px] h-4 px-1 rounded-full bg-brand-600 text-white text-[10px] font-bold flex items-center justify-center nums ring-2 ring-white dark:ring-zinc-900">
+                        <span className="absolute -top-1.5 -left-2 min-w-[16px] h-4 px-1 rounded-full bg-brand-600 text-white text-[11px] font-bold flex items-center justify-center nums ring-2 ring-white dark:ring-zinc-900">
                           {toPersianDigits(badge)}
                         </span>
                       )}

@@ -3,13 +3,12 @@
 import { memo } from "react";
 import Link from "next/link";
 import type { Request } from "@/lib/types";
-import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import { formatRequestBudget, privacyLabels } from "@/lib/labels";
-import { listingImageTint } from "@/lib/listing-image";
 import { placeCardLabel } from "@/lib/place";
 import { privacyAudience } from "@/lib/trust";
 import { toPersianDigits } from "@/lib/persian";
+import ListingImage from "./ListingImage";
 import TrustHighlight from "./TrustHighlight";
 
 function RequestCard({
@@ -25,21 +24,26 @@ function RequestCard({
   feedStyle?: boolean;
 }) {
   const showKind = !feedStyle && !hideTrust;
-  const offerCount = useStore(
-    (s) => s.offers.filter((o) => o.requestId === request.id).length,
-  );
-  const offered = useStore((s) =>
-    s.offers.some((o) => o.requestId === request.id && o.fromId === "me"),
-  );
+  const offerCount = useStore((s) => {
+    let n = 0;
+    for (const offer of s.offers) {
+      if (offer.requestId === request.id) n += 1;
+    }
+    return n;
+  });
+  const offered = useStore((s) => {
+    for (const offer of s.offers) {
+      if (offer.requestId === request.id && offer.fromId === "me") return true;
+    }
+    return false;
+  });
   const people = useStore((s) =>
     compactTrust || hideTrust ? null : s.people,
   );
-  const circle = people ? activeCircle(people) : [];
   const budgetLine =
     request.budget != null || request.budgetUnit === "negotiable"
       ? formatRequestBudget(request.budget, request.budgetUnit)
       : null;
-  const tint = listingImageTint(request.category);
   const place = placeCardLabel(request.city, request.area);
 
   return (
@@ -63,12 +67,13 @@ function RequestCard({
         <div
           className={`flex items-start ${compactTrust ? "gap-2.5" : "gap-3"}`}
         >
-          <div
-            className={`relative w-14 h-14 rounded-xl bg-gradient-to-br ${tint} flex items-center justify-center text-[1.65rem] shrink-0`}
-            aria-hidden
-          >
-            {request.image}
-          </div>
+          <ListingImage
+            image={request.image}
+            alt={request.title}
+            size="sm"
+            category={request.category}
+            frameClassName="w-14 h-14 rounded-xl overflow-hidden shrink-0"
+          />
           <div className="min-w-0 flex-1">
             {showKind && (
               <p className="text-[11px] font-bold text-ink-faint dark:text-zinc-500 mb-0.5">
@@ -158,8 +163,8 @@ function RequestCard({
               )}
               {!hideTrust && people && (
                 <span
-                  className="mr-auto max-w-[9.5rem] truncate text-[10px] text-ink-muted dark:text-zinc-500"
-                  title={privacyAudience(request.privacy, circle)}
+                  className="mr-auto max-w-[9.5rem] truncate text-[11px] text-ink-muted dark:text-zinc-500"
+                  title={privacyAudience(request.privacy, people)}
                 >
                   {privacyLabels[request.privacy]}
                 </span>

@@ -309,6 +309,7 @@ model DirectMessage {
   listingId  String?
   listingScoped Boolean @default(false)
   kind       String    @default("chat")
+  imageUrl   String?
   readAt     DateTime?
   hiddenAt   DateTime?
   createdAt  DateTime  @default(now())

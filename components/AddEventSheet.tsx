@@ -6,6 +6,8 @@ import PrivacyPicker from "@/components/PrivacyPicker";
 import SheetShell from "@/components/SheetShell";
 import { BackIcon, ClockIcon, CloseIcon, MapPinIcon } from "@/components/Icons";
 import { eventKindEmoji, eventKindLabels } from "@/lib/labels";
+import { isListingPhoto } from "@/lib/listing-image";
+import UserPhotoField from "@/components/UserPhotoField";
 import {
   formatEventDateDisplay,
   toEnglishDigits,
@@ -13,6 +15,8 @@ import {
 } from "@/lib/persian";
 import { useToast } from "@/components/Toast";
 import type { EventKind, Privacy } from "@/lib/types";
+
+const EVENT_EMOJIS = Array.from(new Set(Object.values(eventKindEmoji)));
 
 const KINDS: EventKind[] = [
   "social",
@@ -69,6 +73,7 @@ export default function AddEventSheet({
     capacity: "",
   });
   const [kind, setKind] = useState<EventKind>("social");
+  const [image, setImage] = useState(eventKindEmoji.social);
   const [ready, setReady] = useState({ title: false, date: false, location: false });
   const [privacy, setPrivacy] = useState<Privacy>("ABC");
   const [submitting, setSubmitting] = useState(false);
@@ -117,7 +122,7 @@ export default function AddEventSheet({
         title: title.trim(),
         description: description.trim(),
         kind,
-        image: eventKindEmoji[kind],
+        image,
         date: formatEventDateDisplay(date.trim()),
         time: time.trim() || undefined,
         location: location.trim(),
@@ -187,13 +192,28 @@ export default function AddEventSheet({
         </button>
       </div>
 
-      <EventKindPicker kind={kind} onChange={setKind} />
+      <EventKindPicker
+        kind={kind}
+        onChange={(next) => {
+          setKind(next);
+          setImage((prev) =>
+            isListingPhoto(prev) ? prev : eventKindEmoji[next],
+          );
+        }}
+      />
       <EventTitleBlock onChange={onTitleChange} />
       <EventDateBlock onChange={onDateChange} />
       <EventTimeBlock onChange={onTimeChange} />
       <EventLocationBlock onChange={onLocationChange} />
       <EventDescBlock onChange={onDescriptionChange} />
       <EventCapacityBlock onChange={onCapacityChange} />
+      <UserPhotoField
+        label="عکس رویداد"
+        value={image}
+        onChange={setImage}
+        emojis={EVENT_EMOJIS}
+        onError={(msg) => show(msg)}
+      />
 
       <div className="mb-2">
         <PrivacyPicker

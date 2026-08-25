@@ -177,6 +177,8 @@ export interface Message {
   listingId?: string;
   /** Listing-scoped thread (private publish); not mixed with the peer inbox. */
   threadListingId?: string;
+  /** Uploaded chat photo (`/api/uploads/….jpg`). */
+  imageUrl?: string;
   /** Hide the peer’s real name in this thread (buyer viewing seller). */
   peerHidden?: boolean;
   /** System inbox (Circlo), not a person-to-person DM. */

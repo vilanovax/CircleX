@@ -51,7 +51,10 @@ export default function ListingPrivacySection({
   const [query, setQuery] = useState("");
   const [showPeople, setShowPeople] = useState(false);
 
-  const excludedPeople = circle.filter((p) => excludePersonIds.includes(p.id));
+  const excludedPeople = useMemo(
+    () => circle.filter((p) => excludePersonIds.includes(p.id)),
+    [circle, excludePersonIds],
+  );
   const matches = useMemo(() => {
     const q = query.trim();
     return circle

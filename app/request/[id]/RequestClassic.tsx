@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
+import ListingImage from "@/components/ListingImage";
 import Avatar from "@/components/Avatar";
 import TrustPath from "@/components/TrustPath";
 import SheetShell from "@/components/SheetShell";
@@ -24,6 +25,7 @@ import {
 import LockedAccess from "@/components/LockedAccess";
 import { canView, listingSellerSubtitle, viewerRelationPhrase } from "@/lib/trust";
 import { placeDetailLabel } from "@/lib/place";
+import { indexHasPeer } from "@/lib/thread-index";
 import { useToast } from "@/components/Toast";
 import type { Person, Request as CircleRequest } from "@/lib/types";
 
@@ -35,7 +37,7 @@ export default function RequestClassic(_props: { params: { id: string } }) {
   const ensureRequest = useStore((s) => s.ensureRequest);
   const hydrated = useStore((s) => s.hydrated);
   const getPerson = useStore((s) => s.getPerson);
-  const getThread = useStore((s) => s.getThread);
+  const threadPeerIds = useStore((s) => s.threadIndex.peerIds);
   const offersAll = useStore((s) => s.offers);
   const addOffer = useStore((s) => s.addOffer);
   const withdrawOffer = useStore((s) => s.withdrawOffer);
@@ -97,7 +99,7 @@ export default function RequestClassic(_props: { params: { id: string } }) {
   const canMsgRequester =
     !isMine &&
     requester &&
-    canDirectMessage(requester, getThread(requester.id).length > 0);
+    canDirectMessage(requester, indexHasPeer(threadPeerIds, requester.id));
 
   if (!isMine && !canView(request, getPerson)) {
     return (
@@ -118,11 +120,11 @@ export default function RequestClassic(_props: { params: { id: string } }) {
     <main className={`${footerPad} min-h-[100dvh]`}>
       <Header title="جزئیات درخواست" back />
 
-      <div className="px-4 pt-3 listing-detail-rise">
+      <div className="px-4 pt-3">
         <div className="rounded-[1.25rem] border border-amber-200/70 dark:border-amber-500/20 bg-gradient-to-bl from-amber-50 via-[color:var(--circle-surface)] to-[color:var(--circle-surface)] dark:from-amber-500/12 dark:via-zinc-900 dark:to-zinc-900 overflow-hidden shadow-[0_1px_0_rgba(26,24,22,0.04)]">
           <div className="px-4 pt-3.5 pb-4">
             <div className="flex items-center gap-2 mb-3 flex-wrap">
-              <span className="inline-flex items-center rounded-lg px-2 py-0.5 text-[10px] font-extrabold bg-amber-600 text-white tracking-wide shadow-sm shadow-amber-600/20">
+              <span className="inline-flex items-center rounded-lg px-2 py-0.5 text-[11px] font-extrabold bg-amber-600 text-white tracking-wide shadow-sm shadow-amber-600/20">
                 درخواست
               </span>
               <span className="chip !px-2 !py-0.5 !text-[11px] bg-[color:var(--circle-surface)]/80 text-ink-muted ring-1 ring-stone-200/70 dark:ring-zinc-700 dark:bg-zinc-800/80">
@@ -131,9 +133,13 @@ export default function RequestClassic(_props: { params: { id: string } }) {
             </div>
 
             <div className="flex items-start gap-3.5">
-              <div className="w-[3.75rem] h-[3.75rem] rounded-2xl bg-amber-100 dark:bg-amber-500/20 ring-1 ring-amber-200/80 dark:ring-amber-500/30 flex items-center justify-center text-[1.75rem] shrink-0">
-                {request.image}
-              </div>
+              <ListingImage
+                image={request.image}
+                alt={request.title}
+                size="sm"
+                category={request.category}
+                frameClassName="w-[3.75rem] h-[3.75rem] rounded-2xl overflow-hidden shrink-0"
+              />
               <div className="min-w-0 flex-1 pt-0.5">
                 <h1 className="text-[1.3rem] font-extrabold text-ink dark:text-zinc-50 leading-[1.35] tracking-tight">
                   {request.title}
@@ -191,7 +197,7 @@ export default function RequestClassic(_props: { params: { id: string } }) {
         <OffersSection
           offers={offers}
           getPerson={getPerson}
-          getThread={getThread}
+          threadPeerIds={threadPeerIds}
           meAvatar={meAvatar}
           isOwner
           onMessage={(peerId) => router.push(`/messages/${peerId}`)}
@@ -289,7 +295,7 @@ export default function RequestClassic(_props: { params: { id: string } }) {
         <OffersSection
           offers={offers}
           getPerson={getPerson}
-          getThread={getThread}
+          threadPeerIds={threadPeerIds}
           meAvatar={meAvatar}
           isOwner={false}
           onMessage={(peerId) => router.push(`/messages/${peerId}`)}
@@ -356,7 +362,7 @@ export default function RequestClassic(_props: { params: { id: string } }) {
 function OffersSection({
   offers,
   getPerson,
-  getThread,
+  threadPeerIds,
   meAvatar,
   isOwner,
   onMessage,
@@ -370,7 +376,7 @@ function OffersSection({
     postedAt: string;
   }[];
   getPerson: (id: string) => Person | undefined;
-  getThread: (peerId: string) => { length: number };
+  threadPeerIds: string[];
   meAvatar?: string;
   isOwner: boolean;
   onMessage: (peerId: string) => void;
@@ -418,7 +424,7 @@ function OffersSection({
             const canMsg =
               isOwner &&
               peer &&
-              canDirectMessage(peer, getThread(peer.id).length > 0);
+              canDirectMessage(peer, indexHasPeer(threadPeerIds, peer.id));
             const displayName = mine ? "شما" : (peer?.name ?? "ناشناس");
             const relation = mine
               ? null
@@ -618,12 +624,13 @@ function OfferSheet({
 
         <div className="mt-4 flex items-start gap-3 rounded-2xl bg-amber-50/90 dark:bg-amber-500/10 ring-1 ring-amber-200/70 dark:ring-amber-500/25 px-3 py-3">
           {request.image ? (
-            <span
-              className="w-11 h-11 rounded-xl bg-amber-100 dark:bg-amber-500/20 ring-1 ring-amber-200/70 dark:ring-amber-500/25 flex items-center justify-center text-[1.35rem] shrink-0"
-              aria-hidden
-            >
-              {request.image}
-            </span>
+            <ListingImage
+              image={request.image}
+              alt={request.title}
+              size="sm"
+              category={request.category}
+              frameClassName="w-11 h-11 rounded-xl overflow-hidden shrink-0"
+            />
           ) : null}
           <div className="min-w-0 flex-1">
             <p className="text-[13px] font-bold text-ink dark:text-zinc-100 leading-snug line-clamp-2">

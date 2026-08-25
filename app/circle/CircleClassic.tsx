@@ -4,6 +4,7 @@ import {
   memo,
   startTransition,
   useCallback,
+  useDeferredValue,
   useEffect,
   useMemo,
   useState,
@@ -18,7 +19,12 @@ import { lazyUi } from "@/lib/lazy-ui";
 import { GraphIcon, UserPlusIcon } from "@/components/Icons";
 import { levelLabels, relationLabels } from "@/lib/labels";
 import { viewerRelationPhrase } from "@/lib/trust";
-import { activeCircle, isActiveCircleMember } from "@/lib/circle-member";
+import {
+  activeCircleCount,
+  groupActiveCircle,
+  isActiveCircleMember,
+  type CircleRelationGroup,
+} from "@/lib/circle-member";
 import {
   effectiveInviteStatus,
   inviteRowCopy,
@@ -34,17 +40,11 @@ import type {
 import { toPersianDigits } from "@/lib/persian";
 import { useToast } from "@/components/Toast";
 
-const RELATION_ORDER: RelationType[] = [
-  "family",
-  "friend",
-  "colleague",
-  "neighbor",
-  "acquaintance",
-];
 const SECTION_PREVIEW = 6;
 const INVITE_PREVIEW = 3;
 const ABOVE_FOLD_AVATARS = 4;
 const UNPLACED_MS = 14 * 24 * 60 * 60 * 1000;
+const EMPTY_MEMBERS: Person[] = [];
 
 const InviteSheet = lazyUi(() => import("@/components/InviteSheet"));
 const InviteSharePanel = lazyUi(
@@ -131,12 +131,6 @@ function circleRelationLine(person: Person): string {
   return `${core} ${rest}`.replace(/\s+/g, " ");
 }
 
-function memberCount(people: Person[]): number {
-  let n = 0;
-  for (const p of people) if (isActiveCircleMember(p)) n += 1;
-  return n;
-}
-
 function pendingInviteCount(invites: Invite[]): number {
   let n = 0;
   for (const inv of invites) {
@@ -170,21 +164,22 @@ function livePendingInvites(invites: Invite[]): Invite[] {
 
 export default function CircleClassic() {
   const circleReady = useStore((s) => s.circleReady);
+  const ensureCircleRoster = useStore((s) => s.ensureCircleRoster);
   const emptyCircle = useStore((s) => {
-    if (memberCount(s.people) > 0) return false;
+    if (activeCircleCount(s.people) > 0) return false;
     if (s.joinRequests.length > 0) return false;
     return pendingInviteCount(s.invites) === 0;
   });
 
   const [showAdd, setShowAdd] = useState(false);
-  const [editing, setEditing] = useState<Person | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
   const [moreInvite, setMoreInvite] = useState<Invite | null>(null);
   const [shareInvite, setShareInvite] = useState<Invite | null>(null);
   const [reviewing, setReviewing] = useState<CircleJoinRequest | null>(null);
 
   const onInvite = useCallback(() => setShowAdd(true), []);
-  const onEditGroup = useCallback((person: Person) => setEditing(person), []);
+  const onEditGroup = useCallback((personId: string) => setEditingId(personId), []);
   const onPlace = useCallback(() => setPlacing(true), []);
   const onReview = useCallback(
     (req: CircleJoinRequest) => setReviewing(req),
@@ -199,6 +194,10 @@ export default function CircleClassic() {
     if (q.get("invite") === "1") setShowAdd(true);
   }, []);
 
+  useEffect(() => {
+    void ensureCircleRoster();
+  }, [circleReady, ensureCircleRoster]);
+
   return (
     <main className="pb-28 min-h-[100dvh]">
       <CirclePageHeader onInvite={onInvite} />
@@ -210,7 +209,7 @@ export default function CircleClassic() {
       ) : emptyCircle ? (
         <CircleEmptyState onInvite={onInvite} />
       ) : (
-        <div className="px-4 pt-3 space-y-3 listing-detail-rise">
+        <div className="px-4 pt-3 space-y-3">
           <CircleJoinBanner onReview={onReview} />
           <CircleUnplacedBanner onPlace={onPlace} />
           <CircleMembersPanel onEditGroup={onEditGroup} />
@@ -228,10 +227,10 @@ export default function CircleClassic() {
 
       {showAdd ? <InviteSheet onClose={() => setShowAdd(false)} /> : null}
 
-      {editing ? (
+      {editingId ? (
         <CircleGroupHost
-          person={editing}
-          onClose={() => setEditing(null)}
+          personId={editingId}
+          onClose={() => setEditingId(null)}
         />
       ) : null}
 
@@ -261,7 +260,7 @@ const CirclePageHeader = memo(function CirclePageHeader({
 }: {
   onInvite: () => void;
 }) {
-  const members = useStore((s) => memberCount(s.people));
+  const members = useStore((s) => activeCircleCount(s.people));
   const joins = useStore((s) => s.joinRequests.length);
   const pending = useStore((s) => pendingInviteCount(s.invites));
 
@@ -350,7 +349,7 @@ const CircleJoinBanner = memo(function CircleJoinBanner({
         {joinRequests.map((req, reqIndex) => (
           <li
             key={req.id}
-            className="cv-row flex items-center gap-2.5 px-3.5 py-2.5"
+            className="flex items-center gap-2.5 px-3.5 py-2.5"
           >
             <Avatar
               name={req.guest.name}
@@ -386,15 +385,14 @@ const CircleUnplacedBanner = memo(function CircleUnplacedBanner({
 }: {
   onPlace: () => void;
 }) {
-  const people = useStore((s) => s.people);
-  const unplaced = useMemo(() => unplacedMembers(people), [people]);
-  if (unplaced.length === 0) return null;
+  const unplacedCount = useStore((s) => unplacedMembers(s.people).length);
+  if (unplacedCount === 0) return null;
 
   return (
     <div className="card px-3.5 py-3">
       <p className="text-[13px] font-bold text-ink dark:text-zinc-100">
         <span className="nums" dir="ltr">
-          {toPersianDigits(unplaced.length)}
+          {toPersianDigits(unplacedCount)}
         </span>{" "}
         نفر تازه پیوسته‌اند
       </p>
@@ -417,13 +415,21 @@ const CircleUnplacedBanner = memo(function CircleUnplacedBanner({
 const CircleMembersPanel = memo(function CircleMembersPanel({
   onEditGroup,
 }: {
-  onEditGroup: (person: Person) => void;
+  onEditGroup: (personId: string) => void;
 }) {
   const people = useStore((s) => s.people);
-  const mine = useMemo(() => activeCircle(people), [people]);
+  const relationGroups = useMemo(
+    () => groupActiveCircle(people, SECTION_PREVIEW),
+    [people],
+  );
+  const memberTotal = useMemo(
+    () => relationGroups.reduce((n, g) => n + g.members.length, 0),
+    [relationGroups],
+  );
   const [relationFilter, setRelationFilter] = useState<RelationType | "all">(
     "all",
   );
+  const deferredFilter = useDeferredValue(relationFilter);
   const [openRelations, setOpenRelations] = useState<Set<RelationType>>(
     () => new Set(),
   );
@@ -431,19 +437,10 @@ const CircleMembersPanel = memo(function CircleMembersPanel({
     () => new Set(),
   );
 
-  const relationGroups = useMemo(() => {
-    return RELATION_ORDER.map((relation) => ({
-      relation,
-      members: mine
-        .filter((p) => p.relation === relation)
-        .sort((a, b) => a.name.localeCompare(b.name, "fa")),
-    })).filter((g) => g.members.length > 0);
-  }, [mine]);
-
   const visibleGroups = useMemo(() => {
-    if (relationFilter === "all") return relationGroups;
-    return relationGroups.filter((g) => g.relation === relationFilter);
-  }, [relationGroups, relationFilter]);
+    if (deferredFilter === "all") return relationGroups;
+    return relationGroups.filter((g) => g.relation === deferredFilter);
+  }, [relationGroups, deferredFilter]);
 
   useEffect(() => {
     if (openRelations.size > 0) return;
@@ -451,30 +448,55 @@ const CircleMembersPanel = memo(function CircleMembersPanel({
     if (first) setOpenRelations(new Set([first]));
   }, [relationGroups, openRelations.size]);
 
-  if (mine.length === 0) return null;
+  const onPickRelation = useCallback((next: RelationType | "all") => {
+    startTransition(() => {
+      setRelationFilter(next);
+      if (next !== "all") {
+        setOpenRelations((prev) => new Set(prev).add(next));
+      }
+    });
+  }, []);
+
+  const onToggleRelation = useCallback(
+    (relation: RelationType) => {
+      setOpenRelations((prev) => {
+        const next = new Set(prev);
+        if (next.has(relation) && relationFilter === "all") {
+          next.delete(relation);
+        } else {
+          next.add(relation);
+        }
+        return next;
+      });
+    },
+    [relationFilter],
+  );
+
+  const onShowAll = useCallback((relation: RelationType) => {
+    setFullRelations((prev) => new Set(prev).add(relation));
+  }, []);
+
+  if (memberTotal === 0) return null;
 
   return (
     <>
       {relationGroups.length > 1 ? (
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
           <RelationChip
+            value="all"
             active={relationFilter === "all"}
             label="همه"
-            count={mine.length}
-            onClick={() => startTransition(() => setRelationFilter("all"))}
+            count={memberTotal}
+            onPick={onPickRelation}
           />
           {relationGroups.map((g) => (
             <RelationChip
               key={g.relation}
+              value={g.relation}
               active={relationFilter === g.relation}
               label={relationLabels[g.relation]}
               count={g.members.length}
-              onClick={() => {
-                startTransition(() => {
-                  setRelationFilter(g.relation);
-                  setOpenRelations((prev) => new Set(prev).add(g.relation));
-                });
-              }}
+              onPick={onPickRelation}
             />
           ))}
         </div>
@@ -486,90 +508,26 @@ const CircleMembersPanel = memo(function CircleMembersPanel({
           <span className="text-ink-muted font-semibold">
             {" · "}
             <span className="nums" dir="ltr">
-              {toPersianDigits(mine.length)}
+              {toPersianDigits(memberTotal)}
             </span>
           </span>
         </h2>
-        {visibleGroups.map(({ relation, members }, i) => {
-          const forcedOpen = relationFilter !== "all";
-          const open = forcedOpen || openRelations.has(relation);
-          const showAll = forcedOpen || fullRelations.has(relation);
-          const shown = open
-            ? showAll
-              ? members
-              : members.slice(0, SECTION_PREVIEW)
-            : [];
-          const hiddenCount = members.length - shown.length;
+        {visibleGroups.map((group, i) => {
+          const forcedOpen = deferredFilter !== "all";
+          const open = forcedOpen || openRelations.has(group.relation);
+          const showAll = forcedOpen || fullRelations.has(group.relation);
           return (
-            <section
-              key={relation}
-              className={
-                i > 0 ? "border-t border-stone-100 dark:border-zinc-800" : ""
-              }
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  setOpenRelations((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(relation) && relationFilter === "all") {
-                      next.delete(relation);
-                    } else {
-                      next.add(relation);
-                    }
-                    return next;
-                  });
-                }}
-                className="w-full flex items-center justify-between gap-2 px-3.5 pt-2.5 pb-1.5 text-right"
-                aria-expanded={open}
-              >
-                <h3 className="text-[13px] font-bold text-ink dark:text-zinc-100">
-                  {relationLabels[relation]}
-                  <span className="text-ink-muted font-semibold">
-                    {" · "}
-                    <span className="nums" dir="ltr">
-                      {toPersianDigits(members.length)}
-                    </span>
-                  </span>
-                </h3>
-                <span
-                  className={`text-ink-faint text-[12px] transition-transform ${
-                    open ? "rotate-180" : ""
-                  }`}
-                  aria-hidden
-                >
-                  ▾
-                </span>
-              </button>
-              {open ? (
-                <>
-                  <ul className="divide-y divide-stone-100 dark:divide-zinc-800">
-                    {shown.map((p, idx) => (
-                      <CircleMemberRow
-                        key={p.id}
-                        person={p}
-                        eager={i === 0 && idx < ABOVE_FOLD_AVATARS}
-                        onEditGroup={onEditGroup}
-                      />
-                    ))}
-                  </ul>
-                  {hiddenCount > 0 ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFullRelations((prev) =>
-                          new Set(prev).add(relation),
-                        )
-                      }
-                      className="w-full py-2.5 text-[12px] font-bold text-brand-700 dark:text-brand-300"
-                    >
-                      {toPersianDigits(hiddenCount)} نفر دیگر در{" "}
-                      {relationLabels[relation]}
-                    </button>
-                  ) : null}
-                </>
-              ) : null}
-            </section>
+            <CircleRelationSection
+              key={group.relation}
+              group={group}
+              bordered={i > 0}
+              open={open}
+              showAll={showAll}
+              eagerFirst={i === 0 && open}
+              onToggle={onToggleRelation}
+              onShowAll={onShowAll}
+              onEditGroup={onEditGroup}
+            />
           );
         })}
       </div>
@@ -577,8 +535,87 @@ const CircleMembersPanel = memo(function CircleMembersPanel({
   );
 });
 
+const CircleRelationSection = memo(function CircleRelationSection({
+  group,
+  bordered,
+  open,
+  showAll,
+  eagerFirst,
+  onToggle,
+  onShowAll,
+  onEditGroup,
+}: {
+  group: CircleRelationGroup;
+  bordered: boolean;
+  open: boolean;
+  showAll: boolean;
+  eagerFirst: boolean;
+  onToggle: (relation: RelationType) => void;
+  onShowAll: (relation: RelationType) => void;
+  onEditGroup: (personId: string) => void;
+}) {
+  const { relation, members, preview } = group;
+  const shown = open ? (showAll ? members : preview) : EMPTY_MEMBERS;
+  const hiddenCount = members.length - shown.length;
+
+  return (
+    <section
+      className={bordered ? "border-t border-stone-100 dark:border-zinc-800" : ""}
+    >
+      <button
+        type="button"
+        onClick={() => onToggle(relation)}
+        className="w-full flex items-center justify-between gap-2 px-3.5 pt-2.5 pb-1.5 text-right"
+        aria-expanded={open}
+      >
+        <h3 className="text-[13px] font-bold text-ink dark:text-zinc-100">
+          {relationLabels[relation]}
+          <span className="text-ink-muted font-semibold">
+            {" · "}
+            <span className="nums" dir="ltr">
+              {toPersianDigits(members.length)}
+            </span>
+          </span>
+        </h3>
+        <span
+          className={`text-ink-faint text-[12px] transition-transform ${
+            open ? "rotate-180" : ""
+          }`}
+          aria-hidden
+        >
+          ▾
+        </span>
+      </button>
+      {open ? (
+        <>
+          <ul className="divide-y divide-stone-100 dark:divide-zinc-800">
+            {shown.map((p, idx) => (
+              <CircleMemberRow
+                key={p.id}
+                person={p}
+                eager={eagerFirst && idx < ABOVE_FOLD_AVATARS}
+                onEditGroup={onEditGroup}
+              />
+            ))}
+          </ul>
+          {hiddenCount > 0 ? (
+            <button
+              type="button"
+              onClick={() => onShowAll(relation)}
+              className="w-full py-2.5 text-[12px] font-bold text-brand-700 dark:text-brand-300"
+            >
+              {toPersianDigits(hiddenCount)} نفر دیگر در{" "}
+              {relationLabels[relation]}
+            </button>
+          ) : null}
+        </>
+      ) : null}
+    </section>
+  );
+});
+
 const CircleGraphLink = memo(function CircleGraphLink() {
-  const hasMembers = useStore((s) => memberCount(s.people) > 0);
+  const hasMembers = useStore((s) => activeCircleCount(s.people) > 0);
   if (!hasMembers) return null;
 
   return (
@@ -758,14 +795,19 @@ function CircleJoinHost({
 }
 
 function CircleGroupHost({
-  person,
+  personId,
   onClose,
 }: {
-  person: Person;
+  personId: string;
   onClose: () => void;
 }) {
+  const person = useStore((s) => {
+    for (const p of s.people) if (p.id === personId) return p;
+    return null;
+  });
   const setLevel = useStore((s) => s.setLevel);
   const { show } = useToast();
+  if (!person) return null;
 
   return (
     <GroupSheet
@@ -849,21 +891,23 @@ function CircleMoreInviteHost({
   );
 }
 
-function RelationChip({
+const RelationChip = memo(function RelationChip({
+  value,
   active,
   label,
   count,
-  onClick,
+  onPick,
 }: {
+  value: RelationType | "all";
   active: boolean;
   label: string;
   count: number;
-  onClick: () => void;
+  onPick: (next: RelationType | "all") => void;
 }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => onPick(value)}
       className={`chip whitespace-nowrap !px-2.5 !py-1.5 border text-[12px] inline-flex items-center gap-1.5 ${
         active
           ? "bg-brand-600 text-white border-brand-600 shadow-sm shadow-brand-600/20"
@@ -879,7 +923,7 @@ function RelationChip({
       </span>
     </button>
   );
-}
+});
 
 const CircleMemberRow = memo(function CircleMemberRow({
   person,
@@ -888,10 +932,11 @@ const CircleMemberRow = memo(function CircleMemberRow({
 }: {
   person: Person;
   eager?: boolean;
-  onEditGroup: (person: Person) => void;
+  onEditGroup: (personId: string) => void;
 }) {
+  const line = circleRelationLine(person);
   return (
-    <li className="cv-row flex items-center gap-2.5 px-3.5 py-2">
+    <li className="flex items-center gap-2.5 px-3.5 py-2">
       <Link
         href={`/person/${person.id}`}
         className="flex items-center gap-2.5 min-w-0 flex-1 active:opacity-90 transition-opacity"
@@ -908,20 +953,20 @@ const CircleMemberRow = memo(function CircleMemberRow({
             {person.name}
           </span>
           <span className="block text-[11px] text-ink-muted mt-px truncate leading-snug">
-            {circleRelationLine(person)}
+            {line}
           </span>
         </span>
       </Link>
       <button
         type="button"
-        onClick={() => onEditGroup(person)}
+        onClick={() => onEditGroup(person.id)}
         onPointerEnter={preloadCircleSheets}
         onFocus={preloadCircleSheets}
         aria-label={`تغییر گروه ${person.name}`}
         className="shrink-0 max-w-[7.5rem] inline-flex items-center gap-1 text-[11px] font-semibold text-ink-muted dark:text-zinc-400 px-2 py-1.5 rounded-lg active:bg-stone-100 dark:active:bg-zinc-800"
       >
         <span className="truncate">{levelLabels[person.level]}</span>
-        <span className="text-[9px] leading-none shrink-0" aria-hidden>
+        <span className="text-[11px] leading-none shrink-0" aria-hidden>
           ▾
         </span>
       </button>
@@ -947,7 +992,7 @@ const PendingInviteRow = memo(function PendingInviteRow({
   const roster = invite.expected ?? [];
 
   return (
-    <li className="cv-row">
+    <li>
       <div className="flex items-center gap-2 px-3.5 py-2.5">
         {selecting ? (
           <button
@@ -984,7 +1029,7 @@ const PendingInviteRow = memo(function PendingInviteRow({
               {title}
             </p>
             {isWave ? (
-              <span className="shrink-0 text-[10px] font-bold text-brand-700 dark:text-brand-400 bg-brand-50 dark:bg-brand-500/15 px-1.5 py-0.5 rounded-md">
+              <span className="shrink-0 text-[11px] font-bold text-brand-700 dark:text-brand-400 bg-brand-50 dark:bg-brand-500/15 px-1.5 py-0.5 rounded-md">
                 گروهی
               </span>
             ) : null}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { startTransition, useEffect, useId, useMemo, useState } from "react";
+import { memo, startTransition, useEffect, useId, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { lazyUi } from "@/lib/lazy-ui";
 import { isActiveCircleMember } from "@/lib/circle-member";
@@ -33,7 +33,7 @@ import {
 import { canView, listingSellerSubtitle, viewerRelationPhrase } from "@/lib/trust";
 import { toPersianDigits } from "@/lib/persian";
 import { GROUP_PRIVATE_LINE } from "@/lib/invite";
-import { hasPeerThread } from "@/lib/thread-listing";
+import { indexHasPeer } from "@/lib/thread-index";
 import { useToast } from "@/components/Toast";
 import type {
   Listing,
@@ -75,7 +75,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
   const setLevel = useStore((s) => s.setLevel);
   const setRelation = useStore((s) => s.setRelation);
   const addToCircle = useStore((s) => s.addToCircle);
-  const hasThread = useStore((s) => hasPeerThread(s.messages, id));
+  const hasThread = useStore((s) => indexHasPeer(s.threadIndex.peerIds, id));
   const hydrated = useStore((s) => s.hydrated);
   const { show } = useToast();
   const [showIntro, setShowIntro] = useState(false);
@@ -84,7 +84,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
   const [showEditRelation, setShowEditRelation] = useState(false);
   const [contentTab, setContentTab] = useState<ContentTab>("listings");
   const hiddenListings = useStore((s) => s.hiddenListings);
-  const hiddenPeople = useStore((s) => s.hiddenPeople);
+  const personHidden = useStore((s) => s.hiddenPeople.includes(id));
 
   const theirListings = useMemo(
     () =>
@@ -171,7 +171,6 @@ export default function PersonClassic(_props: { params: { id: string } }) {
   });
   const showTrustPath = !isActiveCircleMember(person) || trustPath.length > 0;
   const personName = person.name;
-  const personHidden = hiddenPeople.includes(id);
   const hasListings = theirListings.length > 0;
   const hasRequests = theirRequests.length > 0;
   const showContentTabs = hasListings && hasRequests;
@@ -229,7 +228,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
               eager
             />
             <div className="flex-1 min-w-0">
-              <h2 className="text-[16px] font-extrabold text-ink dark:text-zinc-100 leading-tight">
+              <h2 className="text-[15px] font-extrabold text-ink dark:text-zinc-100 leading-tight">
                 {person.name}
               </h2>
               <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-snug">
@@ -296,9 +295,9 @@ export default function PersonClassic(_props: { params: { id: string } }) {
 
           <div className="space-y-2" role="tabpanel">
             {activeTab === "listings" &&
-              theirListings.map((l) => (
+              theirListings.map((l, i) => (
                 <div key={l.id} className="cv-card">
-                  <ListingCard listing={l} hideTrust />
+                  <ListingCard listing={l} hideTrust imagePriority={i === 0} />
                 </div>
               ))}
             {activeTab === "requests" &&
@@ -457,7 +456,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
   );
 }
 
-function TabButton({
+const TabButton = memo(function TabButton({
   selected,
   onClick,
   label,
@@ -482,7 +481,7 @@ function TabButton({
     >
       {label}
       <span
-        className={`inline-flex min-w-[1.2rem] h-[1.15rem] px-1 items-center justify-center rounded-full text-[10px] font-extrabold nums ${
+        className={`inline-flex min-w-[1.2rem] h-[1.15rem] px-1 items-center justify-center rounded-full text-[11px] font-extrabold nums ${
           selected
             ? "bg-stone-100 text-ink-muted dark:bg-zinc-800"
             : "bg-stone-200/70 text-ink-faint dark:bg-zinc-700"
@@ -492,7 +491,7 @@ function TabButton({
       </span>
     </button>
   );
-}
+});
 
 function groupWords(items: EndorsementItem[]): EndorsementItem[] {
   const seen = new Set<string>();
@@ -540,7 +539,7 @@ function TrustDetailsSheet({
     >
       <h2
         id={titleId}
-        className="text-[16px] font-extrabold text-ink dark:text-zinc-100 mb-3"
+        className="text-[15px] font-extrabold text-ink dark:text-zinc-100 mb-3"
       >
         چه گفته‌اند
         {uniqueCount > 0 ? (
@@ -687,7 +686,7 @@ function EditRelationSheet({
         <div className="min-w-0 flex-1">
           <h2
             id={titleId}
-            className="text-[16px] font-extrabold text-ink dark:text-zinc-100 leading-snug"
+            className="text-[15px] font-extrabold text-ink dark:text-zinc-100 leading-snug"
           >
             رابطه با {person.name}
           </h2>

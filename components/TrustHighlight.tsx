@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import Link from "next/link";
 import type { Endorsement, TrustHop } from "@/lib/types";
 import { useStore } from "@/lib/store";
@@ -49,23 +49,38 @@ function TrustHighlight({
   eager?: boolean;
 }) {
   const hidden = isHiddenSellerId(posterId);
+  const getPerson = useStore((s) => s.getPerson);
   const poster = useStore((s) => (hidden ? undefined : s.getPerson(posterId)));
-  const endorsementLine = useStore((s) =>
-    hidden
-      ? null
-      : endorsementHighlightLine(endorsements, s.getPerson, contentKind),
+  const visibleEndorsements = useMemo(() => {
+    if (contentKind !== "listing") return endorsements;
+    return endorsements.filter((e) => !e.hidden || e.personId === "me");
+  }, [contentKind, endorsements]);
+  const endorsementLine = useMemo(
+    () =>
+      hidden
+        ? null
+        : endorsementHighlightLine(visibleEndorsements, getPerson, contentKind),
+    [contentKind, getPerson, hidden, visibleEndorsements],
   );
-  const defaultTrustPacked = useStore((s) => {
+  const defaultTrustPacked = useMemo(() => {
     if (hidden || variant !== "default") return "";
     const t = trustHighlightMessage(
       posterId,
       trustPath,
-      s.getPerson,
+      getPerson,
       posterRole,
       contentKind,
     );
     return t ? `${t.headline}\n${t.subline ?? ""}` : "";
-  });
+  }, [
+    contentKind,
+    getPerson,
+    hidden,
+    posterId,
+    posterRole,
+    trustPath,
+    variant,
+  ]);
   if (hidden) {
     return (
       <div className="mb-1.5 flex items-center gap-2 min-w-0">

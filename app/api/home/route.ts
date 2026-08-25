@@ -1,9 +1,7 @@
-import { loadHomeFeed, loadViewerPrefs } from "@/lib/circle-network";
+import { loadFeedPrefs, loadHomeFeed } from "@/lib/circle-network";
 import { prisma } from "@/lib/db";
 import { jsonError, withDb } from "@/lib/http";
 import {
-  inviteExpectedInclude,
-  pendingPersonFromInvite,
   toClientInvite,
   toClientJoinRequest,
 } from "@/lib/mappers";
@@ -20,7 +18,6 @@ export async function GET() {
       prisma.invite.findMany({
         where: { inviterUserId: session.id, status: "pending" },
         orderBy: { createdAt: "desc" },
-        include: inviteExpectedInclude,
       }),
       prisma.circleJoinRequest.findMany({
         where: { hostUserId: session.id, status: "pending" },
@@ -28,7 +25,7 @@ export async function GET() {
         orderBy: { createdAt: "desc" },
       }),
       loadHomeFeed(session.id),
-      loadViewerPrefs(session.id),
+      loadFeedPrefs(session.id),
     ]);
 
     const now = Date.now();
@@ -51,7 +48,6 @@ export async function GET() {
       members: feed.members,
       network: feed.network,
       pending,
-      pendingPeople: pending.map(pendingPersonFromInvite),
       listings: feed.listings,
       requests: feed.requests,
       offers: feed.offers,
@@ -61,9 +57,6 @@ export async function GET() {
       hiddenListings: prefs.hiddenListings,
       hiddenPeople: prefs.hiddenPeople,
       listingNotes: prefs.listingNotes,
-      archivedThreads: prefs.archivedThreads,
-      pinnedThreads: prefs.pinnedThreads,
-      deletedThreads: prefs.deletedThreads,
       showOwnListingsInFeed: prefs.showOwnListingsInFeed,
     });
   });

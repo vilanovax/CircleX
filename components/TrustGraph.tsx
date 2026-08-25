@@ -287,7 +287,7 @@ function TrustGraph({
           {legend.map((ring) => (
             <span
               key={ring.key}
-              className="text-[10px] font-bold text-ink-muted dark:text-zinc-400 nums"
+              className="text-[11px] font-bold text-ink-muted dark:text-zinc-400 nums"
             >
               {ring.label}
               <span className="text-ink-faint font-semibold">
@@ -323,11 +323,12 @@ function TrustGraph({
               <stop offset="70%" stopColor={BRAND} stopOpacity="0.04" />
               <stop offset="100%" stopColor={BRAND} stopOpacity="0" />
             </radialGradient>
-            {graph.nodes.map((n) => (
-              <clipPath key={n.id} id={`tg-clip-${n.id}`}>
-                <circle r={n.id === "me" ? graph.meR : graph.nodeR} />
-              </clipPath>
-            ))}
+            <clipPath id="tg-clip-me">
+              <circle r={graph.meR} />
+            </clipPath>
+            <clipPath id="tg-clip-node">
+              <circle r={graph.nodeR} />
+            </clipPath>
           </defs>
 
           <circle
@@ -351,7 +352,7 @@ function TrustGraph({
           ))}
 
           <g>
-            {graph.edges.map((e, i) => {
+            {graph.edges.map((e) => {
               const a = nodeById.get(e.from);
               const b = nodeById.get(e.to);
               if (!a || !b) return null;
@@ -359,7 +360,7 @@ function TrustGraph({
               const faint = !hot && edgeFaint(e.from, e.to);
               return (
                 <line
-                  key={i}
+                  key={ekey(e.from, e.to)}
                   x1={a.x}
                   y1={a.y}
                   x2={b.x}
@@ -434,7 +435,7 @@ function TrustGraph({
                       y={-r}
                       width={r * 2}
                       height={r * 2}
-                      clipPath={`url(#tg-clip-${n.id})`}
+                      clipPath={`url(#tg-clip-${isMe ? "me" : "node"})`}
                       preserveAspectRatio="xMidYMid slice"
                     />
                   ) : null}

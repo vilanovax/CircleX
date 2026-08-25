@@ -7,10 +7,24 @@ export type ThreadIndex = {
   lastByPeer: Map<string, Message>;
   unreadByPeer: Map<string, number>;
   listingIdByPeer: Map<string, string>;
+  /** Unique peers per `listingId` on inbox messages (same as listingConversationCountMap). */
+  conversationCountByListing: Map<string, number>;
   totalUnread: number;
 };
 
 export const EMPTY_THREAD: Message[] = [];
+
+/** Any inbox thread with this peer (plain key or `peerId::listingId`). */
+export function indexHasPeer(peerIds: string[], peerId: string): boolean {
+  const prefix = `${peerId}::`;
+  for (let i = 0; i < peerIds.length; i++) {
+    const key = peerIds[i];
+    if (key === peerId || key.startsWith(prefix)) return true;
+  }
+  return false;
+}
+
+const EMPTY_LISTING_COUNTS = new Map<string, number>();
 
 const EMPTY_INDEX: ThreadIndex = {
   peerIds: [],
@@ -18,6 +32,7 @@ const EMPTY_INDEX: ThreadIndex = {
   lastByPeer: new Map(),
   unreadByPeer: new Map(),
   listingIdByPeer: new Map(),
+  conversationCountByListing: EMPTY_LISTING_COUNTS,
   totalUnread: 0,
 };
 
@@ -27,8 +42,99 @@ function indexKey(msg: Message): string {
     : msg.peerId;
 }
 
+function sameMessageList(a: Message[], b: Message[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+function sameIdList(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+/** Keep previous Maps/arrays when a reload did not change that thread. */
+function reuseThreadIndex(prev: ThreadIndex, next: ThreadIndex): ThreadIndex {
+  if (prev === next) return prev;
+  if (
+    prev.totalUnread === next.totalUnread &&
+    sameIdList(prev.peerIds, next.peerIds)
+  ) {
+    let identical = true;
+    for (const key of next.peerIds) {
+      const prevThread = prev.threadByPeer.get(key);
+      const nextThread = next.threadByPeer.get(key);
+      if (
+        !prevThread ||
+        !nextThread ||
+        !sameMessageList(prevThread, nextThread) ||
+        prev.lastByPeer.get(key) !== next.lastByPeer.get(key) ||
+        (prev.unreadByPeer.get(key) ?? 0) !== (next.unreadByPeer.get(key) ?? 0) ||
+        prev.listingIdByPeer.get(key) !== next.listingIdByPeer.get(key)
+      ) {
+        identical = false;
+        break;
+      }
+    }
+    if (identical) return prev;
+  }
+
+  const threadByPeer = new Map(next.threadByPeer);
+  const lastByPeer = new Map(next.lastByPeer);
+  for (const [key, thread] of Array.from(threadByPeer.entries())) {
+    const old = prev.threadByPeer.get(key);
+    if (old && sameMessageList(old, thread)) {
+      threadByPeer.set(key, old);
+      const oldLast = prev.lastByPeer.get(key);
+      if (oldLast && oldLast === thread[thread.length - 1]) {
+        lastByPeer.set(key, oldLast);
+      }
+    }
+  }
+
+  const peerIds = sameIdList(prev.peerIds, next.peerIds)
+    ? prev.peerIds
+    : next.peerIds;
+
+  return {
+    peerIds,
+    threadByPeer,
+    lastByPeer,
+    unreadByPeer: next.unreadByPeer,
+    listingIdByPeer: next.listingIdByPeer,
+    conversationCountByListing: sameCountMap(
+      prev.conversationCountByListing,
+      next.conversationCountByListing,
+    )
+      ? prev.conversationCountByListing
+      : next.conversationCountByListing,
+    totalUnread: next.totalUnread,
+  };
+}
+
+function sameCountMap(
+  a: Map<string, number>,
+  b: Map<string, number>,
+): boolean {
+  if (a === b) return true;
+  if (a.size !== b.size) return false;
+  let equal = true;
+  a.forEach((value, key) => {
+    if (b.get(key) !== value) equal = false;
+  });
+  return equal;
+}
+
 /** One pass over inbox messages: peers, last message, unread, listing topic. */
-export function buildThreadIndex(messages: Message[]): ThreadIndex {
+export function buildThreadIndex(
+  messages: Message[],
+  prev?: ThreadIndex,
+): ThreadIndex {
   if (messages.length === 0) return EMPTY_INDEX;
 
   const threadByPeer = new Map<string, Message[]>();
@@ -36,6 +142,7 @@ export function buildThreadIndex(messages: Message[]): ThreadIndex {
   const lastByPeer = new Map<string, Message>();
   const unreadByPeer = new Map<string, number>();
   const listingIdByPeer = new Map<string, string>();
+  const peersByListing = new Map<string, Set<string>>();
   let totalUnread = 0;
 
   for (let i = 0; i < messages.length; i++) {
@@ -49,7 +156,15 @@ export function buildThreadIndex(messages: Message[]): ThreadIndex {
     thread.push(msg);
     lastIndex.set(key, i);
     lastByPeer.set(key, msg);
-    if (msg.listingId) listingIdByPeer.set(key, msg.listingId);
+    if (msg.listingId) {
+      listingIdByPeer.set(key, msg.listingId);
+      let peers = peersByListing.get(msg.listingId);
+      if (!peers) {
+        peers = new Set();
+        peersByListing.set(msg.listingId, peers);
+      }
+      peers.add(msg.peerId);
+    }
     if (msg.threadListingId) listingIdByPeer.set(key, msg.threadListingId);
     if (!msg.fromMe && !msg.read) {
       unreadByPeer.set(key, (unreadByPeer.get(key) ?? 0) + 1);
@@ -57,15 +172,22 @@ export function buildThreadIndex(messages: Message[]): ThreadIndex {
     }
   }
 
+  const conversationCountByListing = new Map<string, number>();
+  peersByListing.forEach((peers, listingId) => {
+    conversationCountByListing.set(listingId, peers.size);
+  });
+
   const peerIds = Array.from(lastIndex.keys());
   peerIds.sort((a, b) => (lastIndex.get(b) ?? 0) - (lastIndex.get(a) ?? 0));
 
-  return {
+  const next: ThreadIndex = {
     peerIds,
     threadByPeer,
     lastByPeer,
     unreadByPeer,
     listingIdByPeer,
+    conversationCountByListing,
     totalUnread,
   };
+  return prev ? reuseThreadIndex(prev, next) : next;
 }

@@ -9,7 +9,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { activeCircle } from "@/lib/circle-member";
+import { activeCircleCount } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import { useCatalog } from "@/lib/use-catalog";
 import Header from "@/components/Header";
@@ -40,7 +40,6 @@ import { ThemeSegmented } from "@/components/ThemeToggle";
 import { useToast } from "@/components/Toast";
 import { ProfileSkeleton } from "@/components/Skeleton";
 import { lazyUi } from "@/lib/lazy-ui";
-import { listingConversationCountMap } from "@/lib/thread-listing";
 import { hiddenProfileCopy } from "@/lib/hide-from-feed";
 import type { CircleEvent, Listing } from "@/lib/types";
 
@@ -99,7 +98,7 @@ export default function ClassicProfile() {
           </div>
         }
       />
-      <div className="px-4 pt-3 space-y-3.5 listing-detail-rise">
+      <div className="px-4 pt-3 space-y-3.5">
         <ProfileHero />
         <ProfileActivity />
       </div>
@@ -116,7 +115,7 @@ export default function ClassicProfile() {
 
 function ProfileHero() {
   const me = useStore((s) => s.me);
-  const myCircleCount = useStore((s) => activeCircle(s.people).length);
+  const myCircleCount = useStore((s) => activeCircleCount(s.people));
   const listings = useStore((s) => s.listings);
   const updateProfile = useStore((s) => s.updateProfile);
   const { show } = useToast();
@@ -202,105 +201,71 @@ function ProfileHero() {
   );
 }
 
+function myListingTotals(listings: Listing[]) {
+  let total = 0;
+  let live = 0;
+  let inactive = 0;
+  for (const listing of listings) {
+    if (listing.sellerId !== "me") continue;
+    total += 1;
+    if (listing.dealStatus === "inactive") inactive += 1;
+    else live += 1;
+  }
+  return { total, live, inactive };
+}
+
+function myEventTotal(events: CircleEvent[]) {
+  let n = 0;
+  for (const event of events) {
+    if (event.hostId === "me" || event.attendees.includes("me")) n += 1;
+  }
+  return n;
+}
+
+function savedVisibleCount(listings: Listing[], saved: string[]) {
+  if (saved.length === 0) return 0;
+  const ids = new Set(saved);
+  let n = 0;
+  for (const listing of listings) {
+    if (ids.has(listing.id)) n += 1;
+  }
+  return n;
+}
+
 function ProfileActivity() {
-  const listings = useStore((s) => s.listings);
-  const events = useStore((s) => s.events);
-  const saved = useStore((s) => s.saved);
-  const hiddenListings = useStore((s) => s.hiddenListings);
-  const hiddenPeople = useStore((s) => s.hiddenPeople);
-  const listingNotes = useStore((s) => s.listingNotes);
-  const toggleHiddenListing = useStore((s) => s.toggleHiddenListing);
-  const toggleHiddenPerson = useStore((s) => s.toggleHiddenPerson);
-  const getPerson = useStore((s) => s.getPerson);
-  const { show } = useToast();
+  const listingTotal = useStore((s) => myListingTotals(s.listings).total);
+  const listingsSplit = useStore((s) => {
+    const { live, inactive } = myListingTotals(s.listings);
+    return live > 0 && inactive > 0;
+  });
+  const eventTotal = useStore((s) => myEventTotal(s.events));
+  const savedTotal = useStore((s) => savedVisibleCount(s.listings, s.saved));
+  const hiddenTotal = useStore(
+    (s) => s.hiddenListings.length + s.hiddenPeople.length,
+  );
+  const endorsementTotal = useStore(
+    (s) => givenEndorsements(s.listings).length,
+  );
   const [tab, setTab] = useState<ActivityTab>("listings");
   const [hashSaved, setHashSaved] = useState(false);
 
-  const myListings = useMemo(
-    () => listings.filter((l) => l.sellerId === "me"),
-    [listings],
-  );
-  const liveListings = useMemo(
-    () => myListings.filter((l) => l.dealStatus !== "inactive"),
-    [myListings],
-  );
-  const inactiveListings = useMemo(
-    () => myListings.filter((l) => l.dealStatus === "inactive"),
-    [myListings],
-  );
-  const listingsSplit =
-    liveListings.length > 0 && inactiveListings.length > 0;
-
-  const listingById = useMemo(() => {
-    const map = new Map<string, Listing>();
-    for (const listing of listings) map.set(listing.id, listing);
-    return map;
-  }, [listings]);
-
-  const savedListings = useMemo(() => {
-    const out: Listing[] = [];
-    for (const id of saved) {
-      const listing = listingById.get(id);
-      if (listing) out.push(listing);
-    }
-    return out;
-  }, [saved, listingById]);
-
-  const hiddenListingRows = useMemo(() => {
-    const found: Listing[] = [];
-    const missing: string[] = [];
-    for (const id of hiddenListings) {
-      const listing = listingById.get(id);
-      if (listing) found.push(listing);
-      else missing.push(id);
-    }
-    return { found, missing };
-  }, [hiddenListings, listingById]);
-
-  const { hostedEvents, attendingEvents, allMyEvents } = useMemo(() => {
-    const hosted: CircleEvent[] = [];
-    const attending: CircleEvent[] = [];
-    for (const event of events) {
-      if (event.hostId === "me") hosted.push(event);
-      else if (event.attendees.includes("me")) attending.push(event);
-    }
-    return {
-      hostedEvents: hosted,
-      attendingEvents: attending,
-      allMyEvents: hosted.length + attending.length,
-    };
-  }, [events]);
-
-  const myGivenBadges = useMemo(() => givenEndorsements(listings), [listings]);
-
   const activityTabs = useMemo(
     () => [
-      { id: "listings" as const, label: "آگهی‌ها", count: myListings.length },
-      { id: "events" as const, label: "رویدادها", count: allMyEvents },
-      { id: "saved" as const, label: "نشان‌ها", count: savedListings.length },
+      { id: "listings" as const, label: "آگهی‌ها", count: listingTotal },
+      { id: "events" as const, label: "رویدادها", count: eventTotal },
+      { id: "saved" as const, label: "نشان‌ها", count: savedTotal },
       {
         id: "hidden" as const,
         label: hiddenProfileCopy.tab,
-        count:
-          hiddenListingRows.found.length +
-          hiddenListingRows.missing.length +
-          hiddenPeople.length,
+        count: hiddenTotal,
       },
       {
         id: "endorsements" as const,
         label: "تأییدهای من",
-        count: myGivenBadges.length,
+        count: endorsementTotal,
       },
     ],
-    [
-      myListings.length,
-      allMyEvents,
-      savedListings.length,
-      hiddenListingRows.found.length,
-      hiddenListingRows.missing.length,
-      hiddenPeople.length,
-      myGivenBadges.length,
-    ],
+    [listingTotal, eventTotal, savedTotal, hiddenTotal, endorsementTotal],
   );
 
   const visibleTabs = useMemo(
@@ -337,17 +302,12 @@ function ProfileActivity() {
       window.location.hash !== "#saved" &&
       window.location.hash !== "#hidden"
     ) {
-      if (myListings.length > 0) {
+      if (listingTotal > 0) {
         /* keep listings */
-      } else if (allMyEvents > 0) setTab("events");
-      else if (savedListings.length > 0) setTab("saved");
-      else if (
-        hiddenListingRows.found.length > 0 ||
-        hiddenListingRows.missing.length > 0 ||
-        hiddenPeople.length > 0
-      )
-        setTab("hidden");
-      else if (myGivenBadges.length > 0) setTab("endorsements");
+      } else if (eventTotal > 0) setTab("events");
+      else if (savedTotal > 0) setTab("saved");
+      else if (hiddenTotal > 0) setTab("hidden");
+      else if (endorsementTotal > 0) setTab("endorsements");
     }
 
     const el = document.getElementById("activity");
@@ -440,239 +400,48 @@ function ProfileActivity() {
         }
         role="tabpanel"
       >
-        {activeTab === "listings" ? (
-          myListings.length === 0 ? (
-            <EmptyCard
-              title="هنوز آگهی‌ای نداری"
-              text="چیزی برای فروش، امانت یا هدیه ثبت کن تا حلقه ببیند."
-              href="/new"
-              cta="آگهی جدید"
-              icon="plus"
-            />
-          ) : (
-            <ProfileListingsPanel
-              listingsSplit={listingsSplit}
-              liveListings={liveListings}
-              inactiveListings={inactiveListings}
-            />
-          )
-        ) : null}
-
-        {activeTab === "events" ? (
-          allMyEvents === 0 ? (
-            <EmptyCard
-              title="رویدادی در تقویمت نیست"
-              text="به یک رویداد بپیوند یا خودت یکی بساز."
-              href="/events"
-              cta="دیدن رویدادها"
-              icon="calendar"
-            />
-          ) : (
-            <div className="space-y-2.5">
-              {hostedEvents.length > 0 && (
-                <EventGroup label="میزبانی من" events={hostedEvents} />
-              )}
-              {attendingEvents.length > 0 && (
-                <EventGroup label="شرکت می‌کنم" events={attendingEvents} />
-              )}
-            </div>
-          )
-        ) : null}
-
-        {activeTab === "saved" ? (
-          savedListings.length === 0 ? (
-            <EmptyCard
-              title="هنوز چیزی نشان نکرده‌ای"
-              text="روی ❤ هر آگهی بزن تا اینجا جمع شود."
-              href="/"
-              cta="دیدن آگهی‌ها"
-              icon="heart"
-            />
-          ) : (
-            <div className="space-y-2.5">
-              {savedListings.map((l) => {
-                const note = listingNotes[l.id]?.trim();
-                return (
-                  <div key={l.id} className="cv-card">
-                    <SavedListingCard listing={l} compactTrust />
-                    {note ? (
-                      <p className="px-1 pt-1.5 text-[11px] text-ink-muted leading-snug line-clamp-2">
-                        {note}
-                      </p>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          )
-        ) : null}
-
-        {activeTab === "hidden" ? (
-          hiddenListingRows.found.length === 0 &&
-          hiddenListingRows.missing.length === 0 &&
-          hiddenPeople.length === 0 ? (
-            <EmptyCard
-              title={hiddenProfileCopy.emptyTitle}
-              text={hiddenProfileCopy.emptyText}
-              href="/"
-              cta="دیدن آگهی‌ها"
-              icon="eye"
-            />
-          ) : (
-            <div className="space-y-4">
-              <p className="px-0.5 text-[12px] leading-relaxed text-ink-muted dark:text-zinc-400">
-                این‌ها فقط از فید تو کنار رفته‌اند. فروشنده خبردار نمی‌شود.
-                با «رفع محدودیت نمایش» دوباره در خانه می‌آیند.
-              </p>
-              {hiddenPeople.length > 0 ? (
-                <div className="space-y-2">
-                  <p className="px-0.5 text-[12px] font-bold text-ink-muted dark:text-zinc-400">
-                    {hiddenProfileCopy.peopleHeading}
-                  </p>
-                  {hiddenPeople.map((personId) => {
-                    const person = getPerson(personId);
-                    const label = person?.name?.trim() || "فرد مخفی";
-                    return (
-                      <div
-                        key={personId}
-                        className="card flex items-center gap-3 px-3.5 py-3"
-                      >
-                        <Link
-                          href={`/person/${personId}`}
-                          className="flex min-w-0 flex-1 items-center gap-3"
-                        >
-                          <Avatar
-                            name={label}
-                            src={person?.avatar}
-                            showLevel={false}
-                            size="sm"
-                          />
-                          <span className="min-w-0 truncate font-bold text-[13px] text-ink dark:text-zinc-100">
-                            {label}
-                          </span>
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void toggleHiddenPerson(personId).then(() =>
-                              show(hiddenProfileCopy.restorePersonToast),
-                            );
-                          }}
-                          className="shrink-0 text-[12px] font-bold text-brand-600 dark:text-brand-400"
-                        >
-                          {hiddenProfileCopy.restore}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : null}
-              {hiddenListingRows.found.length > 0 ||
-              hiddenListingRows.missing.length > 0 ? (
-                <div className="space-y-2.5">
-                  <p className="px-0.5 text-[12px] font-bold text-ink-muted dark:text-zinc-400">
-                    {hiddenProfileCopy.listingsHeading}
-                  </p>
-                  {hiddenListingRows.found.map((l) => (
-                    <div key={l.id} className="cv-card">
-                      <SavedListingCard listing={l} compactTrust />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void toggleHiddenListing(l.id).then(() =>
-                            show(hiddenProfileCopy.restoreListingToast),
-                          );
-                        }}
-                        className="mt-1.5 px-1 text-[12px] font-bold text-brand-600 dark:text-brand-400"
-                      >
-                        {hiddenProfileCopy.restore}
-                      </button>
-                    </div>
-                  ))}
-                  {hiddenListingRows.missing.map((id) => (
-                    <div
-                      key={id}
-                      className="card flex items-center gap-3 px-3.5 py-3"
-                    >
-                      <span className="min-w-0 flex-1 text-[13px] font-bold text-ink-muted">
-                        {hiddenProfileCopy.missingListing}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void toggleHiddenListing(id).then(() =>
-                            show(hiddenProfileCopy.restoreListingToast),
-                          );
-                        }}
-                        className="shrink-0 text-[12px] font-bold text-brand-600 dark:text-brand-400"
-                      >
-                        {hiddenProfileCopy.restore}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          )
-        ) : null}
-
-        {activeTab === "endorsements" ? (
-          myGivenBadges.length === 0 ? (
-            <EmptyCard
-              title="هنوز تأییدی نداده‌ای"
-              text="از صفحهٔ آگهی بگو که دیده‌ای یا می‌شناسی‌اش."
-              href="/"
-              cta="رفتن به آگهی‌ها"
-              icon="shield"
-            />
-          ) : (
-            <div className="card divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
-              {myGivenBadges.map(({ l, e, note }, i) => (
-                <Link
-                  key={`${l.id}-${e.type}-${i}`}
-                  href={`/listing/${l.id}`}
-                  className="cv-row flex items-center gap-3 px-3.5 py-3 text-[13px] active:bg-stone-50/80"
-                >
-                  <span className="text-[11px] font-semibold text-levelA shrink-0 rounded-md bg-levelA/10 px-1.5 py-0.5">
-                    {e.type === "word" ? "حرف" : badgeLabels[e.type]}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="font-medium text-ink dark:text-zinc-100 truncate block">
-                      {l.title}
-                    </span>
-                    {note ? (
-                      <span className="text-[11px] text-ink-muted truncate block mt-0.5">
-                        «{note}»
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="text-ink-faint" aria-hidden>
-                    ‹
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )
-        ) : null}
+        {activeTab === "listings" ? <ProfileListingsTab /> : null}
+        {activeTab === "events" ? <ProfileEventsTab /> : null}
+        {activeTab === "saved" ? <ProfileSavedTab /> : null}
+        {activeTab === "hidden" ? <ProfileHiddenTab /> : null}
+        {activeTab === "endorsements" ? <ProfileEndorsementsTab /> : null}
       </div>
     </section>
   );
 }
 
-function ProfileListingsPanel({
-  listingsSplit,
-  liveListings,
-  inactiveListings,
-}: {
-  listingsSplit: boolean;
-  liveListings: Listing[];
-  inactiveListings: Listing[];
-}) {
-  const messages = useStore((s) => s.messages);
-  const conversationCounts = useMemo(
-    () => listingConversationCountMap(messages),
-    [messages],
+function ProfileListingsTab() {
+  const listings = useStore((s) => s.listings);
+  const conversationCounts = useStore(
+    (s) => s.threadIndex.conversationCountByListing,
   );
+
+  const { liveListings, inactiveListings, listingsSplit } = useMemo(() => {
+    const live: Listing[] = [];
+    const inactive: Listing[] = [];
+    for (const listing of listings) {
+      if (listing.sellerId !== "me") continue;
+      if (listing.dealStatus === "inactive") inactive.push(listing);
+      else live.push(listing);
+    }
+    return {
+      liveListings: live,
+      inactiveListings: inactive,
+      listingsSplit: live.length > 0 && inactive.length > 0,
+    };
+  }, [listings]);
+
+  if (liveListings.length === 0 && inactiveListings.length === 0) {
+    return (
+      <EmptyCard
+        title="هنوز آگهی‌ای نداری"
+        text="چیزی برای فروش، امانت یا هدیه ثبت کن تا حلقه ببیند."
+        href="/new"
+        cta="آگهی جدید"
+        icon="plus"
+      />
+    );
+  }
 
   if (listingsSplit) {
     return (
@@ -711,6 +480,272 @@ function ProfileListingsPanel({
       listings={liveListings}
       conversationCounts={conversationCounts}
     />
+  );
+}
+
+function ProfileEventsTab() {
+  const events = useStore((s) => s.events);
+  const { hostedEvents, attendingEvents } = useMemo(() => {
+    const hosted: CircleEvent[] = [];
+    const attending: CircleEvent[] = [];
+    for (const event of events) {
+      if (event.hostId === "me") hosted.push(event);
+      else if (event.attendees.includes("me")) attending.push(event);
+    }
+    return { hostedEvents: hosted, attendingEvents: attending };
+  }, [events]);
+
+  if (hostedEvents.length === 0 && attendingEvents.length === 0) {
+    return (
+      <EmptyCard
+        title="رویدادی در تقویمت نیست"
+        text="به یک رویداد بپیوند یا خودت یکی بساز."
+        href="/events"
+        cta="دیدن رویدادها"
+        icon="calendar"
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-2.5">
+      {hostedEvents.length > 0 ? (
+        <EventGroup label="میزبانی من" events={hostedEvents} />
+      ) : null}
+      {attendingEvents.length > 0 ? (
+        <EventGroup label="شرکت می‌کنم" events={attendingEvents} />
+      ) : null}
+    </div>
+  );
+}
+
+function ProfileSavedTab() {
+  const listings = useStore((s) => s.listings);
+  const saved = useStore((s) => s.saved);
+  const listingNotes = useStore((s) => s.listingNotes);
+
+  const savedListings = useMemo(() => {
+    if (saved.length === 0) return [] as Listing[];
+    const byId = new Map<string, Listing>();
+    for (const listing of listings) byId.set(listing.id, listing);
+    const out: Listing[] = [];
+    for (const id of saved) {
+      const listing = byId.get(id);
+      if (listing) out.push(listing);
+    }
+    return out;
+  }, [listings, saved]);
+
+  if (savedListings.length === 0) {
+    return (
+      <EmptyCard
+        title="هنوز چیزی نشان نکرده‌ای"
+        text="روی ❤ هر آگهی بزن تا اینجا جمع شود."
+        href="/"
+        cta="دیدن آگهی‌ها"
+        icon="heart"
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-2.5">
+      {savedListings.map((l) => {
+        const note = listingNotes[l.id]?.trim();
+        return (
+          <div key={l.id} className="cv-card">
+            <SavedListingCard listing={l} compactTrust />
+            {note ? (
+              <p className="px-1 pt-1.5 text-[11px] text-ink-muted leading-snug line-clamp-2">
+                {note}
+              </p>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ProfileHiddenTab() {
+  const listings = useStore((s) => s.listings);
+  const hiddenListings = useStore((s) => s.hiddenListings);
+  const hiddenPeople = useStore((s) => s.hiddenPeople);
+  const toggleHiddenListing = useStore((s) => s.toggleHiddenListing);
+  const toggleHiddenPerson = useStore((s) => s.toggleHiddenPerson);
+  const getPerson = useStore((s) => s.getPerson);
+  const { show } = useToast();
+
+  const hiddenListingRows = useMemo(() => {
+    const byId = new Map<string, Listing>();
+    for (const listing of listings) byId.set(listing.id, listing);
+    const found: Listing[] = [];
+    const missing: string[] = [];
+    for (const id of hiddenListings) {
+      const listing = byId.get(id);
+      if (listing) found.push(listing);
+      else missing.push(id);
+    }
+    return { found, missing };
+  }, [hiddenListings, listings]);
+
+  if (
+    hiddenListingRows.found.length === 0 &&
+    hiddenListingRows.missing.length === 0 &&
+    hiddenPeople.length === 0
+  ) {
+    return (
+      <EmptyCard
+        title={hiddenProfileCopy.emptyTitle}
+        text={hiddenProfileCopy.emptyText}
+        href="/"
+        cta="دیدن آگهی‌ها"
+        icon="eye"
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="px-0.5 text-[12px] leading-relaxed text-ink-muted dark:text-zinc-400">
+        این‌ها فقط از فید تو کنار رفته‌اند. فروشنده خبردار نمی‌شود. با «رفع
+        محدودیت نمایش» دوباره در خانه می‌آیند.
+      </p>
+      {hiddenPeople.length > 0 ? (
+        <div className="space-y-2">
+          <p className="px-0.5 text-[12px] font-bold text-ink-muted dark:text-zinc-400">
+            {hiddenProfileCopy.peopleHeading}
+          </p>
+          {hiddenPeople.map((personId) => {
+            const person = getPerson(personId);
+            const label = person?.name?.trim() || "فرد مخفی";
+            return (
+              <div
+                key={personId}
+                className="card flex items-center gap-3 px-3.5 py-3"
+              >
+                <Link
+                  href={`/person/${personId}`}
+                  className="flex min-w-0 flex-1 items-center gap-3"
+                >
+                  <Avatar
+                    name={label}
+                    src={person?.avatar}
+                    showLevel={false}
+                    size="sm"
+                  />
+                  <span className="min-w-0 truncate font-bold text-[13px] text-ink dark:text-zinc-100">
+                    {label}
+                  </span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void toggleHiddenPerson(personId).then(() =>
+                      show(hiddenProfileCopy.restorePersonToast),
+                    );
+                  }}
+                  className="shrink-0 text-[12px] font-bold text-brand-600 dark:text-brand-400"
+                >
+                  {hiddenProfileCopy.restore}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+      {hiddenListingRows.found.length > 0 ||
+      hiddenListingRows.missing.length > 0 ? (
+        <div className="space-y-2.5">
+          <p className="px-0.5 text-[12px] font-bold text-ink-muted dark:text-zinc-400">
+            {hiddenProfileCopy.listingsHeading}
+          </p>
+          {hiddenListingRows.found.map((l) => (
+            <div key={l.id} className="cv-card">
+              <SavedListingCard listing={l} compactTrust />
+              <button
+                type="button"
+                onClick={() => {
+                  void toggleHiddenListing(l.id).then(() =>
+                    show(hiddenProfileCopy.restoreListingToast),
+                  );
+                }}
+                className="mt-1.5 px-1 text-[12px] font-bold text-brand-600 dark:text-brand-400"
+              >
+                {hiddenProfileCopy.restore}
+              </button>
+            </div>
+          ))}
+          {hiddenListingRows.missing.map((id) => (
+            <div
+              key={id}
+              className="card flex items-center gap-3 px-3.5 py-3"
+            >
+              <span className="min-w-0 flex-1 text-[13px] font-bold text-ink-muted">
+                {hiddenProfileCopy.missingListing}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  void toggleHiddenListing(id).then(() =>
+                    show(hiddenProfileCopy.restoreListingToast),
+                  );
+                }}
+                className="shrink-0 text-[12px] font-bold text-brand-600 dark:text-brand-400"
+              >
+                {hiddenProfileCopy.restore}
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ProfileEndorsementsTab() {
+  const listings = useStore((s) => s.listings);
+  const myGivenBadges = useMemo(() => givenEndorsements(listings), [listings]);
+
+  if (myGivenBadges.length === 0) {
+    return (
+      <EmptyCard
+        title="هنوز تأییدی نداده‌ای"
+        text="از صفحهٔ آگهی بگو که دیده‌ای یا می‌شناسی‌اش."
+        href="/"
+        cta="رفتن به آگهی‌ها"
+        icon="shield"
+      />
+    );
+  }
+
+  return (
+    <div className="card divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
+      {myGivenBadges.map(({ l, e, note }, i) => (
+        <Link
+          key={`${l.id}-${e.type}-${i}`}
+          href={`/listing/${l.id}`}
+          className="cv-row flex items-center gap-3 px-3.5 py-3 text-[13px] active:bg-stone-50/80"
+        >
+          <span className="text-[11px] font-semibold text-levelA shrink-0 rounded-md bg-levelA/10 px-1.5 py-0.5">
+            {e.type === "word" ? "حرف" : badgeLabels[e.type]}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="font-medium text-ink dark:text-zinc-100 truncate block">
+              {l.title}
+            </span>
+            {note ? (
+              <span className="text-[11px] text-ink-muted truncate block mt-0.5">
+                «{note}»
+              </span>
+            ) : null}
+          </span>
+          <span className="text-ink-faint" aria-hidden>
+            ‹
+          </span>
+        </Link>
+      ))}
+    </div>
   );
 }
 
@@ -972,7 +1007,7 @@ const ProfileListingRow = memo(function ProfileListingRow({
     );
 
   return (
-    <div className="cv-row flex items-stretch">
+    <div className="flex items-stretch">
       <Link
         href={`/listing/${listing.id}`}
         aria-label={inactive ? `${listing.title}، غیرفعال` : listing.title}
@@ -1021,7 +1056,7 @@ const ProfileListingRow = memo(function ProfileListingRow({
   );
 });
 
-function EventRow({ event }: { event: CircleEvent }) {
+const EventRow = memo(function EventRow({ event }: { event: CircleEvent }) {
   return (
     <Link
       href={`/event/${event.id}`}
@@ -1053,7 +1088,7 @@ function EventRow({ event }: { event: CircleEvent }) {
       </div>
     </Link>
   );
-}
+});
 
 function EmptyCard({
   title,

@@ -34,7 +34,10 @@ export default function ReferSheet({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const { people, referListing, getListing, meServerId } = useStore();
+  const people = useStore((s) => s.people);
+  const referListing = useStore((s) => s.referListing);
+  const listing = useStore((s) => s.listings.find((row) => row.id === listingId));
+  const meServerId = useStore((s) => s.meServerId);
   const { show } = useToast();
   const viewerId = meServerId || "me";
   const [note, setNote] = useState(DEFAULT_REFER_NOTE);
@@ -47,8 +50,7 @@ export default function ReferSheet({
     setRecentIds(loadReferRecents(viewerId));
   }, [viewerId]);
 
-  const listing = getListing(listingId);
-  const circle = activeCircle(people);
+  const circle = useMemo(() => activeCircle(people), [people]);
   const byId = useMemo(() => new Map(circle.map((p) => [p.id, p])), [circle]);
 
   const recentPeople = useMemo(() => {

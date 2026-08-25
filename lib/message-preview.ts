@@ -12,10 +12,16 @@ export function threadPreview(
       const prefix = last.fromMe ? "شما: " : "";
       return `${prefix}${text.length > 72 ? `${text.slice(0, 72)}…` : text}`;
     }
+    if (last.imageUrl) {
+      const prefix = last.fromMe ? "شما: " : "";
+      return `${prefix}عکس`;
+    }
     const title = getListing(last.listingId)?.title ?? "آگهی";
     return `معرفی آگهی: ${title}`;
   }
 
   const prefix = last.fromMe ? "شما: " : "";
+  if (!text && last.imageUrl) return `${prefix}عکس`;
+  if (!text) return `${prefix}پیام`;
   return `${prefix}${text.length > 72 ? `${text.slice(0, 72)}…` : text}`;
 }

@@ -26,14 +26,14 @@ export default function LockedMessaging({
   /** Came from a listing but still can't chat (can't view / load failed). */
   listingContext?: boolean;
 }) {
-  const { addToCircle } = useStore();
+  const addToCircle = useStore((s) => s.addToCircle);
   const { show } = useToast();
   const [showIntro, setShowIntro] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
 
   return (
     <>
-      <div className="px-4 pt-4 pb-8 listing-detail-rise">
+      <div className="px-4 pt-4 pb-8">
         {/* Peer identity */}
         <Link
           href={`/person/${peer.id}`}
@@ -41,7 +41,7 @@ export default function LockedMessaging({
         >
           <Avatar name={peer.name} src={peer.avatar} size="lg" showLevel={false} />
           <div className="flex-1 min-w-0 text-right">
-            <p className="font-extrabold text-[16px] text-ink dark:text-zinc-50 truncate">
+            <p className="font-extrabold text-[15px] text-ink dark:text-zinc-50 truncate">
               {peer.name}
             </p>
             <p className="text-[12px] text-ink-muted mt-1">

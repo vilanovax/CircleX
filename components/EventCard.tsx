@@ -1,8 +1,8 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 import type { CircleEvent } from "@/lib/types";
-import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import {
   eventKindChip,
@@ -11,9 +11,10 @@ import {
 } from "@/lib/labels";
 import { formatEventDateDisplay, toPersianDigits } from "@/lib/persian";
 import { privacyAudience } from "@/lib/trust";
+import ListingImage from "./ListingImage";
 import TrustHighlight from "./TrustHighlight";
 
-export default function EventCard({
+function EventCard({
   event,
   compactTrust = true,
 }: {
@@ -22,7 +23,6 @@ export default function EventCard({
 }) {
   const going = useStore((s) => s.isAttending(event.id));
   const people = useStore((s) => (compactTrust ? null : s.people));
-  const circle = people ? activeCircle(people) : [];
   const count = event.attendees.length;
 
   return (
@@ -38,9 +38,12 @@ export default function EventCard({
 
       <Link href={`/event/${event.id}`} className="block px-3.5 py-3">
         <div className="flex gap-3">
-          <div className="w-14 h-14 rounded-xl bg-stone-50 dark:bg-zinc-800/80 ring-1 ring-stone-100 dark:ring-zinc-700/60 flex items-center justify-center text-2xl shrink-0">
-            {event.image}
-          </div>
+          <ListingImage
+            image={event.image}
+            alt={event.title}
+            size="sm"
+            frameClassName="w-14 h-14 rounded-xl overflow-hidden shrink-0"
+          />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 mb-1 flex-wrap">
               <span className={`chip ${eventKindChip[event.kind]}`}>
@@ -72,7 +75,9 @@ export default function EventCard({
           </div>
           <p
             className="text-[11px] text-ink-faint"
-            title={people ? privacyAudience(event.privacy, circle) : undefined}
+            title={
+              people ? privacyAudience(event.privacy, people) : undefined
+            }
           >
             {privacyLabels[event.privacy]}
           </p>
@@ -81,3 +86,5 @@ export default function EventCard({
     </article>
   );
 }
+
+export default memo(EventCard);

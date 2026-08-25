@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import Header from "@/components/Header";
+import ListingImage from "@/components/ListingImage";
+import { isListingPhoto } from "@/lib/listing-image";
 import Avatar from "@/components/Avatar";
 import TrustPath from "@/components/TrustPath";
 import {
@@ -81,7 +82,6 @@ export default function EventClassic(_props: { params: { id: string } }) {
 
   const host = getPerson(event.hostId);
   const isMine = event.hostId === "me";
-  const circle = activeCircle(people);
 
   if (!isMine && !canView(event, getPerson)) {
     return (
@@ -122,12 +122,22 @@ export default function EventClassic(_props: { params: { id: string } }) {
             aria-hidden
           />
           <div className="absolute inset-0 flex items-center justify-center">
-            <span
-              className="text-[5.25rem] leading-none drop-shadow-sm select-none"
-              aria-hidden
-            >
-              {event.image}
-            </span>
+            {isListingPhoto(event.image) ? (
+              <ListingImage
+                image={event.image}
+                alt={event.title}
+                size="hero"
+                priority
+                frameClassName="absolute inset-0 h-full w-full rounded-none"
+              />
+            ) : (
+              <span
+                className="text-[5.25rem] leading-none drop-shadow-sm select-none"
+                aria-hidden
+              >
+                {event.image}
+              </span>
+            )}
           </div>
         </div>
         <div
@@ -137,14 +147,14 @@ export default function EventClassic(_props: { params: { id: string } }) {
       </div>
 
       {/* Title block */}
-      <div className="px-4 -mt-3 relative listing-detail-rise">
+      <div className="px-4 -mt-3 relative">
         <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
           <span className={`chip ${eventKindChip[event.kind]}`}>
             {eventKindLabels[event.kind]}
           </span>
           <span
             className="chip bg-[color:var(--circle-surface)] text-ink-muted ring-1 ring-stone-200/70 dark:ring-zinc-700"
-            title={privacyAudience(event.privacy, circle)}
+            title={privacyAudience(event.privacy, people)}
           >
             {privacyLabels[event.privacy]}
           </span>

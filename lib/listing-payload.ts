@@ -5,6 +5,7 @@ import {
   PERSON_BADGES,
 } from "./labels";
 import { isAllowedListingImage } from "./listing-photo";
+import { LISTING_PHOTO_MAX_COUNT } from "./media";
 import { parseArea } from "./place";
 import {
   parsePersonIds,
@@ -129,7 +130,7 @@ export function parseListingWrite(
   const images = imagesRaw
     .map((item) => parseListingImageValue(item))
     .filter(Boolean)
-    .slice(0, 8);
+    .slice(0, LISTING_PHOTO_MAX_COUNT);
   if (images.some((src) => !isAllowedListingImage(src))) {
     return { ok: false, error: "عکس آگهی باید روی همین اپ باشد" };
   }

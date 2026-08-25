@@ -32,11 +32,12 @@ export default function IntroRequestSheet({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const { people, addMessage } = useStore();
+  const people = useStore((s) => s.people);
+  const addMessage = useStore((s) => s.addMessage);
   const { show } = useToast();
   const [query, setQuery] = useState("");
   const [sending, setSending] = useState(false);
-  const circle = activeCircle(people);
+  const circle = useMemo(() => activeCircle(people), [people]);
   const message = TEMPLATES[itemKind](itemTitle);
 
   const filtered = useMemo(() => {
@@ -80,7 +81,7 @@ export default function IntroRequestSheet({
     >
       <h2
         id="intro-request-title"
-        className="font-extrabold text-[1.1rem] text-ink dark:text-zinc-50"
+        className="font-extrabold text-[20px] text-ink dark:text-zinc-50"
       >
         درخواست معرفی
       </h2>

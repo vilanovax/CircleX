@@ -1,5 +1,5 @@
 import { jsonError, withDb } from "@/lib/http";
-import { LISTING_PHOTO_MAX_BYTES } from "@/lib/listing-photo";
+import { PHOTO_UPLOAD_MAX_BYTES } from "@/lib/media";
 import { saveListingJpeg } from "@/lib/listing-upload";
 import { getSessionUser } from "@/lib/server-auth";
 
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     if (!(file instanceof File) || file.size === 0) {
       return jsonError("عکس را انتخاب کن", 400);
     }
-    if (file.size > LISTING_PHOTO_MAX_BYTES) {
+    if (file.size > PHOTO_UPLOAD_MAX_BYTES) {
       return jsonError("عکس خیلی بزرگ است", 400);
     }
 

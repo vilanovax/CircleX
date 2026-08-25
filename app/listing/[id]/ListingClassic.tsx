@@ -33,7 +33,7 @@ import {
   listingTypeChip,
   listingTypeLabels,
 } from "@/lib/labels";
-import type { Listing } from "@/lib/types";
+import type { Listing, Message } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
 import { canView, listingSellerSubtitle } from "@/lib/trust";
 import {
@@ -73,6 +73,8 @@ const TrustPath = lazyUi(() => import("@/components/TrustPath"), {
   ),
 });
 const LockedAccess = lazyUi(() => import("@/components/LockedAccess"));
+
+const IDLE_MESSAGES: Message[] = [];
 
 export default function ListingClassic(_props: { params: { id: string } }) {
   const params = useParams();
@@ -241,7 +243,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         type={listing.type}
       />
 
-      <div className="px-4 -mt-4 relative listing-detail-rise">
+      <div className="px-4 -mt-4 relative">
         <div className="flex flex-wrap items-center gap-1.5 mb-3">
           <span className={`chip ${listingTypeChip[listing.type]}`}>
             {listingTypeLabels[listing.type]}
@@ -582,7 +584,9 @@ export default function ListingClassic(_props: { params: { id: string } }) {
 
 function ListingOwnerPrivacy({ listing }: { listing: Listing }) {
   const getPerson = useStore((s) => s.getPerson);
-  const messages = useStore((s) => s.messages);
+  const messages = useStore((s) =>
+    listing.privatePublish ? s.messages : IDLE_MESSAGES,
+  );
   const revealListingIdentity = useStore((s) => s.revealListingIdentity);
   const { show } = useToast();
   const peers = listingThreadPeers(messages, listing.id);

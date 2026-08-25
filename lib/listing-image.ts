@@ -1,10 +1,11 @@
-import { api } from "./api";
-import {
-  LISTING_PHOTO_MAX_BYTES,
-  localListingSrc,
-} from "./listing-photo";
+import { localListingSrc } from "./listing-photo";
+import { PHOTO_MAX_BYTES } from "./media";
 
-export { LISTING_PHOTO_MAX_BYTES };
+export { PHOTO_MAX_BYTES as LISTING_PHOTO_MAX_BYTES };
+export {
+  processUserPhoto as processListingPhotoBlob,
+  uploadUserPhoto as uploadListingPhoto,
+} from "./media-image";
 
 const PHOTO_PREFIXES = ["data:image/", "http://", "https://", "/"];
 
@@ -53,86 +54,4 @@ export function listingImageTint(
     return "from-green-50 to-zinc-100 dark:from-green-500/10 dark:to-zinc-800";
   }
   return "from-zinc-50 to-zinc-100 dark:from-zinc-800 dark:to-zinc-900";
-}
-
-function loadImage(file: File): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(img);
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("خواندن عکس ممکن نشد."));
-    };
-    img.src = url;
-  });
-}
-
-function canvasToJpegBlob(
-  canvas: HTMLCanvasElement,
-  quality: number,
-): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) =>
-        blob
-          ? resolve(blob)
-          : reject(new Error("پردازش عکس ممکن نشد.")),
-      "image/jpeg",
-      quality,
-    );
-  });
-}
-
-/** Resize + compress a gallery photo to a JPEG blob for app storage. */
-export async function processListingPhotoBlob(file: File): Promise<Blob> {
-  if (!file.type.startsWith("image/")) {
-    throw new Error("فقط فایل تصویری مجاز است.");
-  }
-
-  const img = await loadImage(file);
-  const maxSide = 1200;
-  const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
-  const w = Math.max(1, Math.round(img.width * scale));
-  const h = Math.max(1, Math.round(img.height * scale));
-
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("پردازش عکس ممکن نشد.");
-  ctx.drawImage(img, 0, 0, w, h);
-
-  let quality = 0.88;
-  let blob = await canvasToJpegBlob(canvas, quality);
-  while (blob.size > LISTING_PHOTO_MAX_BYTES && quality > 0.45) {
-    quality -= 0.08;
-    blob = await canvasToJpegBlob(canvas, quality);
-  }
-
-  if (blob.size > LISTING_PHOTO_MAX_BYTES) {
-    throw new Error(
-      "عکس بعد از فشرده‌سازی هنوز بزرگ است — عکس کوچک‌تری انتخاب کن.",
-    );
-  }
-
-  return blob;
-}
-
-/** Compress then store on the app — returns `/api/uploads/….jpg`. */
-export async function uploadListingPhoto(file: File): Promise<string> {
-  const blob = await processListingPhotoBlob(file);
-  const form = new FormData();
-  form.append("photo", blob, "photo.jpg");
-  const { url } = await api<{ url: string }>("/api/uploads", {
-    method: "POST",
-    body: form,
-  });
-  if (!url?.startsWith("/api/uploads/")) {
-    throw new Error("ذخیرهٔ عکس نشد.");
-  }
-  return url;
 }

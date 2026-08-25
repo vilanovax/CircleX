@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { TrustLevel } from "@/lib/types";
 import { levelDot, levelHint } from "@/lib/labels";
 import { resolveAvatarSrc } from "@/lib/avatar";
@@ -10,7 +11,7 @@ const sizes = {
   lg: { box: "w-16 h-16", text: "text-2xl" },
 };
 
-export default function Avatar({
+function Avatar({
   name,
   level,
   size = "md",
@@ -68,3 +69,5 @@ export default function Avatar({
     </div>
   );
 }
+
+export default memo(Avatar);

@@ -13,6 +13,7 @@ import { AVATAR_IMAGES } from "./avatar";
 import { api, ApiError } from "./api";
 import { CIRCLO_PERSON, isCircloPeer } from "./circlo";
 import { newUuid } from "./invite";
+import { reusePeopleList, reusePerson } from "./circle-member";
 import {
   ME,
   PEOPLE,
@@ -133,7 +134,7 @@ export interface StoreValue {
   hydrated: boolean;
   /** Circle + listings finished loading after session. */
   circleReady: boolean;
-  /** True after GET /api/circle (graph links + full listings). Home boot is false. */
+  /** True after GET /api/circle or /api/graph (people + map links). Home boot is false. */
   circleFull: boolean;
   /** When false, own listings stay on profile and out of the home feed. */
   showOwnListingsInFeed: boolean;
@@ -161,6 +162,7 @@ export interface StoreValue {
     text: string,
     listingId?: string,
     listingScoped?: boolean,
+    imageUrl?: string,
   ) => Promise<Message | void>;
   referListing: (peerId: string, listingId: string, note?: string) => Promise<void>;
   revealListingIdentity: (listingId: string, peerId: string) => Promise<void>;
@@ -246,6 +248,8 @@ export interface StoreValue {
   signOut: () => Promise<void>;
   meServerId: string | null;
   refreshCircle: () => Promise<void>;
+  /** Skip /api/circle when home already applied a fresh roster. */
+  ensureCircleRoster: () => Promise<void>;
   refreshGraph: () => Promise<void>;
   updateProfile: (
     input: Partial<Pick<Person, "name" | "avatar" | "city">>,
@@ -264,6 +268,8 @@ const StoreContext = createContext<StoreValue | null>(null);
 
 const STORAGE_KEY = "circle-store-v2";
 const SCHEMA_VERSION = 7;
+/** Same window as the tab-visible home refresh — roster is already on /api/home. */
+const ROSTER_FRESH_MS = 45_000;
 
 const AVATAR_POOL = AVATAR_IMAGES;
 const SEED_IDS = new Set(PEOPLE.map((p) => p.id));
@@ -281,11 +287,24 @@ function blankMe(): Person {
 }
 
 function overlayPeople(prev: Person[], incoming: Person[]): Person[] {
+  if (incoming.length === 0) return prev;
   const map = new Map(prev.map((p) => [p.id, p]));
+  let changed = false;
   for (const person of incoming) {
     if (isCircloPeer(person.id)) continue;
-    map.set(person.id, person);
+    const existing = map.get(person.id);
+    if (!existing) {
+      map.set(person.id, person);
+      changed = true;
+      continue;
+    }
+    const next = reusePerson(existing, person);
+    if (next !== existing) {
+      map.set(person.id, next);
+      changed = true;
+    }
   }
+  if (!changed) return prev;
   return Array.from(map.values());
 }
 
@@ -313,6 +332,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [circleReady, setCircleReady] = useState(false);
   const [circleFull, setCircleFull] = useState(false);
+  const rosterFetchedAtRef = useRef(0);
+  const graphInflightRef = useRef<Promise<void> | null>(null);
   const [showOwnListingsInFeed, setShowOwnFeedState] = useState(true);
   const [profileCompletedAt, setProfileCompletedAt] = useState<string | null>(
     null,
@@ -340,7 +361,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     network?: Person[];
     links?: { fromId: string; toId: string; relationType: string }[];
     pending: Invite[];
-    pendingPeople: Person[];
+    pendingPeople?: Person[];
     listings?: Listing[];
     requests?: Request[];
     offers?: Offer[];
@@ -379,7 +400,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       const incoming = [
         ...data.members,
-        ...data.pendingPeople,
+        ...(data.pendingPeople ?? []),
         ...(data.network ?? []),
       ].filter((p) => !isCircloPeer(p.id));
       const mergedPeople = keepGraph
@@ -392,13 +413,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               seen.add(p.id);
               merged.push(p);
             }
-            return merged;
+            return reusePeopleList(peopleRef.current, merged);
           })();
       setPeople(mergedPeople);
-      setListings(data.listings ?? []);
-      setRequests(data.requests ?? []);
-      setOffers(data.offers ?? []);
-      setEvents(data.events ?? []);
+      if (data.listings) setListings(data.listings);
+      if (data.requests) setRequests(data.requests);
+      if (data.offers) setOffers(data.offers);
+      if (data.events) setEvents(data.events);
       if (Array.isArray(data.saved)) setSaved(data.saved);
       if (Array.isArray(data.hiddenListings)) {
         setHiddenListings(data.hiddenListings);
@@ -422,21 +443,40 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setShowOwnFeedState(data.showOwnListingsInFeed);
       }
       setMessages((prev) =>
-        reconcileDemoMessages(prev, mergedPeople, data.listings ?? []),
+        reconcileDemoMessages(
+          prev,
+          mergedPeople,
+          data.listings ?? listingsRef.current,
+        ),
       );
       setCircleReady(true);
       if (full) setCircleFull(true);
       else if (!keepGraph) setCircleFull(false);
+      rosterFetchedAtRef.current = Date.now();
     },
     [],
   );
 
   const loadMessages = useCallback(async () => {
-    const data = await api<{ messages: Message[]; people: Person[] }>(
-      "/api/messages",
-    );
+    const data = await api<{
+      messages: Message[];
+      people: Person[];
+      archivedThreads?: string[];
+      pinnedThreads?: string[];
+      deletedThreads?: string[];
+    }>("/api/messages");
     if (data.people.length > 0) {
       setPeople((prev) => overlayPeople(prev, data.people));
+    }
+    if (Array.isArray(data.archivedThreads)) {
+      setArchivedThreads(data.archivedThreads);
+    }
+    if (Array.isArray(data.pinnedThreads)) {
+      setPinnedThreads(data.pinnedThreads);
+    }
+    if (Array.isArray(data.deletedThreads)) {
+      deletedThreadsRef.current = data.deletedThreads;
+      setDeletedThreads(data.deletedThreads);
     }
     const { messages: next, revivedPeerIds } = mergeInboxMessages(
       data.messages,
@@ -467,26 +507,44 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [applyCirclePayload]);
 
   const loadGraph = useCallback(async () => {
-    const data = await api<{
-      members: Person[];
-      network?: Person[];
-      links: NetworkLink[];
-    }>("/api/graph");
-    setNetworkLinks(data.links);
-    const pending = peopleRef.current.filter(
-      (p) => p.inviteStatus === "pending",
-    );
-    const next = overlayPeople(pending, [
-      ...data.members,
-      ...(data.network ?? []),
-    ]);
-    setPeople(next);
-    setMessages((m) => reconcileDemoMessages(m, next, listingsRef.current));
-    setCircleFull(true);
+    if (graphInflightRef.current) return graphInflightRef.current;
+    const run = (async () => {
+      const data = await api<{
+        members: Person[];
+        network?: Person[];
+        links: NetworkLink[];
+      }>("/api/graph");
+      setNetworkLinks(data.links);
+      const pending = peopleRef.current.filter(
+        (p) => p.inviteStatus === "pending",
+      );
+      const next = overlayPeople(pending, [
+        ...data.members,
+        ...(data.network ?? []),
+      ]);
+      setPeople(next);
+      setMessages((m) => reconcileDemoMessages(m, next, listingsRef.current));
+      setCircleFull(true);
+    })();
+    graphInflightRef.current = run.finally(() => {
+      graphInflightRef.current = null;
+    });
+    return graphInflightRef.current;
   }, []);
 
   const circleFullRef = useRef(circleFull);
   circleFullRef.current = circleFull;
+
+  const circleReadyRef = useRef(circleReady);
+  circleReadyRef.current = circleReady;
+
+  /** Home already has the live roster; only refetch when that payload is stale. */
+  const ensureCircleRoster = useCallback(async () => {
+    if (!sessionPhone) return;
+    if (!circleReadyRef.current) return;
+    if (Date.now() - rosterFetchedAtRef.current < ROSTER_FRESH_MS) return;
+    await loadHome({ keepGraph: circleFullRef.current });
+  }, [sessionPhone, loadHome]);
 
   /** After invite/edge changes: slim home feed, keep map if already loaded. */
   const refreshAfterMutation = useCallback(async () => {
@@ -647,7 +705,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const onVis = () => {
       if (document.visibilityState !== "visible") return;
       const now = Date.now();
-      if (now - last < 45_000) return;
+      if (now - last < ROSTER_FRESH_MS) return;
       last = now;
       // Always soft-refresh the slim home feed. After the map has loaded,
       // keep graph links + FoF people so /api/circle does not undo the cap.
@@ -785,7 +843,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [offers],
   );
 
-  const threadIndex = useMemo(() => buildThreadIndex(messages), [messages]);
+  const threadIndexPrevRef = useRef<ThreadIndex | undefined>(undefined);
+  const threadIndex = useMemo(() => {
+    const next = buildThreadIndex(messages, threadIndexPrevRef.current);
+    threadIndexPrevRef.current = next;
+    return next;
+  }, [messages]);
 
   const getThread = useCallback(
     (peerId: string, listingId?: string | null) =>
@@ -816,6 +879,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       text: string,
       listingId?: string,
       listingScoped?: boolean,
+      imageUrl?: string,
     ) => {
       if (isCircloPeer(peerId)) return;
       if (!peerId && !listingScoped) return;
@@ -829,6 +893,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         read: true,
         ...(listingId ? { listingId } : {}),
         ...(listingScoped && listingId ? { threadListingId: listingId } : {}),
+        ...(imageUrl ? { imageUrl } : {}),
       };
       setMessages((prev) => [...prev, optimistic]);
       const key = threadKey(peerId || "pending", listingScoped ? listingId : undefined);
@@ -844,6 +909,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               text,
               ...(listingId ? { listingId } : {}),
               ...(listingScoped ? { listingScoped: true } : {}),
+              ...(imageUrl ? { imageUrl } : {}),
             }),
           },
         );
@@ -1717,6 +1783,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       signOut,
       meServerId,
       refreshCircle: loadCircle,
+      ensureCircleRoster,
       refreshGraph: loadGraph,
       updateProfile,
     }),
@@ -1807,6 +1874,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       signOut,
       meServerId,
       loadCircle,
+      ensureCircleRoster,
       loadGraph,
       updateProfile,
     ],

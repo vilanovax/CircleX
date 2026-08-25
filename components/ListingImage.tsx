@@ -64,7 +64,7 @@ function ListingImage({
     const h = size === "hero" ? 176 : w;
     const sizes =
       size === "hero"
-        ? "100vw"
+        ? "(max-width: 480px) 100vw, 480px"
         : size === "md"
           ? "96px"
           : size === "sm"
@@ -82,7 +82,7 @@ function ListingImage({
           className="absolute inset-0 h-full w-full object-cover"
           fetchPriority={priority ? "high" : "auto"}
           loading={priority ? "eager" : "lazy"}
-          decoding={priority ? "sync" : "async"}
+          decoding="async"
         />
       </div>
     );

@@ -39,6 +39,7 @@ export async function POST(
         fromUserId: true,
         toUserId: true,
         text: true,
+        imageUrl: true,
         hiddenAt: true,
       },
     });
@@ -63,7 +64,9 @@ export async function POST(
       return jsonError("برای «دلیل دیگر» توضیح کوتاه لازم است", 400);
     }
 
-    const snapshot = message.text.trim().slice(0, DM_TEXT_MAX) || "—";
+    const snapshot =
+      message.text.trim().slice(0, DM_TEXT_MAX) ||
+      (message.imageUrl ? "عکس" : "—");
 
     const existing = await prisma.messageReport.findUnique({
       where: {

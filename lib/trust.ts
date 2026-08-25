@@ -325,7 +325,9 @@ export function privacyAudience(privacy: Privacy, circle: Person[]): string {
   let b = 0;
   let c = 0;
   for (let i = 0; i < circle.length; i++) {
-    const level = circle[i].level;
+    const person = circle[i];
+    if (!isActiveCircleMember(person)) continue;
+    const level = person.level;
     if (level === "A") a += 1;
     else if (level === "B") b += 1;
     else if (level === "C") c += 1;
