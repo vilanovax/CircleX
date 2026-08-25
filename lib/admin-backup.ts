@@ -75,6 +75,10 @@ const TABLES = [
     () => prisma.hiddenListing.findMany({ orderBy: { createdAt: "asc" } }),
   ],
   [
+    "hiddenPeople",
+    () => prisma.hiddenPerson.findMany({ orderBy: { createdAt: "asc" } }),
+  ],
+  [
     "listingPersonalNotes",
     () =>
       prisma.listingPersonalNote.findMany({ orderBy: { createdAt: "asc" } }),
@@ -197,6 +201,7 @@ export async function backupSummary(): Promise<BackupSummary> {
     prisma.gatheringRsvp.count().then((n) => ["eventRsvps", n] as const),
     prisma.savedListing.count().then((n) => ["savedListings", n] as const),
     prisma.hiddenListing.count().then((n) => ["hiddenListings", n] as const),
+    prisma.hiddenPerson.count().then((n) => ["hiddenPeople", n] as const),
     prisma.listingPersonalNote
       .count()
       .then((n) => ["listingPersonalNotes", n] as const),

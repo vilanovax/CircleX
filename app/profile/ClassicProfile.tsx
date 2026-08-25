@@ -206,8 +206,11 @@ function ProfileActivity() {
   const events = useStore((s) => s.events);
   const saved = useStore((s) => s.saved);
   const hiddenListings = useStore((s) => s.hiddenListings);
+  const hiddenPeople = useStore((s) => s.hiddenPeople);
   const listingNotes = useStore((s) => s.listingNotes);
   const toggleHiddenListing = useStore((s) => s.toggleHiddenListing);
+  const toggleHiddenPerson = useStore((s) => s.toggleHiddenPerson);
+  const getPerson = useStore((s) => s.getPerson);
   const { show } = useToast();
   const [tab, setTab] = useState<ActivityTab>("listings");
   const [hashSaved, setHashSaved] = useState(false);
@@ -276,7 +279,7 @@ function ProfileActivity() {
       {
         id: "hidden" as const,
         label: "پنهان‌ها",
-        count: hiddenListingRows.length,
+        count: hiddenListingRows.length + hiddenPeople.length,
       },
       {
         id: "endorsements" as const,
@@ -289,6 +292,7 @@ function ProfileActivity() {
       allMyEvents,
       savedListings.length,
       hiddenListingRows.length,
+      hiddenPeople.length,
       myGivenBadges.length,
     ],
   );
@@ -334,7 +338,7 @@ function ProfileActivity() {
     if (myListings.length > 0) return;
     if (allMyEvents > 0) setTab("events");
     else if (savedListings.length > 0) setTab("saved");
-    else if (hiddenListingRows.length > 0) setTab("hidden");
+    else if (hiddenListingRows.length > 0 || hiddenPeople.length > 0) setTab("hidden");
     else if (myGivenBadges.length > 0) setTab("endorsements");
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once after hydrate
   }, []);
@@ -479,32 +483,84 @@ function ProfileActivity() {
         ) : null}
 
         {activeTab === "hidden" ? (
-          hiddenListingRows.length === 0 ? (
+          hiddenListingRows.length === 0 && hiddenPeople.length === 0 ? (
             <EmptyCard
-              title="آگهی پنهانی نداری"
-              text="از صفحهٔ آگهی بزن «دیگر در فید نبین» تا اینجا جمع شود."
+              title="چیزی پنهان نکرده‌ای"
+              text="از آگهی یا پروفایل بزن تا آگهی یا آگهی‌های یک نفر از فیدت کنار برود."
               href="/"
               cta="دیدن آگهی‌ها"
               icon="eye"
             />
           ) : (
-            <div className="space-y-2.5">
-              {hiddenListingRows.map((l) => (
-                <div key={l.id} className="cv-card">
-                  <SavedListingCard listing={l} compactTrust />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void toggleHiddenListing(l.id).then(() =>
-                        show("دوباره در فید می‌آید"),
-                      );
-                    }}
-                    className="mt-1.5 px-1 text-[12px] font-bold text-brand-600 dark:text-brand-400"
-                  >
-                    برگردان به فید
-                  </button>
+            <div className="space-y-4">
+              {hiddenPeople.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="px-0.5 text-[12px] font-bold text-ink-muted dark:text-zinc-400">
+                    آگهی‌های این افراد در فید نمی‌آید
+                  </p>
+                  {hiddenPeople.map((personId) => {
+                    const person = getPerson(personId);
+                    const label = person?.name?.trim() || "فرد پنهان";
+                    return (
+                      <div
+                        key={personId}
+                        className="card flex items-center gap-3 px-3.5 py-3"
+                      >
+                        <Link
+                          href={`/person/${personId}`}
+                          className="flex min-w-0 flex-1 items-center gap-3"
+                        >
+                          <Avatar
+                            name={label}
+                            src={person?.avatar}
+                            showLevel={false}
+                            size="sm"
+                          />
+                          <span className="min-w-0 truncate font-bold text-[13px] text-ink dark:text-zinc-100">
+                            {label}
+                          </span>
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void toggleHiddenPerson(personId).then(() =>
+                              show("آگهی‌هایش دوباره در فید می‌آید"),
+                            );
+                          }}
+                          className="shrink-0 text-[12px] font-bold text-brand-600 dark:text-brand-400"
+                        >
+                          برگردان
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
+              ) : null}
+              {hiddenListingRows.length > 0 ? (
+                <div className="space-y-2.5">
+                  {hiddenPeople.length > 0 ? (
+                    <p className="px-0.5 text-[12px] font-bold text-ink-muted dark:text-zinc-400">
+                      آگهی‌های جدا
+                    </p>
+                  ) : null}
+                  {hiddenListingRows.map((l) => (
+                    <div key={l.id} className="cv-card">
+                      <SavedListingCard listing={l} compactTrust />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void toggleHiddenListing(l.id).then(() =>
+                            show("دوباره در فید می‌آید"),
+                          );
+                        }}
+                        className="mt-1.5 px-1 text-[12px] font-bold text-brand-600 dark:text-brand-400"
+                      >
+                        برگردان به فید
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           )
         ) : null}

@@ -111,6 +111,8 @@ export interface StoreValue {
   saved: string[];
   /** Listings this viewer hid from feed / person cards; URL still works. */
   hiddenListings: string[];
+  /** Sellers whose listings this viewer hid from feed; relationship is unchanged. */
+  hiddenPeople: string[];
   /** Private per-listing notes; only the current user ever sees these. */
   listingNotes: Record<string, string>;
   /** Peer ids hidden from the main inbox (still recoverable). */
@@ -223,9 +225,11 @@ export interface StoreValue {
   withdrawOffer: (requestId: string) => Promise<void>;
   toggleSaved: (listingId: string) => Promise<void>;
   toggleHiddenListing: (listingId: string) => Promise<void>;
+  toggleHiddenPerson: (personId: string) => Promise<void>;
   setListingNote: (listingId: string, note: string) => Promise<void>;
   isSaved: (listingId: string) => boolean;
   isListingHidden: (listingId: string) => boolean;
+  isPersonHidden: (personId: string) => boolean;
   completeOnboarding: () => void;
   /** Apply the server user after OTP verify. */
   completeLogin: (user: SessionUser, opts?: { needsSeed?: boolean }) => Promise<void>;
@@ -277,6 +281,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [events, setEvents] = useState<CircleEvent[]>([]);
   const [saved, setSaved] = useState<string[]>([]);
   const [hiddenListings, setHiddenListings] = useState<string[]>([]);
+  const [hiddenPeople, setHiddenPeople] = useState<string[]>([]);
   const [listingNotes, setListingNotes] = useState<Record<string, string>>({});
   const [archivedThreads, setArchivedThreads] = useState<string[]>([]);
   const [pinnedThreads, setPinnedThreads] = useState<string[]>([]);
@@ -325,6 +330,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     joinRequests?: CircleJoinRequest[];
     saved?: string[];
     hiddenListings?: string[];
+    hiddenPeople?: string[];
     listingNotes?: Record<string, string>;
     archivedThreads?: string[];
     pinnedThreads?: string[];
@@ -378,6 +384,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (Array.isArray(data.saved)) setSaved(data.saved);
       if (Array.isArray(data.hiddenListings)) {
         setHiddenListings(data.hiddenListings);
+      }
+      if (Array.isArray(data.hiddenPeople)) {
+        setHiddenPeople(data.hiddenPeople);
       }
       if (data.listingNotes && typeof data.listingNotes === "object") {
         setListingNotes(data.listingNotes);
@@ -499,6 +508,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setEvents([]);
         setSaved([]);
         setHiddenListings([]);
+        setHiddenPeople([]);
         setCircleReady(true);
         setCircleFull(false);
       }
@@ -562,6 +572,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           setEvents([]);
           setSaved([]);
           setHiddenListings([]);
+        setHiddenPeople([]);
           setCircleReady(true);
           setCircleFull(false);
         }
@@ -582,6 +593,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setEvents([]);
         setSaved([]);
         setHiddenListings([]);
+        setHiddenPeople([]);
         setCircleReady(true);
         setCircleFull(false);
       }
@@ -1388,6 +1400,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setHiddenListings(next);
   }, []);
 
+  const toggleHiddenPerson = useCallback(async (personId: string) => {
+    const { hiddenPeople: next } = await api<{ hiddenPeople: string[] }>(
+      "/api/hidden-people",
+      {
+        method: "POST",
+        body: JSON.stringify({ personId }),
+      },
+    );
+    setHiddenPeople(next);
+  }, []);
+
   const setListingNote = useCallback(async (listingId: string, note: string) => {
     const { note: nextNote, saved: nextSaved } = await api<{
       note: string | null;
@@ -1417,6 +1440,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const isListingHidden = useCallback(
     (listingId: string) => hiddenListings.includes(listingId),
     [hiddenListings],
+  );
+
+  const isPersonHidden = useCallback(
+    (personId: string) => hiddenPeople.includes(personId),
+    [hiddenPeople],
   );
 
   const getEvent = useCallback(
@@ -1514,6 +1542,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setEvents([]);
     setSaved([]);
     setHiddenListings([]);
+    setHiddenPeople([]);
     setListingNotes({});
     setMessages([]);
     setArchivedThreads([]);
@@ -1535,6 +1564,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       events,
       saved,
       hiddenListings,
+      hiddenPeople,
       listingNotes,
       archivedThreads,
       pinnedThreads,
@@ -1600,9 +1630,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       withdrawOffer,
       toggleSaved,
       toggleHiddenListing,
+      toggleHiddenPerson,
       setListingNote,
       isSaved,
       isListingHidden,
+      isPersonHidden,
       completeOnboarding,
       completeLogin,
       signOut,
@@ -1621,6 +1653,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       events,
       saved,
       hiddenListings,
+      hiddenPeople,
       listingNotes,
       archivedThreads,
       pinnedThreads,
@@ -1686,9 +1719,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       withdrawOffer,
       toggleSaved,
       toggleHiddenListing,
+      toggleHiddenPerson,
       setListingNote,
       isSaved,
       isListingHidden,
+      isPersonHidden,
       completeOnboarding,
       completeLogin,
       signOut,

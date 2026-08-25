@@ -65,6 +65,10 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const id = String(params.id);
   const listing = useStore((s) => s.listings.find((row) => row.id === id));
   const listingHidden = useStore((s) => s.hiddenListings.includes(id));
+  const sellerHidden = useStore((s) => {
+    const row = s.listings.find((l) => l.id === id);
+    return row ? s.hiddenPeople.includes(row.sellerId) : false;
+  });
   const ensureListing = useStore((s) => s.ensureListing);
   const getPerson = useStore((s) => s.getPerson);
   const hydrated = useStore((s) => s.hydrated);
@@ -300,10 +304,15 @@ export default function ListingClassic(_props: { params: { id: string } }) {
             می‌ماند.
           </p>
         ) : null}
-        {listingHidden ? (
+        {listingHidden && !sellerHidden ? (
           <p className="mt-3 rounded-2xl bg-stone-100/80 dark:bg-zinc-800/70 px-3.5 py-2.5 text-[12px] text-ink-muted dark:text-zinc-300 leading-relaxed">
             این آگهی را از فیدت برداشته‌ای. لینک هنوز کار می‌کند. از پروفایل، تب
             پنهان‌ها، برمی‌گردد.
+          </p>
+        ) : null}
+        {sellerHidden ? (
+          <p className="mt-3 rounded-2xl bg-stone-100/80 dark:bg-zinc-800/70 px-3.5 py-2.5 text-[12px] text-ink-muted dark:text-zinc-300 leading-relaxed">
+            آگهی‌های این فروشنده از فیدت پنهان است. گفتگو و حلقه سر جایش می‌ماند.
           </p>
         ) : null}
       </div>
@@ -460,6 +469,11 @@ export default function ListingClassic(_props: { params: { id: string } }) {
             </span>
           </button>
           <ListingHideControl listingId={listing.id} hidden={listingHidden} />
+          <ListingHidePersonControl
+            personId={listing.sellerId}
+            hidden={sellerHidden}
+            name={seller?.name ?? "فروشنده"}
+          />
         </section>
       ) : null}
 
@@ -596,6 +610,53 @@ function ListingHideControl({
           {hidden
             ? "فقط برای تو پنهان بود؛ فروشنده خبردار نمی‌شود"
             : "فقط برای تو پنهان می‌شود؛ فروشنده خبردار نمی‌شود"}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function ListingHidePersonControl({
+  personId,
+  hidden,
+  name,
+}: {
+  personId: string;
+  hidden: boolean;
+  name: string;
+}) {
+  const toggleHiddenPerson = useStore((s) => s.toggleHiddenPerson);
+  const { show } = useToast();
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void toggleHiddenPerson(personId)
+          .then(() =>
+            show(
+              hidden
+                ? `آگهی‌های ${name} دوباره در فید می‌آید`
+                : `آگهی‌های ${name} از فیدت برداشته شد`,
+            ),
+          )
+          .catch((err) =>
+            show(err instanceof ApiError ? err.message : "پنهان نشد"),
+          );
+      }}
+      className="mt-1 w-full flex items-center gap-3 px-1 py-2 rounded-xl text-start active:opacity-80 transition-opacity"
+    >
+      <span className="w-9 h-9 rounded-xl bg-stone-100 dark:bg-zinc-800 text-ink-muted dark:text-zinc-400 flex items-center justify-center shrink-0">
+        <EyeOffIcon className="w-5 h-5" />
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className="block font-bold text-[13px] text-ink dark:text-zinc-100">
+          {hidden
+            ? "آگهی‌هایش دوباره در فید بیاید"
+            : "آگهی‌های این فروشنده را نبین"}
+        </span>
+        <span className="block text-[11px] text-ink-muted mt-0.5">
+          حلقه و گفتگو سر جایش می‌ماند؛ فقط فید خلوت می‌شود
         </span>
       </span>
     </button>

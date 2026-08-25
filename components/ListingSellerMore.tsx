@@ -15,10 +15,12 @@ export default function ListingSellerMore({
   const listings = useStore((s) => s.listings);
   const getPerson = useStore((s) => s.getPerson);
   const hiddenListings = useStore((s) => s.hiddenListings);
+  const hiddenPeople = useStore((s) => s.hiddenPeople);
 
   const others = useMemo(
-    () =>
-      listings
+    () => {
+      if (hiddenPeople.includes(sellerId)) return [];
+      return listings
         .filter(
           (row) =>
             row.sellerId === sellerId &&
@@ -27,8 +29,9 @@ export default function ListingSellerMore({
             !hiddenListings.includes(row.id) &&
             canView(row, getPerson),
         )
-        .slice(0, 2),
-    [getPerson, hiddenListings, listingId, listings, sellerId],
+        .slice(0, 2);
+    },
+    [getPerson, hiddenListings, hiddenPeople, listingId, listings, sellerId],
   );
 
   if (others.length === 0) return null;

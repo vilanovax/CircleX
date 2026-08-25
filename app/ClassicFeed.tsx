@@ -123,6 +123,7 @@ export default function ClassicFeed() {
   const onboarded = useStore((s) => s.onboarded);
   const showOwnListingsInFeed = useStore((s) => s.showOwnListingsInFeed);
   const hiddenListings = useStore((s) => s.hiddenListings);
+  const hiddenPeople = useStore((s) => s.hiddenPeople);
   const catalog = useCatalog();
   const [filter, setFilter] = useState<FeedFilter>("all");
   const [circleScope, setCircleScope] = useState<CircleScope>("network");
@@ -189,6 +190,7 @@ export default function ClassicFeed() {
       if (!listingMatchesScope(l, circleScope, getPerson)) return false;
       if (!showOwnListingsInFeed && l.sellerId === "me") return false;
       if (hiddenListings.includes(l.id)) return false;
+      if (hiddenPeople.includes(l.sellerId)) return false;
       return true;
     });
   }, [
@@ -200,6 +202,7 @@ export default function ClassicFeed() {
     requestsMode,
     showOwnListingsInFeed,
     hiddenListings,
+    hiddenPeople,
   ]);
 
   const feedTotal = requestsMode ? visibleRequests.length : visible.length;
@@ -208,7 +211,7 @@ export default function ClassicFeed() {
 
   useEffect(() => {
     setFeedPage(1);
-  }, [filter, deferredQuery, circleScope, showOwnListingsInFeed, hiddenListings]);
+  }, [filter, deferredQuery, circleScope, showOwnListingsInFeed, hiddenListings, hiddenPeople]);
 
   const browsingAll =
     filter === "all" &&

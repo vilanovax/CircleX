@@ -41,6 +41,7 @@ const TABLE_LABELS: Record<string, string> = {
   eventRsvps: "حضور رویداد",
   savedListings: "نشان آگهی",
   hiddenListings: "پنهان از فید",
+  hiddenPeople: "پنهان فرد از فید",
   listingPersonalNotes: "یادداشت آگهی",
   listingViews: "نمایش آگهی",
   listingWatches: "گوش‌به‌زنگ",

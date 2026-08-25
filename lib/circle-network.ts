@@ -508,12 +508,14 @@ export async function loadViewerPrefs(viewerId: string): Promise<{
   showOwnListingsInFeed: boolean;
   saved: string[];
   hiddenListings: string[];
+  hiddenPeople: string[];
   listingNotes: Record<string, string>;
   archivedThreads: string[];
   pinnedThreads: string[];
   deletedThreads: string[];
 }> {
-  const [user, savedRows, hiddenRows, noteRows, threadRows] = await Promise.all([
+  const [user, savedRows, hiddenRows, hiddenPeopleRows, noteRows, threadRows] =
+    await Promise.all([
     prisma.user.findUnique({
       where: { id: viewerId },
       select: { showOwnListingsInFeed: true },
@@ -527,6 +529,11 @@ export async function loadViewerPrefs(viewerId: string): Promise<{
       where: { userId: viewerId },
       orderBy: { createdAt: "desc" },
       select: { listingId: true },
+    }),
+    prisma.hiddenPerson.findMany({
+      where: { userId: viewerId },
+      orderBy: { createdAt: "desc" },
+      select: { personId: true },
     }),
     prisma.listingPersonalNote.findMany({
       where: { userId: viewerId },
@@ -550,6 +557,7 @@ export async function loadViewerPrefs(viewerId: string): Promise<{
     showOwnListingsInFeed: user?.showOwnListingsInFeed ?? true,
     saved: savedRows.map((row) => row.listingId),
     hiddenListings: hiddenRows.map((row) => row.listingId),
+    hiddenPeople: hiddenPeopleRows.map((row) => row.personId),
     listingNotes,
     archivedThreads,
     pinnedThreads,

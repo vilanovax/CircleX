@@ -77,6 +77,8 @@ model User {
   gatheringRsvps      GatheringRsvp[]
   savedListings       SavedListing[]
   hiddenListings      HiddenListing[]
+  hiddenPeople        HiddenPerson[]   @relation("HiddenPersonOwner")
+  hiddenByViewers     HiddenPerson[]   @relation("HiddenPersonTarget")
   listingNotes        ListingPersonalNote[]
   listingViews        ListingView[]
   threadPrefs         ThreadPreference[]   @relation("ThreadOwner")
@@ -440,6 +442,20 @@ model HiddenListing {
   @@unique([userId, listingId])
   @@index([userId])
   @@index([listingId])
+}
+
+/** Viewer hid this person's listings from their feed; relationship is unchanged. */
+model HiddenPerson {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("HiddenPersonOwner", fields: [userId], references: [id], onDelete: Cascade)
+  personId  String
+  person    User     @relation("HiddenPersonTarget", fields: [personId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, personId])
+  @@index([userId])
+  @@index([personId])
 }
 
 model ListingPersonalNote {
