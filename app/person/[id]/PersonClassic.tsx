@@ -400,12 +400,12 @@ export default function PersonClassic(_props: { params: { id: string } }) {
 
       {(canMessage || !isActiveCircleMember(person)) && (
         <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
-          <div className="app-shell !min-h-0 !shadow-none bg-transparent">
-            <div className="pointer-events-auto px-4 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-[color:var(--circle-bg)] via-[color:var(--circle-bg)]/95 to-transparent">
+          <div className="app-shell pointer-events-none !min-h-0 !shadow-none bg-transparent">
+            <div className="pointer-events-none px-4 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-[color:var(--circle-bg)] via-[color:var(--circle-bg)]/95 to-transparent">
               {canMessage ? (
                 <Link
                   href={`/messages/${id}`}
-                  className="btn-primary w-full !py-2.5 !text-[14px] font-bold flex items-center justify-center gap-2 shadow-md shadow-brand-600/15"
+                  className="btn-primary pointer-events-auto w-full !py-2.5 !text-[14px] font-bold flex items-center justify-center gap-2 shadow-md shadow-brand-600/15"
                 >
                   <ChatIcon className="w-[18px] h-[18px]" />
                   {hasThread && !hasListings && !hasRequests
@@ -417,7 +417,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
                   <button
                     type="button"
                     onClick={() => setShowAddToCircle(true)}
-                    className="btn-primary flex-1 !py-2.5 text-[15px] flex items-center justify-center gap-2"
+                    className="btn-primary pointer-events-auto flex-1 !py-2.5 text-[15px] flex items-center justify-center gap-2"
                   >
                     <UserPlusIcon className="w-[18px] h-[18px]" />
                     به حلقه‌ات اضافه کن
@@ -425,7 +425,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
                   <button
                     type="button"
                     onClick={() => setShowIntro(true)}
-                    className="btn-ghost flex-1 !py-2.5 text-sm"
+                    className="btn-ghost pointer-events-auto flex-1 !py-2.5 text-sm"
                   >
                     درخواست معرفی
                   </button>

@@ -155,10 +155,11 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const endorsementCount = endorsementMeta.count;
   const myEndorsements = endorsementMeta.mine;
   const buyerPrompts = listingBuyerPrompts(listing);
-  const footerPad =
-    isMine || buyerPrompts.length === 0
-      ? "pb-[6.25rem] scroll-pb-[6.25rem]"
-      : "pb-[8.75rem] scroll-pb-[8.75rem]";
+  const footerPad = isMine
+    ? "pb-[6.25rem] scroll-pb-[6.25rem]"
+    : buyerPrompts.length === 0
+      ? "pb-[12.5rem] scroll-pb-[12.5rem]"
+      : "pb-[15rem] scroll-pb-[15rem]";
 
   const ctaLabel =
     listing.type === "donation"
@@ -729,8 +730,8 @@ function ListingOwnerChrome({
     <>
       {menuSlot ? createPortal(menu, menuSlot) : null}
       <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
-        <div className="app-shell !min-h-0 !shadow-none bg-transparent">
-          <div className="pointer-events-auto border-t border-stone-200/60 dark:border-zinc-800 bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-md px-3 pt-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))]">
+        <div className="app-shell pointer-events-none !min-h-0 !shadow-none bg-transparent">
+          <div className="pointer-events-none border-t border-stone-200/60 dark:border-zinc-800 bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-md px-3 pt-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))]">
             {inactive ? (
               <div className="flex gap-2">
                 <button
@@ -739,14 +740,14 @@ function ListingOwnerChrome({
                     void setListingDealStatus(listing.id, "available");
                     show("آگهی دوباره در حلقه دیده می‌شود");
                   }}
-                  className="btn-primary flex-1 !py-3.5 min-h-[3.25rem]"
+                  className="btn-primary pointer-events-auto flex-1 !py-3.5 min-h-[3.25rem]"
                 >
                   دوباره فعال کن
                 </button>
                 <button
                   type="button"
                   onClick={owner.openEdit}
-                  className="btn-ghost flex-1 !py-3.5 min-h-[3.25rem]"
+                  className="btn-ghost pointer-events-auto flex-1 !py-3.5 min-h-[3.25rem]"
                 >
                   ویرایش آگهی
                 </button>
@@ -755,7 +756,7 @@ function ListingOwnerChrome({
               <button
                 type="button"
                 onClick={owner.openEdit}
-                className="btn-primary w-full !py-3.5 min-h-[3.25rem] flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20"
+                className="btn-primary pointer-events-auto w-full !py-3.5 min-h-[3.25rem] flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20"
               >
                 <PencilIcon className="w-5 h-5" />
                 ویرایش آگهی
@@ -812,17 +813,17 @@ function ListingBuyerFooter({
 
   return (
     <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
-      <div className="app-shell !min-h-0 !shadow-none bg-transparent">
-        <div className="border-t border-stone-200/60 dark:border-zinc-800 bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-md px-3 pt-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))]">
+      <div className="app-shell pointer-events-none !min-h-0 !shadow-none bg-transparent">
+        <div className="pointer-events-none border-t border-stone-200/60 dark:border-zinc-800 bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-md px-3 pt-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))]">
           {prompts.length > 0 ? (
             <div
               className={`overflow-hidden transition-[max-height,opacity,margin] duration-200 ease-out ${
                 collapsed
                   ? "max-h-0 opacity-0 mb-0 pointer-events-none"
-                  : "max-h-14 opacity-100 mb-2"
+                  : "pointer-events-auto max-h-14 opacity-100 mb-2"
               }`}
             >
-              <div className="pointer-events-auto flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <span className="shrink-0 text-[11px] font-bold text-ink-faint tracking-wide">
                   بپرس
                 </span>
