@@ -8,6 +8,10 @@ import {
   toClientJoinRequest,
 } from "@/lib/mappers";
 import { getSessionUser } from "@/lib/server-auth";
+import {
+  liveJoinRequests,
+  resolveJoinRequestsForMembers,
+} from "@/lib/server-join-request";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +50,12 @@ export async function GET() {
     }
 
     const pending = live.map(toClientInvite);
+    const memberIds = network.members.map((m) => m.id);
+    const memberIdSet = new Set(memberIds);
+    const staleJoins = joinRows.filter((row) => memberIdSet.has(row.guestUserId));
+    if (staleJoins.length > 0) {
+      void resolveJoinRequestsForMembers(session.id, memberIds).catch(() => {});
+    }
     const links = network.links.map((link) => ({
       ...link,
       fromId: link.fromId === session.id ? "me" : link.fromId,
@@ -58,7 +68,9 @@ export async function GET() {
       links,
       pending,
       pendingPeople: pending.map(pendingPersonFromInvite),
-      joinRequests: joinRows.map(toClientJoinRequest),
+      joinRequests: liveJoinRequests(joinRows, memberIdSet).map(
+        toClientJoinRequest,
+      ),
     });
   });
 }

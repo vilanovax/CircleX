@@ -8,6 +8,7 @@ import ListingComposeForm, {
 import SheetShell from "@/components/SheetShell";
 import { BackIcon, CloseIcon } from "@/components/Icons";
 import ListingComposeProgress from "@/components/ListingComposeProgress";
+import CircleFirstListingHint from "@/components/CircleFirstListingHint";
 
 export type { ListingInput };
 
@@ -102,6 +103,7 @@ export default function AddListingSheet({
         </div>
       }
     >
+      <CircleFirstListingHint />
       <ListingComposeForm
         ref={formRef}
         hideActions

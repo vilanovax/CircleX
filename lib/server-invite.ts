@@ -24,9 +24,14 @@ export function isExpectedInvitee(
   const normalized = normalizePhone(phone);
   if (!normalized) return false;
   if (invite.kind === "personal") {
-    return Boolean(invite.invitedPhone && invite.invitedPhone === normalized);
+    // No phone on the invite: the link itself is the credential.
+    if (!invite.invitedPhone) return true;
+    return invite.invitedPhone === normalized;
   }
-  return (invite.expected ?? []).some((row) => row.phone === normalized);
+  const expected = invite.expected ?? [];
+  // Wave with no roster: sharing the link is the credential, capped by maxUses.
+  if (expected.length === 0) return true;
+  return expected.some((row) => row.phone === normalized);
 }
 
 export async function createInviteRecord(input: {

@@ -125,6 +125,16 @@ export const listingTypeEmoji: Record<ListingType, string> = {
   service: "🛠️",
 };
 
+export const dealStatusLabels: Record<
+  NonNullable<import("./types").Listing["dealStatus"]>,
+  string
+> = {
+  available: "موجود",
+  reserved: "رزرو",
+  agreed: "توافق",
+  inactive: "غیرفعال",
+};
+
 export const listingTypeChip: Record<ListingType, string> = {
   sale: "bg-brand-50 text-brand-700",
   donation: "bg-pink-50 text-pink-600",

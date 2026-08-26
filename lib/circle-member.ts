@@ -13,6 +13,29 @@ export function isActiveCircleMember(person: Person): boolean {
   return person.inMyCircle && person.inviteStatus !== "pending";
 }
 
+/** Fresh joiners whose trust slot has not been confirmed since the edge was created. */
+export const UNPLACED_MS = 14 * 24 * 60 * 60 * 1000;
+
+export function isUnplacedMember(person: Person, now = Date.now()): boolean {
+  if (!isActiveCircleMember(person)) return false;
+  if (person.trustTouched) return false;
+  if (!person.joinedAt) return false;
+  const age = now - new Date(person.joinedAt).getTime();
+  return age >= 0 && age < UNPLACED_MS;
+}
+
+export function unplacedMembers(people: Person[], now = Date.now()): Person[] {
+  return people.filter((p) => isUnplacedMember(p, now));
+}
+
+/** First live member name — for first-listing copy after the circle opens. */
+export function firstLiveMemberName(people: Person[]): string {
+  for (let i = 0; i < people.length; i++) {
+    if (isActiveCircleMember(people[i])) return people[i].name;
+  }
+  return "";
+}
+
 const activeCircleByRoster = new WeakMap<Person[], Person[]>();
 
 export function activeCircle(people: Person[]): Person[] {

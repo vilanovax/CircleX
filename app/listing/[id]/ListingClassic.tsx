@@ -27,6 +27,7 @@ import {
   ShieldCheckIcon,
 } from "@/components/Icons";
 import {
+  dealStatusLabels,
   formatPrice,
   listingDisplayTitle,
   listingPrivacyAudienceLine,
@@ -179,6 +180,8 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const buyerPrompts = listingBuyerPrompts(listing);
   const footerPad = isMine
     ? "pb-[6.25rem] scroll-pb-[6.25rem]"
+    : inactive
+      ? "pb-10 scroll-pb-10"
     : buyerPrompts.length === 0
       ? "pb-[12.5rem] scroll-pb-[12.5rem]"
       : "pb-[15rem] scroll-pb-[15rem]";
@@ -190,16 +193,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         ? "پیام برای رزرو"
         : "پیام به فروشنده";
 
-  if (!isMine && inactive) {
-    return (
-      <main className="min-h-[100dvh]">
-        <Header title="آگهی" back />
-        <p className="text-center text-ink-faint py-20 text-sm">آگهی پیدا نشد.</p>
-      </main>
-    );
-  }
-
-  if (!isMine && !canView(listing, getPerson)) {
+  if (!isMine && !inactive && !canView(listing, getPerson)) {
     return (
       <main className="min-h-[100dvh]">
         <Header title="جزئیات آگهی" back />
@@ -266,6 +260,11 @@ export default function ListingClassic(_props: { params: { id: string } }) {
           {inactive ? (
             <span className="chip !text-[11px] !py-0.5 bg-stone-100 text-ink-muted dark:bg-zinc-800 dark:text-zinc-300">
               غیرفعال
+            </span>
+          ) : listing.dealStatus === "reserved" ||
+            listing.dealStatus === "agreed" ? (
+            <span className="chip !text-[11px] !py-0.5 bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-200">
+              {dealStatusLabels[listing.dealStatus]}
             </span>
           ) : null}
           {isMine && listing.privatePublish ? (
@@ -336,6 +335,12 @@ export default function ListingClassic(_props: { params: { id: string } }) {
           <p className="mt-3 rounded-2xl bg-stone-100/80 dark:bg-zinc-800/70 px-3.5 py-2.5 text-[12px] text-ink-muted dark:text-zinc-300 leading-relaxed">
             این آگهی غیرفعال است — حلقه آن را در فید نمی‌بیند. در پروفایل تو
             می‌ماند.
+          </p>
+        ) : null}
+        {!isMine && inactive ? (
+          <p className="mt-3 rounded-2xl bg-stone-100/80 dark:bg-zinc-800/70 px-3.5 py-2.5 text-[12px] text-ink-muted dark:text-zinc-300 leading-relaxed">
+            این معامله تمام شد — آگهی در فید حلقه نیست. گفتگو را داری؛ اگر
+            دیدی، حرف بگذار.
           </p>
         ) : null}
         {listingHidden && !sellerHidden ? (
@@ -511,7 +516,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
 
       {!isMine ? (
         <section className="px-4 pt-2 pb-5">
-          {!listing.privatePublish ? (
+          {!listing.privatePublish && !inactive ? (
           <button
             type="button"
             onClick={() => setShowRefer(true)}
@@ -556,7 +561,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
           <ListingOwnerPrivacy listing={listing} />
           <ListingOwnerChrome listing={listing} menuSlot={ownerMenuSlot} />
         </>
-      ) : (
+      ) : inactive ? null : (
         <ListingBuyerFooter
           listing={listing}
           ctaLabel={ctaLabel}
@@ -990,6 +995,26 @@ function ListingOwnerChrome({
                   ویرایش آگهی
                 </button>
               </div>
+            ) : listing.dealStatus === "agreed" ? (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    void setListingDealStatus(listing.id, "inactive");
+                    show("آگهی از فید حلقه برداشته شد");
+                  }}
+                  className="btn-primary pointer-events-auto flex-1 !py-3.5 min-h-[3.25rem]"
+                >
+                  از فید بردار
+                </button>
+                <button
+                  type="button"
+                  onClick={owner.openEdit}
+                  className="btn-ghost pointer-events-auto flex-1 !py-3.5 min-h-[3.25rem]"
+                >
+                  ویرایش
+                </button>
+              </div>
             ) : (
               <button
                 type="button"
@@ -1018,6 +1043,9 @@ function ListingBuyerFooter({
   prompts: BuyerPrompt[];
 }) {
   const router = useRouter();
+  const addMessage = useStore((s) => s.addMessage);
+  const { show } = useToast();
+  const [asking, setAsking] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const lastScrollY = useRef(0);
   const rafRef = useRef(0);
@@ -1042,8 +1070,22 @@ function ListingBuyerFooter({
     };
   }, []);
 
-  function goAsk(prompt: BuyerPrompt) {
-    router.push(listingChatHref(listing, { draft: prompt.draft }));
+  async function goAsk(prompt: BuyerPrompt) {
+    if (asking) return;
+    setAsking(prompt.id);
+    try {
+      if (listing.privatePublish) {
+        await addMessage("", prompt.draft, listing.id, true);
+      } else {
+        await addMessage(listing.sellerId, prompt.draft, listing.id);
+      }
+      router.push(listingChatHref(listing));
+    } catch (err) {
+      show(err instanceof ApiError ? err.message : "ارسال نشد. دوباره بزن.");
+      router.push(listingChatHref(listing, { draft: prompt.draft }));
+    } finally {
+      setAsking(null);
+    }
   }
 
   return (
@@ -1060,7 +1102,7 @@ function ListingBuyerFooter({
             >
               <div className="flex items-center gap-2">
                 <span className="shrink-0 text-[11px] font-bold text-ink-faint tracking-wide">
-                  بپرس
+                  {asking ? "…" : "بپرس"}
                 </span>
                 <div className="min-w-0 flex-1">
                   <ListingAskPrompts

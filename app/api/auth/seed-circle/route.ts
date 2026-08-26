@@ -2,6 +2,8 @@ import { jsonError } from "@/lib/http";
 import { seedCircleForUser } from "@/lib/server-circle-seed";
 import { getSessionUser } from "@/lib/server-auth";
 
+/** Family invite catalog only — not the demo marketplace. */
+
 export const dynamic = "force-dynamic";
 
 export async function POST() {

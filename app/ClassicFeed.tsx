@@ -3,6 +3,7 @@
 import {
   memo,
   startTransition,
+  Suspense,
   useCallback,
   useDeferredValue,
   useEffect,
@@ -11,11 +12,11 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
-import { activeCircleCount } from "@/lib/circle-member";
+import { useRouter, useSearchParams } from "next/navigation";
+import { activeCircleCount, firstLiveMemberName, unplacedMembers } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import ListingCard from "@/components/ListingCard";
 import BottomNav from "@/components/BottomNav";
-import NewUserHomePlaceholder from "@/components/NewUserHomePlaceholder";
 import { lazyUi } from "@/lib/lazy-ui";
 import FeedFilterBar, { type FeedFilter } from "@/components/FeedFilterBar";
 import RequestCard from "@/components/RequestCard";
@@ -24,10 +25,14 @@ import { CircleUsersIcon, LockIcon, SearchIcon, ShieldCheckIcon } from "@/compon
 import type { CircleEvent, Listing, Person, Request } from "@/lib/types";
 import { formatEventDateDisplay, normalizeFa, toPersianDigits } from "@/lib/persian";
 import { CONCEPT_TIP_KEY } from "@/lib/home-tip";
+import { POSTED_QUERY } from "@/lib/home-posted";
+import {
+  unreadListingReply,
+  unreadOwnListingInquiry,
+} from "@/lib/listing-inquiry";
 import { canView, filterByAccess, trustScore } from "@/lib/trust";
 import { useCatalog } from "@/lib/use-catalog";
 
-const Onboarding = lazyUi(() => import("@/components/Onboarding"));
 const HomeEmptyCircle = lazyUi(() => import("@/components/HomeEmptyCircle"), {
   loading: () => (
     <div className="px-4 pt-4">
@@ -120,10 +125,23 @@ function readShowConceptTip() {
   }
 }
 
+function ConsumePostedParam({ onPosted }: { onPosted: (id: string) => void }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const id = searchParams.get(POSTED_QUERY)?.trim();
+    if (!id) return;
+    onPosted(id);
+    router.replace("/", { scroll: false });
+  }, [searchParams, router, onPosted]);
+
+  return null;
+}
+
 export default function ClassicFeed() {
   const hydrated = useStore((s) => s.hydrated);
   const circleReady = useStore((s) => s.circleReady);
-  const onboarded = useStore((s) => s.onboarded);
   const circleCount = useStore((s) => activeCircleCount(s.people));
   const catalog = useCatalog();
   const [filter, setFilter] = useState<FeedFilter>("all");
@@ -131,6 +149,11 @@ export default function ClassicFeed() {
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const [showConceptTip, setShowConceptTip] = useState(readShowConceptTip);
+  const [justPostedId, setJustPostedId] = useState<string | null>(null);
+
+  const onPosted = useCallback((id: string) => {
+    setJustPostedId(id);
+  }, []);
 
   const dismissConceptTip = useCallback(() => {
     try {
@@ -141,9 +164,8 @@ export default function ClassicFeed() {
     setShowConceptTip(false);
   }, []);
 
-  const isNewUser = hydrated && !onboarded;
-  const emptyCircle = circleReady && onboarded && circleCount === 0;
-  const quietChrome = isNewUser || emptyCircle;
+  const emptyCircle = circleReady && circleCount === 0;
+  const quietChrome = !circleReady || emptyCircle;
   const requestsMode = filter === "requests";
   const onFilter = useCallback((next: FeedFilter) => {
     startTransition(() => setFilter(next));
@@ -159,6 +181,9 @@ export default function ClassicFeed() {
 
   return (
     <main className="pb-24 min-h-[100dvh]">
+      <Suspense fallback={null}>
+        <ConsumePostedParam onPosted={onPosted} />
+      </Suspense>
       <header className="sticky top-0 z-20 border-b border-stone-200/70 bg-[color:var(--circle-surface)] before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-[50vh] before:bg-[color:var(--circle-surface)] dark:border-zinc-800 dark:bg-zinc-950 dark:before:bg-zinc-950">
         <div className="px-4 pt-[max(0.85rem,env(safe-area-inset-top))] pb-1.5">
           <div className="flex items-center gap-2">
@@ -192,10 +217,8 @@ export default function ClassicFeed() {
         )}
       </header>
 
-      {isNewUser ? (
-        <NewUserHomePlaceholder />
-      ) : emptyCircle ? (
-        <HomeEmptyCircle />
+      {emptyCircle ? (
+        <HomeEmptyCircle justPostedId={justPostedId} />
       ) : (
         <HomeFeedBody
           filter={filter}
@@ -203,9 +226,9 @@ export default function ClassicFeed() {
           circleScope={circleScope}
           circleCount={circleCount}
           circleReady={circleReady}
-          onboarded={onboarded}
           hydrated={hydrated}
-          showConceptTip={showConceptTip}
+          showConceptTip={showConceptTip && !justPostedId}
+          justPostedId={justPostedId}
           requestsEnabled={catalog.flags.requests}
           onDismissTip={dismissConceptTip}
           onScope={onScope}
@@ -214,7 +237,6 @@ export default function ClassicFeed() {
         />
       )}
 
-      {isNewUser ? <Onboarding /> : null}
       <BottomNav />
     </main>
   );
@@ -226,9 +248,9 @@ const HomeFeedBody = memo(function HomeFeedBody({
   circleScope,
   circleCount,
   circleReady,
-  onboarded,
   hydrated,
   showConceptTip,
+  justPostedId,
   requestsEnabled,
   onDismissTip,
   onScope,
@@ -240,9 +262,9 @@ const HomeFeedBody = memo(function HomeFeedBody({
   circleScope: CircleScope;
   circleCount: number;
   circleReady: boolean;
-  onboarded: boolean;
   hydrated: boolean;
   showConceptTip: boolean;
+  justPostedId: string | null;
   requestsEnabled: boolean;
   onDismissTip: () => void;
   onScope: (next: CircleScope) => void;
@@ -301,7 +323,8 @@ const HomeFeedBody = memo(function HomeFeedBody({
   const visible = useMemo(() => {
     if (requestsMode) return [];
     const q = normalizeFa(deferredQuery);
-    return allowed.filter((l) => {
+    const rows = allowed.filter((l) => {
+      if (justPostedId && l.id === justPostedId) return true;
       if (filter !== "all" && l.type !== filter) return false;
       if (q && !normalizeFa(`${l.title} ${l.category}`).includes(q))
         return false;
@@ -311,8 +334,22 @@ const HomeFeedBody = memo(function HomeFeedBody({
       if (hiddenPeopleSet.has(l.sellerId)) return false;
       return true;
     });
+    if (!justPostedId) return rows;
+    const idx = rows.findIndex((l) => l.id === justPostedId);
+    if (idx === 0) return rows;
+    if (idx > 0) {
+      const next = rows.slice();
+      const [hit] = next.splice(idx, 1);
+      next.unshift(hit);
+      return next;
+    }
+    const extra = listings.find(
+      (l) => l.id === justPostedId && l.sellerId === "me",
+    );
+    return extra ? [extra, ...rows] : rows;
   }, [
     allowed,
+    listings,
     filter,
     deferredQuery,
     circleScope,
@@ -321,6 +358,7 @@ const HomeFeedBody = memo(function HomeFeedBody({
     showOwnListingsInFeed,
     hiddenListingSet,
     hiddenPeopleSet,
+    justPostedId,
   ]);
 
   const feedTotal = requestsMode ? visibleRequests.length : visible.length;
@@ -346,17 +384,164 @@ const HomeFeedBody = memo(function HomeFeedBody({
     hiddenPeople,
   ]);
 
+  useEffect(() => {
+    if (!justPostedId || requestsMode) return;
+    const el = document.getElementById("home-just-posted");
+    el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [justPostedId, requestsMode, visible]);
+
   const browsingAll =
     filter === "all" &&
     deferredQuery.trim().length === 0 &&
     circleScope === "network";
-  const showSecondary = browsingAll && circleReady && onboarded;
+  const showSecondary = browsingAll && circleReady && circleCount > 0;
   const scopeLabel =
     SCOPE_OPTIONS.find((o) => o.key === circleScope)?.label ??
     "حلقه + وابسته‌ها";
+  const firstJoinCount = useStore((s) => unplacedMembers(s.people).length);
+  const firstJoinName = useStore(
+    (s) => unplacedMembers(s.people)[0]?.name ?? "",
+  );
+  const liveMemberName = useStore((s) => firstLiveMemberName(s.people));
+  const mineLiveCount = useStore(
+    (s) =>
+      s.listings.filter(
+        (l) => l.sellerId === "me" && l.dealStatus !== "inactive",
+      ).length,
+  );
+  const audienceName = firstJoinName || liveMemberName;
+  const needsFirstListing = circleCount > 0 && mineLiveCount === 0;
+  const inquiry = useStore((s) =>
+    unreadOwnListingInquiry(s.threadIndex, s.listings, s.people),
+  );
+  const listingReply = useStore((s) =>
+    inquiry
+      ? null
+      : unreadListingReply(s.threadIndex, s.listings, s.people),
+  );
+  const wrapUp = useStore((s) => {
+    const mine = s.listings.filter((l) => l.sellerId === "me");
+    return (
+      mine.find((l) => l.dealStatus === "agreed") ??
+      mine.find((l) => l.dealStatus === "reserved") ??
+      null
+    );
+  });
 
   return (
     <>
+          {inquiry ? (
+            <div className="px-4 pt-3">
+              <div className="card px-3.5 py-3">
+                <p className="text-[15px] font-extrabold text-ink dark:text-zinc-50 leading-snug">
+                  {inquiry.peerName} درباره آگهی‌ات پیام داد
+                </p>
+                <p className="text-[13px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
+                  «{inquiry.listingTitle}» — جواب بده تا معامله جلو برود.
+                </p>
+                <Link
+                  href={inquiry.href}
+                  className="btn-primary mt-2.5 min-h-11 inline-flex items-center justify-center text-[13px] font-bold"
+                >
+                  خواندن و جواب
+                </Link>
+              </div>
+            </div>
+          ) : listingReply ? (
+            <div className="px-4 pt-3">
+              <div className="card px-3.5 py-3">
+                <p className="text-[15px] font-extrabold text-ink dark:text-zinc-50 leading-snug">
+                  {listingReply.closed
+                    ? "معامله تمام شد"
+                    : `${listingReply.peerName} جواب آگهی را داد`}
+                </p>
+                <p className="text-[13px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
+                  {listingReply.closed
+                    ? `«${listingReply.listingTitle}» — گفتگو را بخوان؛ اگر دیدی، حرف بگذار.`
+                    : `«${listingReply.listingTitle}» — معامله را یک قدم جلو ببر.`}
+                </p>
+                <Link
+                  href={listingReply.href}
+                  className="btn-primary mt-2.5 min-h-11 inline-flex items-center justify-center text-[13px] font-bold"
+                >
+                  {listingReply.closed ? "خواندن گفتگو" : "خواندن و ادامه"}
+                </Link>
+              </div>
+            </div>
+          ) : wrapUp ? (
+            <div className="px-4 pt-3">
+              <div className="card px-3.5 py-3">
+                <p className="text-[15px] font-extrabold text-ink dark:text-zinc-50 leading-snug">
+                  {wrapUp.dealStatus === "agreed"
+                    ? "توافق ثبت شد"
+                    : "آگهی رزرو است"}
+                </p>
+                <p className="text-[13px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
+                  «{wrapUp.title}» —{" "}
+                  {wrapUp.dealStatus === "agreed"
+                    ? "از فید بردار تا کس دیگری سراغش نیاید."
+                    : "اگر معامله تمام شد توافق بزن، یا آگهی را از فید بردار."}
+                </p>
+                <Link
+                  href={`/listing/${wrapUp.id}`}
+                  className="btn-primary mt-2.5 min-h-11 inline-flex items-center justify-center text-[13px] font-bold"
+                >
+                  {wrapUp.dealStatus === "agreed"
+                    ? "بستن آگهی"
+                    : "دیدن آگهی"}
+                </Link>
+              </div>
+            </div>
+          ) : firstJoinCount > 0 || needsFirstListing ? (
+            <div className="px-4 pt-3">
+              <div className="card px-3.5 py-3">
+                <p className="text-[15px] font-extrabold text-ink dark:text-zinc-50 leading-snug">
+                  {firstJoinCount > 0
+                    ? firstJoinCount === 1
+                      ? `${firstJoinName} به حلقه‌ات پیوست`
+                      : `${toPersianDigits(firstJoinCount)} نفر تازه پیوسته‌اند`
+                    : audienceName
+                      ? `${audienceName} در حلقه‌ات است`
+                      : "حلقه‌ات آماده است"}
+                </p>
+                <p className="text-[13px] text-ink-muted dark:text-zinc-400 mt-1 leading-relaxed">
+                  {needsFirstListing
+                    ? audienceName
+                      ? `الان می‌تواند آگهی‌ات را ببیند. یکی بگذار تا حلقه فقط اسم نباشد.`
+                      : "الان حلقه‌ات می‌تواند آگهی‌ات را ببیند. یکی بگذار."
+                    : "الان آگهی‌هایت را می‌بینند. اگر خواستی جایگاهشان را مشخص کن — اجباری نیست."}
+                </p>
+                {needsFirstListing ? (
+                  <div className="mt-2.5 flex flex-col items-stretch gap-2">
+                    <Link
+                      href="/new"
+                      className="btn-primary min-h-11 inline-flex items-center justify-center text-[13px] font-bold"
+                    >
+                      {audienceName
+                        ? `ثبت آگهی تا ${audienceName} ببیند`
+                        : "ثبت اولین آگهی"}
+                    </Link>
+                    {firstJoinCount > 0 ? (
+                      <Link
+                        href="/circle?place=1"
+                        className="text-center text-[13px] font-semibold text-brand-700 dark:text-brand-400 py-1"
+                      >
+                        دیدن حلقه
+                      </Link>
+                    ) : null}
+                  </div>
+                ) : (
+                  <Link
+                    href="/circle?place=1"
+                    className="mt-2.5 inline-block text-[13px] font-semibold text-brand-700 dark:text-brand-400"
+                  >
+                    دیدن حلقه
+                  </Link>
+                )}
+              </div>
+            </div>
+          ) : null}
+
           {showConceptTip && (
             <div className="px-4 pt-3">
               <div className="relative rounded-2xl bg-brand-50/80 dark:bg-brand-500/10 ring-1 ring-brand-100/70 dark:ring-brand-500/20 px-3.5 py-2.5">
@@ -429,19 +614,39 @@ const HomeFeedBody = memo(function HomeFeedBody({
               <FeedEmptyState
                 hasFilter={!browsingAll}
                 onClear={onClearSearch}
+                circleCount={circleCount}
+                audienceName={audienceName}
+                hideCompose={needsFirstListing}
               />
             ) : (
               <>
-                {pagedListings.map((l, i) => (
-                  <div key={l.id} className="cv-card">
-                    <ListingCard
-                      listing={l}
-                      compactTrust
-                      imagePriority={i === 0}
-                      eagerTrust={i < 3}
-                    />
-                  </div>
-                ))}
+                {pagedListings.map((l, i) => {
+                  const posted = l.id === justPostedId;
+                  return (
+                    <div
+                      key={l.id}
+                      id={posted ? "home-just-posted" : undefined}
+                      className="cv-card"
+                    >
+                      {posted ? (
+                        <p className="text-[12px] font-bold text-brand-700 dark:text-brand-300 px-0.5 mb-1.5">
+                          {circleCount === 0
+                            ? "آگهی ثبت شد — هنوز فقط خودت می‌بینی"
+                            : audienceName && circleCount === 1
+                              ? `${audienceName} این را می‌بیند`
+                              : "آگهی تو همین حالا داخل حلقه است"}
+                        </p>
+                      ) : null}
+                      <ListingCard
+                        listing={l}
+                        compactTrust
+                        imagePriority={i === 0}
+                        eagerTrust={i < 3}
+                        highlight={posted}
+                      />
+                    </div>
+                  );
+                })}
                 {feedRemaining > 0 ? (
                   <button
                     type="button"
@@ -655,20 +860,28 @@ function FeedEmptyState({
   onClear,
   requestsMode = false,
   canCompose = true,
+  circleCount = 0,
+  audienceName = "",
+  hideCompose = false,
 }: {
   hasFilter: boolean;
   onClear: () => void;
   requestsMode?: boolean;
   canCompose?: boolean;
+  circleCount?: number;
+  audienceName?: string;
+  hideCompose?: boolean;
 }) {
+  const waitingForFirstAd = !requestsMode && !hasFilter && circleCount > 0;
+
   return (
     <div className="card p-6 text-center">
       <div
-        className="w-12 h-12 rounded-full flex items-center justify-center text-xl mx-auto mb-3 bg-zinc-100 dark:bg-zinc-800"
+        className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 bg-brand-50 dark:bg-brand-500/15 text-brand-600"
       >
-        {requestsMode ? "🙋" : "🔍"}
+        <CircleUsersIcon className="w-5 h-5" />
       </div>
-      <p className="font-bold text-sm text-zinc-800 dark:text-zinc-100">
+      <p className="font-bold text-[15px] text-ink dark:text-zinc-100">
         {requestsMode
           ? hasFilter
             ? "درخواستی با این فیلتر نیست"
@@ -677,12 +890,16 @@ function FeedEmptyState({
             ? "نتیجه‌ای پیدا نشد"
             : "هنوز آگهی‌ای نیست"}
       </p>
-      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 leading-relaxed">
+      <p className="text-[13px] text-ink-muted dark:text-zinc-400 mt-1.5 leading-relaxed">
         {requestsMode
           ? "چیزی لازم داری؟ از حلقه بپرس — یا فیلتر را عوض کن."
           : hasFilter
             ? "فیلتر یا جستجو را عوض کن، یا اولین آگهی را ثبت کن."
-            : "با ثبت آگهی یا گسترش حلقه، اینجا پر می‌شود."}
+            : waitingForFirstAd
+              ? audienceName
+                ? `${audienceName} می‌تواند آگهی‌ات را ببیند. یکی بگذار.`
+                : "حلقه‌ات می‌تواند آگهی‌ات را ببیند. یکی بگذار."
+              : "با ثبت آگهی یا گسترش حلقه، اینجا پر می‌شود."}
       </p>
       <div className="flex flex-col gap-2 mt-4">
         {hasFilter && (
@@ -690,12 +907,16 @@ function FeedEmptyState({
             پاک کردن فیلتر و جستجو
           </button>
         )}
-        {canCompose ? (
+        {canCompose && !hideCompose ? (
           <Link
             href={requestsMode ? "/requests?compose=1" : "/new"}
-            className="btn-primary text-sm"
+            className="btn-primary text-sm min-h-11 inline-flex items-center justify-center"
           >
-            {requestsMode ? "ثبت درخواست" : "ثبت آگهی"}
+            {requestsMode
+              ? "ثبت درخواست"
+              : waitingForFirstAd && audienceName
+                ? `ثبت آگهی تا ${audienceName} ببیند`
+                : "ثبت آگهی"}
           </Link>
         ) : null}
       </div>

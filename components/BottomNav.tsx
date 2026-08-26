@@ -26,9 +26,9 @@ const items = [
 
 export default function BottomNav() {
   const pathname = useClientPathname();
-  // Hide until logged-in + onboarded so new users never see seeded unread (۴).
+  // Unread is live roster data; no demo seed on first login.
   const unread = useStore((s) =>
-    s.hydrated && s.sessionPhone && s.onboarded ? s.threadIndex.totalUnread : 0,
+    s.hydrated && s.sessionPhone ? s.threadIndex.totalUnread : 0,
   );
   const [showCreate, setShowCreate] = useState(false);
 

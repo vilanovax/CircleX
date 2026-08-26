@@ -49,11 +49,24 @@ export async function POST(
     return jsonError("این دعوت لغو شده", 409, "revoked");
   }
 
+  const inviter = personFromUser(row.inviter, {
+    relation: "friend",
+    level: "B",
+  });
+
   const existingEdge = await prisma.circleEdge.findUnique({
     where: {
       fromUserId_toUserId: {
         fromUserId: row.inviterUserId,
         toUserId: session.id,
+      },
+    },
+  });
+  const reverseEdge = await prisma.circleEdge.findUnique({
+    where: {
+      fromUserId_toUserId: {
+        fromUserId: session.id,
+        toUserId: row.inviterUserId,
       },
     },
   });
@@ -66,14 +79,26 @@ export async function POST(
         existingEdge.trustGroup,
       );
     }
-    return jsonError("تو از قبل در این حلقه هستی", 409, "already");
+    if (reverseEdge) {
+      return jsonError("تو از قبل در این حلقه هستی", 409, "already");
+    }
+    await prisma.circleJoinRequest.updateMany({
+      where: {
+        hostUserId: row.inviterUserId,
+        guestUserId: session.id,
+        status: "pending",
+      },
+      data: { status: "accepted", resolvedAt: new Date() },
+    });
+    return Response.json({
+      invite: toClientInvite(row),
+      inviter,
+      edgeCreated: false,
+      requested: false,
+    });
   }
 
   const expected = isExpectedInvitee(row, session.phoneNormalized);
-  const inviter = personFromUser(row.inviter, {
-    relation: "friend",
-    level: "B",
-  });
 
   if (!expected) {
     const joinReq = await prisma.circleJoinRequest.upsert({

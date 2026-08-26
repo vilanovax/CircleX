@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { CIRCLO_PEER_ID } from "@/lib/circlo";
 import { relativePostedAt } from "@/lib/mappers";
+import { viewerCanSeeListing } from "@/lib/server-listing-visibility";
 import type { Message } from "@/lib/types";
 
 export const NOTICE_INBOX_CAP = 80;
@@ -9,6 +10,7 @@ export const NOTICE_KIND = {
   joinRequest: "join_request",
   inviteAccepted: "invite_accepted",
   watchHit: "watch_hit",
+  circleListing: "circle_listing",
   listingReportResolved: "listing_report_resolved",
   messageReportResolved: "message_report_resolved",
   contentHidden: "content_hidden",
@@ -163,6 +165,91 @@ export async function notifyInviteAccepted(opts: {
       inviteId: opts.inviteId,
     },
   });
+}
+
+const CIRCLE_LISTING_FANOUT_CAP = 40;
+
+function shortListingTitle(title: string): string {
+  const t = title.trim();
+  if (t.length <= 80) return t;
+  return `${t.slice(0, 80)}…`;
+}
+
+/** Tell people who already have the seller in their circle that a listing is up. */
+export async function notifyDirectCircleListing(opts: {
+  sellerId: string;
+  sellerName: string;
+  listingId: string;
+  title: string;
+  privacy: string;
+  dealStatus: string | null;
+  hideIdentity?: boolean;
+  excludeRelationTypes?: unknown;
+}): Promise<void> {
+  const [outbound, inbound] = await Promise.all([
+    prisma.circleEdge.findMany({
+      where: { fromUserId: opts.sellerId },
+      select: { toUserId: true },
+      take: CIRCLE_LISTING_FANOUT_CAP,
+    }),
+    prisma.circleEdge.findMany({
+      where: { toUserId: opts.sellerId },
+      select: { fromUserId: true },
+      take: CIRCLE_LISTING_FANOUT_CAP,
+    }),
+  ]);
+  const viewerIds = Array.from(
+    new Set([
+      ...outbound.map((row) => row.toUserId),
+      ...inbound.map((row) => row.fromUserId),
+    ]),
+  )
+    .filter((id) => id !== opts.sellerId)
+    .slice(0, CIRCLE_LISTING_FANOUT_CAP);
+
+  if (viewerIds.length === 0) return;
+
+  const who = opts.hideIdentity
+    ? "یکی از حلقه‌ات"
+    : guestLabel(opts.sellerName);
+  const body = shortListingTitle(opts.title);
+
+  for (const viewerId of viewerIds) {
+    const visible = await viewerCanSeeListing({
+      viewerId,
+      sellerId: opts.sellerId,
+      privacy: opts.privacy,
+      dealStatus: opts.dealStatus,
+      listingId: opts.listingId,
+      excludeRelationTypes: opts.excludeRelationTypes,
+    });
+    if (!visible) continue;
+
+    const already = await prisma.systemNotice.findFirst({
+      where: {
+        userId: viewerId,
+        listingId: opts.listingId,
+        kind: {
+          in: [NOTICE_KIND.circleListing, NOTICE_KIND.watchHit],
+        },
+      },
+      select: { id: true },
+    });
+    if (already) continue;
+
+    await prisma.systemNotice.create({
+      data: {
+        userId: viewerId,
+        kind: NOTICE_KIND.circleListing,
+        title: `${who} آگهی گذاشت`,
+        body,
+        actionHref: `/listing/${opts.listingId}`,
+        actionLabel: "آگهی",
+        actorUserId: opts.sellerId,
+        listingId: opts.listingId,
+      },
+    });
+  }
 }
 
 export function toClientNotice(

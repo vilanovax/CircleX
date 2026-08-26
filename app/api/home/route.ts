@@ -6,6 +6,10 @@ import {
   toClientJoinRequest,
 } from "@/lib/mappers";
 import { getSessionUser } from "@/lib/server-auth";
+import {
+  liveJoinRequests,
+  resolveJoinRequestsForMembers,
+} from "@/lib/server-join-request";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +47,12 @@ export async function GET() {
     }
 
     const pending = live.map(toClientInvite);
+    const memberIds = feed.members.map((m) => m.id);
+    const memberIdSet = new Set(memberIds);
+    const staleJoins = joinRows.filter((row) => memberIdSet.has(row.guestUserId));
+    if (staleJoins.length > 0) {
+      void resolveJoinRequestsForMembers(session.id, memberIds).catch(() => {});
+    }
 
     return Response.json({
       members: feed.members,
@@ -52,7 +62,9 @@ export async function GET() {
       requests: feed.requests,
       offers: feed.offers,
       events: feed.events,
-      joinRequests: joinRows.map(toClientJoinRequest),
+      joinRequests: liveJoinRequests(joinRows, memberIdSet).map(
+        toClientJoinRequest,
+      ),
       saved: prefs.saved,
       hiddenListings: prefs.hiddenListings,
       hiddenPeople: prefs.hiddenPeople,

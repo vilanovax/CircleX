@@ -10,8 +10,10 @@ import ListingComposeForm, {
   type ListingComposeHandle,
 } from "@/components/ListingComposeForm";
 import ListingComposeProgress from "@/components/ListingComposeProgress";
+import CircleFirstListingHint from "@/components/CircleFirstListingHint";
 import { useToast } from "@/components/Toast";
 import { useCatalog } from "@/lib/use-catalog";
+import { postedHomeHref } from "@/lib/home-posted";
 
 /** Full-page route for deep links; primary flow is + → CreateSheet. */
 export default function NewClassic() {
@@ -64,6 +66,8 @@ export default function NewClassic() {
           </Link>
         ) : null}
 
+        <CircleFirstListingHint />
+
         <ListingComposeForm
           ref={formRef}
           submitLabel={publishing ? "در حال انتشار…" : "انتشار آگهی در حلقه"}
@@ -74,7 +78,7 @@ export default function NewClassic() {
             try {
               const id = await addListing(input);
               show("آگهی شما در حلقه منتشر شد ✓");
-              router.push(`/listing/${id}`);
+              router.push(postedHomeHref(id));
             } catch (err) {
               show(err instanceof ApiError ? err.message : "آگهی ذخیره نشد");
               setPublishing(false);

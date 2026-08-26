@@ -13,6 +13,7 @@ import {
   replaceListingExcludes,
 } from "@/lib/server-listing-privacy";
 import { fanoutListingWatches } from "@/lib/server-watches";
+import { viewerHasListingMessages } from "@/lib/server-listing-thread";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,8 @@ export async function GET(
     });
     if (!row) return jsonError("آگهی پیدا نشد", 404);
     if (row.dealStatus === "inactive" && row.sellerId !== session.id) {
-      return jsonError("آگهی پیدا نشد", 404);
+      const participated = await viewerHasListingMessages(session.id, row.id);
+      if (!participated) return jsonError("آگهی پیدا نشد", 404);
     }
 
     const flags = await listingViewerFlags(session.id, [row]);

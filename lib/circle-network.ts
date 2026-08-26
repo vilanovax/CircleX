@@ -333,6 +333,25 @@ async function homeFeedListingIds(viewerId: string): Promise<string[]> {
   return rows.map((row) => row.id);
 }
 
+/** Closed/inactive ads the viewer already messaged — titles for home cards, not feed. */
+async function listingIdsFromViewerThreads(
+  viewerId: string,
+): Promise<string[]> {
+  const rows = await prisma.directMessage.findMany({
+    where: {
+      listingId: { not: null },
+      OR: [{ fromUserId: viewerId }, { toUserId: viewerId }],
+    },
+    distinct: ["listingId"],
+    select: { listingId: true },
+  });
+  const ids: string[] = [];
+  for (const row of rows) {
+    if (row.listingId) ids.push(row.listingId);
+  }
+  return ids;
+}
+
 async function homeFeedRequestIds(viewerId: string): Promise<string[]> {
   const rows = await prisma.$queryRaw<{ id: string }[]>`
     SELECT w.id FROM "WantRequest" AS w
@@ -395,11 +414,20 @@ export async function loadHomeFeed(viewerId: string): Promise<{
 }> {
   const direct = await loadDirectCircle(viewerId);
 
-  const [listingIds, requestIds, eventIds] = await Promise.all([
-    homeFeedListingIds(viewerId),
-    homeFeedRequestIds(viewerId),
-    homeFeedEventIds(viewerId),
-  ]);
+  const [feedListingIds, threadListingIds, requestIds, eventIds] =
+    await Promise.all([
+      homeFeedListingIds(viewerId),
+      listingIdsFromViewerThreads(viewerId),
+      homeFeedRequestIds(viewerId),
+      homeFeedEventIds(viewerId),
+    ]);
+  const seenListing = new Set(feedListingIds);
+  const listingIds = feedListingIds.slice();
+  for (const id of threadListingIds) {
+    if (seenListing.has(id)) continue;
+    seenListing.add(id);
+    listingIds.push(id);
+  }
 
   const [marketUnsorted, requestUnsorted, eventUnsorted] = await Promise.all([
     listingIds.length === 0

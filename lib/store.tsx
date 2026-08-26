@@ -13,16 +13,16 @@ import { AVATAR_IMAGES } from "./avatar";
 import { api, ApiError } from "./api";
 import { CIRCLO_PERSON, isCircloPeer } from "./circlo";
 import { newUuid } from "./invite";
-import { reusePeopleList, reusePerson } from "./circle-member";
+import {
+  isActiveCircleMember,
+  reusePeopleList,
+  reusePerson,
+} from "./circle-member";
 import {
   ME,
   PEOPLE,
 } from "./mock-data";
-import {
-  reconcileDemoMessages,
-  circleCatalogIncomplete,
-  mergeInboxMessages,
-} from "./demo-requests";
+import { reconcileDemoMessages, mergeInboxMessages } from "./demo-requests";
 import { clearThreadListing } from "./thread-listing";
 import { threadKey, parseThreadKey } from "./listing-privacy";
 import {
@@ -130,7 +130,6 @@ export interface StoreValue {
   networkLinks: NetworkLink[];
   /** Null until mock phone/OTP login succeeds. */
   sessionPhone: string | null;
-  onboarded: boolean;
   hydrated: boolean;
   /** Circle + listings finished loading after session. */
   circleReady: boolean;
@@ -242,9 +241,8 @@ export interface StoreValue {
   isSaved: (listingId: string) => boolean;
   isListingHidden: (listingId: string) => boolean;
   isPersonHidden: (personId: string) => boolean;
-  completeOnboarding: () => void;
   /** Apply the server user after OTP verify. */
-  completeLogin: (user: SessionUser, opts?: { needsSeed?: boolean }) => Promise<void>;
+  completeLogin: (user: SessionUser) => Promise<void>;
   signOut: () => Promise<void>;
   meServerId: string | null;
   refreshCircle: () => Promise<void>;
@@ -266,8 +264,6 @@ function deferNonUrgent(task: () => void) {
 
 const StoreContext = createContext<StoreValue | null>(null);
 
-const STORAGE_KEY = "circle-store-v2";
-const SCHEMA_VERSION = 7;
 /** Same window as the tab-visible home refresh — roster is already on /api/home. */
 const ROSTER_FRESH_MS = 45_000;
 
@@ -328,7 +324,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [networkLinks, setNetworkLinks] = useState<NetworkLink[]>([]);
   const [sessionPhone, setSessionPhone] = useState<string | null>(null);
   const [meServerId, setMeServerId] = useState<string | null>(null);
-  const [onboarded, setOnboarded] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [circleReady, setCircleReady] = useState(false);
   const [circleFull, setCircleFull] = useState(false);
@@ -391,7 +386,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const full = opts?.full ?? Boolean(data.links);
       const keepGraph = Boolean(opts?.keepGraph) && !full;
       setInvites(data.pending);
-      setJoinRequests(data.joinRequests ?? []);
+      const memberIds = new Set(
+        data.members
+          .filter((p) => isActiveCircleMember(p))
+          .map((p) => p.id),
+      );
+      setJoinRequests(
+        (data.joinRequests ?? []).filter((row) => !memberIds.has(row.guest.id)),
+      );
       if (full) {
         setNetworkLinks((data.links ?? []) as NetworkLink[]);
       } else if (!keepGraph) {
@@ -553,61 +555,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (keepGraph) await loadGraph();
   }, [loadHome, loadGraph]);
 
-  const fillHome = useCallback(
-    async (opts?: { needsSeed?: boolean }) => {
-      try {
-        if (opts?.needsSeed) {
-          await api("/api/auth/seed-circle", { method: "POST" });
-        }
-        const data = await loadHome();
-        if (
-          !opts?.needsSeed &&
-          circleCatalogIncomplete(
-            data.listings ?? [],
-            data.members.length,
-            data.requests ?? [],
-            data.events ?? [],
-          )
-        ) {
-          await api("/api/auth/seed-circle", { method: "POST" }).catch(
-            () => null,
-          );
-          await loadHome();
-        }
-      } catch {
-        setPeople(networkSeed());
-        setInvites([]);
-        setJoinRequests([]);
-        setNetworkLinks([]);
-        setListings([]);
-        setRequests([]);
-        setOffers([]);
-        setEvents([]);
-        setSaved([]);
-        setHiddenListings([]);
-        setHiddenPeople([]);
-        setCircleReady(true);
-        setCircleFull(false);
-      }
-    },
-    [loadHome],
-  );
+  const fillHome = useCallback(async () => {
+    try {
+      await loadHome();
+    } catch {
+      setPeople(networkSeed());
+      setInvites([]);
+      setJoinRequests([]);
+      setNetworkLinks([]);
+      setListings([]);
+      setRequests([]);
+      setOffers([]);
+      setEvents([]);
+      setSaved([]);
+      setHiddenListings([]);
+      setHiddenPeople([]);
+      setCircleReady(true);
+      setCircleFull(false);
+    }
+  }, [loadHome]);
 
-  // Load persisted marketplace state, then overlay the cookie session.
+  // Overlay the cookie session. Marketplace data lives on the server.
   useEffect(() => {
     let cancelled = false;
 
     async function boot() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const data = JSON.parse(raw);
-          if (typeof data.onboarded === "boolean") setOnboarded(data.onboarded);
-        }
-      } catch {
-        // ignore corrupt storage
-      }
-
       const mePromise = api<{ user: SessionUser }>("/api/me");
       const homePromise = api<CirclePayload>("/api/home");
       try {
@@ -618,24 +590,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         try {
           const home = await homePromise;
           if (cancelled) return;
-          if (
-            circleCatalogIncomplete(
-              home.listings ?? [],
-              home.members.length,
-              home.requests ?? [],
-              home.events ?? [],
-            )
-          ) {
-            await api("/api/auth/seed-circle", { method: "POST" }).catch(
-              () => null,
-            );
-            if (cancelled) return;
-            const seeded = await api<CirclePayload>("/api/home");
-            if (cancelled) return;
-            applyCirclePayload(seeded, { full: false });
-          } else {
-            applyCirclePayload(home, { full: false });
-          }
+          applyCirclePayload(home, { full: false });
           if (cancelled) return;
           deferNonUrgent(() => void loadMessages().catch(() => {}));
         } catch {
@@ -649,7 +604,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           setEvents([]);
           setSaved([]);
           setHiddenListings([]);
-        setHiddenPeople([]);
+          setHiddenPeople([]);
           setCircleReady(true);
           setCircleFull(false);
         }
@@ -682,22 +637,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [applyUserLocal, applyCirclePayload, loadMessages]);
-
-  // Onboarding flag only — marketplace data lives on the server.
-  useEffect(() => {
-    if (!hydrated) return;
-    try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          schemaVersion: SCHEMA_VERSION,
-          onboarded,
-        }),
-      );
-    } catch {
-      // ignore quota errors
-    }
-  }, [onboarded, hydrated]);
 
   useEffect(() => {
     if (!hydrated || !sessionPhone) return;
@@ -1639,7 +1578,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [events],
   );
 
-  const completeOnboarding = useCallback(() => setOnboarded(true), []);
+  const completeLogin = useCallback(
+    async (user: SessionUser) => {
+      applyUserLocal(user);
+      setHydrated(true);
+      setCircleReady(false);
+      setCircleFull(false);
+      void fillHome();
+    },
+    [applyUserLocal, fillHome],
+  );
 
   const setShowOwnListingsInFeed = useCallback(async (value: boolean) => {
     setShowOwnFeedState(value);
@@ -1654,17 +1602,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const completeLogin = useCallback(
-    async (user: SessionUser, opts?: { needsSeed?: boolean }) => {
-      applyUserLocal(user);
-      setHydrated(true);
-      setCircleReady(false);
-      setCircleFull(false);
-      void fillHome(opts);
-    },
-    [applyUserLocal, fillHome],
-  );
-
   const signOut = useCallback(async () => {
     try {
       await api("/api/auth/logout", { method: "POST" });
@@ -1674,7 +1611,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setSessionPhone(null);
     setMeServerId(null);
     setProfileCompletedAt(null);
-    setOnboarded(false);
     setMeProfile(blankMe());
     setInvites([]);
     setJoinRequests([]);
@@ -1716,7 +1652,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       joinRequests,
       networkLinks,
       sessionPhone,
-      onboarded,
       hydrated,
       circleReady,
       circleFull,
@@ -1780,7 +1715,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       isSaved,
       isListingHidden,
       isPersonHidden,
-      completeOnboarding,
       completeLogin,
       signOut,
       meServerId,
@@ -1807,7 +1741,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       joinRequests,
       networkLinks,
       sessionPhone,
-      onboarded,
       hydrated,
       circleReady,
       circleFull,
@@ -1871,7 +1804,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       isSaved,
       isListingHidden,
       isPersonHidden,
-      completeOnboarding,
       completeLogin,
       signOut,
       meServerId,

@@ -11,6 +11,7 @@ import {
   replaceListingExcludes,
 } from "@/lib/server-listing-privacy";
 import { fanoutListingWatches } from "@/lib/server-watches";
+import { notifyDirectCircleListing } from "@/lib/server-notices";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,17 @@ export async function POST(req: Request) {
     sellerId: row.sellerId,
     title: row.title,
     description: row.description,
+    privacy: row.privacy,
+    dealStatus: row.dealStatus,
+    hideIdentity: row.hideIdentity,
+    excludeRelationTypes: row.excludeRelationTypes,
+  }).catch(() => {});
+
+  void notifyDirectCircleListing({
+    sellerId: row.sellerId,
+    sellerName: session.name,
+    listingId: row.id,
+    title: row.title,
     privacy: row.privacy,
     dealStatus: row.dealStatus,
     hideIdentity: row.hideIdentity,

@@ -1,3 +1,4 @@
+import { isCircloPeer } from "./circlo";
 import { messageSentAt } from "./mappers";
 import type { Message } from "./types";
 import { threadKey } from "./listing-privacy";
@@ -168,7 +169,10 @@ export function buildThreadIndex(
     if (msg.threadListingId) listingIdByPeer.set(key, msg.threadListingId);
     if (!msg.fromMe && !msg.read) {
       unreadByPeer.set(key, (unreadByPeer.get(key) ?? 0) + 1);
-      totalUnread += 1;
+      // Circlo listing notices stay in inbox; they are not person DMs.
+      if (!isCircloPeer(msg.peerId) && msg.kind !== "notice") {
+        totalUnread += 1;
+      }
     }
   }
 

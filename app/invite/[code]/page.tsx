@@ -58,7 +58,6 @@ export default function InviteLandingPage() {
     profileCompletedAt,
     hydrated,
     acceptInvite,
-    completeOnboarding,
     placePersonInMyCircle,
   } = useStore();
 
@@ -67,6 +66,7 @@ export default function InviteLandingPage() {
   const [showLogin, setShowLogin] = useState(false);
   const [placeTarget, setPlaceTarget] = useState<Person | null>(null);
   const [acceptKind, setAcceptKind] = useState<InviteViewKind | null>(null);
+  const [joinDone, setJoinDone] = useState(false);
   const acceptedOnce = useRef(false);
 
   useEffect(() => {
@@ -118,14 +118,20 @@ export default function InviteLandingPage() {
 
   useEffect(() => {
     if (!hydrated || !loaded || !sessionPhone || !profileCompletedAt) return;
-    if (kind !== "pending" || !publicInvite) return;
+    if (
+      kind !== "pending" &&
+      kind !== "requested" &&
+      kind !== "already"
+    ) {
+      return;
+    }
+    if (!publicInvite) return;
     if (acceptedOnce.current) return;
     acceptedOnce.current = true;
     void (async () => {
       try {
         const result = await acceptInvite(code);
         clearPendingInviteCode();
-        completeOnboarding();
         if (!result) {
           setAcceptKind("own");
           return;
@@ -145,6 +151,8 @@ export default function InviteLandingPage() {
         else if (codeName === "already") setAcceptKind("already");
         else if (codeName === "full") setAcceptKind("full");
         else setAcceptKind("invalid");
+      } finally {
+        setJoinDone(true);
       }
     })();
   }, [
@@ -156,7 +164,6 @@ export default function InviteLandingPage() {
     publicInvite,
     code,
     acceptInvite,
-    completeOnboarding,
   ]);
 
   if (!hydrated || !loaded) {
@@ -177,7 +184,7 @@ export default function InviteLandingPage() {
     );
   }
 
-  if (kind === "requested" && publicInvite) {
+  if (kind === "requested" && publicInvite && joinDone && !placeTarget) {
     return (
       <InviteFrame>
         <Avatar
@@ -243,9 +250,13 @@ export default function InviteLandingPage() {
     );
   }
 
-  if (kind !== "pending") {
+  if (
+    kind !== "pending" &&
+    kind !== "requested" &&
+    !(kind === "already" && (!joinDone || placeTarget))
+  ) {
     const copy =
-      kind === "own" || kind === "requested"
+      kind === "own"
         ? ERROR_COPY.invalid
         : (ERROR_COPY[kind] ?? ERROR_COPY.invalid);
     return (
@@ -311,13 +322,10 @@ export default function InviteLandingPage() {
       {placeTarget && (
         <PlaceInviterSheet
           person={placeTarget}
-          onClose={() => {
-            setPlaceTarget(null);
-            router.replace("/circle");
-          }}
           onPlace={(input) => {
-            void placePersonInMyCircle(placeTarget.id, input).then(() => {
-              setPlaceTarget(null);
+            const id = placeTarget.id;
+            setPlaceTarget(null);
+            void placePersonInMyCircle(id, input).finally(() => {
               router.replace("/circle");
             });
           }}

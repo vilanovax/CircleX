@@ -22,7 +22,7 @@ import { viewerRelationPhrase } from "@/lib/trust";
 import {
   activeCircleCount,
   groupActiveCircle,
-  isActiveCircleMember,
+  unplacedMembers,
   type CircleRelationGroup,
 } from "@/lib/circle-member";
 import {
@@ -43,7 +43,6 @@ import { useToast } from "@/components/Toast";
 const SECTION_PREVIEW = 6;
 const INVITE_PREVIEW = 3;
 const ABOVE_FOLD_AVATARS = 4;
-const UNPLACED_MS = 14 * 24 * 60 * 60 * 1000;
 const EMPTY_MEMBERS: Person[] = [];
 
 const InviteSheet = lazyUi(() => import("@/components/InviteSheet"));
@@ -139,18 +138,6 @@ function pendingInviteCount(invites: Invite[]): number {
   return n;
 }
 
-function isUnplaced(person: Person, now: number): boolean {
-  if (!isActiveCircleMember(person)) return false;
-  if (person.trustTouched) return false;
-  if (!person.joinedAt) return false;
-  const age = now - new Date(person.joinedAt).getTime();
-  return age >= 0 && age < UNPLACED_MS;
-}
-
-function unplacedMembers(people: Person[], now = Date.now()): Person[] {
-  return people.filter((p) => isUnplaced(p, now));
-}
-
 function livePendingInvites(invites: Invite[]): Invite[] {
   const live = invites.filter(
     (inv) => effectiveInviteStatus(inv) === "pending",
@@ -192,6 +179,16 @@ export default function CircleClassic() {
     if (typeof window === "undefined") return;
     const q = new URLSearchParams(window.location.search);
     if (q.get("invite") === "1") setShowAdd(true);
+    if (q.get("place") === "1") {
+      setPlacing(true);
+      q.delete("place");
+      const next = q.toString();
+      window.history.replaceState(
+        {},
+        "",
+        `${window.location.pathname}${next ? `?${next}` : ""}`,
+      );
+    }
   }, []);
 
   useEffect(() => {
@@ -225,7 +222,9 @@ export default function CircleClassic() {
         />
       ) : null}
 
-      {showAdd ? <InviteSheet onClose={() => setShowAdd(false)} /> : null}
+      {showAdd ? (
+        <InviteSheet firstRun={emptyCircle} onClose={() => setShowAdd(false)} />
+      ) : null}
 
       {editingId ? (
         <CircleGroupHost
@@ -315,9 +314,9 @@ const CircleEmptyState = memo(function CircleEmptyState({
           onClick={onInvite}
           onPointerEnter={preloadInviteSheet}
           onFocus={preloadInviteSheet}
-          className="btn-primary inline-block mt-4"
+          className="btn-primary inline-block mt-4 min-h-11"
         >
-          دعوت
+          دعوت اولین نفر
         </button>
       </div>
     </div>

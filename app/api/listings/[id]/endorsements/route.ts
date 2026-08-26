@@ -7,6 +7,7 @@ import {
 } from "@/lib/mappers";
 import { parseEndorsementVisibility, parseEndorsementWrite } from "@/lib/listing-payload";
 import { getSessionUser } from "@/lib/server-auth";
+import { viewerHasListingMessages } from "@/lib/server-listing-thread";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,8 @@ export async function PUT(
     });
     if (!listing) return jsonError("آگهی پیدا نشد", 404);
     if (listing.dealStatus === "inactive" && listing.sellerId !== session.id) {
-      return jsonError("آگهی پیدا نشد", 404);
+      const participated = await viewerHasListingMessages(session.id, listing.id);
+      if (!participated) return jsonError("آگهی پیدا نشد", 404);
     }
     if (listing.sellerId === session.id) {
       return jsonError("روی آگهی خودت حرف نمی‌گذاری", 403);

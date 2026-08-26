@@ -9,6 +9,7 @@ import { lazyUi } from "@/lib/lazy-ui";
 import { CalendarIcon, QuestionIcon, TagIcon } from "./Icons";
 import { useToast } from "./Toast";
 import { useCatalog } from "@/lib/use-catalog";
+import { postedHomeHref } from "@/lib/home-posted";
 
 const AddListingSheet = lazyUi(() => import("./AddListingSheet"));
 const AddRequestSheet = lazyUi(() => import("./AddRequestSheet"));
@@ -70,7 +71,7 @@ export default function CreateSheet({ onClose }: { onClose: () => void }) {
         const id = await addListing(input);
         onClose();
         show("آگهی شما در حلقه منتشر شد ✓");
-        router.push(`/listing/${id}`);
+        router.push(postedHomeHref(id));
       } catch (err) {
         show(err instanceof ApiError ? err.message : "آگهی ذخیره نشد");
         publishingRef.current = false;
@@ -156,7 +157,7 @@ export default function CreateSheet({ onClose }: { onClose: () => void }) {
           <div className="flex items-start justify-between gap-3 mb-4 px-0.5">
             <h2
               id="create-sheet-title"
-              className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 leading-tight"
+              className="font-extrabold text-[20px] text-ink dark:text-zinc-50 leading-tight"
             >
               چه چیزی می‌خواهی ثبت کنی؟
             </h2>

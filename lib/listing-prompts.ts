@@ -1,4 +1,5 @@
 import type { Listing, ListingType } from "./types";
+import { placeDetailLabel } from "./place";
 
 export type BuyerPrompt = {
   id: string;
@@ -14,6 +15,10 @@ export type ThreadChipContext = {
   /** Viewer is the seller of the context listing. */
   isSeller?: boolean;
   threadLength?: number;
+  /** Last message in the thread is from the viewer. */
+  lastFromMe?: boolean;
+  /** Viewer has already sent at least one message in this thread. */
+  sellerHasReplied?: boolean;
 };
 
 type Candidate = BuyerPrompt & {
@@ -108,11 +113,25 @@ function categoryBucket(listing: Listing): CatBucket {
 function resolveStage(
   listing: Listing | null | undefined,
   threadLength: number,
+  opts?: {
+    isSeller?: boolean;
+    lastFromMe?: boolean;
+    sellerHasReplied?: boolean;
+  },
 ): ChipStage {
   const status = listing?.dealStatus ?? "available";
   if (status === "agreed") return "agreed";
-  if (status === "reserved" || threadLength > 0) return "mid";
-  return "opening";
+  if (status === "reserved") return "mid";
+  if (threadLength <= 0) return "opening";
+  // First unanswered buyer question — opening replies ("بله موجوده").
+  if (
+    opts?.isSeller &&
+    opts.lastFromMe === false &&
+    !opts.sellerHasReplied
+  ) {
+    return "opening";
+  }
+  return "mid";
 }
 
 function filterCandidates(corpus: string, items: Candidate[]): BuyerPrompt[] {
@@ -509,17 +528,33 @@ function sellerMidCandidates(): Candidate[] {
   ];
 }
 
-function sellerAgreedCandidates(): Candidate[] {
+export const DEAL_NOTE = {
+  reserved: "این آگهی را موقتاً رزرو کردم تا هماهنگ کنیم.",
+  agreed: "روی این آگهی به توافق رسیدیم ✓",
+  available: "آگهی دوباره موجود است.",
+  done: "آگهی را از فید برداشتم. معامله تمام شد.",
+} as const;
+
+export function isDealStatusNote(text: string): boolean {
+  const t = text.trim();
+  return (Object.values(DEAL_NOTE) as string[]).includes(t);
+}
+
+function sellerAgreedCandidates(listing: Listing): Candidate[] {
+  const place = placeDetailLabel(listing.city, listing.area);
+  const subject = listingSubject(listing);
   return [
     {
-      id: "seller-address",
-      label: "آدرس می‌فرستم",
-      draft: "آدرس را الان می‌فرستم.",
+      id: "seller-place",
+      label: place ? "محل بازدید" : "محل هماهنگ",
+      draft: place
+        ? `${subject} برای بازدید حدود ${place} است. جزئیات دقیق را همین گفتگو هماهنگ کنیم.`
+        : "محل بازدید را همین گفتگو هماهنگ کنیم.",
     },
     {
-      id: "seller-phone",
-      label: "تماس بگیرید",
-      draft: "روی همین شماره پیام بدید یا تماس بگیرید.",
+      id: "seller-chat",
+      label: "همین‌جا هماهنگ",
+      draft: "شماره جدا لازم نیست — زمان و محل را همین گفتگو ببندیم.",
     },
   ];
 }
@@ -542,7 +577,7 @@ function freeChatChips(threadLength: number): BuyerPrompt[] {
 
 /**
  * Thread composer chips — listing-aware, role-aware, stage-aware.
- * Touch should insert `draft` into the input, not send.
+ * First seller reply to an unread buyer question sends on tap.
  */
 export function suggestThreadChips(ctx: ThreadChipContext): BuyerPrompt[] {
   const listing = ctx.listing ?? null;
@@ -551,12 +586,16 @@ export function suggestThreadChips(ctx: ThreadChipContext): BuyerPrompt[] {
 
   if (!listing) return freeChatChips(threadLength);
 
-  const stage = resolveStage(listing, threadLength);
+  const stage = resolveStage(listing, threadLength, {
+    isSeller,
+    lastFromMe: ctx.lastFromMe,
+    sellerHasReplied: ctx.sellerHasReplied,
+  });
   const corpus = listingCorpus(listing);
 
   let candidates: Candidate[];
   if (isSeller) {
-    if (stage === "agreed") candidates = sellerAgreedCandidates();
+    if (stage === "agreed") candidates = sellerAgreedCandidates(listing);
     else if (stage === "mid") candidates = sellerMidCandidates();
     else candidates = sellerOpeningCandidates(listing);
   } else if (stage === "agreed") {

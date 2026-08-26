@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import SheetShell from "@/components/SheetShell";
 import { useToast } from "@/components/Toast";
 import { levelHint, levelLabels, relationLabels } from "@/lib/labels";
@@ -52,11 +53,20 @@ function CheckMark({ className }: { className?: string }) {
   );
 }
 
-export default function InviteSheet({ onClose }: { onClose: () => void }) {
+export default function InviteSheet({
+  onClose,
+  firstRun = false,
+}: {
+  onClose: () => void;
+  /** Empty-circle first invite: fewer fields, share is the job. */
+  firstRun?: boolean;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
   const { me, createInvite } = useStore();
   const { show } = useToast();
   const catalog = useCatalog();
-  const waveOn = catalog.flags.waveInvites;
+  const waveOn = catalog.flags.waveInvites && !firstRun;
   const waveCap = catalog.growth.waveMaxUses;
   const [mode, setMode] = useState<"personal" | "wave">("personal");
   const [relation, setRelation] = useState<RelationType>("friend");
@@ -67,9 +77,20 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const [creating, setCreating] = useState(false);
+  const [showTrust, setShowTrust] = useState(!firstRun);
+  const [showPhone, setShowPhone] = useState(!firstRun);
 
   const phone = phoneInput ? normalizePhone(phoneInput) : "";
   const phoneOk = !phone || isValidIranMobile(phone);
+
+  function finish() {
+    onClose();
+    if (typeof window === "undefined") return;
+    if (new URLSearchParams(window.location.search).get("invite") !== "1") {
+      return;
+    }
+    router.replace(pathname || "/");
+  }
 
   async function onCreate() {
     if (!phoneOk || creating) return;
@@ -116,7 +137,7 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
       <InviteSharePanel
         invite={created}
         inviterName={me.name}
-        onClose={onClose}
+        onClose={finish}
       />
     );
   }
@@ -126,7 +147,7 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
     const pasteBlocked = pasteOpen && parsed.valid.length === 0;
     return (
       <SheetShell
-        onClose={onClose}
+        onClose={finish}
         labelledBy="wave-invite-title"
         zClass="z-50"
         footer={
@@ -155,7 +176,7 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
       >
         <h2
           id="wave-invite-title"
-          className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50"
+          className="font-extrabold text-[20px] text-ink dark:text-zinc-50 tracking-tight"
         >
           دعوت یک گروه
         </h2>
@@ -248,7 +269,7 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <SheetShell
-      onClose={onClose}
+      onClose={finish}
       labelledBy="invite-sheet-title"
       zClass="z-50"
       footer={
@@ -257,13 +278,13 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
             type="button"
             disabled={!phoneOk || creating}
             onClick={() => void onCreate()}
-            className="btn-primary w-full min-h-12"
+            className="btn-primary w-full min-h-12 shadow-md shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150"
           >
             {creating ? "در حال ساخت…" : "ساخت لینک"}
           </button>
           <button
             type="button"
-            onClick={onClose}
+            onClick={finish}
             className="min-h-11 text-sm font-semibold text-ink-muted dark:text-zinc-400"
           >
             انصراف
@@ -273,15 +294,17 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
     >
       <h2
         id="invite-sheet-title"
-        className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50"
+        className="font-extrabold text-[20px] text-ink dark:text-zinc-50 tracking-tight"
       >
-        دعوت به حلقه‌ات
+        {firstRun ? "دعوت اولین نفر" : "دعوت به حلقه‌ات"}
       </h2>
       <p className="text-[13px] text-ink-muted dark:text-zinc-400 mt-1.5 leading-relaxed">
-        لینک می‌سازی. تا نپیوندد در حلقه دیده نمی‌شود.
+        {firstRun
+          ? "لینک را بساز و با واتساپ یا پیامک بفرست. تا نپیوندد عضو نیست."
+          : "لینک می‌سازی. تا نپیوندد در حلقه دیده نمی‌شود."}
       </p>
 
-      <p className="text-sm font-medium mt-4 mb-2 text-ink dark:text-zinc-200">
+      <p className="text-[15px] font-semibold mt-5 mb-2 text-ink dark:text-zinc-200">
         چه نسبتی با او داری؟
       </p>
       <div
@@ -309,78 +332,107 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
         })}
       </div>
 
-      <p className="text-sm font-medium mb-2 text-ink dark:text-zinc-200">
-        جایگاهش کجا باشد؟
-      </p>
-      <div
-        className="flex flex-col gap-2 mb-2"
-        role="radiogroup"
-        aria-label="گروه حلقه"
-      >
-        {LEVELS.map((lvl) => {
-          const active = level === lvl;
-          return (
-            <button
-              key={lvl}
-              type="button"
-              role="radio"
-              aria-checked={active}
-              onClick={() => setLevel(lvl)}
-              className={`w-full flex items-start gap-3 rounded-xl py-3 px-3.5 text-right border transition-colors ${
-                active
-                  ? "border-brand-600 bg-brand-50 dark:bg-brand-500/10"
-                  : "border-stone-200/80 dark:border-zinc-700 bg-[color:var(--circle-surface)] dark:bg-zinc-900"
-              }`}
-            >
-              <span
-                className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                  active
-                    ? "border-brand-600 bg-brand-600 text-white"
-                    : "border-stone-300 dark:border-zinc-600"
-                }`}
-                aria-hidden
-              >
-                {active ? <CheckMark className="w-3 h-3" /> : null}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[14px] font-bold text-ink dark:text-zinc-100">
-                  {levelLabels[lvl]}
-                </span>
-                <span className="block text-[12px] mt-0.5 leading-relaxed text-ink-muted">
-                  {levelHint[lvl]}
-                </span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
-      <p className="text-[12px] text-ink-faint leading-relaxed mb-4">
-        {GROUP_PRIVATE_LINE}
-      </p>
+      {firstRun && !showTrust ? (
+        <button
+          type="button"
+          onClick={() => setShowTrust(true)}
+          className="w-full text-right rounded-xl border border-stone-200/80 dark:border-zinc-700 px-3.5 py-3 mb-3 min-h-11"
+        >
+          <span className="block text-[13px] font-bold text-ink dark:text-zinc-100">
+            جایگاه: {levelLabels[level]}
+          </span>
+          <span className="block text-[12px] text-ink-muted mt-0.5">
+            تغییر گروه اعتماد
+          </span>
+        </button>
+      ) : (
+        <>
+          <p className="text-[15px] font-semibold mb-2 text-ink dark:text-zinc-200">
+            جایگاهش کجا باشد؟
+          </p>
+          <div
+            className="flex flex-col gap-2 mb-2"
+            role="radiogroup"
+            aria-label="گروه حلقه"
+          >
+            {LEVELS.map((lvl) => {
+              const active = level === lvl;
+              return (
+                <button
+                  key={lvl}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setLevel(lvl)}
+                  className={`w-full flex items-start gap-3 rounded-xl py-3 px-3.5 text-right border transition-colors ${
+                    active
+                      ? "border-brand-600 bg-brand-50 dark:bg-brand-500/10"
+                      : "border-stone-200/80 dark:border-zinc-700 bg-[color:var(--circle-surface)] dark:bg-zinc-900"
+                  }`}
+                >
+                  <span
+                    className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                      active
+                        ? "border-brand-600 bg-brand-600 text-white"
+                        : "border-stone-300 dark:border-zinc-600"
+                    }`}
+                    aria-hidden
+                  >
+                    {active ? <CheckMark className="w-3 h-3" /> : null}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-bold text-ink dark:text-zinc-100">
+                      {levelLabels[lvl]}
+                    </span>
+                    <span className="block text-[12px] mt-0.5 leading-relaxed text-ink-muted">
+                      {levelHint[lvl]}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[12px] text-ink-faint leading-relaxed mb-4">
+            {GROUP_PRIVATE_LINE}
+          </p>
+        </>
+      )}
 
-      <label
-        htmlFor="invite-phone"
-        className="block text-[12px] font-medium mb-1 text-ink-muted"
-      >
-        شماره — اختیاری
-      </label>
-      <input
-        id="invite-phone"
-        type="tel"
-        inputMode="numeric"
-        dir="ltr"
-        value={phone ? formatPhoneDisplay(phone) : ""}
-        onChange={(e) => setPhoneInput(normalizePhone(e.target.value))}
-        placeholder="۰۹۱۲ ۱۲۳ ۴۵۶۷"
-        className="field !py-2 !text-[13px] mb-1"
-      />
-      <p className="text-[11px] text-ink-faint leading-relaxed">
-        فقط برای متن پیام و برچسب دعوت — ارسال نمی‌شود.
-      </p>
-      {phone && !phoneOk && (
-        <p role="alert" className="text-[12px] text-red-600 mt-1">
-          ۱۱ رقم با ۰۹، یا خالی بگذار
-        </p>
+      {firstRun && !showPhone ? (
+        <button
+          type="button"
+          onClick={() => setShowPhone(true)}
+          className="w-full text-[13px] font-semibold text-brand-700 dark:text-brand-300 min-h-11 text-right"
+        >
+          شماره برای متن پیام — اختیاری
+        </button>
+      ) : (
+        <>
+          <label
+            htmlFor="invite-phone"
+            className="block text-[12px] font-medium mb-1 text-ink-muted"
+          >
+            شماره — اختیاری
+          </label>
+          <input
+            id="invite-phone"
+            type="tel"
+            inputMode="numeric"
+            dir="ltr"
+            value={phone ? formatPhoneDisplay(phone) : ""}
+            onChange={(e) => setPhoneInput(normalizePhone(e.target.value))}
+            placeholder="۰۹۱۲ ۱۲۳ ۴۵۶۷"
+            className="field !py-2 !text-[13px] mb-1"
+          />
+          <p className="text-[11px] text-ink-faint leading-relaxed">
+            فقط برای متن پیام و برچسب دعوت — ارسال نمی‌شود.
+          </p>
+          {phone && !phoneOk && (
+            <p role="alert" className="text-[12px] text-red-600 mt-1">
+              ۱۱ رقم با ۰۹، یا خالی بگذار
+            </p>
+          )}
+        </>
       )}
       {waveOn ? (
         <button
@@ -426,10 +478,10 @@ export function InviteSharePanel({
   const extraRoster = roster.length - visibleRoster.length;
 
   async function onCopy() {
-    const ok = await copyText(url);
+    const ok = await copyText(text);
     if (ok) {
       setCopied(true);
-      show("لینک کپی شد");
+      show("متن دعوت کپی شد");
     } else {
       show("کپی ممکن نشد");
     }
@@ -450,13 +502,38 @@ export function InviteSharePanel({
       labelledBy="invite-share-title"
       zClass="z-50"
       footer={
-        <button
-          type="button"
-          onClick={onClose}
-          className="w-full min-h-11 text-[13px] font-semibold text-ink-muted dark:text-zinc-400 active:opacity-70"
-        >
-          بعداً می‌فرستم
-        </button>
+        <div className="flex flex-col gap-1 pb-1">
+          <a
+            href={whatsappShareHref(text, waPhone)}
+            target="_blank"
+            rel="noreferrer"
+            className="btn-primary w-full min-h-12 text-center shadow-md shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150 inline-flex items-center justify-center"
+          >
+            ارسال با واتساپ
+          </a>
+          <div className="grid grid-cols-2 gap-2">
+            <a
+              href={smsShareHref(text, smsPhones)}
+              className="btn-ghost min-h-12 text-center inline-flex items-center justify-center active:scale-[0.98] transition-transform duration-150"
+            >
+              پیامک
+            </a>
+            <button
+              type="button"
+              onClick={() => void onCopy()}
+              className="btn-ghost min-h-12 active:scale-[0.98] transition-transform duration-150"
+            >
+              {copied ? "کپی شد" : "کپی متن"}
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full min-h-11 text-[13px] font-semibold text-ink-muted dark:text-zinc-400 active:opacity-70"
+          >
+            تمام
+          </button>
+        </div>
       }
     >
       <div className="flex flex-col items-center text-center pt-0.5">
@@ -478,7 +555,7 @@ export function InviteSharePanel({
         </span>
         <h2
           id="invite-share-title"
-          className="mt-2.5 font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 tracking-tight"
+          className="mt-2.5 font-extrabold text-[20px] text-ink dark:text-zinc-50 tracking-tight"
         >
           لینک آماده است
         </h2>
@@ -541,36 +618,12 @@ export function InviteSharePanel({
         </div>
         <button
           type="button"
-          onClick={() => void onCopy()}
+          onClick={() => void onShare()}
           className="shrink-0 min-h-9 px-2.5 rounded-lg text-[12px] font-bold text-brand-700 dark:text-brand-400 bg-[color:var(--circle-surface)] dark:bg-zinc-900 ring-1 ring-stone-200/80 dark:ring-zinc-700 active:scale-[0.98] transition-transform duration-150"
         >
-          {copied ? "کپی شد" : "کپی"}
+          اشتراک
         </button>
       </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <a
-          href={whatsappShareHref(text, waPhone)}
-          target="_blank"
-          rel="noreferrer"
-          className="btn-primary min-h-12 text-center shadow-md shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150"
-        >
-          واتساپ
-        </a>
-        <a
-          href={smsShareHref(text, smsPhones)}
-          className="btn-ghost min-h-12 text-center active:scale-[0.98] transition-transform duration-150"
-        >
-          پیامک
-        </a>
-      </div>
-      <button
-        type="button"
-        onClick={() => void onShare()}
-        className="w-full mt-1 min-h-9 text-[12px] font-semibold text-ink-faint active:opacity-70"
-      >
-        اشتراک دیگر
-      </button>
     </SheetShell>
   );
 }

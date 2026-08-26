@@ -25,10 +25,12 @@ import LockedMessaging from "@/components/LockedMessaging";
 import { CameraIcon, SendIcon, FlagIcon, MoreIcon, CheckIcon, DoubleCheckIcon } from "@/components/Icons";
 import { withBasePath } from "@/lib/avatar";
 import { uploadUserPhoto } from "@/lib/media-image";
-import { formatPrice } from "@/lib/labels";
+import { dealStatusLabels, formatPrice } from "@/lib/labels";
 import { messageClock, messageSentAt } from "@/lib/mappers";
 import {
   listingSubject,
+  DEAL_NOTE,
+  isDealStatusNote,
   suggestThreadChips,
   type BuyerPrompt,
 } from "@/lib/listing-prompts";
@@ -56,6 +58,7 @@ import {
 const WatchSheet = lazyUi(() => import("@/app/messages/WatchSheet"));
 const InviteSheet = lazyUi(() => import("@/components/InviteSheet"));
 const ReportMessageSheet = lazyUi(() => import("@/components/ReportMessageSheet"));
+const EndorseSheet = lazyUi(() => import("@/components/EndorseSheet"));
 
 export default function ThreadClassic(_props: { params: { id: string } }) {
   const params = useParams();
@@ -104,6 +107,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   const [showCircloInvite, setShowCircloInvite] = useState(false);
   const [reportMsg, setReportMsg] = useState<Message | null>(null);
   const [showActions, setShowActions] = useState(false);
+  const [showEndorse, setShowEndorse] = useState(false);
   const [listingLoadState, setListingLoadState] = useState<
     "idle" | "loading" | "ready" | "missing"
   >("idle");
@@ -420,17 +424,17 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
                       : contextListing.type === "service"
                         ? "توافقی"
                         : "رایگان"}
+                    {dealStatus &&
+                    dealStatus !== "available" &&
+                    dealStatus !== "inactive"
+                      ? ` · ${dealStatusLabels[dealStatus]}`
+                      : ""}
                   </p>
                 </div>
                 <span className="shrink-0 pe-1 text-sm text-ink-faint" aria-hidden>
                   ‹
                 </span>
               </Link>
-              {contextListing.dealStatus === "inactive" ? (
-                <p className="mt-1 text-[12px] text-ink-muted">
-                  آگهی غیرفعال است و امکان ارسال پیام نیست.
-                </p>
-              ) : null}
             </>
           )}
           {hidePeer ? (
@@ -483,25 +487,26 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
                     key={id}
                     type="button"
                     onClick={() => {
+                      if (dealStatus === id) return;
                       setListingDealStatus(contextListing.id, id);
                       if (id === "reserved") {
                         void addMessage(
                           peerId,
-                          "این آگهی را موقتاً رزرو کردم تا هماهنگ کنیم.",
+                          DEAL_NOTE.reserved,
                           contextListing.id,
                           scoped,
                         ).catch(notifySendError);
                       } else if (id === "agreed") {
                         void addMessage(
                           peerId,
-                          "روی این آگهی به توافق رسیدیم ✓",
+                          DEAL_NOTE.agreed,
                           contextListing.id,
                           scoped,
                         ).catch(notifySendError);
                       } else {
                         void addMessage(
                           peerId,
-                          "آگهی دوباره موجود است.",
+                          DEAL_NOTE.available,
                           contextListing.id,
                           scoped,
                         ).catch(notifySendError);
@@ -518,6 +523,26 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
                 );
               })}
             </div>
+          ) : null}
+          {contextListing &&
+          isSellerOfContext &&
+          dealStatus === "agreed" ? (
+            <button
+              type="button"
+              onClick={() => {
+                void setListingDealStatus(contextListing.id, "inactive");
+                void addMessage(
+                  peerId,
+                  DEAL_NOTE.done,
+                  contextListing.id,
+                  scoped,
+                ).catch(notifySendError);
+                show("آگهی از فید حلقه برداشته شد");
+              }}
+              className="mt-1.5 text-[12px] font-bold text-brand-700 dark:text-brand-300"
+            >
+              آگهی را از فید بردار
+            </button>
           ) : null}
         </div>
       )}
@@ -619,8 +644,20 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
           <p className="text-center text-[13px] text-ink-muted leading-relaxed">
             {listingGone
               ? "آگهی حذف شده و گفتگو بسته است."
-              : "آگهی غیرفعال است و امکان ارسال پیام نیست."}
+              : "معامله تمام شد — ارسال پیام بسته است."}
           </p>
+          {!listingGone &&
+          contextListing &&
+          !isSellerOfContext &&
+          !contextListing.identityHidden ? (
+            <button
+              type="button"
+              onClick={() => setShowEndorse(true)}
+              className="btn-primary mt-2.5 w-full min-h-11 text-[13px] font-bold"
+            >
+              اگر دیدی، حرف بگذار
+            </button>
+          ) : null}
         </div>
       ) : (
         <ThreadComposer
@@ -675,6 +712,17 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
           onClose={() => setReportMsg(null)}
         />
       ) : null}
+      {showEndorse && contextListing ? (
+        <EndorseSheet
+          listingId={contextListing.id}
+          listingTitle={contextListing.title}
+          sellerName={peer.name}
+          myEndorsements={contextListing.endorsements.filter(
+            (e) => e.personId === "me",
+          )}
+          onClose={() => setShowEndorse(false)}
+        />
+      ) : null}
     </main>
   );
 }
@@ -710,14 +758,24 @@ const ThreadComposer = memo(function ThreadComposer({
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const [showMorePrompts, setShowMorePrompts] = useState(false);
+  const lastFromMe = thread[thread.length - 1]?.fromMe === true;
+  const sellerHasReplied = thread.some((m) => m.fromMe);
   const chips = useMemo(
     () =>
       suggestThreadChips({
         listing: contextListing,
         isSeller: isSellerOfContext,
         threadLength: thread.length,
+        lastFromMe,
+        sellerHasReplied,
       }),
-    [contextListing, isSellerOfContext, thread.length],
+    [
+      contextListing,
+      isSellerOfContext,
+      thread.length,
+      lastFromMe,
+      sellerHasReplied,
+    ],
   );
 
   useEffect(() => {
@@ -761,17 +819,47 @@ const ThreadComposer = memo(function ThreadComposer({
     pendingFileRef.current = file;
   }
 
-  async function send() {
-    const t = text.trim();
-    const file = pendingFileRef.current;
-    if ((!t && !file) || sending) return;
+  async function sendBody(body: string, imageUrl?: string) {
+    const t = body.trim();
+    if ((!t && !imageUrl) || sending) return;
     const attachListing = shouldAttachListingOnSend(thread, activeListingId)
       ? activeListingId
       : undefined;
     if (activeListingId) rememberThreadListing(peerId, activeListingId);
     setSending(true);
     try {
-      const imageUrl = file ? await uploadUserPhoto(file) : undefined;
+      await addMessage(
+        peerId,
+        t,
+        scoped ? activeListingId ?? attachListing : attachListing,
+        scoped,
+        imageUrl,
+      );
+      setText("");
+      clearPendingPhoto();
+    } catch (err) {
+      show(err instanceof ApiError ? err.message : "ارسال نشد. دوباره بزن.");
+    } finally {
+      setSending(false);
+      inputRef.current?.focus();
+    }
+  }
+
+  async function send() {
+    const t = text.trim();
+    const file = pendingFileRef.current;
+    if ((!t && !file) || sending) return;
+    if (!file) {
+      await sendBody(t);
+      return;
+    }
+    setSending(true);
+    try {
+      const imageUrl = await uploadUserPhoto(file);
+      const attachListing = shouldAttachListingOnSend(thread, activeListingId)
+        ? activeListingId
+        : undefined;
+      if (activeListingId) rememberThreadListing(peerId, activeListingId);
       await addMessage(
         peerId,
         t,
@@ -790,6 +878,15 @@ const ThreadComposer = memo(function ThreadComposer({
   }
 
   function applyChip(prompt: BuyerPrompt) {
+    const last = thread[thread.length - 1];
+    const instant =
+      thread.length === 0 ||
+      Boolean(last && !last.fromMe) ||
+      Boolean(last?.fromMe && isDealStatusNote(last.text));
+    if (instant) {
+      void sendBody(prompt.draft);
+      return;
+    }
     setText(prompt.draft);
     requestAnimationFrame(() => {
       const el = inputRef.current;
@@ -811,8 +908,9 @@ const ThreadComposer = memo(function ThreadComposer({
             <button
               key={p.id}
               type="button"
+              disabled={sending}
               onClick={() => applyChip(p)}
-              className="shrink-0 rounded-full border border-stone-200/90 bg-stone-50/90 px-3 py-1.5 text-[12px] font-semibold text-ink transition-transform active:scale-[0.97] dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-100"
+              className="shrink-0 rounded-full border border-stone-200/90 bg-stone-50/90 px-3 py-1.5 text-[12px] font-semibold text-ink transition-transform active:scale-[0.97] dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-100 disabled:opacity-50"
             >
               {p.label}
             </button>

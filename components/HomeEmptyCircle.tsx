@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { lazyUi } from "@/lib/lazy-ui";
 import ListingCard from "@/components/ListingCard";
@@ -24,7 +24,11 @@ const InviteSheet = lazyUi(() => import("@/components/InviteSheet"));
  * Home when the live circle is empty — not a stripped marketplace.
  * One job: invite the first person. Own listings sit apart from the feed.
  */
-export default function HomeEmptyCircle() {
+export default function HomeEmptyCircle({
+  justPostedId,
+}: {
+  justPostedId?: string | null;
+}) {
   const listings = useStore((s) => s.listings);
   const invites = useStore((s) => s.invites);
   const joinRequests = useStore((s) => s.joinRequests);
@@ -33,15 +37,27 @@ export default function HomeEmptyCircle() {
   const pending = invites.filter(
     (inv) => effectiveInviteStatus(inv) === "pending",
   );
+  const hasPending = pending.length > 0;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (hasPending) return;
+    if (new URLSearchParams(window.location.search).get("invite") === "1") {
+      setShowInvite(true);
+    }
+  }, [hasPending]);
   const wave = pending.find((inv) => inv.kind === "wave");
   const waitingCount = pending.reduce(
     (sum, inv) => sum + inviteRosterPending(inv),
     0,
   );
   const mine = listings.filter((l) => l.sellerId === "me");
-  const preview = mine.slice(0, PREVIEW_LIMIT);
-  const rest = mine.length - preview.length;
-  const hasPending = pending.length > 0;
+  const posted = justPostedId
+    ? mine.find((l) => l.id === justPostedId)
+    : undefined;
+  const restMine = posted ? mine.filter((l) => l.id !== posted.id) : mine;
+  const preview = restMine.slice(0, PREVIEW_LIMIT);
+  const rest = restMine.length - preview.length;
   const hasMine = mine.length > 0;
   const pluralAds = mine.length > 1;
   const adWord = pluralAds ? "آگهی‌هات" : "آگهی‌ات";
@@ -73,6 +89,22 @@ export default function HomeEmptyCircle() {
 
   return (
     <div className="px-4 pt-4 pb-2 space-y-4">
+      {posted ? (
+        <section id="home-just-posted">
+          <p className="text-[12px] font-bold text-brand-700 dark:text-brand-300 px-0.5 mb-1.5">
+            آگهی تو همین حالا ثبت شد
+          </p>
+          <ListingCard
+            listing={posted}
+            compactTrust
+            hideTrust
+            showOpenHint
+            highlight
+            audienceHint="فعلاً فقط خودت می‌بینی"
+          />
+        </section>
+      ) : null}
+
       <div className="card px-4 pt-4 pb-3.5 text-center">
         <div className="w-10 h-10 rounded-full bg-brand-50 dark:bg-brand-500/15 text-brand-600 flex items-center justify-center mx-auto mb-2.5">
           <CircleUsersIcon className="w-5 h-5" />
@@ -157,9 +189,12 @@ export default function HomeEmptyCircle() {
         </Link>
       )}
 
-      {hasMine && (
+      {hasMine && (!posted || restMine.length > 0) && (
         <section>
-          <SectionHeading label="آگهی‌های من" count={mine.length} />
+          <SectionHeading
+            label="آگهی‌های من"
+            count={posted ? restMine.length : mine.length}
+          />
           <div className="space-y-2.5">
             {preview.map((listing) => (
               <OwnListingPreview key={listing.id} listing={listing} />
@@ -176,7 +211,9 @@ export default function HomeEmptyCircle() {
         </section>
       )}
 
-      {showInvite && <InviteSheet onClose={() => setShowInvite(false)} />}
+      {showInvite && (
+        <InviteSheet firstRun onClose={() => setShowInvite(false)} />
+      )}
     </div>
   );
 }

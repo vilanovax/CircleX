@@ -20,27 +20,30 @@ const LEVELS: TrustLevel[] = ["A", "B", "C"];
 /** Reverse directed edge: invitee places the inviter in their own circle. */
 export default function PlaceInviterSheet({
   person,
-  onClose,
   onPlace,
 }: {
   person: Person;
-  onClose: () => void;
   onPlace: (input: { relation: RelationType; level: TrustLevel }) => void;
 }) {
   const [relation, setRelation] = useState<RelationType>("friend");
   const [level, setLevel] = useState<TrustLevel>("B");
 
+  function confirm() {
+    onPlace({ relation, level });
+  }
+
   return (
     <SheetShell
-      onClose={onClose}
+      onClose={confirm}
       closeOnBackdrop={false}
+      showHandle={false}
       labelledBy="place-inviter-title"
       zClass="z-50"
       onEscape={() => true}
       footer={
         <button
           type="button"
-          onClick={() => onPlace({ relation, level })}
+          onClick={confirm}
           className="btn-primary w-full min-h-12"
         >
           به حلقه‌ات اضافه کن
@@ -52,7 +55,7 @@ export default function PlaceInviterSheet({
         <div>
           <h2
             id="place-inviter-title"
-            className="font-extrabold text-[1.1rem] text-ink dark:text-zinc-50"
+            className="font-extrabold text-[20px] text-ink dark:text-zinc-50 leading-snug"
           >
             {person.name} را چطور می‌شناسی؟
           </h2>

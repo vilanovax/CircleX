@@ -1,12 +1,10 @@
 import { backfillAllSeedTehranAreas } from "@/lib/seed-tehran-area";
-import { seedDemoCircle } from "@/lib/server-demo-circle-seed";
 import { seedFamilyCircle } from "@/lib/server-family-seed";
 
 export { demoCircleAlreadyLinked } from "@/lib/server-demo-circle-seed";
 
-/** Idempotent demo + family catalog. Call on login / family invite — not on every GET. */
+/** Family invite catalog only — never the demo marketplace. */
 export async function seedCircleForUser(userId: string, phone: string) {
   await seedFamilyCircle(userId, phone);
-  await seedDemoCircle(userId, phone);
   await backfillAllSeedTehranAreas();
 }

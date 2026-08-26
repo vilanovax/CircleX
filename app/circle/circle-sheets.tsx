@@ -31,7 +31,7 @@ export function GroupSheet({
       <div className="pb-3">
         <h2
           id="group-sheet-title"
-          className="font-extrabold text-[1.1rem] text-ink dark:text-zinc-50"
+          className="font-extrabold text-[20px] text-ink dark:text-zinc-50 leading-snug"
         >
           جایگاه {person.name} کجا باشد؟
         </h2>
@@ -88,7 +88,7 @@ export function PlaceTrustSheet({
     <SheetShell onClose={onClose} labelledBy="place-trust-title" zClass="z-50">
       <h2
         id="place-trust-title"
-        className="font-extrabold text-[1.1rem] text-ink dark:text-zinc-50"
+        className="font-extrabold text-[20px] text-ink dark:text-zinc-50 leading-snug"
       >
         جایگاه تازه‌واردها
       </h2>
@@ -182,7 +182,7 @@ export function InviteMoreSheet({
       <div className="flex items-start justify-between gap-3">
         <h2
           id="invite-more-title"
-          className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 truncate min-w-0"
+          className="font-extrabold text-[20px] text-ink dark:text-zinc-50 truncate min-w-0 leading-snug"
         >
           {title}
         </h2>

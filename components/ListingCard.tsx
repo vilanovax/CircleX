@@ -4,7 +4,12 @@ import { memo } from "react";
 import Link from "next/link";
 import type { Listing } from "@/lib/types";
 import { useStore } from "@/lib/store";
-import { formatPrice, listingDisplayTitle, privacyLabels } from "@/lib/labels";
+import {
+  dealStatusLabels,
+  formatPrice,
+  listingDisplayTitle,
+  privacyLabels,
+} from "@/lib/labels";
 import { placeCardLabel } from "@/lib/place";
 import { privacyAudience } from "@/lib/trust";
 import ListingImage from "./ListingImage";
@@ -18,6 +23,7 @@ function ListingCard({
   showOpenHint = false,
   imagePriority = false,
   eagerTrust = false,
+  highlight = false,
 }: {
   listing: Listing;
   /** One-line trust row for feed (default). Full box on detail-adjacent views. */
@@ -32,6 +38,8 @@ function ListingCard({
   imagePriority?: boolean;
   /** First-screen avatars should not wait for lazy load. */
   eagerTrust?: boolean;
+  /** Just-published listing on home. */
+  highlight?: boolean;
 }) {
   const people = useStore((s) =>
     compactTrust || hideTrust ? null : s.people,
@@ -43,6 +51,10 @@ function ListingCard({
     <article
       className={`card active:scale-[0.99] transition-transform duration-150 ${
         compactTrust ? "p-2.5" : "p-3"
+      } ${
+        highlight
+          ? "ring-2 ring-brand-500 ring-offset-2 ring-offset-[color:var(--circle-surface)] dark:ring-brand-400 dark:ring-offset-zinc-950"
+          : ""
       }`}
     >
       {!hideTrust && (
@@ -97,6 +109,20 @@ function ListingCard({
                   {" · "}
                 </span>
                 <span>{listing.postedAt}</span>
+                {listing.dealStatus === "reserved" ||
+                listing.dealStatus === "agreed" ? (
+                  <>
+                    <span
+                      className="text-stone-400 dark:text-zinc-600"
+                      aria-hidden
+                    >
+                      {" · "}
+                    </span>
+                    <span className="text-brand-700 dark:text-brand-300">
+                      {dealStatusLabels[listing.dealStatus]}
+                    </span>
+                  </>
+                ) : null}
               </p>
             )}
           </div>
