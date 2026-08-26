@@ -184,6 +184,7 @@ export function toClientNotice(
     fromMe: false,
     text,
     postedAt: relativePostedAt(row.createdAt, now),
+    sentAt: row.createdAt.getTime(),
     read: Boolean(row.readAt),
     kind: "notice",
     actionHref: row.actionHref ?? undefined,

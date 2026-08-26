@@ -202,6 +202,8 @@ export type ListingIdentityView = {
   excludePersonIds?: string[];
   excludeRelationTypes?: RelationType[];
   identityRevealedPeerIds?: string[];
+  viewerTrustScore?: number;
+  viewerDirect?: boolean;
 };
 
 export function applyListingIdentity<
@@ -218,6 +220,8 @@ export function applyListingIdentity<
   excludeRelationTypes?: RelationType[];
   identityRevealedPeerIds?: string[];
   privateAvatar?: string;
+  viewerTrustScore?: number;
+  viewerDirect?: boolean;
 } {
   const identityHidden =
     view.hideIdentity && !view.isOwner && !view.revealed;
@@ -226,6 +230,11 @@ export function applyListingIdentity<
     : identityHidden
       ? hiddenSellerId(row.id)
       : row.sellerId;
+  const viewerDirect =
+    view.viewerDirect ?? (view.isOwner || row.trustPath.length === 0);
+  const viewerTrustScore = view.isOwner
+    ? undefined
+    : (view.viewerTrustScore ?? 1);
   return {
     ...row,
     sellerId,
@@ -233,6 +242,8 @@ export function applyListingIdentity<
     endorsements: identityHidden ? [] : row.endorsements,
     privatePublish: view.hideIdentity,
     identityHidden,
+    viewerDirect,
+    ...(viewerTrustScore != null ? { viewerTrustScore } : {}),
     ...(view.hideIdentity
       ? { privateAvatar: privateListingAvatar(row.id) }
       : {}),

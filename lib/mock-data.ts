@@ -6,6 +6,7 @@ import type {
   Person,
   Request,
 } from "./types";
+import { sentAtFromRelative } from "./mappers";
 
 /** The current (logged-in) user. */
 export const ME: Person = {
@@ -724,6 +725,7 @@ function m(
     fromMe,
     text,
     postedAt,
+    sentAt: sentAtFromRelative(postedAt),
     read,
     ...(listingId ? { listingId } : {}),
   };

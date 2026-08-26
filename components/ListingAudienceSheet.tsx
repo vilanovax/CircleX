@@ -55,7 +55,7 @@ export default function ListingAudienceSheet({
       labelledBy="listing-audience-title"
       header={
         <div>
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
             <h2
               id="listing-audience-title"
               className="min-w-0 font-extrabold text-[20px] text-ink dark:text-zinc-50 tracking-tight leading-tight"
@@ -63,15 +63,15 @@ export default function ListingAudienceSheet({
               چه کسانی این آگهی را می‌بینند؟
             </h2>
             {members.length > 0 ? (
-              <span className="nums mt-0.5 shrink-0 rounded-full bg-stone-100 px-2 py-0.5 text-[12px] font-bold text-ink dark:bg-zinc-800 dark:text-zinc-100">
+              <span className="nums inline-flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full bg-stone-100 px-1.5 text-[11px] font-bold text-ink dark:bg-zinc-800 dark:text-zinc-100">
                 {count}
               </span>
             ) : null}
           </div>
-          <p className="mt-1.5 text-[12px] leading-relaxed text-ink-muted dark:text-zinc-400">
+          <p className="mt-1 text-[12px] leading-relaxed text-ink-muted dark:text-zinc-400">
             {members.length === 0
               ? `با تنظیم «${privacyLabels[privacy]}» الان کسی از حلقه‌ات این آگهی را نمی‌بیند.`
-              : "گروه اعتماد تو، بدون کسانی که کنار گذاشته‌ای."}
+              : "از حلقه‌ات، بدون کسانی که کنار گذاشته‌ای."}
           </p>
           {privacy === "referral" ? (
             <p className="mt-1 text-[12px] leading-relaxed text-ink-muted dark:text-zinc-400">
@@ -87,22 +87,20 @@ export default function ListingAudienceSheet({
           وقتی کسی را به حلقه اضافه کنی یا محدوده را عوض کنی، اسمش اینجا می‌آید.
         </p>
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {groups.map((group, groupIndex) => (
             <section key={group.relation}>
-              <div className="mb-2.5 flex items-baseline justify-between gap-2 border-b border-stone-200/70 pb-1.5 dark:border-zinc-800">
-                <h3 className="text-[13px] font-bold text-ink dark:text-zinc-200">
-                  {relationLabels[group.relation]}
-                </h3>
+              <h3 className="mb-2 flex items-center gap-1.5 text-[13px] font-bold text-ink dark:text-zinc-200">
+                {relationLabels[group.relation]}
                 <span className="nums text-[11px] font-semibold text-ink-faint dark:text-zinc-500">
                   {toPersianDigits(group.members.length)}
                 </span>
-              </div>
-              <ul className="grid grid-cols-5 gap-x-1 gap-y-3">
+              </h3>
+              <ul className="grid grid-cols-4 gap-x-2 gap-y-3">
                 {group.members.map((person, index) => (
                   <li
                     key={person.id}
-                    className="flex min-w-0 flex-col items-center gap-1"
+                    className="flex min-w-0 flex-col items-center gap-1.5"
                   >
                     <Avatar
                       name={person.name}
@@ -111,7 +109,7 @@ export default function ListingAudienceSheet({
                       showLevel={false}
                       eager={groupIndex === 0 && index < 8}
                     />
-                    <p className="w-full truncate text-center text-[12px] font-semibold leading-snug text-ink dark:text-zinc-100">
+                    <p className="w-full truncate text-center text-[12px] font-medium leading-snug text-ink dark:text-zinc-100">
                       {person.name}
                     </p>
                   </li>

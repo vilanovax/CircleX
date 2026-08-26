@@ -268,6 +268,11 @@ export default function ListingClassic(_props: { params: { id: string } }) {
               غیرفعال
             </span>
           ) : null}
+          {isMine && listing.privatePublish ? (
+            <span className="chip !text-[11px] !py-0.5 bg-stone-800 text-white dark:bg-zinc-100 dark:text-zinc-900">
+              هویت پنهان
+            </span>
+          ) : null}
         </div>
 
         <h1 className="text-[20px] font-extrabold text-ink dark:text-zinc-50 leading-[1.35] tracking-tight">
@@ -280,8 +285,10 @@ export default function ListingClassic(_props: { params: { id: string } }) {
             .join(" · ")}
         </p>
         <p className="mt-1 text-[11px] text-ink-faint dark:text-zinc-500 leading-relaxed px-0.5">
-          {listing.identityHidden
-            ? "داخل حلقهٔ تو می‌رسد"
+          {listing.identityHidden || (isMine && listing.privatePublish)
+            ? isMine && listing.privatePublish
+              ? "حلقه آگهی را می‌بیند؛ اسم و عکس تو روی آن نیست"
+              : "داخل حلقهٔ تو می‌رسد"
             : listingPrivacyAudienceLine(
                 listing.privacy,
                 isMine ? "تو" : seller?.name,
@@ -343,7 +350,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         ) : null}
       </div>
 
-      {listing.identityHidden ? (
+      {listing.identityHidden || (isMine && listing.privatePublish) ? (
         <section className="px-4 pt-3.5">
           <p className="text-[11px] font-semibold text-ink-faint mb-2 px-0.5">
             فروشنده
@@ -360,10 +367,12 @@ export default function ListingClassic(_props: { params: { id: string } }) {
                 {CIRCLE_MEMBER_NAME}
               </p>
               <p className="text-[12px] text-ink-muted mt-0.5">
-                هویت برای اعضا پنهان است
+                {isMine
+                  ? "حلقه تو را با این چهره می‌بیند، نه با نام و عکس پروفایل"
+                  : "هویت برای اعضا پنهان است"}
               </p>
               <p className="text-[11px] text-ink-faint mt-1">
-                داخل حلقهٔ تو
+                {isMine ? "نمایش برای دیگران" : "داخل حلقهٔ تو"}
               </p>
             </div>
           </div>
@@ -462,9 +471,11 @@ export default function ListingClassic(_props: { params: { id: string } }) {
                   ? ` · ${toPersianDigits(endorsementCount)}`
                   : ""}
               </h2>
-              {listing.identityHidden ? (
+              {listing.identityHidden || (isMine && listing.privatePublish) ? (
                 <p className="text-[12px] text-ink-muted mt-1 leading-relaxed">
-                  در حالت هویت پنهان، نظر آشنایان روی آگهی نشان داده نمی‌شود.
+                  {isMine && listing.privatePublish
+                    ? "تا هویت پنهان است، اسم تو روی نظر آشنایان نمی‌آید."
+                    : "در حالت هویت پنهان، نظر آشنایان روی آگهی نشان داده نمی‌شود."}
                 </p>
               ) : listing.endorsements.length > 0 ? (
                 <div className="mt-2">

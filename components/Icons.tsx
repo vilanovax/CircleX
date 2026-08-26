@@ -94,6 +94,15 @@ export function CheckIcon({ className }: IconProps) {
   );
 }
 
+export function DoubleCheckIcon({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2.5 12.5l4.5 4.5 8-10" />
+      <path d="M8 12.5l4.5 4.5 9-11" />
+    </svg>
+  );
+}
+
 export function LockIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

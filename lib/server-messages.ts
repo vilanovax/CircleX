@@ -122,8 +122,12 @@ export async function assertCanSendDm(
       where: { id: listingId },
     });
     if (!listing) return { ok: false, error: "آگهی پیدا نشد", status: 404 };
-    if (listing.dealStatus === "inactive" && listing.sellerId !== viewerId) {
-      return { ok: false, error: "آگهی پیدا نشد", status: 404 };
+    if (listing.dealStatus === "inactive") {
+      return {
+        ok: false,
+        error: "آگهی غیرفعال است و گفتگو بسته است",
+        status: 403,
+      };
     }
     const visible = await viewerCanSeeListing({
       viewerId,

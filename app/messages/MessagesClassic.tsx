@@ -23,6 +23,7 @@ import { threadPreview } from "@/lib/message-preview";
 import { CIRCLO_PEER_ID, CIRCLO_PERSON, isCircloPeer } from "@/lib/circlo";
 import { toPersianDigits } from "@/lib/persian";
 import { listingSubject } from "@/lib/listing-prompts";
+import { messageSentAt } from "@/lib/mappers";
 import { recalledThreadListing } from "@/lib/thread-listing";
 import {
   circleMemberPerson,
@@ -197,7 +198,13 @@ const MessagesBody = memo(function MessagesBody({
       circloMatchesQuery &&
       (filter !== "unread" || circloUnread > 0);
 
-    if (filter === "archive") return mapped;
+    if (filter === "archive") {
+      return mapped.sort(
+        (a, b) =>
+          messageSentAt(b.last ?? { postedAt: "", sentAt: 0 }) -
+          messageSentAt(a.last ?? { postedAt: "", sentAt: 0 }),
+      );
+    }
 
     const pinnedRows = mapped
       .filter((r) => r.pinned)
@@ -205,7 +212,13 @@ const MessagesBody = memo(function MessagesBody({
         (a, b) =>
           pinnedThreads.indexOf(a.rowKey) - pinnedThreads.indexOf(b.rowKey),
       );
-    const rest = mapped.filter((r) => !r.pinned);
+    const rest = mapped
+      .filter((r) => !r.pinned)
+      .sort(
+        (a, b) =>
+          messageSentAt(b.last ?? { postedAt: "", sentAt: 0 }) -
+          messageSentAt(a.last ?? { postedAt: "", sentAt: 0 }),
+      );
     const circloRow = showCirclo
       ? [
           {

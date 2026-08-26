@@ -23,8 +23,10 @@ export function trustScore(
   posterId: string,
   trustPath: TrustHop[],
   getPerson: (id: string) => Person | undefined,
+  hiddenScore?: number,
 ): number {
   if (posterId === "me") return Infinity;
+  if (posterId.startsWith("hidden:")) return hiddenScore ?? 1;
 
   if (trustPath.length === 0) {
     const poster = getPerson(posterId);
@@ -65,12 +67,19 @@ export function canView(
     privacy: Privacy;
     trustPath: TrustHop[];
     dealStatus?: "available" | "reserved" | "agreed" | "inactive";
+    viewerTrustScore?: number;
+    identityHidden?: boolean;
   },
   getPerson: (id: string) => Person | undefined,
 ): boolean {
   const posterId = poster.sellerId ?? poster.requesterId ?? poster.hostId ?? "";
   if (poster.dealStatus === "inactive" && posterId !== "me") return false;
   if (posterId === "me") return true;
+  // Masked seller id is not in the roster; use the pre-mask score.
+  if (posterId.startsWith("hidden:") || poster.identityHidden) {
+    const score = poster.viewerTrustScore ?? 1;
+    return score >= requiredScore(poster.privacy);
+  }
   // "approved" also requires a direct connection, not just a high score via path.
   if (poster.privacy === "approved" && poster.trustPath.length > 0) return false;
   return trustScore(posterId, poster.trustPath, getPerson) >= requiredScore(poster.privacy);

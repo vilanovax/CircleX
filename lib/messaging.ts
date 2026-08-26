@@ -38,6 +38,7 @@ export function canMessageAboutListing(
   getPerson: (id: string) => Person | undefined,
 ): boolean {
   if (peer.id === "me") return false;
+  if (listing.dealStatus === "inactive") return false;
 
   if (listing.privatePublish && listing.sellerId !== "me") {
     return canView(listing, getPerson);

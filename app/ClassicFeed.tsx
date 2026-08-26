@@ -78,8 +78,14 @@ function listingMatchesScope(
   if (listing.dealStatus === "inactive") return false;
   if (listing.sellerId === "me") return true;
 
-  const direct = listing.trustPath.length === 0;
-  const score = trustScore(listing.sellerId, listing.trustPath, getPerson);
+  const hidden =
+    listing.identityHidden || listing.sellerId.startsWith("hidden:");
+  const direct = hidden
+    ? Boolean(listing.viewerDirect ?? listing.trustPath.length === 0)
+    : listing.trustPath.length === 0;
+  const score = hidden
+    ? (listing.viewerTrustScore ?? 1)
+    : trustScore(listing.sellerId, listing.trustPath, getPerson);
 
   if (scope === "network") return score > 0;
   if (!direct) return false;

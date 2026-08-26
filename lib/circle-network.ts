@@ -14,6 +14,7 @@ import {
   toHomeListing,
 } from "@/lib/mappers";
 import { listingViewerFlags } from "@/lib/server-listing-privacy";
+import { trustScore } from "@/lib/trust";
 import { backfillFamilyReciprocals } from "@/lib/server-family-reciprocal";
 import { threadKey } from "@/lib/listing-privacy";
 import type {
@@ -213,18 +214,15 @@ export async function loadCircleNetwork(viewerId: string): Promise<{
   const flags = await listingViewerFlags(viewerId, marketRows);
   const visibleRows = marketRows.filter((row) => !flags.blockedIds.has(row.id));
 
-  const listings = visibleRows.map((row) =>
-    toClientListing(
-      row,
-      viewerId,
-      trustPathForListing(row, viewerId, ctx),
-      {
-        revealed: flags.revealedIds.has(row.id),
-        excludePersonIds: flags.excludeIdsByListing.get(row.id),
-        identityRevealedPeerIds: flags.revealPeersByListing.get(row.id),
-      },
-    ),
-  );
+  const listings = visibleRows.map((row) => {
+    const trustPath = trustPathForListing(row, viewerId, ctx);
+    return toClientListing(row, viewerId, trustPath, {
+      revealed: flags.revealedIds.has(row.id),
+      excludePersonIds: flags.excludeIdsByListing.get(row.id),
+      identityRevealedPeerIds: flags.revealPeersByListing.get(row.id),
+      ...listingViewerReach(row.sellerId, viewerId, trustPath, ctx),
+    });
+  });
 
   const social = await loadSocialFeed(viewerId, sellerIds, ctx);
 
@@ -464,13 +462,15 @@ export async function loadHomeFeed(viewerId: string): Promise<{
   const flags = await listingViewerFlags(viewerId, marketRows);
   const visibleRows = marketRows.filter((row) => !flags.blockedIds.has(row.id));
 
-  const listings = visibleRows.map((row) =>
-    toHomeListing(row, viewerId, trustPathForListing(row, viewerId, pathCtx), {
+  const listings = visibleRows.map((row) => {
+    const trustPath = trustPathForListing(row, viewerId, pathCtx);
+    return toHomeListing(row, viewerId, trustPath, {
       revealed: flags.revealedIds.has(row.id),
       excludePersonIds: flags.excludeIdsByListing.get(row.id),
       identityRevealedPeerIds: flags.revealPeersByListing.get(row.id),
-    }),
-  );
+      ...listingViewerReach(row.sellerId, viewerId, trustPath, pathCtx),
+    });
+  });
 
   const requests = requestRows.map((row) => {
     const mapped = toClientRequest(
@@ -584,6 +584,21 @@ export async function listingAccess(
         priorRelationLabel: relationTowardName(hop.relationType, bridgeName),
       },
     ],
+  };
+}
+
+function listingViewerReach(
+  sellerId: string,
+  viewerId: string,
+  trustPath: TrustHop[],
+  ctx: { memberById: Map<string, Person>; directSet: Set<string> },
+): { viewerTrustScore: number; viewerDirect: boolean } {
+  const viewerDirect = sellerId === viewerId || ctx.directSet.has(sellerId);
+  return {
+    viewerDirect,
+    viewerTrustScore: trustScore(sellerId, trustPath, (id) =>
+      ctx.memberById.get(id),
+    ),
   };
 }
 

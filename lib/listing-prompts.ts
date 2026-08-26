@@ -567,7 +567,7 @@ export function suggestThreadChips(ctx: ThreadChipContext): BuyerPrompt[] {
     candidates = buyerOpeningCandidates(listing);
   }
 
-  return dedupe(filterCandidates(corpus, candidates), 6);
+  return dedupe(filterCandidates(corpus, candidates), 8);
 }
 
 /**

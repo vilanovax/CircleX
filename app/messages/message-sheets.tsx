@@ -21,6 +21,7 @@ export function ThreadActionsSheet({
   avatar,
   pinned,
   archived,
+  listingHref,
   onClose,
   onPin,
   onArchive,
@@ -30,6 +31,7 @@ export function ThreadActionsSheet({
   avatar: string;
   pinned: boolean;
   archived: boolean;
+  listingHref?: string;
   onClose: () => void;
   onPin: () => void;
   onArchive: () => void;
@@ -55,7 +57,7 @@ export function ThreadActionsSheet({
         <div className="min-w-0">
           <h2
             id="thread-actions-title"
-            className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50 leading-tight truncate"
+            className="font-extrabold text-[20px] text-ink dark:text-zinc-50 leading-tight truncate"
           >
             {name}
           </h2>
@@ -93,6 +95,28 @@ export function ThreadActionsSheet({
           }
           onClick={onArchive}
         />
+        {listingHref ? (
+          <>
+            <div className="h-px bg-stone-100 dark:bg-zinc-800" />
+            <Link
+              href={listingHref}
+              onClick={onClose}
+              className="flex w-full items-center gap-3 px-3.5 py-3 text-right active:bg-stone-50 dark:active:bg-zinc-800/80"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-600 dark:bg-zinc-800 dark:text-zinc-300">
+                <ChatIcon className="h-[18px] w-[18px]" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14px] font-bold text-ink dark:text-zinc-100">
+                  رفتن به آگهی
+                </span>
+                <span className="mt-0.5 block text-[12px] leading-snug text-ink-muted">
+                  جزئیات همان آگهی این گفتگو
+                </span>
+              </span>
+            </Link>
+          </>
+        ) : null}
       </div>
 
       <button
@@ -183,7 +207,7 @@ export function ComposeSheet({ onClose }: { onClose: () => void }) {
         <div>
           <h2
             id="compose-title"
-            className="font-extrabold text-[1.15rem] text-ink dark:text-zinc-50"
+            className="font-extrabold text-[20px] text-ink dark:text-zinc-50"
           >
             گفتگوی جدید
           </h2>
@@ -253,6 +277,61 @@ export function ComposeSheet({ onClose }: { onClose: () => void }) {
             </button>
           ))
         )}
+      </div>
+    </SheetShell>
+  );
+}
+
+export function ThreadPromptSheet({
+  prompts,
+  onPick,
+  onClose,
+}: {
+  prompts: { id: string; label: string; draft: string }[];
+  onPick: (prompt: { id: string; label: string; draft: string }) => void;
+  onClose: () => void;
+}) {
+  return (
+    <SheetShell
+      onClose={onClose}
+      labelledBy="thread-prompts-title"
+      zClass="z-50"
+      footer={
+        <button type="button" onClick={onClose} className="btn-ghost w-full !py-3">
+          بستن
+        </button>
+      }
+    >
+      <h2
+        id="thread-prompts-title"
+        className="mb-1 font-extrabold text-[20px] text-ink dark:text-zinc-50"
+      >
+        سؤال‌های آماده
+      </h2>
+      <p className="mb-3 text-[12px] text-ink-muted">
+        انتخاب می‌شود و در پیام می‌نشیند — می‌توانی قبل از ارسال عوضش کنی.
+      </p>
+      <div className="overflow-hidden rounded-2xl border border-stone-200/80 dark:border-zinc-800">
+        {prompts.map((p, i) => (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => {
+              onPick(p);
+              onClose();
+            }}
+            className={`w-full px-3.5 py-3 text-right active:bg-stone-50 dark:active:bg-zinc-800/80 ${
+              i > 0 ? "border-t border-stone-100 dark:border-zinc-800" : ""
+            }`}
+          >
+            <span className="block text-[14px] font-bold text-ink dark:text-zinc-100">
+              {p.label}
+            </span>
+            <span className="mt-0.5 block text-[12px] leading-snug text-ink-muted">
+              {p.draft}
+            </span>
+          </button>
+        ))}
       </div>
     </SheetShell>
   );

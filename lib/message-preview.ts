@@ -7,7 +7,9 @@ export function threadPreview(
   if (!last) return "شروع گفتگو…";
 
   const text = last.text.trim();
-  if (last.listingId) {
+  const isThreadTopic =
+    last.threadListingId && last.listingId === last.threadListingId;
+  if (last.listingId && !isThreadTopic) {
     if (text) {
       const prefix = last.fromMe ? "شما: " : "";
       return `${prefix}${text.length > 72 ? `${text.slice(0, 72)}…` : text}`;

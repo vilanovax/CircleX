@@ -6,6 +6,7 @@ import {
 } from "@/lib/demo-circle-catalog";
 import { CIRCLO_PEER_ID } from "@/lib/circlo";
 import { relationLabels, relationTowardName } from "@/lib/labels";
+import { messageSentAt, sentAtFromRelative } from "@/lib/mappers";
 import type {
   CircleEvent,
   Listing,
@@ -482,7 +483,9 @@ export function bindViewerMessages(
       fromMe: def.fromMe,
       text: def.text,
       postedAt: def.postedAt,
+      sentAt: sentAtFromRelative(def.postedAt),
       read: def.read,
+      ...(def.fromMe ? { seenByPeer: true } : {}),
       ...(listingId ? { listingId } : {}),
     });
   }
@@ -522,7 +525,10 @@ export function mergeInboxMessages(
   const visible = server.filter((m) => !hide.has(m.peerId));
   const pending = prev.filter((m) => isLocalPendingMessageId(m.id));
   const demo = prev.filter((m) => isDemoMessageId(m.id));
-  return { messages: [...visible, ...pending, ...demo], revivedPeerIds };
+  const messages = [...visible, ...pending, ...demo].sort(
+    (a, b) => messageSentAt(a) - messageSentAt(b),
+  );
+  return { messages, revivedPeerIds };
 }
 
 /** Keep user-authored rows; replace seeded demo rows from the catalog. */

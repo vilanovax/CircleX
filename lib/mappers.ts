@@ -17,7 +17,7 @@ import { relationLabels } from "./labels";
 import { applyListingIdentity, parseRelationTypes } from "./listing-privacy";
 import { localListingSrc, localListingSrcs } from "./listing-photo";
 import { parseDealStatus, parseSpecs } from "./listing-payload";
-import { toPersianDigits } from "./persian";
+import { toEnglishDigits, toPersianDigits } from "./persian";
 import { maskPhone } from "./phone";
 import type {
   BadgeType,
@@ -232,7 +232,9 @@ export function toClientDirectMessage(
     text: row.text,
     ...(row.imageUrl ? { imageUrl: row.imageUrl } : {}),
     postedAt: relativePostedAt(row.createdAt, now),
+    sentAt: row.createdAt.getTime(),
     read: fromMe ? true : Boolean(row.readAt),
+    ...(fromMe ? { seenByPeer: Boolean(row.readAt) } : {}),
     ...(row.listingId ? { listingId: row.listingId } : {}),
     ...(row.listingScoped && row.listingId
       ? { threadListingId: row.listingId }
@@ -254,6 +256,38 @@ export function relativePostedAt(date: Date, now = Date.now()): string {
   if (days < 7) return `\u200F${toPersianDigits(days)} روز پیش`;
   if (days < 30) return `\u200F${toPersianDigits(Math.floor(days / 7))} هفته پیش`;
   return `\u200F${toPersianDigits(Math.floor(days / 30))} ماه پیش`;
+}
+
+/** Invert a Persian relative label so demo/seed rows can sort with live DMs. */
+export function sentAtFromRelative(postedAt: string, now = Date.now()): number {
+  const label = postedAt.replace(/\u200F/g, "").trim();
+  if (!label || label === "همین حالا") return now;
+  if (label === "دیروز") return now - 86_400_000;
+  const num = Number(toEnglishDigits(label).replace(/[^\d]/g, ""));
+  if (!Number.isFinite(num) || num <= 0) return 0;
+  if (label.includes("دقیقه")) return now - num * 60_000;
+  if (label.includes("ساعت")) return now - num * 3_600_000;
+  if (label.includes("روز")) return now - num * 86_400_000;
+  if (label.includes("هفته")) return now - num * 7 * 86_400_000;
+  if (label.includes("ماه")) return now - num * 30 * 86_400_000;
+  return 0;
+}
+
+export function messageSentAt(msg: Pick<Message, "sentAt" | "postedAt">): number {
+  if (typeof msg.sentAt === "number" && Number.isFinite(msg.sentAt)) {
+    return msg.sentAt;
+  }
+  return sentAtFromRelative(msg.postedAt);
+}
+
+/** Clock inside a bubble — Divar-style, not a relative label. */
+export function messageClock(msg: Pick<Message, "sentAt" | "postedAt">): string {
+  const t = messageSentAt(msg);
+  if (t <= 0) return msg.postedAt.replace(/\u200F/g, "").trim();
+  const d = new Date(t);
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return toPersianDigits(`${hh}:${mm}`);
 }
 
 type ListingEndorsementSource = {
@@ -285,6 +319,8 @@ export function toHomeListing(
     revealed?: boolean;
     excludePersonIds?: string[];
     identityRevealedPeerIds?: string[];
+    viewerTrustScore?: number;
+    viewerDirect?: boolean;
   },
 ): Listing {
   const description = (row.description ?? "").trim();
@@ -322,6 +358,8 @@ export function toHomeListing(
       excludePersonIds: identity?.excludePersonIds,
       excludeRelationTypes: parseRelationTypes(row.excludeRelationTypes),
       identityRevealedPeerIds: identity?.identityRevealedPeerIds,
+      viewerTrustScore: identity?.viewerTrustScore,
+      viewerDirect: identity?.viewerDirect,
     },
   );
 }
@@ -334,6 +372,8 @@ export function toClientListing(
     revealed?: boolean;
     excludePersonIds?: string[];
     identityRevealedPeerIds?: string[];
+    viewerTrustScore?: number;
+    viewerDirect?: boolean;
   },
 ): Listing {
   const images = localListingSrcs(
@@ -372,6 +412,8 @@ export function toClientListing(
       excludePersonIds: identity?.excludePersonIds,
       excludeRelationTypes: parseRelationTypes(row.excludeRelationTypes),
       identityRevealedPeerIds: identity?.identityRevealedPeerIds,
+      viewerTrustScore: identity?.viewerTrustScore,
+      viewerDirect: identity?.viewerDirect,
     },
   );
 }

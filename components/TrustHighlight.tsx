@@ -38,6 +38,8 @@ function TrustHighlight({
   contentKind = "listing",
   variant = "default",
   eager = false,
+  listingId,
+  ownerHiddenPreview = false,
 }: {
   posterId: string;
   trustPath: TrustHop[];
@@ -47,6 +49,9 @@ function TrustHighlight({
   variant?: "default" | "compact" | "line";
   /** Above-fold feed faces. */
   eager?: boolean;
+  listingId?: string;
+  /** Owner sees the same masked face the circle will see. */
+  ownerHiddenPreview?: boolean;
 }) {
   const hidden = isHiddenSellerId(posterId);
   const getPerson = useStore((s) => s.getPerson);
@@ -103,6 +108,33 @@ function TrustHighlight({
           </p>
           <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 truncate">
             هویت برای اعضا پنهان است
+          </p>
+        </div>
+      </div>
+    );
+  }
+  if (ownerHiddenPreview && listingId) {
+    return (
+      <div className="mb-1.5 flex items-center gap-2 min-w-0">
+        <Avatar
+          name={CIRCLE_MEMBER_NAME}
+          src={privateListingAvatar(listingId)}
+          showLevel={false}
+          size="sm"
+          eager={eager}
+        />
+        <div className="min-w-0 leading-tight">
+          <p className="text-[12.5px] truncate">
+            <span className="font-extrabold text-ink dark:text-zinc-50">
+              آگهی‌ات
+            </span>
+            <span className="font-medium text-ink-muted dark:text-zinc-300">
+              {" · "}
+              هویت پنهان
+            </span>
+          </p>
+          <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 truncate">
+            حلقه این چهره را می‌بیند، نه اسم تو
           </p>
         </div>
       </div>

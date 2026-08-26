@@ -1,3 +1,4 @@
+import { messageSentAt } from "./mappers";
 import type { Message } from "./types";
 import { threadKey } from "./listing-privacy";
 
@@ -155,7 +156,6 @@ export function buildThreadIndex(
     }
     thread.push(msg);
     lastIndex.set(key, i);
-    lastByPeer.set(key, msg);
     if (msg.listingId) {
       listingIdByPeer.set(key, msg.listingId);
       let peers = peersByListing.get(msg.listingId);
@@ -177,8 +177,22 @@ export function buildThreadIndex(
     conversationCountByListing.set(listingId, peers.size);
   });
 
+  for (const [key, thread] of Array.from(threadByPeer.entries())) {
+    thread.sort((a, b) => {
+      const delta = messageSentAt(a) - messageSentAt(b);
+      if (delta !== 0) return delta;
+      return 0;
+    });
+    lastByPeer.set(key, thread[thread.length - 1]!);
+  }
+
   const peerIds = Array.from(lastIndex.keys());
-  peerIds.sort((a, b) => (lastIndex.get(b) ?? 0) - (lastIndex.get(a) ?? 0));
+  peerIds.sort((a, b) => {
+    const tb = messageSentAt(lastByPeer.get(b)!);
+    const ta = messageSentAt(lastByPeer.get(a)!);
+    if (tb !== ta) return tb - ta;
+    return (lastIndex.get(b) ?? 0) - (lastIndex.get(a) ?? 0);
+  });
 
   const next: ThreadIndex = {
     peerIds,

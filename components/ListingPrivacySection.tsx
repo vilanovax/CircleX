@@ -197,7 +197,14 @@ export default function ListingPrivacySection({
           disabled={!canHideIdentity && !hideIdentity}
           onClick={() => {
             if (!canHideIdentity && !hideIdentity) return;
-            onHideIdentity(!hideIdentity);
+            const next = !hideIdentity;
+            const ok = window.confirm(
+              next
+                ? "هویت تو روی آگهی پنهان می‌شود. حلقه آگهی را با چهرهٔ مخصوص می‌بیند، نه با نام و عکس پروفایل. ادامه می‌دهی؟"
+                : "هویت تو روی آگهی دیده می‌شود. نام و تصویر پروفایل برای بینندگان نمایش داده می‌شود. ادامه می‌دهی؟",
+            );
+            if (!ok) return;
+            onHideIdentity(next);
           }}
           className={`chip !text-[11px] !py-1 ${
             hideIdentity
@@ -205,7 +212,7 @@ export default function ListingPrivacySection({
               : "bg-stone-100 text-ink-muted dark:bg-zinc-800"
           } disabled:opacity-40`}
         >
-          هویت من پنهان باشد
+          {hideIdentity ? "هویت من پنهان است" : "هویت من پنهان شود؟"}
         </button>
         <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-2 leading-relaxed">
           {hideIdentity

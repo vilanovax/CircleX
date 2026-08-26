@@ -29,13 +29,22 @@ export default function ListingThreadEntry() {
   const pendingFileRef = useRef<File | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [sending, setSending] = useState(false);
+  const [listingChecked, setListingChecked] = useState(false);
 
   useEffect(() => {
-    void ensureListing(listingId);
+    let cancelled = false;
+    void ensureListing(listingId).then(() => {
+      if (!cancelled) setListingChecked(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [ensureListing, listingId]);
 
   const listing = getListing(listingId);
   const existing = messages.find((msg) => msg.threadListingId === listingId);
+  const listingClosed =
+    listing?.dealStatus === "inactive" || (listingChecked && !listing);
 
   useEffect(() => {
     if (!existing) return;
@@ -47,7 +56,7 @@ export default function ListingThreadEntry() {
   async function send() {
     const t = text.trim();
     const file = pendingFileRef.current;
-    if ((!t && !file) || sending) return;
+    if ((!t && !file) || sending || listingClosed) return;
     setSending(true);
     try {
       const imageUrl = file ? await uploadUserPhoto(file) : undefined;
@@ -101,61 +110,66 @@ export default function ListingThreadEntry() {
       </Header>
       <div className="flex-1 px-4 pt-6">
         <p className="text-[13px] text-ink-muted leading-relaxed">
-          هویت آگهی‌دهنده برای تو پنهان است. اگر پیام بفرستی، او تو را با نام
-          واقعی می‌بیند.
+          {listingClosed
+            ? listing?.dealStatus === "inactive"
+              ? "آگهی غیرفعال است و امکان گفتگو نیست."
+              : "آگهی پیدا نشد و امکان گفتگو نیست."
+            : "هویت آگهی‌دهنده برای تو پنهان است. اگر پیام بفرستی، او تو را با نام واقعی می‌بیند."}
         </p>
       </div>
-      <div className="border-t border-stone-200/70 dark:border-zinc-800 px-3 pt-2 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
-        {pendingPhoto ? (
-          <div className="mb-2 flex items-center gap-2">
-            <img
-              src={pendingPhoto}
-              alt=""
-              className="h-16 w-16 rounded-xl object-cover"
+      {listingClosed ? null : (
+        <div className="border-t border-stone-200/70 dark:border-zinc-800 px-3 pt-2 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
+          {pendingPhoto ? (
+            <div className="mb-2 flex items-center gap-2">
+              <img
+                src={pendingPhoto}
+                alt=""
+                className="h-16 w-16 rounded-xl object-cover"
+              />
+              <button
+                type="button"
+                onClick={clearPendingPhoto}
+                className="text-[12px] font-bold text-ink-muted"
+              >
+                حذف عکس
+              </button>
+            </div>
+          ) : null}
+          <div className="flex items-end gap-2">
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => onPickPhoto(e.target.files)}
             />
             <button
               type="button"
-              onClick={clearPendingPhoto}
-              className="text-[12px] font-bold text-ink-muted"
+              disabled={sending}
+              onClick={() => photoInputRef.current?.click()}
+              aria-label="افزودن عکس"
+              className="shrink-0 flex h-11 w-11 items-center justify-center rounded-full border border-stone-200 text-ink-muted dark:border-zinc-700"
             >
-              حذف عکس
+              <CameraIcon className="h-5 w-5" />
+            </button>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={1}
+              className="field min-h-[2.75rem] flex-1 resize-none"
+              placeholder="پیام…"
+            />
+            <button
+              type="button"
+              disabled={(!text.trim() && !pendingPhoto) || sending}
+              onClick={() => void send()}
+              className="btn-primary !px-4 !py-2.5 disabled:opacity-50"
+            >
+              بفرست
             </button>
           </div>
-        ) : null}
-        <div className="flex items-end gap-2">
-          <input
-            ref={photoInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => onPickPhoto(e.target.files)}
-          />
-          <button
-            type="button"
-            disabled={sending}
-            onClick={() => photoInputRef.current?.click()}
-            aria-label="افزودن عکس"
-            className="shrink-0 flex h-11 w-11 items-center justify-center rounded-full border border-stone-200 text-ink-muted dark:border-zinc-700"
-          >
-            <CameraIcon className="h-5 w-5" />
-          </button>
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={1}
-            className="field min-h-[2.75rem] flex-1 resize-none"
-            placeholder="پیام…"
-          />
-          <button
-            type="button"
-            disabled={(!text.trim() && !pendingPhoto) || sending}
-            onClick={() => void send()}
-            className="btn-primary !px-4 !py-2.5 disabled:opacity-50"
-          >
-            بفرست
-          </button>
         </div>
-      </div>
+      )}
     </main>
   );
 }

@@ -79,11 +79,34 @@ export async function GET(
             select: { body: true },
           });
 
+    const viewerEdge =
+      row.sellerId === session.id
+        ? null
+        : await prisma.circleEdge.findUnique({
+            where: {
+              fromUserId_toUserId: {
+                fromUserId: session.id,
+                toUserId: row.sellerId,
+              },
+            },
+            select: { trustGroup: true },
+          });
+    const groupScore = { A: 3, B: 2, C: 1 } as const;
+
     return Response.json({
       listing: toClientListing(row, session.id, access.trustPath, {
         revealed: flags.revealedIds.has(row.id),
         excludePersonIds: flags.excludeIdsByListing.get(row.id),
         identityRevealedPeerIds: flags.revealPeersByListing.get(row.id),
+        viewerDirect: row.sellerId === session.id || Boolean(viewerEdge),
+        viewerTrustScore:
+          row.sellerId === session.id
+            ? undefined
+            : viewerEdge
+              ? groupScore[viewerEdge.trustGroup]
+              : access.ok
+                ? 1
+                : 0,
       }),
       personalNote: noteRow?.body?.trim() ? noteRow.body : null,
     });

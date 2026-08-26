@@ -20,13 +20,13 @@ import {
 } from "@/lib/listing-privacy";
 import Avatar from "@/components/Avatar";
 import ListingImage from "@/components/ListingImage";
-import ListingAskPrompts from "@/components/ListingAskPrompts";
 import Header from "@/components/Header";
 import LockedMessaging from "@/components/LockedMessaging";
-import { CameraIcon, SendIcon, FlagIcon } from "@/components/Icons";
+import { CameraIcon, SendIcon, FlagIcon, MoreIcon, CheckIcon, DoubleCheckIcon } from "@/components/Icons";
 import { withBasePath } from "@/lib/avatar";
 import { uploadUserPhoto } from "@/lib/media-image";
 import { formatPrice } from "@/lib/labels";
+import { messageClock, messageSentAt } from "@/lib/mappers";
 import {
   listingSubject,
   suggestThreadChips,
@@ -48,6 +48,10 @@ import { useToast } from "@/components/Toast";
 import { lazyUi } from "@/lib/lazy-ui";
 import { toPersianDigits } from "@/lib/persian";
 import { useCatalog } from "@/lib/use-catalog";
+import {
+  ThreadActionsSheet,
+  ThreadPromptSheet,
+} from "@/app/messages/message-sheets";
 
 const WatchSheet = lazyUi(() => import("@/app/messages/WatchSheet"));
 const InviteSheet = lazyUi(() => import("@/components/InviteSheet"));
@@ -72,6 +76,12 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   const addMessage = useStore((s) => s.addMessage);
   const markThreadRead = useStore((s) => s.markThreadRead);
   const setListingDealStatus = useStore((s) => s.setListingDealStatus);
+  const archiveThread = useStore((s) => s.archiveThread);
+  const unarchiveThread = useStore((s) => s.unarchiveThread);
+  const togglePinThread = useStore((s) => s.togglePinThread);
+  const deleteThread = useStore((s) => s.deleteThread);
+  const archivedThreads = useStore((s) => s.archivedThreads);
+  const pinnedThreads = useStore((s) => s.pinnedThreads);
   const joinCount = useStore((s) => s.joinRequests.length);
   const hasOwnListing = useStore((s) =>
     s.listings.some((row) => row.sellerId === "me"),
@@ -93,6 +103,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   const [showCircloWatches, setShowCircloWatches] = useState(false);
   const [showCircloInvite, setShowCircloInvite] = useState(false);
   const [reportMsg, setReportMsg] = useState<Message | null>(null);
+  const [showActions, setShowActions] = useState(false);
   const [listingLoadState, setListingLoadState] = useState<
     "idle" | "loading" | "ready" | "missing"
   >("idle");
@@ -134,6 +145,16 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
     ? circleMemberPerson(peerId, activeListingId)
     : storedPeer;
   const dealStatus = contextListing?.dealStatus ?? "available";
+  const identityShownToPeer = Boolean(
+    isSellerOfContext &&
+      scoped &&
+      contextListing?.privatePublish &&
+      contextListing.identityRevealedPeerIds?.includes(peerId),
+  );
+  const visibleThread = useMemo(() => {
+    if (!identityShownToPeer) return thread;
+    return thread.filter((msg) => !(msg.kind === "system" && msg.fromMe));
+  }, [thread, identityShownToPeer]);
 
   useEffect(() => {
     if (!activeListingId) {
@@ -316,10 +337,25 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
     : "اولین پیام را بفرست.";
 
   const listingGone = Boolean(activeListingId) && listingLoadState === "missing";
+  const listingClosed =
+    listingGone || contextListing?.dealStatus === "inactive";
 
   return (
     <main className="flex flex-col h-[100dvh]">
-      <Header back fallbackHref="/messages">
+      <Header
+        back
+        fallbackHref="/messages"
+        action={
+          <button
+            type="button"
+            aria-label="گزینه‌های گفتگو"
+            onClick={() => setShowActions(true)}
+            className="inline-grid size-9 shrink-0 place-items-center text-ink-muted active:text-ink dark:text-zinc-400 dark:active:text-zinc-100"
+          >
+            <MoreIcon className="h-5 w-5" />
+          </button>
+        }
+      >
         {hidePeer ? (
           <div className="flex min-h-9 min-w-0 items-center gap-2.5">
             <Avatar name={peer.name} src={peer.avatar} size="sm" showLevel={false} />
@@ -344,8 +380,8 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
               </p>
               <p className="m-0 mt-1 truncate text-[11px] leading-none text-ink-muted dark:text-zinc-400">
                 {isSellerOfContext && scoped && contextListing?.privatePublish
-                  ? contextListing.identityRevealedPeerIds?.includes(peerId)
-                    ? `هویت تو برای ${peer.name} نمایش داده می‌شود`
+                  ? identityShownToPeer
+                    ? `هویت تو برای ${peer.name} پیداست`
                     : `هویت تو برای ${peer.name} پنهان است`
                   : `گفتگو · ${subtitle}`}
               </p>
@@ -355,67 +391,58 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
       </Header>
 
       {(contextListing || listingGone) && (
-        <div className="shrink-0 border-b border-stone-200/70 bg-[color:var(--circle-surface)] px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="mb-1.5 text-[11px] font-medium text-ink-faint">
-            آگهی این گفتگو
-          </p>
+        <div className="shrink-0 border-b border-stone-200/60 bg-[color:var(--circle-surface)] px-3 py-1.5 dark:border-zinc-800 dark:bg-zinc-900">
           {listingGone || !contextListing ? (
+            <p className="text-[12px] text-ink-muted py-1">
+              آگهی مورد نظر حذف شده است
+            </p>
+          ) : (
             <>
-              <div
-                className="pointer-events-none flex items-center gap-2.5 rounded-xl bg-stone-100 px-2 py-2 ring-1 ring-stone-200/80 grayscale dark:bg-zinc-800 dark:ring-zinc-700"
-                aria-disabled="true"
+              <Link
+                href={`/listing/${contextListing.id}`}
+                className="flex items-center gap-2 rounded-xl bg-stone-50/90 px-1.5 py-1 ring-1 ring-stone-200/70 active:opacity-80 dark:bg-zinc-800/60 dark:ring-zinc-700"
               >
-                <div className="h-11 w-11 shrink-0 rounded-lg bg-stone-200 dark:bg-zinc-700" />
+                <ListingImage
+                  image={contextListing.image}
+                  alt={contextListing.title}
+                  size="sm"
+                  category={contextListing.category}
+                  type={contextListing.type}
+                  frameClassName="h-9 w-9 shrink-0 overflow-hidden rounded-lg"
+                />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] font-bold text-ink-faint">
-                    آگهی
+                  <p className="block truncate text-[12.5px] font-bold leading-snug text-ink dark:text-zinc-100">
+                    {contextListing.title}
+                  </p>
+                  <p className="mt-px block nums text-[11px] leading-snug text-ink-muted">
+                    {contextListing.price != null
+                      ? formatPrice(contextListing.price)
+                      : contextListing.type === "service"
+                        ? "توافقی"
+                        : "رایگان"}
                   </p>
                 </div>
-              </div>
-              <p className="mt-1.5 text-[12.5px] text-ink-muted">
-                آگهی مورد نظر حذف شده است
-              </p>
+                <span className="shrink-0 pe-1 text-sm text-ink-faint" aria-hidden>
+                  ‹
+                </span>
+              </Link>
+              {contextListing.dealStatus === "inactive" ? (
+                <p className="mt-1 text-[12px] text-ink-muted">
+                  آگهی غیرفعال است و امکان ارسال پیام نیست.
+                </p>
+              ) : null}
             </>
-          ) : (
-            <Link
-              href={`/listing/${contextListing.id}`}
-              className="flex items-center gap-2.5 rounded-xl bg-stone-50 px-2 py-2 ring-1 ring-stone-200/80 active:opacity-80 dark:bg-zinc-800/60 dark:ring-zinc-700"
-            >
-              <ListingImage
-                image={contextListing.image}
-                alt={contextListing.title}
-                size="sm"
-                category={contextListing.category}
-                type={contextListing.type}
-                frameClassName="h-11 w-11 shrink-0 overflow-hidden rounded-lg"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="block truncate text-[13px] font-bold leading-snug text-ink dark:text-zinc-100">
-                  {contextListing.title}
-                </p>
-                <p className="mt-0.5 block nums text-[11px] leading-snug text-ink-muted">
-                  {contextListing.price != null
-                    ? formatPrice(contextListing.price)
-                    : contextListing.type === "service"
-                      ? "توافقی"
-                      : "رایگان"}
-                </p>
-              </div>
-              <span className="shrink-0 text-sm text-ink-faint" aria-hidden>
-                ‹
-              </span>
-            </Link>
           )}
           {hidePeer ? (
-            <p className="mt-2 text-[12px] text-ink-muted leading-relaxed">
-              هویت آگهی‌دهنده برای تو پنهان است. اگر پیام بفرستی، او تو را با نام
-              واقعی می‌بیند.
+            <p className="mt-1.5 text-[11.5px] text-ink-muted leading-snug">
+              هویت آگهی‌دهنده پنهان است — اگر پیام بفرستی، او تو را با نام واقعی
+              می‌بیند.
             </p>
           ) : null}
           {isSellerOfContext &&
           scoped &&
           contextListing?.privatePublish &&
-          !contextListing.identityRevealedPeerIds?.includes(peerId) ? (
+          !identityShownToPeer ? (
             <button
               type="button"
               onClick={() => {
@@ -432,126 +459,127 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
                     show(err instanceof ApiError ? err.message : "انجام نشد"),
                   );
               }}
-              className="mt-2 text-[12px] font-bold text-brand-600 dark:text-brand-400"
+              className="mt-1.5 text-[12px] font-bold text-brand-600 dark:text-brand-400"
             >
               نمایش هویت من به این فرد
             </button>
           ) : null}
           {contextListing && isSellerOfContext && dealStatus !== "inactive" ? (
-            <div className="mt-2">
-              <p className="mb-1.5 text-[11px] text-ink-muted">
-                وضعیت برای {peer.name}
-              </p>
-              <div
-                className="flex gap-1.5"
-                role="group"
-                aria-label="وضعیت معامله"
-              >
-                {(
-                  [
-                    ["available", "موجود"],
-                    ["reserved", "رزرو"],
-                    ["agreed", "توافق"],
-                  ] as const
-                ).map(([id, label]) => {
-                  const active = dealStatus === id;
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => {
-                        setListingDealStatus(contextListing.id, id);
-                        if (id === "reserved") {
-                          void addMessage(
-                            peerId,
-                            "این آگهی را موقتاً رزرو کردم تا هماهنگ کنیم.",
-                            contextListing.id,
-                            scoped,
-                          ).catch(notifySendError);
-                        } else if (id === "agreed") {
-                          void addMessage(
-                            peerId,
-                            "روی این آگهی به توافق رسیدیم ✓",
-                            contextListing.id,
-                            scoped,
-                          ).catch(notifySendError);
-                        } else {
-                          void addMessage(
-                            peerId,
-                            "آگهی دوباره موجود است.",
-                            contextListing.id,
-                            scoped,
-                          ).catch(notifySendError);
-                        }
-                      }}
-                      className={`chip !px-2.5 !py-1 !text-[11px] border ${
-                        active
-                          ? "bg-brand-600 text-white border-brand-600"
-                          : "bg-transparent text-ink-muted border-stone-200/90 dark:border-zinc-600"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
+            <div
+              className="mt-1.5 flex gap-1"
+              role="group"
+              aria-label={`وضعیت برای ${peer.name}`}
+            >
+              {(
+                [
+                  ["available", "موجود"],
+                  ["reserved", "رزرو"],
+                  ["agreed", "توافق"],
+                ] as const
+              ).map(([id, label]) => {
+                const active = dealStatus === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => {
+                      setListingDealStatus(contextListing.id, id);
+                      if (id === "reserved") {
+                        void addMessage(
+                          peerId,
+                          "این آگهی را موقتاً رزرو کردم تا هماهنگ کنیم.",
+                          contextListing.id,
+                          scoped,
+                        ).catch(notifySendError);
+                      } else if (id === "agreed") {
+                        void addMessage(
+                          peerId,
+                          "روی این آگهی به توافق رسیدیم ✓",
+                          contextListing.id,
+                          scoped,
+                        ).catch(notifySendError);
+                      } else {
+                        void addMessage(
+                          peerId,
+                          "آگهی دوباره موجود است.",
+                          contextListing.id,
+                          scoped,
+                        ).catch(notifySendError);
+                      }
+                    }}
+                    className={`chip !px-2 !py-0.5 !text-[11px] border ${
+                      active
+                        ? "bg-brand-600 text-white border-brand-600"
+                        : "bg-transparent text-ink-muted border-stone-200/90 dark:border-zinc-600"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
           ) : null}
         </div>
       )}
 
       <div
-        className="flex-1 overflow-y-auto overscroll-contain px-3 py-3"
+        className="flex-1 overflow-y-auto overscroll-contain px-2.5 py-2 flex flex-col"
         style={{
           backgroundColor: "var(--circle-canvas)",
-          backgroundImage:
-            "radial-gradient(circle at 1px 1px, rgba(0,0,0,0.035) 1px, transparent 0)",
-          backgroundSize: "18px 18px",
         }}
       >
-        {thread.length === 0 ? (
-          <div className="flex flex-col items-center text-center pt-16 px-6">
+        {visibleThread.length === 0 ? (
+          <div className="flex flex-col items-center text-center pt-12 px-6">
             <Avatar name={peer.name} src={peer.avatar} size="lg" showLevel={false} />
-            <p className="font-bold text-ink dark:text-zinc-100 mt-4">
+            <p className="font-bold text-ink dark:text-zinc-100 mt-3">
               گفتگو با {peer.name}
             </p>
-            <p className="text-[13px] text-ink-muted mt-1.5 leading-relaxed max-w-xs">
+            <p className="text-[13px] text-ink-muted mt-1 leading-relaxed max-w-xs">
               {emptyHint}
             </p>
           </div>
         ) : (
-          <div className="space-y-1">
-            {thread.map((msg, i) => {
-              const prev = thread[i - 1];
-              const next = thread[i + 1];
+          <div className="mt-auto">
+            {visibleThread.map((msg, i) => {
+              const prev = visibleThread[i - 1];
+              const next = visibleThread[i + 1];
               const showDay =
-                !prev || dayKey(prev.postedAt) !== dayKey(msg.postedAt);
-              const samePrev = Boolean(prev && prev.fromMe === msg.fromMe);
-              const sameNext = Boolean(next && next.fromMe === msg.fromMe);
+                !prev || threadDayKey(prev) !== threadDayKey(msg);
+              const samePrev = Boolean(
+                prev &&
+                  prev.fromMe === msg.fromMe &&
+                  prev.kind !== "system" &&
+                  msg.kind !== "system" &&
+                  !showDay,
+              );
+              const sameNext = Boolean(
+                next &&
+                  next.fromMe === msg.fromMe &&
+                  next.kind !== "system" &&
+                  msg.kind !== "system" &&
+                  threadDayKey(next) === threadDayKey(msg),
+              );
               const showAvatar = !msg.fromMe && !sameNext;
-              // Day chip covers relative labels; keep per-bubble time for clock-like stamps.
-              const showTime = !sameNext && isClockStamp(msg.postedAt);
+              const showTime = !sameNext;
 
               return (
                 <div key={msg.id}>
-                  {showDay && <DayDivider label={dayKey(msg.postedAt)} />}
+                  {showDay ? <DayDivider label={threadDayLabel(msg)} /> : null}
                   {msg.kind === "system" ? (
-                    <p className="text-center text-[12px] text-ink-muted px-6 py-2 leading-relaxed">
+                    <p className="text-center text-[11px] text-ink-faint px-8 py-1 leading-snug">
                       {msg.fromMe
-                        ? `هویت تو در این گفتگو برای ${storedPeer?.name ?? peer.name} نمایش داده می‌شود.`
-                        : "آگهی‌دهنده هویت خود را برای تو نمایش داد."}
+                        ? `هویت تو برای ${storedPeer?.name ?? peer.name} نمایش داده شد`
+                        : "آگهی‌دهنده هویت خود را نمایش داد"}
                     </p>
                   ) : (
                   <div
-                    // LTR row geometry so justify-end = screen-right (WhatsApp-like),
-                    // while bubble text stays RTL via unicode / nested dir.
                     dir="ltr"
-                    className={`flex items-end gap-2 ${
+                    className={`flex items-end gap-1.5 ${
                       msg.fromMe ? "justify-end" : "justify-start"
-                    } ${samePrev && !showDay ? "mt-0.5" : "mt-2.5"}`}
+                    } ${samePrev ? "mt-0.5" : "mt-1.5"}`}
                   >
                     {!msg.fromMe && (
-                      <div className="w-8 shrink-0">
+                      <div className="w-7 shrink-0">
                         {showAvatar ? (
                           <Avatar name={peer.name} src={peer.avatar} size="sm" showLevel={false} />
                         ) : null}
@@ -559,20 +587,23 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
                     )}
                     <Bubble
                       msg={msg}
-                      clusteredTop={samePrev && !showDay}
+                      contextListingId={activeListingId}
+                      clusteredTop={samePrev}
                       clusteredBottom={sameNext}
                       showTime={showTime}
                     />
-                    {!msg.fromMe && !msg.kind ? (
+                    {!msg.fromMe && showAvatar ? (
                       <button
                         type="button"
                         aria-label="گزارش پیام"
                         onClick={() => setReportMsg(msg)}
-                        className="mb-0.5 shrink-0 rounded-full p-1.5 text-ink-faint hover:bg-black/[0.05] hover:text-ink dark:hover:bg-white/[0.06]"
+                        className="mb-0.5 shrink-0 rounded-full p-1 text-ink-faint hover:bg-black/[0.05] hover:text-ink dark:hover:bg-white/[0.06]"
                       >
                         <FlagIcon className="h-3.5 w-3.5" />
                       </button>
-                    ) : null}
+                    ) : (
+                      !msg.fromMe ? <span className="w-6 shrink-0" /> : null
+                    )}
                   </div>
                   )}
                 </div>
@@ -583,15 +614,60 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
         <div ref={bottomRef} />
       </div>
 
-      <ThreadComposer
-        peerId={peerId}
-        scoped={scoped}
-        activeListingId={activeListingId}
-        inboxKey={inboxKey}
-        contextListing={contextListing}
-        isSellerOfContext={isSellerOfContext}
-        searchParams={searchParams}
-      />
+      {listingClosed ? (
+        <div className="shrink-0 border-t border-stone-200/70 dark:border-zinc-800 bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <p className="text-center text-[13px] text-ink-muted leading-relaxed">
+            {listingGone
+              ? "آگهی حذف شده و گفتگو بسته است."
+              : "آگهی غیرفعال است و امکان ارسال پیام نیست."}
+          </p>
+        </div>
+      ) : (
+        <ThreadComposer
+          peerId={peerId}
+          scoped={scoped}
+          activeListingId={activeListingId}
+          inboxKey={inboxKey}
+          contextListing={contextListing}
+          isSellerOfContext={isSellerOfContext}
+          searchParams={searchParams}
+        />
+      )}
+      {showActions ? (
+        <ThreadActionsSheet
+          name={hidePeer ? CIRCLE_MEMBER_NAME : peer.name}
+          avatar={peer.avatar}
+          pinned={pinnedThreads.includes(inboxKey) || pinnedThreads.includes(peerId)}
+          archived={archivedThreads.includes(inboxKey) || archivedThreads.includes(peerId)}
+          listingHref={contextListing ? `/listing/${contextListing.id}` : undefined}
+          onClose={() => setShowActions(false)}
+          onPin={() => {
+            setShowActions(false);
+            void togglePinThread(inboxKey).then((ok) => {
+              if (!ok) show("حداکثر سه گفتگو سنجاق می‌شود");
+            });
+          }}
+          onArchive={() => {
+            const archived =
+              archivedThreads.includes(inboxKey) ||
+              archivedThreads.includes(peerId);
+            setShowActions(false);
+            if (archived) {
+              void unarchiveThread(inboxKey);
+              show("به پیام‌ها برگشت");
+            } else {
+              void archiveThread(inboxKey);
+              show("آرشیو شد");
+              router.push("/messages");
+            }
+          }}
+          onDelete={() => {
+            setShowActions(false);
+            void deleteThread(inboxKey);
+            router.push("/messages");
+          }}
+        />
+      ) : null}
       {reportMsg ? (
         <ReportMessageSheet
           messageId={reportMsg.id}
@@ -633,6 +709,7 @@ const ThreadComposer = memo(function ThreadComposer({
   const draftApplied = useRef(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  const [showMorePrompts, setShowMorePrompts] = useState(false);
   const chips = useMemo(
     () =>
       suggestThreadChips({
@@ -642,15 +719,6 @@ const ThreadComposer = memo(function ThreadComposer({
       }),
     [contextListing, isSellerOfContext, thread.length],
   );
-
-  const chipTitle =
-    thread.length === 0
-      ? isSellerOfContext
-        ? "برای پاسخ سریع:"
-        : "برای شروع می‌تونی بپرسی:"
-      : isSellerOfContext
-        ? "پاسخ پیشنهادی:"
-        : "می‌تونی بپرسی:";
 
   useEffect(() => {
     return () => {
@@ -732,16 +800,32 @@ const ThreadComposer = memo(function ThreadComposer({
     });
   }
 
+  const quickChips = chips.slice(0, 2);
+  const moreChips = chips.slice(2);
+
   return (
-    <div className="shrink-0 bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-xl border-t border-stone-200/70 dark:border-zinc-800 px-2.5 pt-2 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
-      {chips.length > 0 ? (
-        <div className="mb-2">
-          <ListingAskPrompts
-            prompts={chips}
-            onPick={applyChip}
-            title={chipTitle}
-            compact
-          />
+    <div className="shrink-0 bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-xl border-t border-stone-200/70 dark:border-zinc-800 px-2.5 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      {quickChips.length > 0 ? (
+        <div className="mb-1.5 flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+          {quickChips.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => applyChip(p)}
+              className="shrink-0 rounded-full border border-stone-200/90 bg-stone-50/90 px-3 py-1.5 text-[12px] font-semibold text-ink transition-transform active:scale-[0.97] dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-100"
+            >
+              {p.label}
+            </button>
+          ))}
+          {moreChips.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => setShowMorePrompts(true)}
+              className="shrink-0 rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-[12px] font-semibold text-brand-700 transition-transform active:scale-[0.97] dark:border-brand-500/30 dark:bg-brand-500/15 dark:text-brand-200"
+            >
+              بیشتر
+            </button>
+          ) : null}
         </div>
       ) : null}
       {pendingPhoto ? (
@@ -801,6 +885,13 @@ const ThreadComposer = memo(function ThreadComposer({
           <SendIcon className="w-5 h-5 -ms-0.5" />
         </button>
       </div>
+      {showMorePrompts ? (
+        <ThreadPromptSheet
+          prompts={moreChips}
+          onPick={applyChip}
+          onClose={() => setShowMorePrompts(false)}
+        />
+      ) : null}
     </div>
   );
 });
@@ -823,19 +914,60 @@ const CircloChip = memo(function CircloChip({
   );
 });
 
-function dayKey(postedAt: string): string {
-  // Mock data uses relative Persian labels; treat each label as a day bucket.
-  return postedAt.trim() || "—";
+function threadDayKey(msg: Message, now = Date.now()): string {
+  const t = messageSentAt(msg);
+  if (t > 0) {
+    const d = new Date(t);
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  }
+  const label = msg.postedAt.replace(/\u200F/g, "").trim();
+  if (
+    !label ||
+    label === "همین حالا" ||
+    label.includes("دقیقه") ||
+    label.includes("ساعت")
+  ) {
+    const d = new Date(now);
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  }
+  if (label === "دیروز") {
+    const d = new Date(now - 86_400_000);
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  }
+  return label;
 }
 
-function isClockStamp(postedAt: string): boolean {
-  return /[:：]/.test(postedAt) || postedAt.includes("همین");
+function threadDayLabel(msg: Message, now = Date.now()): string {
+  const t = messageSentAt(msg);
+  if (t > 0) {
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+    const day = new Date(t);
+    day.setHours(0, 0, 0, 0);
+    const diff = Math.round((today.getTime() - day.getTime()) / 86_400_000);
+    if (diff <= 0) return "امروز";
+    if (diff === 1) return "دیروز";
+    if (diff < 7) return `${toPersianDigits(diff)} روز پیش`;
+  }
+  const label = msg.postedAt.replace(/\u200F/g, "").trim();
+  if (
+    !label ||
+    label === "همین حالا" ||
+    label.includes("دقیقه") ||
+    label.includes("ساعت")
+  ) {
+    return "امروز";
+  }
+  return label;
 }
 
 const DayDivider = memo(function DayDivider({ label }: { label: string }) {
   return (
-    <div className="flex items-center justify-center my-3">
-      <span className="text-[11px] font-semibold text-ink-muted dark:text-zinc-400 bg-[color:var(--circle-surface)]/90 dark:bg-zinc-900/90 border border-stone-200/60 dark:border-zinc-700 px-2.5 py-0.5 rounded-full shadow-sm" dir="rtl">
+    <div className="flex items-center justify-center my-1.5">
+      <span
+        className="text-[11px] font-semibold text-ink-faint dark:text-zinc-500 px-1.5 py-0.5"
+        dir="rtl"
+      >
         {label}
       </span>
     </div>
@@ -844,11 +976,13 @@ const DayDivider = memo(function DayDivider({ label }: { label: string }) {
 
 const Bubble = memo(function Bubble({
   msg,
+  contextListingId,
   clusteredTop,
   clusteredBottom,
   showTime,
 }: {
   msg: Message;
+  contextListingId?: string;
   clusteredTop: boolean;
   clusteredBottom: boolean;
   showTime: boolean;
@@ -870,21 +1004,28 @@ const Bubble = memo(function Bubble({
         "rounded-tr-2xl",
       ].join(" ");
 
+  const referralId =
+    msg.listingId &&
+    msg.listingId !== contextListingId &&
+    msg.listingId !== msg.threadListingId
+      ? msg.listingId
+      : undefined;
+
   return (
     <div
       dir="rtl"
-      className={`max-w-[78%] px-3.5 py-2.5 text-[13px] leading-relaxed text-right ${radius} ${
+      className={`max-w-[78%] px-3 py-1.5 text-[13px] leading-snug text-right ${radius} ${
         msg.fromMe
           ? "bg-brand-600 text-white shadow-sm shadow-brand-600/20"
           : "bg-[color:var(--circle-surface)] text-ink shadow-card dark:bg-zinc-900 dark:text-zinc-100 dark:border dark:border-zinc-800"
       }`}
     >
-      {msg.listingId ? (
+      {referralId ? (
         <>
           <p className="text-[11px] font-medium mb-1.5 opacity-80">
             {msg.fromMe ? "آگهی‌ای که فرستادید:" : "آگهی معرفی‌شده:"}
           </p>
-          <ReferralCard listingId={msg.listingId} fromMe={msg.fromMe} />
+          <ReferralCard listingId={referralId} fromMe={msg.fromMe} />
           {msg.imageUrl ? <ChatPhoto src={msg.imageUrl} /> : null}
           {msg.text.trim() && (
             <p className="whitespace-pre-line mt-2 opacity-95">{msg.text}</p>
@@ -900,16 +1041,23 @@ const Bubble = memo(function Bubble({
           ) : null}
         </>
       )}
-      {showTime && (
+      {showTime ? (
         <span
           dir="rtl"
-          className={`block text-[11px] mt-1.5 ${
+          className={`mt-0.5 flex items-center justify-start gap-1 text-[11px] nums leading-none ${
             msg.fromMe ? "text-white/70" : "text-ink-faint"
           }`}
         >
-          {msg.postedAt}
+          {msg.fromMe ? (
+            msg.seenByPeer ? (
+              <DoubleCheckIcon className="h-3.5 w-3.5 shrink-0 opacity-90" />
+            ) : (
+              <CheckIcon className="h-3.5 w-3.5 shrink-0 opacity-80" />
+            )
+          ) : null}
+          <span>{messageClock(msg)}</span>
         </span>
-      )}
+      ) : null}
     </div>
   );
 });

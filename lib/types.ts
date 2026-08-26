@@ -171,8 +171,12 @@ export interface Message {
   fromMe: boolean;
   text: string;
   postedAt: string;
+  /** Epoch ms of the send — inbox and threads sort by this, not array order. */
+  sentAt?: number;
   /** Incoming messages start unread until the thread is opened. */
   read: boolean;
+  /** Outgoing: the peer has opened the thread (second tick). */
+  seenByPeer?: boolean;
   /** When set, this message is a referral carrying a listing preview. */
   listingId?: string;
   /** Listing-scoped thread (private publish); not mixed with the peer inbox. */
@@ -230,6 +234,10 @@ export interface Listing {
   privatePublish?: boolean;
   /** Viewer cannot see the seller’s name or photo. */
   identityHidden?: boolean;
+  /** Trust toward the real seller, kept after identity is masked. */
+  viewerTrustScore?: number;
+  /** True when the real seller is in the viewer’s direct circle. */
+  viewerDirect?: boolean;
   /** Stable private-listing face; assigned by the app, not chosen by the seller. */
   privateAvatar?: string;
   /** Owner: people this listing is hidden from. */

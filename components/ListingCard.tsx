@@ -52,6 +52,10 @@ function ListingCard({
           endorsements={listing.endorsements}
           variant={compactTrust ? "compact" : "default"}
           eager={eagerTrust || imagePriority}
+          listingId={listing.id}
+          ownerHiddenPreview={Boolean(
+            listing.privatePublish && listing.sellerId === "me",
+          )}
         />
       )}
 
