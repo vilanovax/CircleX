@@ -63,11 +63,45 @@ function detectCategory(text: string, type: ListingType): string {
 function detectCondition(text: string, years: number | null): string | undefined {
   if (/نو\s*و?\s*استفاده\s*نشده|کاملاً?\s*نو/.test(text)) return "نو و استفاده‌نشده";
   if (/کم\s*استفاده|در\s*حد\s*نو/.test(text) && !years) return "بسیار کم‌استفاده";
-  if (/ایراد|رد\s*نشستن|خط\s*و\s*خش|لک/.test(text)) return "سالم با ایراد جزئی";
+  if (
+    /ایراد|رد\s*(?:نشستن|استفاده)|خط\s*و\s*خش|لک/.test(text)
+  ) {
+    return "سالم با ایراد جزئی";
+  }
   if (/کارکرده|دست\s*دوم/.test(text)) return "کارکرده تمیز";
   if (/سالم|تمیز/.test(text)) return "سالم و تمیز";
   if (years != null && years >= 2) return "کارکرده تمیز";
   return undefined;
+}
+
+function stripPriceTalk(s: string): string {
+  return s
+    .replace(/قیمت\s*[^،.؟!\n]*/g, " ")
+    .replace(
+      /[۰-۹0-9][۰-۹0-9,٬]*\s*(?:میلیون(?:\s*و\s*[۰-۹0-9,٬]*)?)?\s*(?:هزار)?\s*تومان/g,
+      " ",
+    )
+    .replace(/[۰-۹0-9]+\s*میلیون(?:\s*تومان)?/g, " ");
+}
+
+function stripSellIntent(s: string): string {
+  return s
+    .replace(
+      /را?\s*(?:می‌خواهم|میخواهم|می‌خوام|میخوام)\s*بفروشم/g,
+      " ",
+    )
+    .replace(/می‌فروشم|میفروشم|فروشی است|فروشیه/g, " ")
+    .replace(/اهدا می‌کنم|اهدا میکنم/g, " ")
+    .replace(/کسی بخره|بخره کسی/g, " ");
+}
+
+function tidyPhrase(s: string): string {
+  return s
+    .replace(/\s*[،,]\s*/g, "، ")
+    .replace(/\s{2,}/g, " ")
+    .replace(/^[،.\s]+|[،.\s]+$/g, "")
+    .replace(/\s*را$/g, "")
+    .trim();
 }
 
 function buildTitle(text: string, type: ListingType, category: string): string {
@@ -77,14 +111,10 @@ function buildTitle(text: string, type: ListingType, category: string): string {
     .find((s) => s.length >= 8);
   if (!first) return `آگهی ${listingTypeLabels[type]}`;
 
-  let t = first
-    .replace(/می‌فروشم|میفروشم|فروشی|اهدا می‌کنم|رایگان/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  let t = tidyPhrase(stripSellIntent(stripPriceTalk(first.split(/[،,]/)[0] ?? first)));
 
-  if (t.length > 48) t = `${t.slice(0, 46).trim()}…`;
-  if (t.length < 6) {
-    if (/مبل/.test(text)) return "مبل راحتی تمیز و سالم";
+  if (t.length > 42) t = `${t.slice(0, 40).trim()}…`;
+  if (t.length < 4) {
     return `${category} — ${listingTypeLabels[type]}`;
   }
   return t;
@@ -102,22 +132,36 @@ export function looksExtractedFromText(value: string, raw: string): boolean {
   return hits >= Math.ceil(words.length * 0.6);
 }
 
-function narrativeOnly(text: string): string {
-  // Keep reason-to-sell / soft; strip lines that are pure fact dumps when we have specs.
-  const cleaned = text.trim();
-  if (/تغییر دکوراسیون|جابه‌جایی|دیگر لازم|نمی‌خواهم/.test(cleaned)) {
-    const reason = cleaned.match(
+function narrativeOnly(text: string, title: string): string {
+  const bits: string[] = [];
+  if (/تغییر دکوراسیون|جابه‌جایی|دیگر لازم|نمی‌خواهم/.test(text)) {
+    const reason = text.match(
       /[^.؟!]*(?:تغییر دکوراسیون|جابه‌جایی|دیگر لازم|نمی‌خواهم)[^.؟!]*[.؟!]?/,
     );
-    const visit = /بازدید|منزل|دید/.test(cleaned)
-      ? " امکان بازدید با هماهنگی وجود دارد."
-      : "";
-    if (reason) {
-      return `${reason[0].trim()}${visit}`.trim();
-    }
+    if (reason) bits.push(tidyPhrase(reason[0]));
   }
-  if (cleaned.length <= 160) return cleaned;
-  return `${cleaned.slice(0, 157).trim()}…`;
+  if (/رد\s*(?:نشستن|استفاده)|ایراد|لک|خط\s*و\s*خش/.test(text)) {
+    bits.push("کمی رد استفاده دارد.");
+  }
+  if (/بازدید|اوکی.*دید|میشه دید|می‌شه دید|در منزل/.test(text)) {
+    bits.push("بازدید با هماهنگی ممکن است.");
+  }
+
+  if (bits.length > 0) return bits.join(" ");
+
+  let leftover = tidyPhrase(stripSellIntent(stripPriceTalk(text)));
+  const nt = normalizeFa(title);
+  if (nt && leftover.startsWith(title)) {
+    leftover = tidyPhrase(leftover.slice(title.length));
+  } else if (nt && leftover.includes(title)) {
+    leftover = tidyPhrase(leftover.replace(title, " "));
+  }
+  leftover = leftover.replace(/^[،.\s]+/, "");
+  if (leftover.length < 8 || leftover === title) {
+    return "جزئیات را در پیام بپرسید؛ هماهنگی از همان‌جا.";
+  }
+  if (leftover.length <= 160) return leftover;
+  return `${leftover.slice(0, 157).trim()}…`;
 }
 
 /**
@@ -256,7 +300,7 @@ export function draftListingFromText(input: {
   }
 
   const title = buildTitle(text, type, category);
-  const description = narrativeOnly(text);
+  const description = narrativeOnly(text, title);
 
   return {
     title,

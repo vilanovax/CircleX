@@ -4,7 +4,10 @@ import {
   LISTING_NOTE_MAX,
   PERSON_BADGES,
 } from "./labels";
-import { isAllowedListingImage } from "./listing-photo";
+import {
+  canonicalListingImage,
+  isAllowedListingImage,
+} from "./listing-photo";
 import { LISTING_PHOTO_MAX_COUNT } from "./media";
 import { parseArea } from "./place";
 import {
@@ -72,7 +75,7 @@ function parseListingImageValue(value: unknown): string {
   if (typeof value !== "string") return "";
   const raw = value.trim();
   if (raw.startsWith("data:image/")) return raw.slice(0, 2_000_000);
-  return asTrimmed(raw, 240);
+  return asTrimmed(canonicalListingImage(raw), 240);
 }
 
 export function parseSpecs(value: unknown): ListingSpec[] | undefined {
@@ -123,7 +126,11 @@ export function parseListingWrite(
   const image = parseListingImageValue(raw.image);
   if (!image) return { ok: false, error: "عکس یا تصویر آگهی لازم است" };
   if (!isAllowedListingImage(image)) {
-    return { ok: false, error: "عکس آگهی باید روی همین اپ باشد" };
+    return {
+      ok: false,
+      error:
+        "این عکس اینجا ذخیره نشده. از همین صفحه عکس بگذار یا تصویر نمادین انتخاب کن.",
+    };
   }
 
   const imagesRaw = Array.isArray(raw.images) ? raw.images : [];
@@ -132,7 +139,11 @@ export function parseListingWrite(
     .filter(Boolean)
     .slice(0, LISTING_PHOTO_MAX_COUNT);
   if (images.some((src) => !isAllowedListingImage(src))) {
-    return { ok: false, error: "عکس آگهی باید روی همین اپ باشد" };
+    return {
+      ok: false,
+      error:
+        "یکی از عکس‌ها اینجا ذخیره نشده. دوباره از همین صفحه بارگذاری کن.",
+    };
   }
   if (images.length === 0) images.push(image);
 

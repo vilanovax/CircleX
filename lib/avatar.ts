@@ -47,6 +47,15 @@ export function withBasePath(path: string): string {
   return `${BASE}${path}`;
 }
 
+/** Drop Next `basePath` so stored paths stay `/api/uploads/…`, `/listings/…`. */
+export function withoutBasePath(path: string): string {
+  if (!path.startsWith("/")) return path;
+  if (!BASE) return path;
+  if (path === BASE) return "/";
+  if (path.startsWith(`${BASE}/`)) return path.slice(BASE.length) || "/";
+  return path;
+}
+
 export function personInitials(name: string): string {
   const trimmed = name.trim();
   if (!trimmed) return "؟";

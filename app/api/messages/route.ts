@@ -9,7 +9,7 @@ import {
   loadInbox,
   peopleForMessagePeers,
 } from "@/lib/server-messages";
-import { isStoredUploadSrc } from "@/lib/listing-photo";
+import { canonicalListingImage, isStoredUploadSrc } from "@/lib/listing-photo";
 import { getSessionUser } from "@/lib/server-auth";
 import type { Person } from "@/lib/types";
 
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     if (imageRaw && !isStoredUploadSrc(imageRaw)) {
       return jsonError("عکس نامعتبر است", 400);
     }
-    const imageUrl = imageRaw || undefined;
+    const imageUrl = imageRaw ? canonicalListingImage(imageRaw) : undefined;
     const listingId =
       typeof body?.listingId === "string" && body.listingId.trim()
         ? body.listingId.trim()

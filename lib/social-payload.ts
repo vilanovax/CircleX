@@ -1,5 +1,8 @@
 import { LISTING_PRIVACY } from "./listing-payload";
-import { isAllowedListingImage } from "./listing-photo";
+import {
+  canonicalListingImage,
+  isAllowedListingImage,
+} from "./listing-photo";
 import { parseArea } from "./place";
 import type {
   BudgetUnit,
@@ -28,7 +31,7 @@ function parseSocialImage(value: unknown, fallback: string): string | null {
   const raw = value.trim();
   const image = raw.startsWith("data:image/")
     ? raw.slice(0, 2_000_000)
-    : raw.slice(0, 240);
+    : canonicalListingImage(raw).slice(0, 240);
   if (!isAllowedListingImage(image)) return null;
   return image;
 }

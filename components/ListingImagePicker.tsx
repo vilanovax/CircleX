@@ -34,6 +34,7 @@ function ListingImagePicker({
   onEmojiChange,
   onError,
   category,
+  compact = false,
 }: {
   photos: string[];
   onPhotosChange: (photos: string[]) => void;
@@ -41,6 +42,7 @@ function ListingImagePicker({
   onEmojiChange: (emoji: string) => void;
   onError?: (message: string) => void;
   category?: string;
+  compact?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [showEmojis, setShowEmojis] = useState(false);
@@ -98,9 +100,14 @@ function ListingImagePicker({
 
   return (
     <section className="mb-4">
-      <label className="block text-[13px] font-bold text-ink dark:text-zinc-200 mb-2">
-        عکس آگهی
-      </label>
+      <div className="flex items-baseline justify-between gap-2 mb-2">
+        <label className="block text-[13px] font-bold text-ink dark:text-zinc-200">
+          {compact ? "عکس" : "عکس آگهی"}
+        </label>
+        {compact && !hasPhotos ? (
+          <span className="text-[11px] text-ink-faint">بدون عکس هم می‌شود</span>
+        ) : null}
+      </div>
 
       {hasPhotos ? (
         <div className="space-y-2">
@@ -170,7 +177,7 @@ function ListingImagePicker({
         <div className="space-y-2">
           {showEmojiPreview ? (
             <div className="flex items-center gap-3 rounded-2xl border border-stone-200/80 dark:border-zinc-700 bg-stone-50/70 dark:bg-zinc-800/40 px-3 py-2.5">
-              <span className="text-[2rem] leading-none shrink-0" aria-hidden>
+              <span className="text-3xl leading-none shrink-0" aria-hidden>
                 {emoji}
               </span>
               <div className="min-w-0 flex-1">

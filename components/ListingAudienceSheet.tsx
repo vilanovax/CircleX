@@ -53,6 +53,7 @@ export default function ListingAudienceSheet({
     <SheetShell
       onClose={onClose}
       labelledBy="listing-audience-title"
+      zClass="z-[75]"
       header={
         <div>
           <div className="flex items-center gap-2">

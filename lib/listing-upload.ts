@@ -14,9 +14,9 @@ export function uploadDir(): string {
   return process.env.UPLOAD_DIR?.trim() || path.join(process.cwd(), "uploads");
 }
 
+/** Canonical path (no Next basePath). Display via `withBasePath`. */
 export function uploadPublicPath(filename: string): string {
-  const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-  return `${base}/api/uploads/${filename}`;
+  return `/api/uploads/${filename}`;
 }
 
 export function safeUploadName(name: string): string | null {

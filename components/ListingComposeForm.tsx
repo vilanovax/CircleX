@@ -14,7 +14,14 @@ import {
 } from "react";
 import ListingImagePicker from "@/components/ListingImagePicker";
 import ListingPrivacySection from "@/components/ListingPrivacySection";
+import {
+  ListingEditRow,
+  ListingEditRows,
+  ListingEditSectionSheet,
+} from "@/components/ListingEditSection";
 import AreaPicker from "@/components/AreaPicker";
+import { activeCircle } from "@/lib/circle-member";
+import { listingPrivacySummary } from "@/lib/listing-privacy";
 import CatalogCategorySelect from "@/components/CatalogCategorySelect";
 import VoiceDictateButton from "@/components/VoiceDictateButton";
 import { useToast } from "@/components/Toast";
@@ -41,7 +48,6 @@ import {
   formatPrice,
   listingTypeIntentLabels,
   listingTypeLabels,
-  privacyLabels,
 } from "@/lib/labels";
 import {
   formatPriceAmount,
@@ -181,10 +187,10 @@ function SourceBadge({ source }: { source?: FieldSource | DraftSpec["confidence"
 }
 
 function extraChipClass(active: boolean) {
-  return `shrink-0 chip !px-2.5 !py-1.5 !text-[11px] border ${
+  return `shrink-0 chip min-h-9 !px-2.5 !py-1.5 !text-[11px] border transition-[transform,background-color,border-color,color] duration-150 active:scale-[0.97] ${
     active
-      ? "bg-brand-600 text-white border-brand-600"
-      : "bg-stone-50 text-ink-muted border-stone-200/80 dark:bg-zinc-800 dark:border-zinc-700"
+      ? "bg-brand-50 text-brand-800 border-brand-400 dark:bg-brand-500/15 dark:text-brand-200 dark:border-brand-500/40"
+      : "bg-[color:var(--circle-surface)] text-ink-muted border-stone-200/80 dark:bg-zinc-900 dark:border-zinc-700"
   }`;
 }
 
@@ -236,11 +242,16 @@ const ListingComposeForm = forwardRef<
   const editMode = Boolean(initial);
   const seed = initial ? seedFromListing(initial) : null;
   const meCity = useStore((s) => s.me.city);
+  const people = useStore((s) => s.people);
+  const [editSection, setEditSection] = useState<
+    null | "details" | "privacy" | "area" | "specs" | "questions" | "deal"
+  >(null);
 
   const [step, setStep] = useState<"compose" | "review">(
     editMode ? "review" : "compose",
   );
   const [type, setType] = useState<ListingType>(seed?.type ?? "sale");
+  const [rawText, setRawText] = useState("");
   const rawTextRef = useRef(editMode ? seed?.description ?? "" : "");
   const [rawLongEnough, setRawLongEnough] = useState(false);
   const [deferredRaw, setDeferredRaw] = useState("");
@@ -296,6 +307,7 @@ const ListingComposeForm = forwardRef<
   const onImageError = useCallback((msg: string) => show(msg), [show]);
   const onRawChange = useCallback((text: string) => {
     rawTextRef.current = text;
+    setRawText(text);
     const ok = text.trim().length >= 12;
     setRawLongEnough((prev) => (prev === ok ? prev : ok));
     startTransition(() => setDeferredRaw(text));
@@ -657,9 +669,9 @@ const ListingComposeForm = forwardRef<
     needsPrice && livePriceHints.length > 0 ? (
       <div className="mt-2">
         <p className="text-[11px] text-ink-faint mb-1.5">
-          پیشنهاد قیمت از آگهی‌های مشابه حلقه
+          قیمت آگهی‌های مشابه حلقه
         </p>
-        <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+        <div className="grid grid-cols-3 gap-1.5">
           {livePriceHints.map((h) => (
             <button
               key={h.id}
@@ -669,12 +681,14 @@ const ListingComposeForm = forwardRef<
                 setPrice(formatTomanInput(String(h.amount)));
                 setPriceSource("suggested");
               }}
-              className={extraChipClass(
+              className={`${extraChipClass(
                 Number(toEnglishDigits(price).replace(/\D/g, "")) === h.amount,
-              )}
+              )} !flex !flex-col !items-stretch !gap-0.5 !px-2 !py-2 w-full`}
             >
-              <span className="font-bold">{h.label}</span>
-              <span className="nums ms-1">{formatPriceAmount(h.amount)}</span>
+              <span className="font-bold leading-snug">{h.label}</span>
+              <span className="nums text-[12.5px] leading-snug">
+                {formatPriceAmount(h.amount)}
+              </span>
             </button>
           ))}
         </div>
@@ -683,6 +697,66 @@ const ListingComposeForm = forwardRef<
 
   const showCondition = type !== "service";
   const showSource = !editMode;
+  const detailsPreview = [category, showCondition ? condition : ""]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(" · ");
+  const privacyPreview = useMemo(() => {
+    const names = activeCircle(people)
+      .filter((person) => excludePersonIds.includes(person.id))
+      .map((person) => person.name);
+    return listingPrivacySummary({
+      privacy,
+      hideIdentity,
+      excludePersonNames: names,
+      excludeRelationTypes,
+    }).join(" ");
+  }, [
+    people,
+    excludePersonIds,
+    privacy,
+    hideIdentity,
+    excludeRelationTypes,
+  ]);
+  const questionsPreview = useMemo(() => {
+    if (!draft?.questions.length) return "";
+    const done = draft.questions.filter((q) => Boolean(answers[q.id])).length;
+    if (done === 0) return "اختیاری";
+    return `${toPersianDigits(done)} از ${toPersianDigits(draft.questions.length)} جواب`;
+  }, [draft, answers]);
+  const dealLabel =
+    type === "service"
+      ? "هزینه"
+      : type === "exchange"
+        ? "تعویض"
+        : type === "loan"
+          ? "امانت"
+          : "قیمت";
+  const dealPreview = useMemo(() => {
+    if (type === "donation") return "رایگان";
+    if (type === "exchange") return exchangeFor.trim() || "مشخص نشده";
+    if (type === "loan") {
+      const depositN = Number(toEnglishDigits(loanDeposit).replace(/\D/g, ""));
+      const parts = [
+        loanDuration.trim(),
+        loanNoDeposit ? "بدون ودیعه" : depositN > 0 ? formatPrice(depositN) : "",
+      ].filter(Boolean);
+      return parts.join(" · ") || "مشخص نشده";
+    }
+    if (type === "service" && priceAgreed) return "توافقی";
+    const n = Number(toEnglishDigits(price).replace(/\D/g, ""));
+    const base = n > 0 ? formatPrice(n) : "وارد نشده";
+    return negotiable ? `${base} · قابل مذاکره` : base;
+  }, [
+    type,
+    exchangeFor,
+    loanDuration,
+    loanNoDeposit,
+    loanDeposit,
+    priceAgreed,
+    price,
+    negotiable,
+  ]);
 
   const typeFields = (
     <>
@@ -774,9 +848,6 @@ const ListingComposeForm = forwardRef<
               className="flex items-center gap-1.5 text-[13px] font-bold text-ink dark:text-zinc-200"
             >
               {type === "service" ? "هزینه" : "قیمت"}
-              {showSource && step === "review" && needsPrice && (
-                <SourceBadge source={priceSource} />
-              )}
             </label>
             <div className="flex gap-1.5">
               {type === "service" && (
@@ -856,70 +927,49 @@ const ListingComposeForm = forwardRef<
           />
 
           <ListingRawTextBlock
+            value={rawText}
             polishing={polishing}
             onChange={onRawChange}
           />
 
           {typeFields}
-
-          <AreaPicker city={meCity} value={area} onChange={setArea} />
         </>
       ) : (
         <>
           {editMode ? (
-            <>
-              <ListingTypePicker type={type} onChange={setType} />
-              <ListingImagePicker
-                photos={photos}
-                onPhotosChange={setPhotos}
-                emoji={emoji}
-                onEmojiChange={setEmoji}
-                onError={onImageError}
-                category={listingTypeLabels[type]}
-              />
-            </>
-          ) : (
-            <>
-              {photos.length > 0 && (
-                <div className="flex gap-1.5 overflow-x-auto no-scrollbar mb-3">
-                  {photos.map((src, i) => (
-                    <div
-                      key={`${i}-${src.slice(0, 20)}`}
-                      className="w-14 h-14 rounded-lg overflow-hidden shrink-0 ring-1 ring-stone-200/70 dark:ring-zinc-700"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={withBasePath(src)}
-                        alt=""
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
+            <ListingTypePicker type={type} onChange={setType} />
+          ) : null}
 
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                <p className="inline-flex text-[12px] text-ink-muted dark:text-zinc-400 leading-relaxed rounded-lg bg-stone-50 dark:bg-zinc-800/60 px-2.5 py-1">
-                  {listingTypeIntentLabels[type]}
-                </p>
-                <p className="inline-flex text-[12px] text-ink-muted dark:text-zinc-400 leading-relaxed rounded-lg bg-stone-50 dark:bg-zinc-800/60 px-2.5 py-1">
-                  مخاطب: {privacyLabels[privacy]}
-                </p>
-                <p className="inline-flex text-[12px] text-ink-muted dark:text-zinc-400 leading-relaxed rounded-lg bg-stone-50 dark:bg-zinc-800/60 px-2.5 py-1">
-                  {area}
-                </p>
-              </div>
-            </>
-          )}
+          <ListingImagePicker
+            photos={photos}
+            onPhotosChange={setPhotos}
+            emoji={emoji}
+            onEmojiChange={setEmoji}
+            onError={onImageError}
+            category={listingTypeLabels[type]}
+            compact
+          />
 
-          <section className="mb-4">
+          {!editMode ? (
+            <p className="text-[12.5px] text-ink-muted dark:text-zinc-400 mb-4 leading-relaxed">
+              {listingTypeIntentLabels[type]}
+              {area ? ` · ${area}` : ""}
+            </p>
+          ) : null}
+
+          {showSource ? (
+            <p className="text-[12.5px] text-ink-muted leading-relaxed mb-4 rounded-xl bg-stone-50 dark:bg-zinc-800/50 px-3 py-2.5">
+              از حرف تو پر شد. هر جا لازم بود اصلاح کن.
+            </p>
+          ) : null}
+
+          <section className="mb-5">
             <div className="flex items-center justify-between gap-2 mb-1.5">
               <label
                 htmlFor="listing-title"
-                className="flex items-center gap-1.5 text-[13px] font-bold text-ink dark:text-zinc-200"
+                className="text-[13.5px] font-semibold text-ink dark:text-zinc-200"
               >
                 عنوان
-                {showSource ? <SourceBadge source={titleSource} /> : null}
               </label>
               <span className="nums text-[11px] text-ink-faint">
                 {toPersianDigits(title.length)}/{toPersianDigits(80)}
@@ -937,13 +987,12 @@ const ListingComposeForm = forwardRef<
             />
           </section>
 
-          <section className="mb-4">
+          <section className="mb-5">
             <label
               htmlFor="listing-desc"
-              className="flex items-center gap-1.5 text-[13px] font-bold mb-1.5 text-ink dark:text-zinc-200"
+              className="block text-[13.5px] font-semibold mb-1.5 text-ink dark:text-zinc-200"
             >
               توضیح کوتاه
-              {showSource ? <SourceBadge source={descriptionSource} /> : null}
             </label>
             <textarea
               id="listing-desc"
@@ -952,180 +1001,256 @@ const ListingComposeForm = forwardRef<
                 setDescription(e.target.value);
                 setDescriptionSource("user");
               }}
-              rows={4}
-              className="field resize-none min-h-[6rem] leading-relaxed"
+              rows={editMode ? 2 : 3}
+              className={`field resize-none leading-relaxed ${
+                editMode ? "min-h-[4.5rem]" : "min-h-[5.5rem]"
+              }`}
             />
           </section>
 
-          <div className={`grid gap-2.5 mb-4 ${showCondition ? "grid-cols-2" : "grid-cols-1"}`}>
-            <section>
-              <label
-                htmlFor="listing-category"
-                className="flex items-center gap-1.5 text-[13px] font-bold mb-1.5 text-ink dark:text-zinc-200"
-              >
-                دسته
-                {showSource ? <SourceBadge source={categorySource} /> : null}
-              </label>
-              <CatalogCategorySelect
-                id="listing-category"
-                value={category}
-                categories={catalog.categories}
-                onChange={(next) => {
-                  setCategory(next);
-                  setCategorySource("user");
-                }}
-              />
-            </section>
-            {showCondition ? (
-            <section>
-              <label
-                htmlFor="listing-condition"
-                className="flex items-center gap-1.5 text-[13px] font-bold mb-1.5 text-ink dark:text-zinc-200"
-              >
-                وضعیت
-                {showSource ? (
-                  <SourceBadge source={condition ? conditionSource : undefined} />
+          {editMode ? typeFields : null}
+              <ListingEditRows>
+                {!editMode && type !== "donation" ? (
+                  <ListingEditRow
+                    label={dealLabel}
+                    value={dealPreview}
+                    onClick={() => setEditSection("deal")}
+                  />
                 ) : null}
-              </label>
-              <input
-                id="listing-condition"
-                value={condition}
-                onChange={(e) => {
-                  setCondition(e.target.value);
-                  setConditionSource("user");
-                }}
-                placeholder="مثلاً سالم"
-                className="field !text-[13px]"
-              />
-            </section>
-            ) : null}
-          </div>
-
-          {typeFields}
-
-          <ListingPrivacySection
-            privacy={privacy}
-            onPrivacy={setPrivacy}
-            hideIdentity={hideIdentity}
-            onHideIdentity={setHideIdentity}
-            excludePersonIds={excludePersonIds}
-            onExcludePersonIds={setExcludePersonIds}
-            excludeRelationTypes={excludeRelationTypes}
-            onExcludeRelationTypes={setExcludeRelationTypes}
-            canHideIdentity={!editMode || Boolean(initial?.hideIdentity)}
-            initialPrivacy={editMode ? initial?.privacy : undefined}
-            initialExcludePersonIds={
-              editMode ? initial?.excludePersonIds : undefined
-            }
-            initialExcludeRelationTypes={
-              editMode ? initial?.excludeRelationTypes : undefined
-            }
-          />
-
-          {editMode && (
-            <AreaPicker city={meCity} value={area} onChange={setArea} />
-          )}
-
-          {draft && draft.questions.length > 0 && (
-            <section className="mb-4 space-y-3">
-              <p className="text-[13px] font-bold text-ink dark:text-zinc-200">
-                چند سؤال کوتاه
-              </p>
-              {draft.questions.map((q) => (
-                <div key={q.id}>
-                  <p className="text-[12px] text-ink-muted mb-1.5">{q.label}</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {q.options.map((opt) => {
-                      const active = answers[q.id] === opt;
-                      return (
-                        <button
-                          key={opt}
-                          type="button"
-                          onClick={() => pickAnswer(q.id, opt)}
-                          aria-pressed={active}
-                          className={extraChipClass(active)}
-                        >
-                          {opt}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </section>
-          )}
-
-          {(!editMode || editableSpecs.length > 0) ? (
-          <section className="mb-4">
-            <p className="text-[13px] font-bold text-ink dark:text-zinc-200 mb-2">
-              مشخصات
-            </p>
-            {editableSpecs.length === 0 ? (
-              <p className="text-[12px] text-ink-faint leading-relaxed px-0.5">
-                هنوز مشخصاتی استخراج نشد. اگر چیزی جا افتاده، بگذار طرف مقابل
-                بپرسد.
-              </p>
-            ) : (
-              <ul className="rounded-xl border border-stone-200/80 dark:border-zinc-700 overflow-hidden divide-y divide-stone-100 dark:divide-zinc-800">
-                {editableSpecs.map((s) => (
-                  <li
-                    key={s.label}
-                    className="px-3 py-2.5 bg-[color:var(--circle-surface)] dark:bg-zinc-900"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <p className="text-[11px] text-ink-faint">{s.label}</p>
-                          {showSource ? <SourceBadge source={s.confidence} /> : null}
+                <ListingEditRow
+                  label="دسته و وضعیت"
+                  value={detailsPreview || "انتخاب نشده"}
+                  onClick={() => setEditSection("details")}
+                />
+                <ListingEditRow
+                  label="حریم خصوصی"
+                  value={privacyPreview}
+                  onClick={() => setEditSection("privacy")}
+                />
+                <ListingEditRow
+                  label="محدوده"
+                  value={area}
+                  onClick={() => setEditSection("area")}
+                />
+                {!editMode && draft && draft.questions.length > 0 ? (
+                  <ListingEditRow
+                    label="چند سؤال کوتاه"
+                    value={questionsPreview}
+                    onClick={() => setEditSection("questions")}
+                  />
+                ) : null}
+                {editableSpecs.length > 0 ? (
+                  <ListingEditRow
+                    label="مشخصات"
+                    value={editableSpecs
+                      .map((s) => `${s.label}: ${s.value}`)
+                      .join(" · ")}
+                    onClick={() => setEditSection("specs")}
+                  />
+                ) : null}
+              </ListingEditRows>
+              {editSection === "deal" ? (
+                <ListingEditSectionSheet
+                  title={dealLabel}
+                  labelledBy="edit-listing-deal"
+                  onClose={() => setEditSection(null)}
+                >
+                  {typeFields}
+                </ListingEditSectionSheet>
+              ) : null}
+              {editSection === "details" ? (
+                <ListingEditSectionSheet
+                  title="دسته و وضعیت"
+                  labelledBy="edit-listing-details"
+                  onClose={() => setEditSection(null)}
+                >
+                  <section className="mb-5">
+                    <label
+                      htmlFor="listing-category-review"
+                      className="flex items-center gap-1.5 text-[13.5px] font-semibold mb-1.5 text-ink dark:text-zinc-200"
+                    >
+                      دسته
+                      {showSource && categorySource === "suggested" ? (
+                        <SourceBadge source={categorySource} />
+                      ) : null}
+                    </label>
+                    <CatalogCategorySelect
+                      id="listing-category-review"
+                      value={category}
+                      categories={catalog.categories}
+                      onChange={(next) => {
+                        setCategory(next);
+                        setCategorySource("user");
+                      }}
+                    />
+                  </section>
+                  {showCondition ? (
+                    <section>
+                      <label
+                        htmlFor="listing-condition-review"
+                        className="flex items-center gap-1.5 text-[13.5px] font-semibold mb-1.5 text-ink dark:text-zinc-200"
+                      >
+                        وضعیت کالا
+                        {showSource ? (
+                          <SourceBadge source={conditionSource} />
+                        ) : null}
+                      </label>
+                      <input
+                        id="listing-condition-review"
+                        value={condition}
+                        onChange={(e) => {
+                          setCondition(e.target.value);
+                          setConditionSource("user");
+                        }}
+                        placeholder="مثلاً سالم، در حد نو"
+                        className="field"
+                      />
+                    </section>
+                  ) : null}
+                </ListingEditSectionSheet>
+              ) : null}
+              {editSection === "privacy" ? (
+                <ListingEditSectionSheet
+                  title="حریم خصوصی"
+                  labelledBy="edit-listing-privacy"
+                  onClose={() => setEditSection(null)}
+                >
+                  <ListingPrivacySection
+                    privacy={privacy}
+                    onPrivacy={setPrivacy}
+                    hideIdentity={hideIdentity}
+                    onHideIdentity={setHideIdentity}
+                    excludePersonIds={excludePersonIds}
+                    onExcludePersonIds={setExcludePersonIds}
+                    excludeRelationTypes={excludeRelationTypes}
+                    onExcludeRelationTypes={setExcludeRelationTypes}
+                    canHideIdentity={
+                      !editMode || Boolean(initial?.hideIdentity)
+                    }
+                    initialPrivacy={editMode ? initial?.privacy : undefined}
+                    initialExcludePersonIds={
+                      editMode ? initial?.excludePersonIds : undefined
+                    }
+                    initialExcludeRelationTypes={
+                      editMode ? initial?.excludeRelationTypes : undefined
+                    }
+                  />
+                </ListingEditSectionSheet>
+              ) : null}
+              {editSection === "area" ? (
+                <ListingEditSectionSheet
+                  title="محدوده"
+                  labelledBy="edit-listing-area"
+                  onClose={() => setEditSection(null)}
+                >
+                  <AreaPicker city={meCity} value={area} onChange={setArea} />
+                </ListingEditSectionSheet>
+              ) : null}
+              {editSection === "questions" && draft ? (
+                <ListingEditSectionSheet
+                  title="چند سؤال کوتاه"
+                  labelledBy="edit-listing-questions"
+                  onClose={() => setEditSection(null)}
+                >
+                  <p className="text-[12px] text-ink-muted mb-3 leading-relaxed">
+                    اختیاری — جواب بده تا آگهی برای طرف مقابل کامل‌تر شود.
+                  </p>
+                  <div className="space-y-3.5">
+                    {draft.questions.map((q) => (
+                      <div key={q.id}>
+                        <p className="text-[12.5px] text-ink-muted mb-1.5">
+                          {q.label}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {q.options.map((opt) => {
+                            const active = answers[q.id] === opt;
+                            return (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => pickAnswer(q.id, opt)}
+                                aria-pressed={active}
+                                className={extraChipClass(active)}
+                              >
+                                {opt}
+                              </button>
+                            );
+                          })}
                         </div>
-                        {editingLabel === s.label ? (
-                          <input
-                            value={s.value}
-                            onChange={(e) =>
-                              updateSpecValue(s.label, e.target.value)
-                            }
-                            onBlur={() => setEditingLabel(null)}
-                            autoFocus
-                            className="field !py-1.5 !text-[13px]"
-                          />
-                        ) : (
-                          <p className="text-[13px] font-semibold text-ink dark:text-zinc-100">
-                            {s.value}
-                          </p>
-                        )}
                       </div>
-                      <div className="flex flex-col gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setEditingLabel(
-                              editingLabel === s.label ? null : s.label,
-                            )
-                          }
-                          className="text-[11px] font-bold text-brand-600 dark:text-brand-400 px-1"
-                        >
-                          {editingLabel === s.label ? "تمام" : "ویرایش"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => removeSpec(s.label)}
-                          className="text-[11px] font-bold text-ink-faint px-1"
-                        >
-                          حذف
-                        </button>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {editableSpecs.length > 0 ? (
-            <p className="text-[11px] text-ink-faint mt-2 leading-relaxed">
-              ابعاد یا ادعاهای حساس را فقط اگر درست‌اند نگه دارید.
-            </p>
-            ) : null}
-          </section>
-          ) : null}
+                    ))}
+                  </div>
+                </ListingEditSectionSheet>
+              ) : null}
+              {editSection === "specs" ? (
+                <ListingEditSectionSheet
+                  title="مشخصات"
+                  labelledBy="edit-listing-specs"
+                  onClose={() => setEditSection(null)}
+                >
+                  <ul className="rounded-xl border border-stone-200/80 dark:border-zinc-700 overflow-hidden divide-y divide-stone-100 dark:divide-zinc-800">
+                    {editableSpecs.map((s) => (
+                      <li
+                        key={s.label}
+                        className="px-3 py-2.5 bg-[color:var(--circle-surface)] dark:bg-zinc-900"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <p className="text-[11px] text-ink-faint">
+                                {s.label}
+                              </p>
+                              {showSource ? (
+                                <SourceBadge source={s.confidence} />
+                              ) : null}
+                            </div>
+                            {editingLabel === s.label ? (
+                              <input
+                                value={s.value}
+                                onChange={(e) =>
+                                  updateSpecValue(s.label, e.target.value)
+                                }
+                                onBlur={() => setEditingLabel(null)}
+                                autoFocus
+                                className="field !py-1.5 !text-[13.5px]"
+                              />
+                            ) : (
+                              <p className="text-[13.5px] font-semibold text-ink dark:text-zinc-100">
+                                {s.value}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setEditingLabel(
+                                  editingLabel === s.label ? null : s.label,
+                                )
+                              }
+                              className="text-[11px] font-bold text-brand-600 dark:text-brand-400 min-h-9 px-1"
+                            >
+                              {editingLabel === s.label ? "تمام" : "ویرایش"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeSpec(s.label)}
+                              className="text-[11px] font-bold text-ink-faint min-h-9 px-1"
+                            >
+                              حذف
+                            </button>
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                  {showSource ? (
+                    <p className="text-[11px] text-ink-faint mt-2 leading-relaxed">
+                      ابعاد یا ادعاهای حساس را فقط اگر درست‌اند نگه دارید.
+                    </p>
+                  ) : null}
+                </ListingEditSectionSheet>
+              ) : null}
 
           {!hideActions && !editMode && (
             <button
@@ -1216,21 +1341,17 @@ const ListingTypePicker = memo(function ListingTypePicker({
 });
 
 const ListingRawTextBlock = memo(function ListingRawTextBlock({
+  value,
   polishing,
   onChange,
 }: {
+  value: string;
   polishing: boolean;
   onChange: (text: string) => void;
 }) {
   const { show } = useToast();
-  const [text, setText] = useState("");
   const [voiceInterim, setVoiceInterim] = useState("");
   const [voiceListening, setVoiceListening] = useState(false);
-
-  function commit(next: string) {
-    setText(next);
-    onChange(next);
-  }
 
   return (
     <section className="mb-3">
@@ -1249,15 +1370,15 @@ const ListingRawTextBlock = memo(function ListingRawTextBlock({
           onFinal={(phrase) => {
             const piece = phrase.trim();
             if (!piece) return;
-            commit(text.trim() ? `${text.trim()} ${piece}` : piece);
+            onChange(value.trim() ? `${value.trim()} ${piece}` : piece);
             setVoiceInterim("");
           }}
         />
       </div>
       <textarea
         id="listing-raw"
-        value={text}
-        onChange={(e) => commit(e.target.value)}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
         placeholder="مثلاً: مبل سبز سه‌نفره، کمی رد استفاده، بازدید اوکی."
         rows={3}
         className="field resize-none min-h-[5rem] leading-relaxed"

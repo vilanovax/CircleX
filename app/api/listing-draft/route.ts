@@ -61,7 +61,7 @@ export async function POST(req: Request) {
             {
               role: "system",
               content:
-                "You polish Persian marketplace listing copy for a trust-circle app. Return JSON {title, description, condition}. Do NOT invent dimensions, defects, washability, or specs not clearly in the user text. Keep description short (reason to sell / context). Title max 56 chars.",
+                "You polish Persian marketplace listing copy for a trust-circle app. Return JSON {title, description, condition}. Title: short object name only (no first-person, no price). Description: must not repeat the title or price — only extra context (wear, visit, reason). Do NOT invent dimensions, defects, or specs. Title max 56 chars.",
             },
             {
               role: "user",

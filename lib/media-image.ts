@@ -1,5 +1,6 @@
 "use client";
 
+import { withoutBasePath } from "./avatar";
 import { api } from "./api";
 import {
   PHOTO_MAX_BYTES,
@@ -155,7 +156,7 @@ export async function uploadUserPhoto(file: File): Promise<string> {
   if (!url?.includes("/api/uploads/")) {
     throw new Error("ذخیرهٔ عکس نشد.");
   }
-  return url;
+  return withoutBasePath(url);
 }
 
 export const processListingPhotoBlob = processUserPhoto;

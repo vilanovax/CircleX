@@ -1,3 +1,4 @@
+import { withoutBasePath } from "./avatar";
 import { PHOTO_MAX_BYTES, UPLOAD_PATH_RE } from "./media";
 
 /** Unsplash photo id in a leftover URL → local Commons-hosted stock file. */
@@ -71,8 +72,23 @@ const STOCK = /^\/listings\/[a-zA-Z0-9._-]+\.jpe?g$/i;
 /** Max JPEG bytes after compress, written to app disk. */
 export const LISTING_PHOTO_MAX_BYTES = PHOTO_MAX_BYTES;
 
+/** Strip origin and `/circle` so stored srcs are `/api/uploads/…`. */
+export function canonicalListingImage(value: string): string {
+  let v = value.trim();
+  if (!v) return "";
+  if (v.startsWith("data:image/")) return v;
+  if (/^https?:\/\//i.test(v)) {
+    try {
+      v = new URL(v).pathname;
+    } catch {
+      return v;
+    }
+  }
+  return withoutBasePath(v);
+}
+
 export function isStoredUploadSrc(value: string): boolean {
-  return UPLOAD_PATH_RE.test(value.trim());
+  return UPLOAD_PATH_RE.test(canonicalListingImage(value));
 }
 
 export function listingStockPath(photoId: string): string {
@@ -95,7 +111,7 @@ export function localListingSrcs(srcs: string[]): string[] {
 
 /** Paths we persist: app storage, demo stock, emoji, or legacy data-URL. Never remote CDNs. */
 export function isAllowedListingImage(value: string): boolean {
-  const v = value.trim();
+  const v = canonicalListingImage(value);
   if (!v) return false;
   if (/^https?:\/\//i.test(v)) return false;
   if (STOCK.test(v) || UPLOAD_PATH_RE.test(v)) return true;

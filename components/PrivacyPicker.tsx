@@ -121,7 +121,7 @@ function PrivacyPicker({
           onClick={() => setShowAdvanced(true)}
           className="mt-2 text-[12px] font-semibold text-brand-600 dark:text-brand-400"
         >
-          تنظیمات بیشتر
+          محدودهٔ محدودتر (معرفی یا اجازه)
         </button>
       ) : null}
     </div>

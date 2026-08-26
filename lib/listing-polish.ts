@@ -1,5 +1,4 @@
 import { draftListingFromText, type ListingDraft } from "./listing-draft";
-import { normalizeFa } from "./persian";
 import type { ListingType } from "./types";
 
 /**
@@ -12,14 +11,7 @@ export function createPolishedListingDraft(input: {
   price?: number;
 }): ListingDraft {
   const base = draftListingFromText(input);
-  const text = normalizeFa(input.text);
   let title = base.title.replace(/\s+/g, " ").replace(/[،,]+$/g, "").trim();
-
-  if (title.length < 10 || /آگهی|سایر/.test(title)) {
-    if (/مبل/.test(text)) title = "مبل راحتی تمیز و سالم";
-    else if (/آیفون|گوشی/.test(text)) title = "گوشی در حد تمیز";
-    else if (/پیانو/.test(text)) title = "آموزش پیانو";
-  }
   if (title.length > 56) title = `${title.slice(0, 54).trim()}…`;
 
   let description = base.description
@@ -28,11 +20,11 @@ export function createPolishedListingDraft(input: {
     .replace(/\s{2,}/g, " ")
     .trim();
 
-  if (!description) {
+  if (!description || description === title) {
     description =
       input.type === "service"
         ? "جزئیات خدمت را در پیام هماهنگ می‌کنیم."
-        : "برای جزئیات بیشتر در پیام بپرسید؛ بازدید با هماهنگی.";
+        : "جزئیات را در پیام بپرسید؛ هماهنگی از همان‌جا.";
   }
 
   let condition = base.condition;

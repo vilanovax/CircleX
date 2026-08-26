@@ -10,6 +10,7 @@ export default function Header({
   fallbackHref = "/",
   action,
   children,
+  onBack,
 }: {
   title?: string;
   subtitle?: string;
@@ -19,11 +20,16 @@ export default function Header({
   action?: React.ReactNode;
   /** Custom title content; replaces title/subtitle when provided. */
   children?: React.ReactNode;
+  /** Replaces history back when the parent owns the previous step. */
+  onBack?: () => void;
 }) {
   const router = useRouter();
 
   function handleBack() {
-    // Avoid leaving the app when the page was opened directly via a link.
+    if (onBack) {
+      onBack();
+      return;
+    }
     if (typeof window !== "undefined" && window.history.length > 1) {
       router.back();
     } else {
