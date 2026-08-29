@@ -9,11 +9,6 @@ export const vazirmatn = localFont({
       style: "normal",
     },
     {
-      path: "../node_modules/vazirmatn/fonts/webfonts/Vazirmatn-Medium.woff2",
-      weight: "500",
-      style: "normal",
-    },
-    {
       path: "../node_modules/vazirmatn/fonts/webfonts/Vazirmatn-SemiBold.woff2",
       weight: "600",
       style: "normal",
@@ -23,15 +18,9 @@ export const vazirmatn = localFont({
       weight: "700",
       style: "normal",
     },
-    {
-      path: "../node_modules/vazirmatn/fonts/webfonts/Vazirmatn-ExtraBold.woff2",
-      weight: "800",
-      style: "normal",
-    },
   ],
   variable: "--font-vazir",
   display: "swap",
-  // Don't preload all five files on the critical path — the browser
-  // fetches Regular from CSS, then Bold/ExtraBold as headings appear.
+  // Don't preload every weight — Regular loads from CSS, Bold as headings appear.
   preload: false,
 });

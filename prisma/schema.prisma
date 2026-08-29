@@ -214,6 +214,7 @@ model CircleEdge {
 
   @@unique([fromUserId, toUserId])
   @@index([fromUserId])
+  @@index([fromUserId, createdAt])
   @@index([toUserId])
 }
 
@@ -249,6 +250,7 @@ model MarketListing {
   identityReveals ListingIdentityReveal[]
 
   @@index([sellerId])
+  @@index([sellerId, dealStatus, createdAt])
   @@index([createdAt])
   @@index([dealStatus])
 }
@@ -465,6 +467,7 @@ model SavedListing {
 
   @@unique([userId, listingId])
   @@index([userId])
+  @@index([userId, createdAt])
   @@index([listingId])
 }
 
@@ -479,6 +482,7 @@ model HiddenListing {
 
   @@unique([userId, listingId])
   @@index([userId])
+  @@index([userId, createdAt])
   @@index([listingId])
 }
 
@@ -493,6 +497,7 @@ model HiddenPerson {
 
   @@unique([userId, personId])
   @@index([userId])
+  @@index([userId, createdAt])
   @@index([personId])
 }
 

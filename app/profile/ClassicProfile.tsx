@@ -35,7 +35,7 @@ import {
 import { badgeLabels, eventKindEmoji, formatPrice } from "@/lib/labels";
 import { buildSocialCredit } from "@/lib/social-credit";
 import { formatEventDateDisplay, toPersianDigits } from "@/lib/persian";
-import { CONCEPT_TIP_KEY } from "@/lib/home-tip";
+import { CONCEPT_TIP_KEY, FIRST_RUN_EXPLAIN_KEY, HOW_QUERY } from "@/lib/home-tip";
 import { personHref } from "@/lib/nav-back";
 import { ThemeSegmented } from "@/components/ThemeToggle";
 import { useToast } from "@/components/Toast";
@@ -830,11 +830,12 @@ function AccountSheet({ onClose }: { onClose: () => void }) {
           onClick={() => {
             try {
               localStorage.removeItem(CONCEPT_TIP_KEY);
+              localStorage.removeItem(FIRST_RUN_EXPLAIN_KEY);
             } catch {
               /* ignore */
             }
             onClose();
-            router.push("/");
+            router.push(`/?${HOW_QUERY}=1`);
           }}
           className="w-full flex items-center justify-between gap-3 px-3 py-3 text-right active:bg-stone-50 dark:active:bg-zinc-800/80"
         >

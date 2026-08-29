@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "crypto";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { isUserBanned } from "./ban";
 import { sessionCookieSecure } from "./cookie-secure";
 import { prisma } from "./db";
@@ -63,7 +64,7 @@ export function toSessionUser(user: User): SessionUser {
   };
 }
 
-export async function getSessionUser(): Promise<SessionUser | null> {
+async function getSessionUserUncached(): Promise<SessionUser | null> {
   const token = cookies().get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const session = await prisma.session.findUnique({
@@ -90,6 +91,9 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   }
   return toSessionUser(session.user);
 }
+
+/** Dedupe session lookup within one RSC/request. */
+export const getSessionUser = cache(getSessionUserUncached);
 
 export async function destroyAllUserSessions(userId: string): Promise<number> {
   const result = await prisma.session.deleteMany({ where: { userId } });

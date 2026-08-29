@@ -24,7 +24,7 @@ import { FeedSkeleton } from "@/components/Skeleton";
 import { CircleUsersIcon, LockIcon, SearchIcon, ShieldCheckIcon } from "@/components/Icons";
 import type { CircleEvent, Listing, Person, Request } from "@/lib/types";
 import { formatEventDateDisplay, normalizeFa, toPersianDigits } from "@/lib/persian";
-import { CONCEPT_TIP_KEY } from "@/lib/home-tip";
+import CircleConceptTip from "@/components/CircleConceptTip";
 import AddedYouBanner from "@/components/AddedYouBanner";
 import { POSTED_QUERY } from "@/lib/home-posted";
 import {
@@ -117,15 +117,6 @@ function requestMatchesScope(
   return score >= 3;
 }
 
-function readShowConceptTip() {
-  if (typeof window === "undefined") return false;
-  try {
-    return localStorage.getItem(CONCEPT_TIP_KEY) !== "1";
-  } catch {
-    return true;
-  }
-}
-
 function ConsumePostedParam({ onPosted }: { onPosted: (id: string) => void }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -149,20 +140,10 @@ export default function ClassicFeed() {
   const [circleScope, setCircleScope] = useState<CircleScope>("network");
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
-  const [showConceptTip, setShowConceptTip] = useState(readShowConceptTip);
   const [justPostedId, setJustPostedId] = useState<string | null>(null);
 
   const onPosted = useCallback((id: string) => {
     setJustPostedId(id);
-  }, []);
-
-  const dismissConceptTip = useCallback(() => {
-    try {
-      localStorage.setItem(CONCEPT_TIP_KEY, "1");
-    } catch {
-      /* ignore */
-    }
-    setShowConceptTip(false);
   }, []);
 
   const emptyCircle = circleReady && circleCount === 0;
@@ -228,10 +209,8 @@ export default function ClassicFeed() {
           circleCount={circleCount}
           circleReady={circleReady}
           hydrated={hydrated}
-          showConceptTip={showConceptTip && !justPostedId}
           justPostedId={justPostedId}
           requestsEnabled={catalog.flags.requests}
-          onDismissTip={dismissConceptTip}
           onScope={onScope}
           onFilter={onFilter}
           onClearSearch={onClearSearch}
@@ -250,10 +229,8 @@ const HomeFeedBody = memo(function HomeFeedBody({
   circleCount,
   circleReady,
   hydrated,
-  showConceptTip,
   justPostedId,
   requestsEnabled,
-  onDismissTip,
   onScope,
   onFilter,
   onClearSearch,
@@ -264,10 +241,8 @@ const HomeFeedBody = memo(function HomeFeedBody({
   circleCount: number;
   circleReady: boolean;
   hydrated: boolean;
-  showConceptTip: boolean;
   justPostedId: string | null;
   requestsEnabled: boolean;
-  onDismissTip: () => void;
   onScope: (next: CircleScope) => void;
   onFilter: (next: FeedFilter) => void;
   onClearSearch: () => void;
@@ -549,26 +524,7 @@ const HomeFeedBody = memo(function HomeFeedBody({
             </div>
           ) : null}
 
-          {showConceptTip && (
-            <div className="px-4 pt-3">
-              <div className="relative rounded-2xl bg-brand-50/80 dark:bg-brand-500/10 ring-1 ring-brand-100/70 dark:ring-brand-500/20 px-3.5 py-2.5">
-                <p className="text-[13px] font-bold text-ink dark:text-zinc-100 leading-snug pe-7">
-                  خرید، فروش و کمک گرفتن از آدم‌های مورد اعتماد
-                </p>
-                <p className="text-[11px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-snug pe-7">
-                  همه‌چیز از حلقهٔ تو می‌آید، نه از غریبه‌ها.
-                </p>
-                <button
-                  type="button"
-                  onClick={onDismissTip}
-                  className="absolute top-2 left-2 w-7 h-7 rounded-full text-ink-faint hover:bg-stone-200/60 dark:hover:bg-zinc-800 flex items-center justify-center text-sm"
-                  aria-label="بستن راهنما"
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-          )}
+          <CircleConceptTip hidden={Boolean(justPostedId)} />
 
           <FeedSection
             title={requestsMode ? "درخواست‌ها" : "آگهی‌ها"}

@@ -1,15 +1,18 @@
 "use client";
 
 import { memo } from "react";
-import { withBasePath } from "@/lib/avatar";
+import Image from "next/image";
+import { withBasePath, withoutBasePath } from "@/lib/avatar";
 import { isListingPhoto, listingImageTint } from "@/lib/listing-image";
+import { localListingSrc } from "@/lib/listing-photo";
+import { isOptimizablePhotoSrc, PHOTO_SLOT } from "@/lib/media";
 import type { ListingType } from "@/lib/types";
 
 const photoPx = {
-  sm: 56,
-  md: 96,
-  lg: 48,
-  hero: 480,
+  sm: PHOTO_SLOT.listingSm,
+  md: PHOTO_SLOT.listingMd,
+  lg: PHOTO_SLOT.listingLg,
+  hero: PHOTO_SLOT.listingHero,
 } as const;
 
 /** Emoji glyph size — keep large relative to a tight frame so it doesn't look empty. */
@@ -19,6 +22,13 @@ const emojiSizeClass = {
   lg: "text-5xl",
   hero: "text-7xl",
 } as const;
+
+/** Include basePath — required for next/image when the app is served under /circle. */
+function listingPhotoSrc(image: string): string {
+  const canonical = withoutBasePath(localListingSrc(image.trim()));
+  if (canonical.startsWith("data:")) return canonical;
+  return withBasePath(canonical);
+}
 
 function ListingImage({
   image,
@@ -33,12 +43,11 @@ function ListingImage({
   image: string;
   alt?: string;
   size?: keyof typeof emojiSizeClass;
+  className?: string;
+  frameClassName?: string;
   category?: string;
   type?: ListingType;
-  className?: string;
-  /** Outer frame (rounded box). Defaults by size. */
-  frameClassName?: string;
-  /** LCP image on detail heroes. */
+  /** LCP image on feed / detail heroes. */
   priority?: boolean;
 }) {
   const tint = listingImageTint(category, type);
@@ -60,30 +69,40 @@ function ListingImage({
     : defaultFrame;
 
   if (photo) {
+    const src = listingPhotoSrc(image);
     const w = photoPx[size];
     const h = size === "hero" ? 176 : w;
     const sizes =
       size === "hero"
-        ? "(max-width: 480px) 100vw, 480px"
-        : size === "md"
-          ? "96px"
-          : size === "sm"
-            ? "56px"
-            : "48px";
+        ? `(max-width: 480px) 100vw, ${PHOTO_SLOT.listingHero}px`
+        : `${w}px`;
+    const dataUrl = src.startsWith("data:");
+    const optimize = !dataUrl && isOptimizablePhotoSrc(src);
 
     return (
       <div className={`overflow-hidden shrink-0 ${frame} ${className}`}>
-        <img
-          src={withBasePath(image)}
-          alt={alt}
-          width={w}
-          height={h}
-          sizes={sizes}
-          className="absolute inset-0 h-full w-full object-cover"
-          fetchPriority={priority ? "high" : "auto"}
-          loading={priority ? "eager" : "lazy"}
-          decoding="async"
-        />
+        {dataUrl || !optimize ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={src}
+            alt={alt}
+            width={w}
+            height={h}
+            className="absolute inset-0 h-full w-full object-cover"
+            fetchPriority={priority ? "high" : "auto"}
+            loading={priority ? "eager" : "lazy"}
+            decoding="async"
+          />
+        ) : (
+          <Image
+            src={src}
+            alt={alt}
+            fill
+            sizes={sizes}
+            priority={priority}
+            className="object-cover"
+          />
+        )}
       </div>
     );
   }

@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { NetworkLink, Person, TrustHop } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { relationTowardName } from "@/lib/labels";
-import { resolveAvatarSrc } from "@/lib/avatar";
+import Avatar from "@/components/Avatar";
 import { viewerRelationPhrase } from "@/lib/trust";
 
 /**
@@ -96,22 +96,19 @@ export default function TrustPath({
         {chain.map((n, i) => (
           <div key={`${n.name}-${i}`} className="flex items-center gap-1.5 shrink-0">
             <div className="flex flex-col items-center w-[4.5rem]">
-              <div className="w-11 h-11 rounded-full overflow-hidden ring-2 ring-white/80 dark:ring-zinc-900/80 shadow-sm bg-zinc-100 dark:bg-zinc-800">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={resolveAvatarSrc(n.name, n.avatar)}
-                  alt=""
-                  width={44}
-                  height={44}
-                  className="w-full h-full object-cover"
-                  draggable={false}
+              <div className="rounded-full ring-2 ring-white/80 dark:ring-zinc-900/80 shadow-sm">
+                <Avatar
+                  name={n.name}
+                  src={n.avatar}
+                  size="profile"
+                  showLevel={false}
                 />
               </div>
               <span className="text-[12px] font-semibold mt-1.5 text-ink dark:text-zinc-100 truncate max-w-full">
                 {n.name}
               </span>
               {n.sub ? (
-                <span className="text-[10px] text-ink-muted leading-tight text-center mt-0.5 line-clamp-2">
+                <span className="text-[11px] text-ink-muted leading-tight text-center mt-0.5 line-clamp-2">
                   {n.sub}
                 </span>
               ) : null}

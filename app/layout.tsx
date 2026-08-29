@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import "./globals.css";
+import "./login-gate.css";
 import AppFrame from "@/components/AppFrame";
+import WebVitals from "@/components/WebVitals";
+import { loadAppBoot } from "@/lib/app-boot";
 import { ThemeProvider, themeScript } from "@/lib/theme";
 import { vazirmatn } from "@/lib/fonts";
 
@@ -29,11 +33,16 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export const dynamic = "force-dynamic";
+
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = headers().get("x-circle-pathname") || "/";
+  const boot = await loadAppBoot(pathname);
+
   return (
     <html lang="fa" dir="rtl" suppressHydrationWarning className={vazirmatn.variable}>
       <head>
@@ -42,7 +51,8 @@ export default function RootLayout({
       </head>
       <body className={`${vazirmatn.className} font-sans`}>
         <ThemeProvider>
-          <AppFrame>{children}</AppFrame>
+          <WebVitals />
+          <AppFrame boot={boot}>{children}</AppFrame>
         </ThemeProvider>
       </body>
     </html>

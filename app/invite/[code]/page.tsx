@@ -145,7 +145,18 @@ export default function InviteLandingPage() {
         else if (codeName === "accepted") setAcceptKind("accepted");
         else if (codeName === "already") {
           setAcceptKind("already");
-          if (publicInvite.inviter) setPlaceTarget(publicInvite.inviter);
+          const inv = publicInvite.inviter;
+          if (inv?.id) {
+            setPlaceTarget({
+              id: inv.id,
+              name: inv.name,
+              avatar: inv.avatar,
+              relation: "friend",
+              level: "B",
+              deals: 0,
+              inMyCircle: false,
+            });
+          }
         }
         else if (codeName === "full") setAcceptKind("full");
         else setAcceptKind("invalid");
@@ -324,7 +335,7 @@ export default function InviteLandingPage() {
             const id = placeTarget.id;
             setPlaceTarget(null);
             void placePersonInMyCircle(id, input).finally(() => {
-              router.replace("/circle");
+              router.replace("/");
             });
           }}
         />

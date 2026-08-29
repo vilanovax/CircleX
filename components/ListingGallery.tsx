@@ -1,15 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { preload } from "react-dom";
-import { withBasePath } from "@/lib/avatar";
+import Image from "next/image";
+import { withBasePath, withoutBasePath } from "@/lib/avatar";
 import { isListingPhoto, listingImageTint } from "@/lib/listing-image";
+import { localListingSrc } from "@/lib/listing-photo";
+import { isOptimizablePhotoSrc, PHOTO_SLOT } from "@/lib/media";
 import type { ListingType } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
 
-const HERO_W = 480;
 const HERO_H = 280;
-const HERO_SIZES = "(max-width: 480px) 100vw, 480px";
+const HERO_SIZES = `(max-width: 480px) 100vw, ${PHOTO_SLOT.listingHero}px`;
 
 function slideIndex(el: HTMLElement, total: number): number {
   const w = el.clientWidth;
@@ -18,8 +19,11 @@ function slideIndex(el: HTMLElement, total: number): number {
   return Math.max(0, Math.min(total - 1, Math.round(left / w)));
 }
 
+/** Include basePath — required for next/image when the app is served under /circle. */
 function photoSrc(src: string): string {
-  return withBasePath(src);
+  const canonical = withoutBasePath(localListingSrc(src));
+  if (canonical.startsWith("data:")) return canonical;
+  return withBasePath(canonical);
 }
 
 export default function ListingGallery({
@@ -40,12 +44,6 @@ export default function ListingGallery({
   const slides = images.length > 0 ? images : ["📦"];
   const total = slides.length;
   const multi = total > 1;
-  const first = slides[0] ?? "";
-  const firstPhoto = isListingPhoto(first);
-
-  if (firstPhoto && !first.startsWith("data:")) {
-    preload(photoSrc(first), { as: "image", fetchPriority: "high" });
-  }
 
   const syncIndex = useCallback(() => {
     const el = scrollerRef.current;
@@ -96,6 +94,9 @@ export default function ListingGallery({
           const eager = i === 0;
           const nearby = Math.abs(i - index) <= 1;
           const load = eager || nearby;
+          const srcPath = photo ? photoSrc(src) : "";
+          const dataUrl = srcPath.startsWith("data:") || src.startsWith("data:");
+          const optimize = !dataUrl && isOptimizablePhotoSrc(srcPath);
           return (
             <div
               key={`${i}-${src.slice(0, 48)}`}
@@ -103,22 +104,37 @@ export default function ListingGallery({
               aria-hidden={i !== index}
             >
               {photo && load ? (
-                <img
-                  src={photoSrc(src)}
-                  alt={
-                    i === 0
-                      ? alt
-                      : `${alt} — تصویر ${toPersianDigits(i + 1)}`
-                  }
-                  width={HERO_W}
-                  height={HERO_H}
-                  className="absolute inset-0 h-full w-full object-cover"
-                  fetchPriority={eager ? "high" : "auto"}
-                  loading={eager ? "eager" : "lazy"}
-                  decoding="async"
-                  sizes={HERO_SIZES}
-                  draggable={false}
-                />
+                dataUrl || !optimize ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={srcPath || src}
+                    alt={
+                      i === 0
+                        ? alt
+                        : `${alt} — تصویر ${toPersianDigits(i + 1)}`
+                    }
+                    width={PHOTO_SLOT.listingHero}
+                    height={HERO_H}
+                    className="absolute inset-0 h-full w-full object-cover"
+                    fetchPriority={eager ? "high" : "auto"}
+                    decoding="async"
+                    draggable={false}
+                  />
+                ) : (
+                  <Image
+                    src={srcPath}
+                    alt={
+                      i === 0
+                        ? alt
+                        : `${alt} — تصویر ${toPersianDigits(i + 1)}`
+                    }
+                    fill
+                    sizes={HERO_SIZES}
+                    priority={eager}
+                    className="object-cover"
+                    draggable={false}
+                  />
+                )
               ) : photo ? null : (
                 <div className="flex h-full w-full items-center justify-center text-7xl leading-none">
                   <span className="select-none" aria-hidden>

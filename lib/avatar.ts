@@ -1,6 +1,10 @@
 /** Stable avatar palette + funny illustration pool for Circle people. */
 
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+// Prefer explicit env; fall back to Next's injected router basePath.
+const BASE =
+  process.env.NEXT_PUBLIC_BASE_PATH ||
+  process.env.__NEXT_ROUTER_BASEPATH ||
+  "";
 
 const PALETTE = [
   { className: "bg-brand-600 text-white", hex: "#7c3aed" },

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-23T14:05:00.000Z",
+  "generatedAt": "2026-08-29T08:40:00.000Z",
   "title": "Design System: سیرکل",
   "extensions": {
     "colorMeta": {
@@ -93,9 +93,34 @@
         "displayName": "Dusk ink",
         "canonical": "#f2efe9",
         "tonalRamp": ["#121110", "#1c1b19", "#534e4a", "#8a847e", "#c4bfb8", "#ebe8e3", "#f2efe9", "#fffcf8"]
+      },
+      "ink-muted-dark": {
+        "role": "neutral",
+        "displayName": "Dusk mute",
+        "canonical": "#c4bfb8",
+        "tonalRamp": ["#121110", "#1c1b19", "#534e4a", "#8a847e", "#c4bfb8", "#ebe8e3", "#f2efe9", "#fffcf8"]
+      },
+      "ink-faint-dark": {
+        "role": "neutral",
+        "displayName": "Dusk faint",
+        "canonical": "#8a847e",
+        "tonalRamp": ["#121110", "#1c1b19", "#534e4a", "#8a847e", "#c4bfb8", "#ebe8e3", "#f2efe9", "#fffcf8"]
+      },
+      "white": {
+        "role": "neutral",
+        "displayName": "Button label",
+        "canonical": "#ffffff",
+        "tonalRamp": ["#1a1816", "#534e4a", "#8a847e", "#c4bfb8", "#ebe8e3", "#f2efe9", "#fffcf8", "#ffffff"]
+      },
+      "error": {
+        "role": "tertiary",
+        "displayName": "Alert",
+        "canonical": "#b42318",
+        "tonalRamp": ["#7a160f", "#b42318", "#d44538", "#e07a70", "#f0b4ae", "#f8dcd9", "#fdf4f3", "#ffffff"]
       }
     },
     "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Login wordmark only." },
       "headline": { "displayName": "Headline", "purpose": "Page titles on app and admin." },
       "title": { "displayName": "Title", "purpose": "Card and section headings." },
       "body": { "displayName": "Body", "purpose": "Prose and table cells." },
@@ -103,7 +128,8 @@
       "caption": { "displayName": "Caption", "purpose": "Faint meta, chips, table headers, secondary lines." },
       "nav": { "displayName": "Nav", "purpose": "Admin rail and compact desk controls." },
       "table": { "displayName": "Table", "purpose": "Admin row body copy." },
-      "kpi": { "displayName": "KPI label", "purpose": "Metric tile captions under tabular numbers." }
+      "kpi": { "displayName": "KPI label", "purpose": "Metric tile captions under tabular numbers." },
+      "input-lg": { "displayName": "Large input", "purpose": "Phone number on the login gate." }
     },
     "shadows": [
       { "name": "card-rest", "value": "0 1px 2px rgba(26,24,22,0.04)", "purpose": "Member listing/request cards at rest." },

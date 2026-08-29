@@ -24,7 +24,9 @@ import Header from "@/components/Header";
 import LockedMessaging from "@/components/LockedMessaging";
 import { CameraIcon, SendIcon, FlagIcon, MoreIcon, CheckIcon, DoubleCheckIcon, UserPlusIcon } from "@/components/Icons";
 import { personHref } from "@/lib/nav-back";
-import { withBasePath } from "@/lib/avatar";
+import Image from "next/image";
+import { withBasePath, withoutBasePath } from "@/lib/avatar";
+import { isOptimizablePhotoSrc, PHOTO_SLOT } from "@/lib/media";
 import { uploadUserPhoto } from "@/lib/media-image";
 import { dealStatusLabels, formatPrice } from "@/lib/labels";
 import { messageClock, messageSentAt } from "@/lib/mappers";
@@ -1237,18 +1239,32 @@ const Bubble = memo(function Bubble({
 });
 
 const ChatPhoto = memo(function ChatPhoto({ src }: { src: string }) {
+  const path = withoutBasePath(src);
+  const optimize = isOptimizablePhotoSrc(path);
+  const imageSrc = withBasePath(path);
   return (
     <a
-      href={withBasePath(src)}
+      href={imageSrc}
       target="_blank"
       rel="noreferrer"
-      className="block overflow-hidden rounded-xl -mx-1"
+      className="relative block -mx-1 h-64 w-full overflow-hidden rounded-xl"
     >
-      <img
-        src={withBasePath(src)}
-        alt="عکس پیام"
-        className="max-h-64 w-full object-cover"
-      />
+      {optimize ? (
+        <Image
+          src={imageSrc}
+          alt="عکس پیام"
+          fill
+          sizes={`(max-width: 480px) 100vw, ${PHOTO_SLOT.chat}px`}
+          className="object-cover"
+        />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={imageSrc}
+          alt="عکس پیام"
+          className="h-full w-full object-cover"
+        />
+      )}
     </a>
   );
 });

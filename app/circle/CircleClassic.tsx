@@ -17,6 +17,7 @@ import { CardListSkeleton } from "@/components/Skeleton";
 import Avatar from "@/components/Avatar";
 import { lazyUi } from "@/lib/lazy-ui";
 import { GraphIcon, UserPlusIcon } from "@/components/Icons";
+import CircleConceptTip from "@/components/CircleConceptTip";
 import { levelLabels, relationLabels } from "@/lib/labels";
 import { viewerRelationPhrase } from "@/lib/trust";
 import {
@@ -216,14 +217,17 @@ export default function CircleClassic() {
       ) : emptyCircle ? (
         <CircleEmptyState onInvite={onInvite} />
       ) : (
-        <div className="px-4 pt-3 space-y-3">
-          <CircleJoinBanner onReview={onReview} />
-          <AddedYouBanner compact />
-          <CircleUnplacedBanner onPlace={onPlace} />
-          <CircleMembersPanel onEditGroup={onEditGroup} />
-          <CircleGraphLink />
-          <CirclePendingInvites onMore={onMoreInvite} onShare={onShare} />
-        </div>
+        <>
+          <CircleConceptTip />
+          <div className="px-4 pt-3 space-y-3">
+            <CircleJoinBanner onReview={onReview} />
+            <AddedYouBanner compact />
+            <CircleUnplacedBanner onPlace={onPlace} />
+            <CircleMembersPanel onEditGroup={onEditGroup} />
+            <CircleGraphLink />
+            <CirclePendingInvites onMore={onMoreInvite} onShare={onShare} />
+          </div>
+        </>
       )}
 
       {reviewing ? (

@@ -17,7 +17,17 @@ colors:
   canvas-dark: "#121110"
   surface-dark: "#1c1b19"
   ink-dark: "#f2efe9"
+  ink-muted-dark: "#c4bfb8"
+  ink-faint-dark: "#8a847e"
+  white: "#ffffff"
+  error: "#b42318"
 typography:
+  display:
+    fontFamily: "var(--font-vazir), Vazirmatn, system-ui, sans-serif"
+    fontSize: "40px"
+    fontWeight: 800
+    lineHeight: 1
+    letterSpacing: "-0.04em"
   headline:
     fontFamily: "var(--font-vazir), Vazirmatn, system-ui, sans-serif"
     fontSize: "20px"
@@ -59,6 +69,12 @@ typography:
     fontSize: "12px"
     fontWeight: 400
     lineHeight: 1.35
+  input-lg:
+    fontFamily: "var(--font-vazir), Vazirmatn, system-ui, sans-serif"
+    fontSize: "18px"
+    fontWeight: 800
+    lineHeight: 1.2
+    letterSpacing: "0.08em"
 rounded:
   sm: "0.5rem"
   md: "0.75rem"
@@ -146,7 +162,9 @@ Warm stone + one plum. Trust greens/blues/ambers are semantics, not decoration.
 - **Walnut ink** (`ink`): body text.
 - **Stone mute** (`ink-muted`): secondary labels.
 - **Dusted stone** (`ink-faint`): captions; still ≥4.5:1 on cream.
-- Dark counterparts: `canvas-dark`, `surface-dark`, `ink-dark`.
+- Dark counterparts: `canvas-dark`, `surface-dark`, `ink-dark`, `ink-muted-dark`, `ink-faint-dark`.
+- **White** (`white`): primary button label only.
+- **Error** (`error`): invalid field and alert copy. Not an accent.
 
 **The Action-Only Plum Rule.** Plum is for things you can press or things that are currently chosen. It is never body copy and never a page wash.
 
@@ -161,6 +179,7 @@ Warm stone + one plum. Trust greens/blues/ambers are semantics, not decoration.
 **Character:** One well-tuned Persian sans. Headings are the same cut, slightly heavier. Tracking stays near zero. Numerals are Persian digits in UI copy and tabular in data.
 
 ### Hierarchy
+- **Display** (800, 40px, 1): login wordmark (سیرکل) only. Same family, heavier cut — not a second typeface.
 - **Headline** (600, 20px, 1.25): page titles (داشبورد، رشد، کاربران). `text-wrap: pretty`.
 - **Title** (600, 14–15px): card and section titles.
 - **Body** (400, 13–14px, 1.6): member prose and admin rows. Member measure can run denser than 75ch; admin tables may exceed it.

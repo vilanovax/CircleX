@@ -26,9 +26,7 @@ export async function GET(
     if (!seller) return jsonError("این فرد پیدا نشد", 404);
 
     const isMe = sellerId === session.id;
-    const access = isMe
-      ? { ok: true, trustPath: [] as const }
-      : await listingAccess(session.id, sellerId);
+    const access = await listingAccess(session.id, sellerId);
     if (!access.ok) {
       return jsonError("این فرد از مسیر حلقه‌ات به تو نمی‌رسد", 403);
     }

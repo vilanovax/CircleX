@@ -14,7 +14,7 @@ import { useStore } from "@/lib/store";
 
 /**
  * First identity sheet after OTP. Cannot be dismissed. If a pending invite
- * code is stashed, resume that invite; otherwise open first-invite.
+ * code is stashed, resume that invite; otherwise go home (first-run explain).
  */
 export default function WhoAreYouSheet() {
   const router = useRouter();
@@ -65,7 +65,7 @@ export default function WhoAreYouSheet() {
       if (onInviteLanding) return;
       const code = peekPendingInviteCode();
       if (code) router.replace(`/invite/${code}`);
-      else router.replace("/?invite=1");
+      else router.replace("/");
     } catch {
       setError("ذخیره نام ممکن نشد. دوباره امتحان کن.");
       nameEl?.focus();
@@ -102,7 +102,7 @@ export default function WhoAreYouSheet() {
             ? "در حال ذخیره…"
             : pendingInvite
               ? "ادامه و پیوستن"
-              : "ادامه و دعوت"}
+              : "ادامه"}
         </button>
       }
     >

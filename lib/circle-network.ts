@@ -15,7 +15,6 @@ import {
 } from "@/lib/mappers";
 import { listingViewerFlags } from "@/lib/server-listing-privacy";
 import { trustScore } from "@/lib/trust";
-import { backfillFamilyReciprocals } from "@/lib/server-family-reciprocal";
 import { threadKey } from "@/lib/listing-privacy";
 import type {
   CircleEvent,
@@ -82,7 +81,6 @@ type TrustContext = DirectCircle & {
 };
 
 async function loadDirectCircle(viewerId: string): Promise<DirectCircle> {
-  await backfillFamilyReciprocals(viewerId);
   const myEdges = await prisma.circleEdge.findMany({
     where: { fromUserId: viewerId },
     include: { to: true },

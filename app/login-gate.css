@@ -1,0 +1,467 @@
+/* Login gate — sitting-room canvas; plum is the only action. */
+
+.login-gate {
+  --lg-plaster: var(--circle-canvas);
+  --lg-paper: var(--circle-surface);
+  --lg-ink: var(--circle-ink);
+  --lg-soft: #534e4a;
+  --lg-faint: #5f5a55;
+  --lg-moss: var(--circle-trust);
+  --lg-plum: var(--circle-brand);
+  --lg-plum-deep: #3c3075;
+  --lg-plum-mid: #5f4aa8;
+  --lg-ring: rgba(74, 58, 143, 0.28);
+  --lg-ring-strong: rgba(74, 58, 143, 0.52);
+  --lg-alert: #b42318;
+  --lg-wash: #f3f1fa;
+  color: var(--lg-ink);
+  background: var(--lg-plaster);
+  overscroll-behavior: contain;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.login-gate-atmosphere {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 68% 36% at 50% -10%, var(--lg-wash) 0%, transparent 62%),
+    linear-gradient(180deg, #ebe8e3 0%, var(--lg-plaster) 58%, #ebe8e3 100%);
+  pointer-events: none;
+}
+
+.dark .login-gate {
+  --lg-plaster: var(--circle-canvas);
+  --lg-paper: var(--circle-surface);
+  --lg-ink: var(--circle-ink);
+  --lg-soft: #c4bfb8;
+  --lg-faint: #8a847e;
+  --lg-moss: var(--circle-trust);
+  --lg-plum: var(--circle-brand);
+  --lg-plum-deep: #4a3a8f;
+  --lg-plum-mid: #5f4aa8;
+  --lg-ring: rgba(95, 74, 168, 0.4);
+  --lg-ring-strong: rgba(95, 74, 168, 0.68);
+  --lg-alert: #b42318;
+  --lg-wash: rgba(95, 74, 168, 0.18);
+}
+
+.dark .login-gate-atmosphere {
+  background:
+    radial-gradient(ellipse 68% 36% at 50% -10%, var(--lg-wash) 0%, transparent 62%),
+    linear-gradient(180deg, #1c1b19 0%, var(--lg-plaster) 58%, #121110 100%);
+}
+
+.login-gate-rings {
+  z-index: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: max(0.15rem, env(safe-area-inset-top));
+}
+
+.login-gate-rings-svg {
+  width: min(88vw, 18.5rem);
+  height: auto;
+  overflow: visible;
+}
+
+.login-gate-ring {
+  stroke: var(--lg-ring);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  fill: none;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: login-ring-draw 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.login-gate-ring--a {
+  stroke-width: 1.7;
+  stroke-dasharray: 0.72 0.28;
+  animation-delay: 40ms;
+}
+
+.login-gate-ring--b {
+  stroke-dasharray: 0.48 0.52;
+  animation-delay: 160ms;
+}
+
+.login-gate--otp .login-gate-ring--b,
+.login-gate-ring--active {
+  stroke: var(--lg-ring-strong);
+  stroke-dasharray: 0.88 0.12;
+  transition:
+    stroke 0.4s ease,
+    stroke-dasharray 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.login-gate-rings--ready .login-gate-ring--a {
+  stroke: var(--lg-ring-strong);
+}
+
+.login-gate-ring-dot {
+  fill: var(--lg-plum);
+  opacity: 0;
+  animation: login-brand-rise 0.55s 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.login-gate-brand {
+  animation: login-brand-rise 0.55s 0.12s cubic-bezier(0.22, 1, 0.36, 1) both;
+  margin-top: 1.65rem;
+}
+
+.login-gate-kicker {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--lg-soft);
+  margin: 0;
+}
+
+.login-gate-title {
+  margin: 0.28rem 0 0;
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--lg-ink);
+}
+
+.login-gate-tagline {
+  margin: 0.5rem auto 0;
+  max-width: 17rem;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--lg-soft);
+}
+
+.login-gate-panel {
+  animation: login-panel-rise 0.45s 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.login-gate-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.login-gate-heading {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--lg-ink);
+}
+
+.login-gate-sub {
+  margin: 0.28rem 0 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--lg-soft);
+}
+
+.login-gate-invite {
+  margin: 0 0 0.75rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.75rem;
+  background: var(--lg-wash);
+  color: var(--lg-ink);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.login-gate-phone-emph {
+  font-weight: 800;
+  color: var(--lg-ink);
+}
+
+.login-gate-label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--lg-ink);
+  margin-bottom: 0.4rem;
+  text-align: start;
+}
+
+.login-gate-phone {
+  display: flex;
+  align-items: stretch;
+  min-height: 3.25rem;
+  border-radius: 0.75rem;
+  background: var(--lg-paper);
+  border: 1px solid rgba(26, 24, 22, 0.16);
+  box-shadow: 0 1px 2px rgba(26, 24, 22, 0.04);
+  transition: border-color 0.12s ease;
+  overflow: hidden;
+}
+
+.login-gate-phone--focus {
+  border-color: var(--lg-plum-mid);
+  outline: 2px solid var(--lg-plum-mid);
+  outline-offset: 2px;
+}
+
+.login-gate-phone--ready {
+  border-color: var(--lg-moss);
+}
+
+.login-gate-phone--error {
+  border-color: var(--lg-alert);
+  outline: 2px solid var(--lg-alert);
+  outline-offset: 2px;
+}
+
+.login-gate-phone-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  outline: none;
+  padding: 0.9rem 1rem;
+  text-align: left;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--lg-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.login-gate-phone-input::placeholder {
+  color: #5f5a55;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  opacity: 1;
+}
+
+.login-gate-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-inline-end: 0.8rem;
+  border-radius: 999px;
+  background: rgba(31, 107, 66, 0.14);
+  color: var(--lg-moss);
+}
+
+.login-gate-hint {
+  margin: 0.4rem 0 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--lg-faint);
+  text-align: start;
+}
+
+.login-gate-error {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--lg-alert);
+  text-align: start;
+}
+
+.login-gate-demo {
+  margin: 0;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--lg-soft);
+  padding: 0.55rem 0.85rem;
+  border-radius: 999px;
+  background: var(--lg-wash);
+}
+
+.login-gate-otp {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.login-gate-otp-cell {
+  width: 3rem;
+  min-width: 2.75rem;
+  min-height: 3rem;
+  aspect-ratio: 1;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 800;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(26, 24, 22, 0.16);
+  background: var(--lg-paper);
+  color: var(--lg-ink);
+  outline: none;
+  box-shadow: 0 1px 2px rgba(26, 24, 22, 0.04);
+  transition: border-color 0.12s ease;
+}
+
+.login-gate-otp-cell:focus {
+  border-color: var(--lg-plum-mid);
+  outline: 2px solid var(--lg-plum-mid);
+  outline-offset: 2px;
+}
+
+.login-gate-otp-cell--filled {
+  border-color: var(--lg-plum);
+}
+
+.login-gate-otp-cell--error {
+  border-color: var(--lg-alert);
+}
+
+.login-gate-otp-cell:disabled {
+  opacity: 0.55;
+}
+
+.login-gate-dock {
+  margin-top: auto;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 1.15rem;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--lg-plaster) 0%, transparent) 0%,
+    var(--lg-plaster) 28%
+  );
+}
+
+main.login-gate .login-gate-cta {
+  display: inline-flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3.25rem;
+  padding: 0.95rem 1.25rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: var(--lg-plum);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(26, 24, 22, 0.08);
+  transition:
+    background 0.12s ease,
+    transform 0.12s ease;
+}
+
+main.login-gate .login-gate-cta:hover:not(:disabled) {
+  background: var(--lg-plum-deep);
+}
+
+main.login-gate .login-gate-cta:focus-visible {
+  outline: 2px solid var(--lg-plum-mid);
+  outline-offset: 2px;
+}
+
+main.login-gate .login-gate-cta:active:not(:disabled) {
+  transform: translateY(0.5px);
+  background: var(--lg-plum-deep);
+}
+
+main.login-gate .login-gate-cta:disabled {
+  background: rgba(26, 24, 22, 0.12);
+  color: #534e4a;
+  opacity: 1;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+main.login-gate .login-gate-cta--live:not(:disabled) {
+  background: var(--lg-plum);
+  color: #ffffff;
+  box-shadow: 0 8px 24px rgba(26, 24, 22, 0.08);
+}
+
+.login-gate-spinner {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+  animation: spin 0.7s linear infinite;
+}
+
+.login-gate-foot {
+  margin: 0;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--lg-faint);
+  line-height: 1.5;
+}
+
+.login-gate-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.login-gate-link {
+  border: 0;
+  background: transparent;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.35rem;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--lg-soft);
+  cursor: pointer;
+  border-radius: 0.5rem;
+  transition:
+    color 0.12s ease,
+    background 0.12s ease;
+}
+
+.login-gate-link:hover:not(:disabled) {
+  color: var(--lg-ink);
+  background: rgba(26, 24, 22, 0.04);
+}
+
+.login-gate-link:focus-visible {
+  outline: 2px solid var(--lg-plum-mid);
+  outline-offset: 2px;
+}
+
+.login-gate-link:active:not(:disabled) {
+  color: var(--lg-ink);
+}
+
+.login-gate-link--accent {
+  color: var(--lg-plum);
+}
+
+.login-gate-link--accent:hover:not(:disabled) {
+  color: var(--lg-plum-deep);
+  background: rgba(74, 58, 143, 0.08);
+}
+
+.login-gate-link--accent:disabled {
+  color: var(--lg-faint);
+  opacity: 0.8;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-gate-ring,
+  .login-gate-ring-dot,
+  .login-gate-brand,
+  .login-gate-panel {
+    animation: none !important;
+    stroke-dashoffset: 0;
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+}

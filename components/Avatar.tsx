@@ -1,14 +1,20 @@
 import { memo } from "react";
+import Image from "next/image";
 import type { TrustLevel } from "@/lib/types";
 import { levelDot, levelHint } from "@/lib/labels";
-import { resolveAvatarSrc } from "@/lib/avatar";
+import { resolveAvatarSrc, withBasePath, withoutBasePath } from "@/lib/avatar";
+import { isOptimizablePhotoSrc, PHOTO_SLOT } from "@/lib/media";
 
 const sizes = {
-  sm: { box: "w-8 h-8", text: "text-[13px]" },
+  sm: { box: "w-8 h-8", text: "text-[13px]", px: PHOTO_SLOT.avatarSm },
   /** ~10% smaller than md — profile headers */
-  profile: { box: "w-11 h-11", text: "text-[15px]" },
-  md: { box: "w-12 h-12", text: "text-lg" },
-  lg: { box: "w-16 h-16", text: "text-2xl" },
+  profile: {
+    box: "w-11 h-11",
+    text: "text-[15px]",
+    px: PHOTO_SLOT.avatarProfile,
+  },
+  md: { box: "w-12 h-12", text: "text-lg", px: PHOTO_SLOT.avatarMd },
+  lg: { box: "w-16 h-16", text: "text-2xl", px: PHOTO_SLOT.avatarLg },
 };
 
 function Avatar({
@@ -31,33 +37,49 @@ function Avatar({
   /** @deprecated Unused — all avatars are photos now. */
   soft?: boolean;
 }) {
-  const { box } = sizes[size];
-  const resolvedSrc = resolveAvatarSrc(
+  const { box, px } = sizes[size];
+  const resolved = resolveAvatarSrc(
     name,
     src === "initials" || src === "" ? undefined : src,
   );
-  const px =
-    size === "lg" ? 64 : size === "sm" ? 32 : size === "profile" ? 44 : 48;
+  const path = withoutBasePath(resolved);
+  const optimize = isOptimizablePhotoSrc(path);
+  const dataUrl = path.startsWith("data:");
+  // next/image under basePath requires the prefix in src.
+  const imageSrc = dataUrl ? path : withBasePath(path);
 
   return (
     <div className="relative shrink-0">
       <div
-        className={`${box} rounded-full overflow-hidden bg-zinc-100 dark:bg-zinc-800 ring-1 ring-black/5 dark:ring-white/10`}
+        className={`${box} relative rounded-full overflow-hidden bg-zinc-100 dark:bg-zinc-800 ring-1 ring-black/5 dark:ring-white/10`}
         aria-hidden
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={resolvedSrc}
-          alt=""
-          width={px}
-          height={px}
-          className="w-full h-full object-cover"
-          draggable={false}
-          loading={eager || size === "lg" ? "eager" : "lazy"}
-          decoding="async"
-          sizes={`${px}px`}
-          fetchPriority={eager ? "high" : "auto"}
-        />
+        {dataUrl || !optimize ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={resolved}
+            alt=""
+            width={px}
+            height={px}
+            className="w-full h-full object-cover"
+            draggable={false}
+            loading={eager || size === "lg" ? "eager" : "lazy"}
+            decoding="async"
+            sizes={`${px}px`}
+            fetchPriority={eager ? "high" : "auto"}
+          />
+        ) : (
+          <Image
+            src={imageSrc}
+            alt=""
+            width={px}
+            height={px}
+            sizes={`${px}px`}
+            priority={eager}
+            className="h-full w-full object-cover"
+            draggable={false}
+          />
+        )}
       </div>
       {level && showLevel && (
         <span

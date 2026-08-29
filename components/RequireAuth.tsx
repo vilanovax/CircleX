@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useStore } from "@/lib/store";
 import LoginGate from "@/components/LoginGate";
 import WhoAreYouSheet from "@/components/WhoAreYouSheet";
+import FirstRunExplainHost from "@/components/FirstRunExplain";
 import { HomeBootSkeleton } from "@/components/Skeleton";
 import { peekPendingInviteName } from "@/lib/invite";
 
@@ -40,5 +41,10 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <FirstRunExplainHost />
+    </>
+  );
 }

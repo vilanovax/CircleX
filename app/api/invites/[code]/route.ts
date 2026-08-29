@@ -71,6 +71,7 @@ export async function GET(
     kind: row.kind,
     expiresAt: row.expiresAt.toISOString(),
     inviter: {
+      id: row.inviter.id,
       name: row.inviter.name || "یک آشنا",
       avatar: row.inviter.avatar || "/avatars/01.webp",
     },

@@ -35,7 +35,9 @@ export function indexHasListing(
   if ((threadIndex.conversationCountByListing.get(listingId) ?? 0) > 0) {
     return true;
   }
-  for (const thread of threadIndex.threadByPeer.values()) {
+  const threads = Array.from(threadIndex.threadByPeer.values());
+  for (let t = 0; t < threads.length; t++) {
+    const thread = threads[t];
     for (let i = 0; i < thread.length; i++) {
       const msg = thread[i];
       if (msg.listingId === listingId || msg.threadListingId === listingId) {

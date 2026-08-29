@@ -517,7 +517,7 @@ function TrustGraph({
             </p>
             <div className="flex gap-2 mt-3">
               <Link
-                href={personHref(selected, "graph")}
+                href={personHref(selectedPerson.id, "graph")}
                 className="btn-primary flex-1 !py-2.5 text-sm text-center"
               >
                 مشاهده پروفایل

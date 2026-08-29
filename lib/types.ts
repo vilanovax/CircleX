@@ -296,7 +296,7 @@ export type PublicInvite = {
   status: InviteStatus;
   kind: InviteKind;
   expiresAt: string;
-  inviter: { name: string; avatar: string };
+  inviter: { id: string; name: string; avatar: string };
   isOwn: boolean;
   alreadyMember: boolean;
   alreadyRequested: boolean;

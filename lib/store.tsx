@@ -10,7 +10,7 @@ import {
 } from "react";
 import { createContext, useContextSelector } from "use-context-selector";
 import { AVATAR_IMAGES } from "./avatar";
-import { api, ApiError } from "./api";
+import { api, ApiError, invalidateApiCache } from "./api";
 import { CIRCLO_PERSON, isCircloPeer } from "./circlo";
 import { newUuid } from "./invite";
 import {
@@ -31,6 +31,7 @@ import {
   type ThreadIndex,
 } from "./thread-index";
 import { ENDORSE_NOTE_MAX } from "./labels";
+import type { HomeBootPayload } from "./home-types";
 import type {
   BadgeType,
   BudgetUnit,
@@ -307,35 +308,103 @@ function overlayPeople(prev: Person[], incoming: Person[]): Person[] {
   return Array.from(map.values());
 }
 
-export function StoreProvider({ children }: { children: ReactNode }) {
-  const [meProfile, setMeProfile] = useState<Person>(blankMe);
-  const [people, setPeople] = useState<Person[]>(networkSeed);
-  const [listings, setListings] = useState<Listing[]>([]);
-  const [requests, setRequests] = useState<Request[]>([]);
-  const [offers, setOffers] = useState<Offer[]>([]);
+function meFromSession(user: SessionUser | null): Person {
+  if (!user) return blankMe();
+  return {
+    ...ME,
+    id: "me",
+    name: user.name,
+    avatar: user.avatar || ME.avatar,
+    city: user.city ?? ME.city,
+    phone: user.phoneNormalized,
+    phoneNormalized: user.phoneNormalized,
+    profileCompletedAt: user.profileCompletedAt,
+  };
+}
+
+function peopleFromHome(home: HomeBootPayload | null): Person[] {
+  if (!home) return networkSeed();
+  const incoming = [
+    ...home.members,
+    ...(home.network ?? []),
+    ...(home.addedYou ?? []),
+  ].filter((p) => !isCircloPeer(p.id));
+  const merged: Person[] = [];
+  const seen = new Set<string>();
+  for (const p of incoming) {
+    if (seen.has(p.id)) continue;
+    seen.add(p.id);
+    merged.push(p);
+  }
+  return merged;
+}
+
+export function StoreProvider({
+  children,
+  initialUser = null,
+  initialHome = null,
+}: {
+  children: ReactNode;
+  initialUser?: SessionUser | null;
+  initialHome?: HomeBootPayload | null;
+}) {
+  const [meProfile, setMeProfile] = useState(() => meFromSession(initialUser));
+  const [people, setPeople] = useState(() => peopleFromHome(initialHome));
+  const [listings, setListings] = useState<Listing[]>(
+    () => initialHome?.listings ?? [],
+  );
+  const [requests, setRequests] = useState<Request[]>(
+    () => initialHome?.requests ?? [],
+  );
+  const [offers, setOffers] = useState<Offer[]>(() => initialHome?.offers ?? []);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [events, setEvents] = useState<CircleEvent[]>([]);
-  const [saved, setSaved] = useState<string[]>([]);
-  const [hiddenListings, setHiddenListings] = useState<string[]>([]);
-  const [hiddenPeople, setHiddenPeople] = useState<string[]>([]);
-  const [listingNotes, setListingNotes] = useState<Record<string, string>>({});
+  const [events, setEvents] = useState<CircleEvent[]>(
+    () => initialHome?.events ?? [],
+  );
+  const [saved, setSaved] = useState<string[]>(() => initialHome?.saved ?? []);
+  const [hiddenListings, setHiddenListings] = useState<string[]>(
+    () => initialHome?.hiddenListings ?? [],
+  );
+  const [hiddenPeople, setHiddenPeople] = useState<string[]>(
+    () => initialHome?.hiddenPeople ?? [],
+  );
+  const [listingNotes, setListingNotes] = useState<Record<string, string>>(
+    () => initialHome?.listingNotes ?? {},
+  );
   const [archivedThreads, setArchivedThreads] = useState<string[]>([]);
   const [pinnedThreads, setPinnedThreads] = useState<string[]>([]);
   const [deletedThreads, setDeletedThreads] = useState<string[]>([]);
-  const [invites, setInvites] = useState<Invite[]>([]);
-  const [joinRequests, setJoinRequests] = useState<CircleJoinRequest[]>([]);
-  const [addedYou, setAddedYou] = useState<Person[]>([]);
+  const [invites, setInvites] = useState<Invite[]>(
+    () => initialHome?.pending ?? [],
+  );
+  const [joinRequests, setJoinRequests] = useState<CircleJoinRequest[]>(
+    () => initialHome?.joinRequests ?? [],
+  );
+  const [addedYou, setAddedYou] = useState<Person[]>(
+    () => initialHome?.addedYou ?? [],
+  );
   const [networkLinks, setNetworkLinks] = useState<NetworkLink[]>([]);
-  const [sessionPhone, setSessionPhone] = useState<string | null>(null);
-  const [meServerId, setMeServerId] = useState<string | null>(null);
-  const [hydrated, setHydrated] = useState(false);
-  const [circleReady, setCircleReady] = useState(false);
+  const [sessionPhone, setSessionPhone] = useState<string | null>(
+    () => initialUser?.phoneNormalized ?? null,
+  );
+  const [meServerId, setMeServerId] = useState<string | null>(
+    () => initialUser?.id ?? null,
+  );
+  const [hydrated] = useState(true);
+  const [circleReady, setCircleReady] = useState(
+    () => !initialUser || Boolean(initialHome),
+  );
   const [circleFull, setCircleFull] = useState(false);
-  const rosterFetchedAtRef = useRef(0);
+  const rosterFetchedAtRef = useRef(initialHome ? Date.now() : 0);
   const graphInflightRef = useRef<Promise<void> | null>(null);
-  const [showOwnListingsInFeed, setShowOwnFeedState] = useState(true);
+  const [showOwnListingsInFeed, setShowOwnFeedState] = useState(
+    () =>
+      initialHome?.showOwnListingsInFeed ??
+      initialUser?.showOwnListingsInFeed ??
+      true,
+  );
   const [profileCompletedAt, setProfileCompletedAt] = useState<string | null>(
-    null,
+    () => initialUser?.profileCompletedAt ?? null,
   );
 
   const applyUserLocal = useCallback((user: SessionUser) => {
@@ -585,51 +654,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [loadHome]);
 
-  // Overlay the cookie session. Marketplace data lives on the server.
+  // First-paint snapshot only. Later navigations keep this provider mounted.
   useEffect(() => {
     let cancelled = false;
 
     async function boot() {
-      const mePromise = api<{ user: SessionUser }>("/api/me");
-      const homePromise = api<CirclePayload>("/api/home");
+      if (!initialUser) return;
+      if (initialHome) {
+        deferNonUrgent(() => void loadMessages().catch(() => {}));
+        return;
+      }
       try {
-        const { user } = await mePromise;
+        const home = await api<CirclePayload>("/api/home");
         if (cancelled) return;
-        applyUserLocal(user);
-        setHydrated(true);
-        try {
-          const home = await homePromise;
-          if (cancelled) return;
-          applyCirclePayload(home, { full: false });
-          if (cancelled) return;
-          deferNonUrgent(() => void loadMessages().catch(() => {}));
-        } catch {
-          if (cancelled) return;
-          setInvites([]);
-          setJoinRequests([]);
-          setAddedYou([]);
-          setPeople(networkSeed());
-          setListings([]);
-          setRequests([]);
-          setOffers([]);
-          setEvents([]);
-          setSaved([]);
-          setHiddenListings([]);
-          setHiddenPeople([]);
-          setCircleReady(true);
-          setCircleFull(false);
-        }
+        applyCirclePayload(home, { full: false });
+        if (cancelled) return;
+        deferNonUrgent(() => void loadMessages().catch(() => {}));
       } catch {
         if (cancelled) return;
-        void homePromise.catch(() => {});
-        setSessionPhone(null);
-        setMeServerId(null);
-        setProfileCompletedAt(null);
-        setMeProfile(blankMe());
         setInvites([]);
         setJoinRequests([]);
         setAddedYou([]);
-        setNetworkLinks([]);
         setPeople(networkSeed());
         setListings([]);
         setRequests([]);
@@ -641,14 +686,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setCircleReady(true);
         setCircleFull(false);
       }
-      if (!cancelled) setHydrated(true);
     }
 
     void boot();
     return () => {
       cancelled = true;
     };
-  }, [applyUserLocal, applyCirclePayload, loadMessages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- boot once from SSR snapshot
+  }, []);
 
   useEffect(() => {
     if (!hydrated || !sessionPhone) return;
@@ -1521,19 +1566,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setSaved(nextSaved);
   }, []);
 
-  const isSaved = useCallback(
-    (listingId: string) => saved.includes(listingId),
-    [saved],
-  );
-
-  const isListingHidden = useCallback(
-    (listingId: string) => hiddenListings.includes(listingId),
+  const savedSet = useMemo(() => new Set(saved), [saved]);
+  const hiddenListingSet = useMemo(
+    () => new Set(hiddenListings),
     [hiddenListings],
   );
+  const hiddenPersonSet = useMemo(() => new Set(hiddenPeople), [hiddenPeople]);
 
+  const isSaved = useCallback(
+    (listingId: string) => savedSet.has(listingId),
+    [savedSet],
+  );
+  const isListingHidden = useCallback(
+    (listingId: string) => hiddenListingSet.has(listingId),
+    [hiddenListingSet],
+  );
   const isPersonHidden = useCallback(
-    (personId: string) => hiddenPeople.includes(personId),
-    [hiddenPeople],
+    (personId: string) => hiddenPersonSet.has(personId),
+    [hiddenPersonSet],
   );
 
   const getEvent = useCallback(
@@ -1587,7 +1637,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const completeLogin = useCallback(
     async (user: SessionUser) => {
       applyUserLocal(user);
-      setHydrated(true);
       setCircleReady(false);
       setCircleFull(false);
       void fillHome();
@@ -1638,6 +1687,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setShowOwnFeedState(true);
     setCircleReady(true);
     setCircleFull(false);
+    invalidateApiCache();
   }, []);
 
   const value = useMemo<StoreValue>(

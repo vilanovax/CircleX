@@ -1,0 +1,39 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font-size",
+        "value": "*",
+        "files": [
+          "app/person/[id]/PersonClassic.tsx",
+          "app/profile/ClassicProfile.tsx",
+          "app/event/[id]/EventClassic.tsx",
+          "app/request/[id]/RequestClassic.tsx",
+          "components/ListingImage.tsx",
+          "components/AddRequestSheet.tsx",
+          "components/AddEventSheet.tsx",
+          "components/EventCard.tsx",
+          "components/RequestCard.tsx"
+        ],
+        "createdAt": "2026-08-25T07:56:05.456Z",
+        "reason": "Incumbent Classic type sizes; photo-upload wiring does not restyle these sheets"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "1.65rem",
+        "files": ["components/ListingImage.tsx"],
+        "createdAt": "2026-08-25T08:15:00.000Z",
+        "reason": "Incumbent emoji thumbnail size; feed change is next/image for LCP"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "2.5rem",
+        "files": ["components/ListingImage.tsx"],
+        "createdAt": "2026-08-25T08:15:00.000Z",
+        "reason": "Incumbent emoji thumbnail size; feed change is next/image for LCP"
+      }
+    ]
+  }
+}

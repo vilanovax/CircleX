@@ -36,7 +36,7 @@ function Spinner({ className = "w-4 h-4" }: { className?: string }) {
 
 /**
  * Phone → OTP gate. Sample code is always ۱۲۳۴۵.
- * Visual world: courtyard plaster + moss trust, concentric arcs as product metaphor.
+ * Courtyard plaster canvas; plum for the action; moss only for a valid number.
  */
 export default function LoginGate({
   inviteFrom,
@@ -229,37 +229,33 @@ export default function LoginGate({
 
       <CircleSignature step={step} ready={phoneReady && step === "phone"} />
 
-      <div className="relative z-10 flex flex-1 flex-col w-full max-w-[26rem] mx-auto px-5 sm:px-6 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-        <header className="login-gate-brand text-center pb-1">
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col w-full max-w-[26rem] mx-auto px-5 sm:px-6 pt-[max(0.85rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <header className="login-gate-brand text-center">
           <p className="login-gate-kicker">خرید و فروش بین آشنایان</p>
           <h1 className="login-gate-title">سیرکل</h1>
-          <p className="login-gate-tagline">
-            فقط حلقهٔ خودت — نه غریبه، نه بازار عمومی.
-          </p>
+          <p className="login-gate-tagline">فقط حلقهٔ خودت — نه بازار عمومی.</p>
         </header>
 
         <div
           key={step}
-          className={`login-gate-panel flex-1 flex flex-col mt-5 ${
+          className={`login-gate-panel flex min-h-0 flex-1 flex-col mt-4 ${
             shake ? "login-shake" : ""
           }`}
         >
           {step === "phone" ? (
             <form
               onSubmit={onSubmitPhone}
-              className="flex flex-col flex-1 gap-6"
+              className="flex min-h-0 flex-1 flex-col"
               noValidate
             >
-              <div className="space-y-4">
+              <div className="login-gate-body">
                 <div className="text-center">
                   {inviteFrom && (
-                    <p className="rounded-xl bg-brand-50 dark:bg-brand-500/15 text-brand-800 dark:text-brand-200 text-sm font-bold px-3 py-2.5 mb-3 leading-relaxed">
+                    <p className="login-gate-invite">
                       {inviteFrom.name} دعوتت کرده به حلقه‌اش بپیوندی.
                     </p>
                   )}
-                  <h2 className="login-gate-heading">
-                    شماره‌ات را وارد کن
-                  </h2>
+                  <h2 className="login-gate-heading">شماره‌ات را وارد کن</h2>
                   <p className="login-gate-sub">
                     کد یک‌بارمصرف می‌فرستیم — بدون رمز عبور.
                   </p>
@@ -267,7 +263,7 @@ export default function LoginGate({
 
                 <div>
                   <label htmlFor={phoneFieldId} className="login-gate-label">
-                    شماره موبایل
+                    شماره موبایل ایران
                   </label>
                   <div
                     dir="ltr"
@@ -279,14 +275,13 @@ export default function LoginGate({
                           : ""
                     } ${phoneReady ? "login-gate-phone--ready" : ""}`}
                   >
-                    <span className="login-gate-cc" aria-hidden>
-                      +۹۸
-                    </span>
                     <input
                       id={phoneFieldId}
+                      name="tel"
                       type="tel"
                       inputMode="numeric"
-                      autoComplete="tel"
+                      autoComplete="tel-national"
+                      enterKeyHint="send"
                       autoFocus
                       dir="ltr"
                       placeholder={toPersianDigits("0912 345 6789")}
@@ -324,10 +319,7 @@ export default function LoginGate({
                     )}
                   </div>
                   <p id="login-phone-hint" className="login-gate-hint">
-                    مثال{" "}
-                    <span className="nums font-medium" dir="ltr">
-                      {toPersianDigits("0912 123 4567")}
-                    </span>
+                    با ۰۹ شروع کن — یازده رقم
                   </p>
                 </div>
 
@@ -336,7 +328,9 @@ export default function LoginGate({
                     {error}
                   </p>
                 )}
+              </div>
 
+              <div className="login-gate-dock">
                 <button
                   type="submit"
                   disabled={sending || !phoneReady}
@@ -352,28 +346,19 @@ export default function LoginGate({
                     "دریافت کد"
                   )}
                 </button>
+                <p className="login-gate-foot">{PHONE_PRIVACY_LINE}</p>
               </div>
-
-              <ul className="login-gate-trust" aria-label="ویژگی‌های سیرکل">
-                <li>فقط حلقه — نه غریبه</li>
-                <li>سه گروه — نزدیکان تا آشنایان</li>
-                <li>بدون بازار عمومی</li>
-              </ul>
-
-              <p className="login-gate-foot mt-auto">
-                {PHONE_PRIVACY_LINE}
-              </p>
             </form>
           ) : (
             <form
               onSubmit={onSubmitOtp}
-              className="flex flex-col flex-1 gap-6"
+              className="flex min-h-0 flex-1 flex-col"
               noValidate
             >
-              <div className="space-y-4">
+              <div className="login-gate-body">
                 <div className="text-center">
                   {inviteFrom && (
-                    <p className="rounded-xl bg-brand-50 dark:bg-brand-500/15 text-brand-800 dark:text-brand-200 text-sm font-bold px-3 py-2.5 mb-3 leading-relaxed">
+                    <p className="login-gate-invite">
                       {inviteFrom.name} دعوتت کرده به حلقه‌اش بپیوندی.
                     </p>
                   )}
@@ -415,6 +400,7 @@ export default function LoginGate({
                         inputMode="numeric"
                         autoComplete={i === 0 ? "one-time-code" : "off"}
                         maxLength={1}
+                        enterKeyHint={i === OTP_LEN - 1 ? "done" : "next"}
                         value={digit ? toPersianDigits(digit) : ""}
                         disabled={verifying}
                         onChange={(e) => setDigitAt(i, e.target.value)}
@@ -442,7 +428,9 @@ export default function LoginGate({
                     {error}
                   </p>
                 )}
+              </div>
 
+              <div className="login-gate-dock">
                 <button
                   type="submit"
                   disabled={verifying || otp.length < OTP_LEN}
@@ -460,34 +448,33 @@ export default function LoginGate({
                     "ورود به سیرکل"
                   )}
                 </button>
+                <div className="login-gate-actions">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep("phone");
+                      setOtpDigits(Array.from({ length: OTP_LEN }, () => ""));
+                      setError(null);
+                      verifyLock.current = false;
+                    }}
+                    className="login-gate-link"
+                  >
+                    تغییر شماره
+                  </button>
+                  <button
+                    type="button"
+                    disabled={resendIn > 0 || sending}
+                    aria-busy={sending}
+                    onClick={() => requestCode(phone)}
+                    className="login-gate-link login-gate-link--accent"
+                  >
+                    {resendIn > 0
+                      ? `ارسال دوباره (${toPersianDigits(resendIn)})`
+                      : "ارسال دوباره کد"}
+                  </button>
+                </div>
+                <p className="login-gate-foot">{PHONE_PRIVACY_LINE}</p>
               </div>
-
-              <div className="login-gate-actions mt-auto">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStep("phone");
-                    setOtpDigits(Array.from({ length: OTP_LEN }, () => ""));
-                    setError(null);
-                    verifyLock.current = false;
-                  }}
-                  className="login-gate-link"
-                >
-                  تغییر شماره
-                </button>
-                <button
-                  type="button"
-                  disabled={resendIn > 0 || sending}
-                  aria-busy={sending}
-                  onClick={() => requestCode(phone)}
-                  className="login-gate-link login-gate-link--accent"
-                >
-                  {resendIn > 0
-                    ? `ارسال دوباره (${toPersianDigits(resendIn)})`
-                    : "ارسال دوباره کد"}
-                </button>
-              </div>
-              <p className="login-gate-foot">{PHONE_PRIVACY_LINE}</p>
             </form>
           )}
         </div>
@@ -505,22 +492,22 @@ function CircleSignature({
 }) {
   return (
     <div
-      className={`login-gate-rings pointer-events-none absolute inset-x-0 top-0 h-[52%] ${
+      className={`login-gate-rings pointer-events-none absolute inset-x-0 top-0 h-[38%] ${
         ready ? "login-gate-rings--ready" : ""
       }`}
       aria-hidden
     >
       <svg
         className="login-gate-rings-svg"
-        viewBox="0 0 400 380"
+        viewBox="0 0 400 240"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
         <circle
           className="login-gate-ring login-gate-ring--a"
           cx="200"
-          cy="150"
-          r="138"
+          cy="88"
+          r="108"
           pathLength="1"
         />
         <circle
@@ -528,11 +515,11 @@ function CircleSignature({
             step === "otp" ? "login-gate-ring--active" : ""
           }`}
           cx="200"
-          cy="150"
-          r="92"
+          cy="88"
+          r="68"
           pathLength="1"
         />
-        <circle className="login-gate-ring-dot" cx="200" cy="12" r="4" />
+        <circle className="login-gate-ring-dot" cx="200" cy="8" r="3.5" />
       </svg>
     </div>
   );
