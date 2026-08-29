@@ -4,6 +4,7 @@ import ListingCard from "@/components/ListingCard";
 import { toPersianDigits } from "@/lib/persian";
 import { useStore } from "@/lib/store";
 import { canView } from "@/lib/trust";
+import { personHref } from "@/lib/nav-back";
 
 export default function ListingSellerMore({
   sellerId,
@@ -43,7 +44,7 @@ export default function ListingSellerMore({
           سایر آگهی‌ها
         </p>
         <Link
-          href={`/person/${sellerId}`}
+          href={personHref(sellerId, "listing")}
           className="text-[12px] font-bold text-brand-600 dark:text-brand-400"
         >
           همه آگهی‌ها ‹

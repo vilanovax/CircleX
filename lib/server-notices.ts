@@ -15,6 +15,7 @@ export const NOTICE_KIND = {
   messageReportResolved: "message_report_resolved",
   contentHidden: "content_hidden",
   broadcast: "broadcast",
+  addedToCircle: "added_to_circle",
 } as const;
 
 function guestLabel(name: string): string {
@@ -142,6 +143,37 @@ export async function notifyContentHidden(opts: {
       actionHref: href,
       actionLabel: noun,
       listingId: opts.kind === "listing" ? opts.id : undefined,
+    },
+  });
+}
+
+export async function notifyAddedToCircle(opts: {
+  addedUserId: string;
+  actorUserId: string;
+  actorName: string;
+}): Promise<void> {
+  if (opts.addedUserId === opts.actorUserId) return;
+  const unread = await prisma.systemNotice.findFirst({
+    where: {
+      userId: opts.addedUserId,
+      kind: NOTICE_KIND.addedToCircle,
+      actorUserId: opts.actorUserId,
+      readAt: null,
+    },
+    select: { id: true },
+  });
+  if (unread) return;
+
+  const who = guestLabel(opts.actorName);
+  await prisma.systemNotice.create({
+    data: {
+      userId: opts.addedUserId,
+      kind: NOTICE_KIND.addedToCircle,
+      title: `${who} تو را به حلقه‌اش اضافه کرد`,
+      body: "اگر می‌شناسی‌اش، جایش را در حلقهٔ خودت مشخص کن.",
+      actionHref: `/person/${opts.actorUserId}`,
+      actionLabel: "جا بگذار",
+      actorUserId: opts.actorUserId,
     },
   });
 }

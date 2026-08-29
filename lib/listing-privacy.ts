@@ -95,7 +95,7 @@ export function listingChatHref(
     return `/messages/listing/${encodeURIComponent(listing.id)}${extra?.draft ? `?draft=${encodeURIComponent(extra.draft)}` : ""}`;
   }
   const peer = extra?.peerId ?? listing.sellerId;
-  return `/messages/${encodeURIComponent(peer)}?listing=${listingQ}${draft}`;
+  return `/messages/${encodeURIComponent(peer)}?listing=${listingQ}&scoped=1${draft}`;
 }
 
 export function audienceIsWider(from: Privacy, to: Privacy): boolean {

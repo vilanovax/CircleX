@@ -31,8 +31,13 @@ export async function GET(
     });
     if (!row) return jsonError("آگهی پیدا نشد", 404);
     if (row.dealStatus === "inactive" && row.sellerId !== session.id) {
-      const participated = await viewerHasListingMessages(session.id, row.id);
-      if (!participated) return jsonError("آگهی پیدا نشد", 404);
+      const [participated, accessEarly] = await Promise.all([
+        viewerHasListingMessages(session.id, row.id),
+        listingAccess(session.id, row.sellerId),
+      ]);
+      if (!participated && !accessEarly.ok) {
+        return jsonError("آگهی پیدا نشد", 404);
+      }
     }
 
     const flags = await listingViewerFlags(session.id, [row]);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { CameraIcon } from "@/components/Icons";
 import { uploadUserPhoto } from "@/lib/media-image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -116,6 +117,15 @@ export default function ListingThreadEntry() {
               : "آگهی پیدا نشد و امکان گفتگو نیست."
             : "هویت آگهی‌دهنده برای تو پنهان است. اگر پیام بفرستی، او تو را با نام واقعی می‌بیند."}
         </p>
+        {listingClosed ? (
+          <Link
+            href="/"
+            replace
+            className="btn-primary mt-6 flex w-full min-h-11 items-center justify-center text-[13px] font-bold"
+          >
+            بازگشت به خانه
+          </Link>
+        ) : null}
       </div>
       {listingClosed ? null : (
         <div className="border-t border-stone-200/70 dark:border-zinc-800 px-3 pt-2 pb-[max(0.625rem,env(safe-area-inset-bottom))]">

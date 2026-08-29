@@ -10,6 +10,7 @@ import SheetShell from "@/components/SheetShell";
 import {
   ArchiveIcon,
   ChatIcon,
+  HomeIcon,
   PinIcon,
   SearchIcon,
   TrashIcon,
@@ -37,6 +38,7 @@ export function ThreadActionsSheet({
   onArchive: () => void;
   onDelete: () => void;
 }) {
+  const router = useRouter();
   return (
     <SheetShell
       onClose={onClose}
@@ -68,6 +70,17 @@ export function ThreadActionsSheet({
       </div>
 
       <div className="rounded-2xl border border-stone-200/80 dark:border-zinc-800 overflow-hidden">
+        <ActionRow
+          icon={<HomeIcon className="h-[18px] w-[18px]" />}
+          iconClass="bg-stone-100 text-stone-600 dark:bg-zinc-800 dark:text-zinc-300"
+          title="خانه"
+          hint="به فید حلقه برگرد"
+          onClick={() => {
+            onClose();
+            router.replace("/");
+          }}
+        />
+        <div className="h-px bg-stone-100 dark:bg-zinc-800" />
         <ActionRow
           icon={<PinIcon className="w-[18px] h-[18px]" />}
           iconClass={

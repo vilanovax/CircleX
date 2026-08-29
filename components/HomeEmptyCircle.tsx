@@ -10,6 +10,7 @@ import {
   inviteRosterJoined,
   inviteRosterPending,
   inviteRosterTotal,
+  rosterWaveComplete,
 } from "@/lib/invite";
 import { toPersianDigits } from "@/lib/persian";
 import { useStore } from "@/lib/store";
@@ -35,7 +36,8 @@ export default function HomeEmptyCircle({
   const [showInvite, setShowInvite] = useState(false);
 
   const pending = invites.filter(
-    (inv) => effectiveInviteStatus(inv) === "pending",
+    (inv) =>
+      effectiveInviteStatus(inv) === "pending" && !rosterWaveComplete(inv),
   );
   const hasPending = pending.length > 0;
 

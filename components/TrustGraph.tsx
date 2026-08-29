@@ -12,6 +12,7 @@ import {
 import { relationLabels } from "@/lib/labels";
 import { viewerRelationPhrase } from "@/lib/trust";
 import type { Person } from "@/lib/types";
+import { personHref } from "@/lib/nav-back";
 
 const BRAND = "#7c3aed";
 const RING = "rgba(120,113,108,0.42)";
@@ -516,7 +517,7 @@ function TrustGraph({
             </p>
             <div className="flex gap-2 mt-3">
               <Link
-                href={`/person/${selected}`}
+                href={personHref(selected, "graph")}
                 className="btn-primary flex-1 !py-2.5 text-sm text-center"
               >
                 مشاهده پروفایل

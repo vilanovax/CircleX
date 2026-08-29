@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { loadGraphNetwork } from "@/lib/circle-network";
+import { loadAddedYou, loadGraphNetwork } from "@/lib/circle-network";
 import { jsonError, withDb } from "@/lib/http";
 import {
   inviteExpectedInclude,
@@ -21,7 +21,7 @@ export async function GET() {
     const session = await getSessionUser();
     if (!session) return jsonError("وارد نشده‌ای", 401, "unauthorized");
 
-    const [inviteRows, joinRows, network] = await Promise.all([
+    const [inviteRows, joinRows, network, addedYou] = await Promise.all([
       prisma.invite.findMany({
         where: { inviterUserId: session.id, status: "pending" },
         orderBy: { createdAt: "desc" },
@@ -33,6 +33,7 @@ export async function GET() {
         orderBy: { createdAt: "desc" },
       }),
       loadGraphNetwork(session.id),
+      loadAddedYou(session.id),
     ]);
 
     const now = Date.now();
@@ -71,6 +72,7 @@ export async function GET() {
       joinRequests: liveJoinRequests(joinRows, memberIdSet).map(
         toClientJoinRequest,
       ),
+      addedYou,
     });
   });
 }

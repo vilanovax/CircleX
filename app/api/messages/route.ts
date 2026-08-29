@@ -48,7 +48,7 @@ export async function POST(req: Request) {
       typeof body?.listingId === "string" && body.listingId.trim()
         ? body.listingId.trim()
         : undefined;
-    let listingScoped = body?.listingScoped === true;
+    let listingScoped = body?.listingScoped === true || Boolean(listingId);
 
     if (listingId) {
       const listing = await prisma.marketListing.findUnique({

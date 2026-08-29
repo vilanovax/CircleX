@@ -2,7 +2,7 @@ import { assertFlag } from "@/lib/app-settings";
 import { prisma } from "@/lib/db";
 import { jsonError, readJson } from "@/lib/http";
 import { WAVE_ROSTER_LIMIT } from "@/lib/invite";
-import { inviteExpectedInclude, toClientInvite } from "@/lib/mappers";
+import { inviteExpectedInclude, inviteIsFull, toClientInvite } from "@/lib/mappers";
 import { isValidIranMobile, normalizePhone } from "@/lib/phone";
 import { createInviteRecord } from "@/lib/server-invite";
 import { getSessionUser } from "@/lib/server-auth";
@@ -34,16 +34,34 @@ export async function GET() {
   const expiredIds = rows
     .filter((r) => r.status === "pending" && r.expiresAt.getTime() <= now)
     .map((r) => r.id);
+  const rosterDoneIds = rows
+    .filter(
+      (r) =>
+        r.status === "pending" &&
+        !expiredIds.includes(r.id) &&
+        inviteIsFull(r),
+    )
+    .map((r) => r.id);
   if (expiredIds.length > 0) {
     await prisma.invite.updateMany({
       where: { id: { in: expiredIds } },
       data: { status: "expired" },
     });
   }
+  if (rosterDoneIds.length > 0) {
+    await prisma.invite.updateMany({
+      where: { id: { in: rosterDoneIds } },
+      data: { status: "accepted", acceptedAt: new Date() },
+    });
+  }
 
   const invites = rows.map((r) =>
     toClientInvite(
-      expiredIds.includes(r.id) ? { ...r, status: "expired" } : r,
+      expiredIds.includes(r.id)
+        ? { ...r, status: "expired" }
+        : rosterDoneIds.includes(r.id)
+          ? { ...r, status: "accepted" }
+          : r,
     ),
   );
   return Response.json({ invites });

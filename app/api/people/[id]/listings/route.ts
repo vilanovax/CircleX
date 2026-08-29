@@ -1,0 +1,74 @@
+import { listingAccess } from "@/lib/circle-network";
+import { prisma } from "@/lib/db";
+import { jsonError, withDb } from "@/lib/http";
+import { listingEndorsementsInclude, toClientListing } from "@/lib/mappers";
+import { getSessionUser } from "@/lib/server-auth";
+import { listingViewerFlags } from "@/lib/server-listing-privacy";
+
+export const dynamic = "force-dynamic";
+
+/** Seller catalog for a person page — live plus closed, if the viewer can reach them. */
+export async function GET(
+  _req: Request,
+  { params }: { params: { id: string } },
+) {
+  return withDb(async () => {
+    const session = await getSessionUser();
+    if (!session) return jsonError("وارد نشده‌ای", 401, "unauthorized");
+
+    const sellerId = params.id?.trim();
+    if (!sellerId) return jsonError("فرد مشخص نیست", 400);
+
+    const seller = await prisma.user.findUnique({
+      where: { id: sellerId },
+      select: { id: true },
+    });
+    if (!seller) return jsonError("این فرد پیدا نشد", 404);
+
+    const isMe = sellerId === session.id;
+    const access = isMe
+      ? { ok: true, trustPath: [] as const }
+      : await listingAccess(session.id, sellerId);
+    if (!access.ok) {
+      return jsonError("این فرد از مسیر حلقه‌ات به تو نمی‌رسد", 403);
+    }
+
+    const rows = await prisma.marketListing.findMany({
+      where: { sellerId },
+      include: listingEndorsementsInclude,
+      orderBy: { createdAt: "desc" },
+      take: 40,
+    });
+    const flags = await listingViewerFlags(session.id, rows);
+    const viewerEdge = isMe
+      ? null
+      : await prisma.circleEdge.findUnique({
+          where: {
+            fromUserId_toUserId: {
+              fromUserId: session.id,
+              toUserId: sellerId,
+            },
+          },
+          select: { trustGroup: true },
+        });
+    const groupScore = { A: 3, B: 2, C: 1 } as const;
+
+    const listings = rows
+      .filter((row) => !flags.blockedIds.has(row.id))
+      .map((row) =>
+        toClientListing(row, session.id, access.trustPath, {
+          revealed: flags.revealedIds.has(row.id),
+          excludePersonIds: flags.excludeIdsByListing.get(row.id),
+          identityRevealedPeerIds: flags.revealPeersByListing.get(row.id),
+          viewerDirect: isMe || Boolean(viewerEdge),
+          viewerTrustScore: isMe
+            ? undefined
+            : viewerEdge
+              ? groupScore[viewerEdge.trustGroup]
+              : 1,
+        }),
+      );
+
+    return Response.json({ listings });
+  });
+}

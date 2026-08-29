@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useId, useState } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import SheetShell from "@/components/SheetShell";
 import {
   PICKER_AVATARS,
@@ -18,6 +18,7 @@ import { useStore } from "@/lib/store";
  */
 export default function WhoAreYouSheet() {
   const router = useRouter();
+  const pathname = usePathname();
   const me = useStore((s) => s.me);
   const completeProfile = useStore((s) => s.completeProfile);
   const nameId = useId();
@@ -60,6 +61,8 @@ export default function WhoAreYouSheet() {
         name: trimmed,
         avatar,
       });
+      const onInviteLanding = /\/invite\/[^/?]+/.test(pathname);
+      if (onInviteLanding) return;
       const code = peekPendingInviteCode();
       if (code) router.replace(`/invite/${code}`);
       else router.replace("/?invite=1");

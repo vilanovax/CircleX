@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { memo, startTransition, useEffect, useId, useMemo, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { memo, startTransition, useCallback, useEffect, useId, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { lazyUi } from "@/lib/lazy-ui";
 import { isActiveCircleMember } from "@/lib/circle-member";
@@ -32,8 +32,10 @@ import {
 } from "@/lib/social-credit";
 import { canView, listingSellerSubtitle, viewerRelationPhrase } from "@/lib/trust";
 import { toPersianDigits } from "@/lib/persian";
+import { api, ApiError } from "@/lib/api";
 import { GROUP_PRIVATE_LINE } from "@/lib/invite";
-import { indexHasPeer } from "@/lib/thread-index";
+import { indexHasPeer, peerThreadHref } from "@/lib/thread-index";
+import { personBackHref } from "@/lib/nav-back";
 import { useToast } from "@/components/Toast";
 import type {
   Listing,
@@ -59,6 +61,14 @@ const EMPTY_ENDORSEMENTS: EndorsementItem[] = [];
 export default function PersonClassic(_props: { params: { id: string } }) {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const from = searchParams.get("from");
+  const leavePerson = useCallback(
+    (inCircle: boolean) => {
+      router.replace(personBackHref(from, inCircle));
+    },
+    [from, router],
+  );
   const id = String(params.id);
   useEffect(() => {
     if (isCircloPeer(id)) router.replace("/messages/circlo");
@@ -76,6 +86,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
   const setRelation = useStore((s) => s.setRelation);
   const addToCircle = useStore((s) => s.addToCircle);
   const hasThread = useStore((s) => indexHasPeer(s.threadIndex.peerIds, id));
+  const threadHref = useStore((s) => peerThreadHref(s.threadIndex, id));
   const hydrated = useStore((s) => s.hydrated);
   const { show } = useToast();
   const [showIntro, setShowIntro] = useState(false);
@@ -85,6 +96,24 @@ export default function PersonClassic(_props: { params: { id: string } }) {
   const [contentTab, setContentTab] = useState<ContentTab>("listings");
   const hiddenListings = useStore((s) => s.hiddenListings);
   const personHidden = useStore((s) => s.hiddenPeople.includes(id));
+  const [sellerArchive, setSellerArchive] = useState<Listing[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setSellerArchive([]);
+    void api<{ listings: Listing[] }>(
+      `/api/people/${encodeURIComponent(id)}/listings`,
+    )
+      .then((data) => {
+        if (!cancelled) setSellerArchive(data.listings);
+      })
+      .catch(() => {
+        if (!cancelled) setSellerArchive([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   const theirListings = useMemo(
     () =>
@@ -120,32 +149,75 @@ export default function PersonClassic(_props: { params: { id: string } }) {
     );
   }, [person, theirListings, theirRequests.length]);
 
+  const liveListings = useMemo(() => {
+    const hidden = new Set(hiddenListings);
+    const byId = new Map<string, Listing>();
+    for (const listing of theirListings) {
+      if (listing.dealStatus === "inactive") continue;
+      if (hidden.has(listing.id)) continue;
+      byId.set(listing.id, listing);
+    }
+    for (const listing of sellerArchive) {
+      if (listing.dealStatus === "inactive") continue;
+      if (hidden.has(listing.id)) continue;
+      if (!canView(listing, getPerson)) continue;
+      if (!byId.has(listing.id)) byId.set(listing.id, listing);
+    }
+    return Array.from(byId.values());
+  }, [theirListings, sellerArchive, hiddenListings, getPerson]);
+
+  const closedListings = useMemo(
+    () =>
+      sellerArchive.filter(
+        (listing) =>
+          listing.dealStatus === "inactive" &&
+          !hiddenListings.includes(listing.id),
+      ),
+    [sellerArchive, hiddenListings],
+  );
+
+  const wordListings = useMemo(() => {
+    const hidden = new Set(hiddenListings);
+    const byId = new Map<string, Listing>();
+    for (const listing of theirListings) byId.set(listing.id, listing);
+    for (const listing of sellerArchive) {
+      if (hidden.has(listing.id)) continue;
+      if (!byId.has(listing.id)) byId.set(listing.id, listing);
+    }
+    return Array.from(byId.values());
+  }, [theirListings, sellerArchive, hiddenListings]);
+
   const uniqueEndorserCount = useMemo(() => {
     const ids = new Set<string>();
-    for (const listing of theirListings) {
+    for (const listing of wordListings) {
       for (const e of listing.endorsements) {
         if (!e.hidden) ids.add(e.personId);
       }
     }
     return ids.size;
-  }, [theirListings]);
+  }, [wordListings]);
 
   const endorsementsReceived = useMemo(() => {
     if (!showTrustDetails) return EMPTY_ENDORSEMENTS;
     const out: EndorsementItem[] = [];
-    for (const listing of theirListings) {
+    for (const listing of wordListings) {
       for (const e of listing.endorsements) {
         if (e.hidden) continue;
         out.push({ listing, endorsement: e });
       }
     }
     return out;
-  }, [showTrustDetails, theirListings]);
+  }, [showTrustDetails, wordListings]);
 
   if (!hydrated) {
     return (
       <main className="pb-24 min-h-[100dvh]">
-        <Header title="پروفایل" back />
+        <Header
+          title="پروفایل"
+          back
+          fallbackHref={personBackHref(from, false)}
+          onBack={() => leavePerson(false)}
+        />
         <ProfileSkeleton />
       </main>
     );
@@ -154,7 +226,12 @@ export default function PersonClassic(_props: { params: { id: string } }) {
   if (!person || id === "me" || !socialCredit) {
     return (
       <main className="min-h-[100dvh]">
-        <Header title="پروفایل" back />
+        <Header
+          title="پروفایل"
+          back
+          fallbackHref={personBackHref(from, false)}
+          onBack={() => leavePerson(false)}
+        />
         <p className="text-center text-ink-faint py-20 text-sm">کاربر پیدا نشد.</p>
       </main>
     );
@@ -171,8 +248,9 @@ export default function PersonClassic(_props: { params: { id: string } }) {
   });
   const showTrustPath = !isActiveCircleMember(person) || trustPath.length > 0;
   const personName = person.name;
-  const hasListings = theirListings.length > 0;
+  const hasListings = liveListings.length > 0;
   const hasRequests = theirRequests.length > 0;
+  const hasClosed = closedListings.length > 0;
   const showContentTabs = hasListings && hasRequests;
   const activeTab: ContentTab =
     showContentTabs ? contentTab : hasListings ? "listings" : "requests";
@@ -202,6 +280,8 @@ export default function PersonClassic(_props: { params: { id: string } }) {
       <Header
         title="پروفایل"
         back
+        fallbackHref={personBackHref(from, isActiveCircleMember(person))}
+        onBack={() => leavePerson(isActiveCircleMember(person))}
         action={
           isActiveCircleMember(person) ? (
             <button
@@ -287,7 +367,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
               </h2>
               <span className="inline-flex min-w-[1.25rem] h-5 px-1.5 items-center justify-center rounded-full bg-stone-100 dark:bg-zinc-800 text-[11px] font-bold text-ink-muted nums">
                 {toPersianDigits(
-                  hasListings ? theirListings.length : theirRequests.length,
+                  hasListings ? liveListings.length : theirRequests.length,
                 )}
               </span>
             </div>
@@ -295,7 +375,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
 
           <div className="space-y-2" role="tabpanel">
             {activeTab === "listings" &&
-              theirListings.map((l, i) => (
+              liveListings.map((l, i) => (
                 <div key={l.id} className="cv-card">
                   <ListingCard listing={l} hideTrust imagePriority={i === 0} />
                 </div>
@@ -310,7 +390,27 @@ export default function PersonClassic(_props: { params: { id: string } }) {
         </section>
       )}
 
-      {!hasListings && !hasRequests && (
+      {hasClosed ? (
+        <section className="px-4 pt-3">
+          <div className="flex items-center gap-2 mb-2 px-0.5">
+            <h2 className="text-[13px] font-bold text-ink dark:text-zinc-200">
+              تمام‌شده
+            </h2>
+            <span className="inline-flex min-w-[1.25rem] h-5 px-1.5 items-center justify-center rounded-full bg-stone-100 dark:bg-zinc-800 text-[11px] font-bold text-ink-muted nums">
+              {toPersianDigits(closedListings.length)}
+            </span>
+          </div>
+          <div className="space-y-2">
+            {closedListings.map((l) => (
+              <div key={l.id} className="cv-card">
+                <ListingCard listing={l} hideTrust />
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {!hasListings && !hasRequests && !hasClosed && (
         <section className="px-4 pt-3">
           <EmptyState
             icon="📭"
@@ -370,7 +470,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
             <div className="pointer-events-none px-4 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-[color:var(--circle-bg)] via-[color:var(--circle-bg)]/95 to-transparent">
               {canMessage ? (
                 <Link
-                  href={`/messages/${id}`}
+                  href={threadHref}
                   className="btn-primary pointer-events-auto w-full !py-2.5 !text-[14px] font-bold flex items-center justify-center gap-2 shadow-md shadow-brand-600/15"
                 >
                   <ChatIcon className="w-[18px] h-[18px]" />
@@ -446,9 +546,16 @@ export default function PersonClassic(_props: { params: { id: string } }) {
           person={person}
           onClose={() => setShowAddToCircle(false)}
           onAdd={(input) => {
-            addToCircle(id, input);
-            setShowAddToCircle(false);
-            show(`${person.name} به حلقه‌ات اضافه شد ✓`);
+            void addToCircle(id, input)
+              .then(() => {
+                setShowAddToCircle(false);
+                show(`${person.name} به حلقه‌ات اضافه شد ✓`);
+              })
+              .catch((err) =>
+                show(
+                  err instanceof ApiError ? err.message : "اضافه نشد. دوباره بزن.",
+                ),
+              );
           }}
         />
       )}

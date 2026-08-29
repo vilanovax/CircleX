@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import { useCatalog } from "@/lib/use-catalog";
 import Header from "@/components/Header";
@@ -53,6 +53,7 @@ import {
 } from "@/lib/listing-prompts";
 import { listingGalleryImages } from "@/lib/listing-image";
 import { listingThreadPeers } from "@/lib/thread-listing";
+import { indexHasListing } from "@/lib/thread-index";
 import { pickHeroSpecs } from "@/lib/listing-hero-specs";
 import { AREA_MODES, areaMode, placeDetailLabel } from "@/lib/place";
 import { useOwnerListingFlow } from "@/components/OwnerListingManager";
@@ -63,6 +64,7 @@ import {
   hideListingCopy,
   hidePersonCopy,
 } from "@/lib/hide-from-feed";
+import { personHref } from "@/lib/nav-back";
 
 const ReferSheet = lazyUi(() => import("@/components/ReferSheet"));
 const ReportListingSheet = lazyUi(() => import("@/components/ReportListingSheet"));
@@ -83,6 +85,10 @@ const IDLE_MESSAGES: Message[] = [];
 
 export default function ListingClassic(_props: { params: { id: string } }) {
   const params = useParams();
+  const router = useRouter();
+  const goHome = useCallback(() => {
+    router.replace("/");
+  }, [router]);
   const id = String(params.id);
   const listing = useStore((s) => s.listings.find((row) => row.id === id));
   const listingHidden = useStore((s) => s.hiddenListings.includes(id));
@@ -93,6 +99,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const ensureListing = useStore((s) => s.ensureListing);
   const getPerson = useStore((s) => s.getPerson);
   const hydrated = useStore((s) => s.hydrated);
+  const hasListingChat = useStore((s) => indexHasListing(s.threadIndex, id));
   const [showRefer, setShowRefer] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [showEndorse, setShowEndorse] = useState(false);
@@ -148,7 +155,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   if (!hydrated || !listing) {
     return (
       <main className="min-h-[100dvh]">
-        <Header title="جزئیات آگهی" back />
+        <Header title="جزئیات آگهی" back fallbackHref="/" onBack={goHome} />
         {hydrated && lookup === "miss" ? (
           <p className="text-center text-ink-faint py-20 text-sm px-6 leading-relaxed">
             این آگهی برای تو قابل مشاهده نیست.
@@ -181,7 +188,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   const footerPad = isMine
     ? "pb-[6.25rem] scroll-pb-[6.25rem]"
     : inactive
-      ? "pb-10 scroll-pb-10"
+      ? "pb-[6.25rem] scroll-pb-[6.25rem]"
     : buyerPrompts.length === 0
       ? "pb-[12.5rem] scroll-pb-[12.5rem]"
       : "pb-[15rem] scroll-pb-[15rem]";
@@ -196,7 +203,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
   if (!isMine && !inactive && !canView(listing, getPerson)) {
     return (
       <main className="min-h-[100dvh]">
-        <Header title="جزئیات آگهی" back />
+        <Header title="جزئیات آگهی" back fallbackHref="/" onBack={goHome} />
         <LockedAccess
           itemTitle={listing.title}
           itemKind="listing"
@@ -215,6 +222,8 @@ export default function ListingClassic(_props: { params: { id: string } }) {
       <Header
         title="جزئیات آگهی"
         back
+        fallbackHref="/"
+        onBack={goHome}
         action={
           isMine ? (
             <span ref={setOwnerMenuSlot} className="contents" />
@@ -339,8 +348,9 @@ export default function ListingClassic(_props: { params: { id: string } }) {
         ) : null}
         {!isMine && inactive ? (
           <p className="mt-3 rounded-2xl bg-stone-100/80 dark:bg-zinc-800/70 px-3.5 py-2.5 text-[12px] text-ink-muted dark:text-zinc-300 leading-relaxed">
-            این معامله تمام شد — آگهی در فید حلقه نیست. گفتگو را داری؛ اگر
-            دیدی، حرف بگذار.
+            {hasListingChat
+              ? "این معامله تمام شد — آگهی در فید حلقه نیست. گفتگو را داری؛ اگر دیدی، حرف بگذار."
+              : "این معامله تمام شد — آگهی در فید حلقه نیست. اگر دیدی، حرف بگذار."}
           </p>
         ) : null}
         {listingHidden && !sellerHidden ? (
@@ -389,7 +399,7 @@ export default function ListingClassic(_props: { params: { id: string } }) {
           </p>
           <div className="card overflow-hidden">
             <Link
-              href={`/person/${listing.sellerId}`}
+              href={personHref(listing.sellerId, "listing")}
               className="px-3.5 py-3.5 flex items-center gap-3 active:bg-stone-50/80 dark:active:bg-zinc-800/50 transition-colors"
             >
               <Avatar
@@ -561,7 +571,39 @@ export default function ListingClassic(_props: { params: { id: string } }) {
           <ListingOwnerPrivacy listing={listing} />
           <ListingOwnerChrome listing={listing} menuSlot={ownerMenuSlot} />
         </>
-      ) : inactive ? null : (
+      ) : inactive ? (
+        <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
+          <div className="app-shell pointer-events-none !min-h-0 !shadow-none bg-transparent">
+            <div className="pointer-events-none border-t border-stone-200/60 dark:border-zinc-800 bg-[color:var(--circle-surface)]/95 dark:bg-zinc-900/95 backdrop-blur-md px-3 pt-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))]">
+              {hasListingChat ? (
+                <div className="flex gap-2">
+                  <Link
+                    href={listingChatHref(listing)}
+                    className="btn-ghost pointer-events-auto flex-1 !py-3.5 min-h-[3.25rem] flex items-center justify-center text-[13px] font-bold"
+                  >
+                    گفتگو
+                  </Link>
+                  <Link
+                    href="/"
+                    replace
+                    className="btn-primary pointer-events-auto flex-1 !py-3.5 min-h-[3.25rem] flex items-center justify-center text-[13px] font-bold"
+                  >
+                    بازگشت به خانه
+                  </Link>
+                </div>
+              ) : (
+                <Link
+                  href="/"
+                  replace
+                  className="btn-primary pointer-events-auto w-full !py-3.5 min-h-[3.25rem] flex items-center justify-center text-[13px] font-bold"
+                >
+                  بازگشت به خانه
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
         <ListingBuyerFooter
           listing={listing}
           ctaLabel={ctaLabel}

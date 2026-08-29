@@ -25,6 +25,7 @@ import { CircleUsersIcon, LockIcon, SearchIcon, ShieldCheckIcon } from "@/compon
 import type { CircleEvent, Listing, Person, Request } from "@/lib/types";
 import { formatEventDateDisplay, normalizeFa, toPersianDigits } from "@/lib/persian";
 import { CONCEPT_TIP_KEY } from "@/lib/home-tip";
+import AddedYouBanner from "@/components/AddedYouBanner";
 import { POSTED_QUERY } from "@/lib/home-posted";
 import {
   unreadListingReply,
@@ -427,9 +428,15 @@ const HomeFeedBody = memo(function HomeFeedBody({
       null
     );
   });
+  const addedYouCount = useStore((s) => s.addedYou.length);
 
   return (
     <>
+          {addedYouCount > 0 ? (
+            <div className="px-4 pt-3">
+              <AddedYouBanner />
+            </div>
+          ) : null}
           {inquiry ? (
             <div className="px-4 pt-3">
               <div className="card px-3.5 py-3">

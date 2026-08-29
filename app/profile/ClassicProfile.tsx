@@ -36,6 +36,7 @@ import { badgeLabels, eventKindEmoji, formatPrice } from "@/lib/labels";
 import { buildSocialCredit } from "@/lib/social-credit";
 import { formatEventDateDisplay, toPersianDigits } from "@/lib/persian";
 import { CONCEPT_TIP_KEY } from "@/lib/home-tip";
+import { personHref } from "@/lib/nav-back";
 import { ThemeSegmented } from "@/components/ThemeToggle";
 import { useToast } from "@/components/Toast";
 import { ProfileSkeleton } from "@/components/Skeleton";
@@ -625,7 +626,7 @@ function ProfileHiddenTab() {
                 className="card flex items-center gap-3 px-3.5 py-3"
               >
                 <Link
-                  href={`/person/${personId}`}
+                  href={personHref(personId, "profile")}
                   className="flex min-w-0 flex-1 items-center gap-3"
                 >
                   <Avatar

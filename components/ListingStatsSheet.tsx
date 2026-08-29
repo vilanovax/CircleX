@@ -106,7 +106,7 @@ export default function ListingStatsSheet({
   function openThread(peerId: string) {
     onClose();
     router.push(
-      `/messages/${encodeURIComponent(peerId)}?listing=${encodeURIComponent(listing.id)}`,
+      `/messages/${encodeURIComponent(peerId)}?listing=${encodeURIComponent(listing.id)}&scoped=1`,
     );
   }
 

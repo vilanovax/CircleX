@@ -1,7 +1,7 @@
 import { isCircloPeer } from "./circlo";
 import { messageSentAt } from "./mappers";
 import type { Message } from "./types";
-import { threadKey } from "./listing-privacy";
+import { parseThreadKey, threadKey } from "./listing-privacy";
 
 export type ThreadIndex = {
   peerIds: string[];
@@ -26,6 +26,26 @@ export function indexHasPeer(peerIds: string[], peerId: string): boolean {
   return false;
 }
 
+/** Viewer already has inbox messages tied to this listing. */
+export function indexHasListing(
+  threadIndex: ThreadIndex,
+  listingId: string,
+): boolean {
+  if (!listingId) return false;
+  if ((threadIndex.conversationCountByListing.get(listingId) ?? 0) > 0) {
+    return true;
+  }
+  for (const thread of threadIndex.threadByPeer.values()) {
+    for (let i = 0; i < thread.length; i++) {
+      const msg = thread[i];
+      if (msg.listingId === listingId || msg.threadListingId === listingId) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 const EMPTY_LISTING_COUNTS = new Map<string, number>();
 
 const EMPTY_INDEX: ThreadIndex = {
@@ -38,10 +58,38 @@ const EMPTY_INDEX: ThreadIndex = {
   totalUnread: 0,
 };
 
-function indexKey(msg: Message): string {
-  return msg.threadListingId
-    ? threadKey(msg.peerId, msg.threadListingId)
-    : msg.peerId;
+/** Listing this DM belongs to — explicit, else the last listing in that peer stream. */
+export function stickyListingTopic(
+  msg: Message,
+  previousTopic: string | undefined,
+): string | undefined {
+  return msg.threadListingId || msg.listingId || previousTopic;
+}
+
+function indexKey(msg: Message, topic: string | undefined): string {
+  return topic ? threadKey(msg.peerId, topic) : msg.peerId;
+}
+
+/** Open the newest conversation with this peer (listing-scoped when the DMs are). */
+export function peerThreadHref(threadIndex: ThreadIndex, peerId: string): string {
+  let bestKey: string | undefined;
+  let bestAt = -1;
+  const prefix = `${peerId}::`;
+  for (let i = 0; i < threadIndex.peerIds.length; i++) {
+    const key = threadIndex.peerIds[i]!;
+    if (key !== peerId && !key.startsWith(prefix)) continue;
+    const last = threadIndex.lastByPeer.get(key);
+    const at = last ? messageSentAt(last) : 0;
+    if (at < bestAt) continue;
+    bestAt = at;
+    bestKey = key;
+  }
+  if (!bestKey) return `/messages/${encodeURIComponent(peerId)}`;
+  const parsed = parseThreadKey(bestKey);
+  if (!parsed.listingId) {
+    return `/messages/${encodeURIComponent(parsed.peerId)}`;
+  }
+  return `/messages/${encodeURIComponent(parsed.peerId)}?listing=${encodeURIComponent(parsed.listingId)}&scoped=1`;
 }
 
 function sameMessageList(a: Message[], b: Message[]): boolean {
@@ -145,11 +193,22 @@ export function buildThreadIndex(
   const unreadByPeer = new Map<string, number>();
   const listingIdByPeer = new Map<string, string>();
   const peersByListing = new Map<string, Set<string>>();
+  const stickyByPeer = new Map<string, string>();
   let totalUnread = 0;
 
-  for (let i = 0; i < messages.length; i++) {
-    const msg = messages[i];
-    const key = indexKey(msg);
+  const order = messages.map((_, i) => i);
+  order.sort((a, b) => {
+    const delta = messageSentAt(messages[a]!) - messageSentAt(messages[b]!);
+    if (delta !== 0) return delta;
+    return a - b;
+  });
+
+  for (let n = 0; n < order.length; n++) {
+    const i = order[n]!;
+    const msg = messages[i]!;
+    const topic = stickyListingTopic(msg, stickyByPeer.get(msg.peerId));
+    if (topic) stickyByPeer.set(msg.peerId, topic);
+    const key = indexKey(msg, topic);
     let thread = threadByPeer.get(key);
     if (!thread) {
       thread = [];
@@ -157,6 +216,7 @@ export function buildThreadIndex(
     }
     thread.push(msg);
     lastIndex.set(key, i);
+    if (topic) listingIdByPeer.set(key, topic);
     if (msg.listingId) {
       listingIdByPeer.set(key, msg.listingId);
       let peers = peersByListing.get(msg.listingId);

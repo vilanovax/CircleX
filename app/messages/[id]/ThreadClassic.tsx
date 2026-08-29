@@ -22,7 +22,8 @@ import Avatar from "@/components/Avatar";
 import ListingImage from "@/components/ListingImage";
 import Header from "@/components/Header";
 import LockedMessaging from "@/components/LockedMessaging";
-import { CameraIcon, SendIcon, FlagIcon, MoreIcon, CheckIcon, DoubleCheckIcon } from "@/components/Icons";
+import { CameraIcon, SendIcon, FlagIcon, MoreIcon, CheckIcon, DoubleCheckIcon, UserPlusIcon } from "@/components/Icons";
+import { personHref } from "@/lib/nav-back";
 import { withBasePath } from "@/lib/avatar";
 import { uploadUserPhoto } from "@/lib/media-image";
 import { dealStatusLabels, formatPrice } from "@/lib/labels";
@@ -36,6 +37,7 @@ import {
 } from "@/lib/listing-prompts";
 import { canOpenThread } from "@/lib/messaging";
 import { isCircloPeer } from "@/lib/circlo";
+import { isActiveCircleMember } from "@/lib/circle-member";
 import { canView } from "@/lib/trust";
 import {
   recalledThreadListing,
@@ -59,18 +61,27 @@ const WatchSheet = lazyUi(() => import("@/app/messages/WatchSheet"));
 const InviteSheet = lazyUi(() => import("@/components/InviteSheet"));
 const ReportMessageSheet = lazyUi(() => import("@/components/ReportMessageSheet"));
 const EndorseSheet = lazyUi(() => import("@/components/EndorseSheet"));
+const AddToCircleSheet = lazyUi(() => import("@/components/AddToCircleSheet"));
 
 export default function ThreadClassic(_props: { params: { id: string } }) {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const goInbox = useCallback(() => {
+    router.replace("/messages");
+  }, [router]);
   const peerId = String(params.id);
   const queryListingId = searchParams.get("listing");
   const scoped = searchParams.get("scoped") === "1";
-  const inboxKey = threadKey(peerId, scoped ? queryListingId : undefined);
+  const listingThread = Boolean(queryListingId?.trim()) || scoped;
+  const inboxKey = threadKey(
+    peerId,
+    listingThread ? queryListingId : undefined,
+  );
   const thread = useStore(
     (s) => s.threadIndex.threadByPeer.get(inboxKey) ?? EMPTY_THREAD,
   );
+  const refreshInbox = useStore((s) => s.refreshInbox);
   const storedPeer = useStore((s) => s.getPerson(peerId));
   const getPerson = useStore((s) => s.getPerson);
   const revealListingIdentity = useStore((s) => s.revealListingIdentity);
@@ -102,7 +113,12 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
     return false;
   });
   const { show } = useToast();
+  const addToCircle = useStore((s) => s.addToCircle);
+  const theyAddedMe = useStore((s) =>
+    s.addedYou.some((p) => p.id === peerId),
+  );
   const watchesOn = useCatalog().flags.watches;
+  const [showAddToCircle, setShowAddToCircle] = useState(false);
   const [showCircloWatches, setShowCircloWatches] = useState(false);
   const [showCircloInvite, setShowCircloInvite] = useState(false);
   const [reportMsg, setReportMsg] = useState<Message | null>(null);
@@ -116,6 +132,10 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   const [sessionListingId, setSessionListingId] = useState<string | undefined>(
     undefined,
   );
+
+  useEffect(() => {
+    void refreshInbox().catch(() => {});
+  }, [refreshInbox]);
 
   useEffect(() => {
     setSessionListingId(recalledThreadListing(peerId));
@@ -181,10 +201,11 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
     };
   }, [activeListingId, contextListing, ensureListing, peerId]);
 
-  const viaName = useMemo(
-    () => viaConnectorName(peerId, getPerson),
-    [peerId, getPerson],
-  );
+  const viaName = useMemo(() => {
+    const hopId = contextListing?.trustPath?.[0]?.personId;
+    const fromListing = hopId ? getPerson(hopId)?.name : undefined;
+    return fromListing || viaConnectorName(peerId, getPerson);
+  }, [contextListing?.trustPath, getPerson, peerId]);
 
   const subtitle = peer ? chatPeerSubtitle(peer, viaName) : "";
 
@@ -196,12 +217,14 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
           listing: contextListing,
           getPerson,
           hasVisibleOfferings,
-        })
+        }) ||
+        // Closed listing still opens if we already share a circle (messages may land after boot).
+        (Boolean(activeListingId) && isActiveCircleMember(peer))
     : false;
 
   useEffect(() => {
-    markThreadRead(peerId, scoped ? queryListingId : undefined);
-  }, [peerId, markThreadRead, scoped, queryListingId]);
+    markThreadRead(peerId, listingThread ? queryListingId : undefined);
+  }, [peerId, markThreadRead, listingThread, queryListingId]);
 
   useLayoutEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
@@ -219,7 +242,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
     const joins = joinCount;
     return (
       <main className="flex flex-col h-[100dvh]">
-        <Header back fallbackHref="/messages">
+        <Header back fallbackHref="/messages" onBack={goInbox}>
           <div className="flex min-h-9 min-w-0 items-center gap-2.5">
             <Avatar name={peer.name} src={peer.avatar} size="sm" showLevel={false} />
             <div className="flex min-w-0 flex-col justify-center">
@@ -321,6 +344,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
         <Header
           back
           fallbackHref="/messages"
+          onBack={goInbox}
           title={peer.name}
           subtitle="پیام قفل است"
         />
@@ -336,19 +360,24 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
     show(err instanceof ApiError ? err.message : "ارسال نشد. دوباره بزن.");
   }
 
-  const emptyHint = contextListing
-    ? `دربارهٔ ${listingSubject(contextListing)} — اولین پیام را بفرست.`
-    : "اولین پیام را بفرست.";
-
   const listingGone = Boolean(activeListingId) && listingLoadState === "missing";
   const listingClosed =
     listingGone || contextListing?.dealStatus === "inactive";
+
+  const emptyHint = listingClosed
+    ? listingGone
+      ? "آگهی دیگر در دسترس نیست."
+      : "معامله تمام شد. از خانه یا پیام‌ها ادامه بده."
+    : contextListing
+      ? `دربارهٔ ${listingSubject(contextListing)} — اولین پیام را بفرست.`
+      : "اولین پیام را بفرست.";
 
   return (
     <main className="flex flex-col h-[100dvh]">
       <Header
         back
         fallbackHref="/messages"
+        onBack={goInbox}
         action={
           <button
             type="button"
@@ -374,7 +403,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
           </div>
         ) : (
           <Link
-            href={`/person/${peerId}`}
+            href={personHref(peerId, "messages")}
             className="flex min-h-9 min-w-0 items-center gap-2.5 active:opacity-70"
           >
             <Avatar name={peer.name} src={peer.avatar} size="sm" showLevel={false} />
@@ -437,6 +466,29 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
               </Link>
             </>
           )}
+          {!hidePeer &&
+          !isCircloPeer(peerId) &&
+          !isActiveCircleMember(peer) &&
+          (viaName || thread.length > 0) ? (
+            <div className="mt-1.5 rounded-xl bg-stone-50/90 px-2.5 py-2 ring-1 ring-stone-200/70 dark:bg-zinc-800/60 dark:ring-zinc-700">
+              <p className="text-[12px] text-ink-muted leading-snug">
+                {theyAddedMe
+                  ? `${peer.name} تو را به حلقه‌اش اضافه کرد.`
+                  : viaName
+                    ? `${peer.name} را از طریق ${viaName} می‌شناسی.`
+                    : `${peer.name} از مسیر حلقه‌ات به تو رسیده.`}{" "}
+                اگر خودت می‌شناسی‌اش، به حلقه‌ات اضافه کن.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowAddToCircle(true)}
+                className="mt-1.5 inline-flex items-center gap-1 text-[12.5px] font-bold text-brand-700 dark:text-brand-400"
+              >
+                <UserPlusIcon className="h-3.5 w-3.5" />
+                به حلقه‌ات اضافه کن
+              </button>
+            </div>
+          ) : null}
           {hidePeer ? (
             <p className="mt-1.5 text-[11.5px] text-ink-muted leading-snug">
               هویت آگهی‌دهنده پنهان است — اگر پیام بفرستی، او تو را با نام واقعی
@@ -494,21 +546,21 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
                           peerId,
                           DEAL_NOTE.reserved,
                           contextListing.id,
-                          scoped,
+                          true,
                         ).catch(notifySendError);
                       } else if (id === "agreed") {
                         void addMessage(
                           peerId,
                           DEAL_NOTE.agreed,
                           contextListing.id,
-                          scoped,
+                          true,
                         ).catch(notifySendError);
                       } else {
                         void addMessage(
                           peerId,
                           DEAL_NOTE.available,
                           contextListing.id,
-                          scoped,
+                          true,
                         ).catch(notifySendError);
                       }
                     }}
@@ -535,7 +587,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
                   peerId,
                   DEAL_NOTE.done,
                   contextListing.id,
-                  scoped,
+                  true,
                 ).catch(notifySendError);
                 show("آگهی از فید حلقه برداشته شد");
               }}
@@ -658,11 +710,25 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
               اگر دیدی، حرف بگذار
             </button>
           ) : null}
+          <Link
+            href="/"
+            replace
+            className={
+              !listingGone &&
+              contextListing &&
+              !isSellerOfContext &&
+              !contextListing.identityHidden
+                ? "btn-ghost mt-2 flex w-full min-h-11 items-center justify-center text-[13px] font-bold"
+                : "btn-primary mt-2.5 flex w-full min-h-11 items-center justify-center text-[13px] font-bold"
+            }
+          >
+            بازگشت به خانه
+          </Link>
         </div>
       ) : (
         <ThreadComposer
           peerId={peerId}
-          scoped={scoped}
+          listingThread={listingThread}
           activeListingId={activeListingId}
           inboxKey={inboxKey}
           contextListing={contextListing}
@@ -723,13 +789,36 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
           onClose={() => setShowEndorse(false)}
         />
       ) : null}
+      {showAddToCircle ? (
+        <AddToCircleSheet
+          person={{
+            ...peer,
+            relation: "friend",
+            level: "B",
+            note: viaName ? `از طریق ${viaName}` : peer.note,
+          }}
+          onClose={() => setShowAddToCircle(false)}
+          onAdd={(input) => {
+            void addToCircle(peerId, input)
+              .then(() => {
+                setShowAddToCircle(false);
+                show(`${peer.name} به حلقه‌ات اضافه شد ✓`);
+              })
+              .catch((err) =>
+                show(
+                  err instanceof ApiError ? err.message : "اضافه نشد. دوباره بزن.",
+                ),
+              );
+          }}
+        />
+      ) : null}
     </main>
   );
 }
 
 const ThreadComposer = memo(function ThreadComposer({
   peerId,
-  scoped,
+  listingThread,
   activeListingId,
   inboxKey,
   contextListing,
@@ -737,7 +826,7 @@ const ThreadComposer = memo(function ThreadComposer({
   searchParams,
 }: {
   peerId: string;
-  scoped: boolean;
+  listingThread: boolean;
   activeListingId?: string;
   inboxKey: string;
   contextListing?: Listing;
@@ -825,14 +914,17 @@ const ThreadComposer = memo(function ThreadComposer({
     const attachListing = shouldAttachListingOnSend(thread, activeListingId)
       ? activeListingId
       : undefined;
+    const sendListingId = listingThread
+      ? activeListingId ?? attachListing
+      : attachListing;
     if (activeListingId) rememberThreadListing(peerId, activeListingId);
     setSending(true);
     try {
       await addMessage(
         peerId,
         t,
-        scoped ? activeListingId ?? attachListing : attachListing,
-        scoped,
+        sendListingId,
+        Boolean(listingThread && sendListingId),
         imageUrl,
       );
       setText("");
@@ -853,27 +945,11 @@ const ThreadComposer = memo(function ThreadComposer({
       await sendBody(t);
       return;
     }
-    setSending(true);
     try {
       const imageUrl = await uploadUserPhoto(file);
-      const attachListing = shouldAttachListingOnSend(thread, activeListingId)
-        ? activeListingId
-        : undefined;
-      if (activeListingId) rememberThreadListing(peerId, activeListingId);
-      await addMessage(
-        peerId,
-        t,
-        scoped ? activeListingId ?? attachListing : attachListing,
-        scoped,
-        imageUrl,
-      );
-      setText("");
-      clearPendingPhoto();
+      await sendBody(t, imageUrl);
     } catch (err) {
       show(err instanceof ApiError ? err.message : "ارسال نشد. دوباره بزن.");
-    } finally {
-      setSending(false);
-      inputRef.current?.focus();
     }
   }
 

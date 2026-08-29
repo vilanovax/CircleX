@@ -5,6 +5,7 @@ import {
   inviteExpectedInclude,
   personFromUser,
   toClientInvite,
+  isRosterComplete,
 } from "@/lib/mappers";
 import { getSessionUser } from "@/lib/server-auth";
 import { isExpectedInvitee } from "@/lib/server-invite";
@@ -99,6 +100,14 @@ export async function POST(
   }
 
   const expected = isExpectedInvitee(row, session.phoneNormalized);
+  const waveFull =
+    row.kind === "wave" &&
+    (status === "accepted" ||
+      row.useCount >= row.maxUses ||
+      isRosterComplete(row.expected));
+  if (waveFull && !existingEdge) {
+    return jsonError("سقف این لینک پر شده", 409, "full");
+  }
 
   if (!expected) {
     const joinReq = await prisma.circleJoinRequest.upsert({
@@ -141,7 +150,11 @@ export async function POST(
       }
       return jsonError("این دعوت قبلاً استفاده شده", 409, "accepted");
     }
-  } else if (row.useCount >= row.maxUses || status === "accepted") {
+  } else if (
+    row.useCount >= row.maxUses ||
+    status === "accepted" ||
+    isRosterComplete(row.expected)
+  ) {
     return jsonError("سقف این لینک پر شده", 409, "full");
   }
 
@@ -156,7 +169,11 @@ export async function POST(
       if (!current) throw new Error("invalid");
 
       if (current.kind === "wave") {
-        if (current.useCount >= current.maxUses || current.status !== "pending") {
+        if (
+          current.useCount >= current.maxUses ||
+          current.status !== "pending" ||
+          isRosterComplete(current.expected)
+        ) {
           const err = new Error("full");
           (err as Error & { inviteCode?: string }).inviteCode = "full";
           throw err;
@@ -165,14 +182,6 @@ export async function POST(
           data: { inviteId: current.id, userId: session.id },
         });
         const nextCount = current.useCount + 1;
-        const updated = await tx.invite.update({
-          where: { id: current.id },
-          data: {
-            useCount: nextCount,
-            status: nextCount >= current.maxUses ? "accepted" : "pending",
-            acceptedAt: nextCount >= current.maxUses ? acceptedAt : undefined,
-          },
-        });
         await tx.circleEdge.create({
           data: {
             fromUserId: current.inviterUserId,
@@ -191,8 +200,25 @@ export async function POST(
         }
         await markExpectedJoined(tx, current.id, session.id, session.phoneNormalized);
         await resolveJoinRequest(tx, current.inviterUserId, session.id);
+        const after = await tx.invite.findUniqueOrThrow({
+          where: { id: current.id },
+          include: { expected: true },
+        });
+        const rosterDone = isRosterComplete(after.expected);
+        const capDone = nextCount >= current.maxUses || rosterDone;
+        await tx.invite.update({
+          where: { id: current.id },
+          data: {
+            useCount: nextCount,
+            maxUses: rosterDone
+              ? Math.min(current.maxUses, after.expected.length)
+              : current.maxUses,
+            status: capDone ? "accepted" : "pending",
+            acceptedAt: capDone ? acceptedAt : undefined,
+          },
+        });
         return tx.invite.findUniqueOrThrow({
-          where: { id: updated.id },
+          where: { id: current.id },
           include: inviteExpectedInclude,
         });
       }

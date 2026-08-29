@@ -552,6 +552,43 @@ export async function loadHomeFeed(viewerId: string): Promise<{
   return { members: direct.members, network, listings, requests, offers, events };
 }
 
+const ADDED_YOU_CAP = 12;
+
+/** People who already have me in their circle, while I have not placed them. */
+export async function loadAddedYou(userId: string): Promise<Person[]> {
+  const inbound = await prisma.circleEdge.findMany({
+    where: { toUserId: userId },
+    include: { from: true },
+    orderBy: { createdAt: "desc" },
+    take: 40,
+  });
+  if (inbound.length === 0) return [];
+
+  const outbound = await prisma.circleEdge.findMany({
+    where: {
+      fromUserId: userId,
+      toUserId: { in: inbound.map((edge) => edge.fromUserId) },
+    },
+    select: { toUserId: true },
+  });
+  const placed = new Set(outbound.map((row) => row.toUserId));
+
+  const out: Person[] = [];
+  for (const edge of inbound) {
+    if (placed.has(edge.fromUserId)) continue;
+    out.push(
+      personFromNetworkUser(edge.from, {
+        relation: edge.relationType,
+        level: "B",
+        note: "تو را به حلقه‌اش اضافه کرد",
+        inMyCircle: false,
+      }),
+    );
+    if (out.length >= ADDED_YOU_CAP) break;
+  }
+  return out;
+}
+
 export type ListingAccess = {
   ok: boolean;
   trustPath: TrustHop[];

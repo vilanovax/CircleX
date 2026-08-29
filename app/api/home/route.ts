@@ -1,4 +1,5 @@
-import { loadFeedPrefs, loadHomeFeed } from "@/lib/circle-network";
+import { loadAddedYou, loadFeedPrefs, loadHomeFeed } from "@/lib/circle-network";
+import { notifyAddedToCircle } from "@/lib/server-notices";
 import { prisma } from "@/lib/db";
 import { jsonError, withDb } from "@/lib/http";
 import {
@@ -18,7 +19,7 @@ export async function GET() {
     const session = await getSessionUser();
     if (!session) return jsonError("وارد نشده‌ای", 401, "unauthorized");
 
-    const [inviteRows, joinRows, feed, prefs] = await Promise.all([
+    const [inviteRows, joinRows, feed, prefs, addedYou] = await Promise.all([
       prisma.invite.findMany({
         where: { inviterUserId: session.id, status: "pending" },
         orderBy: { createdAt: "desc" },
@@ -30,7 +31,20 @@ export async function GET() {
       }),
       loadHomeFeed(session.id),
       loadFeedPrefs(session.id),
+      loadAddedYou(session.id),
     ]);
+
+    if (addedYou.length > 0) {
+      void Promise.all(
+        addedYou.map((person) =>
+          notifyAddedToCircle({
+            addedUserId: session.id,
+            actorUserId: person.id,
+            actorName: person.name,
+          }),
+        ),
+      ).catch(() => {});
+    }
 
     const now = Date.now();
     const live = inviteRows.filter((r) => r.expiresAt.getTime() > now);
@@ -70,6 +84,7 @@ export async function GET() {
       hiddenPeople: prefs.hiddenPeople,
       listingNotes: prefs.listingNotes,
       showOwnListingsInFeed: prefs.showOwnListingsInFeed,
+      addedYou,
     });
   });
 }

@@ -69,6 +69,8 @@ export async function viewerCanSeeListing(opts: {
     select: { trustGroup: true },
   });
   if (!bridge) return false;
-  const score = Math.max(0, LEVEL[bridge.trustGroup] - 1);
+  // Same as client trustScore: one-hop FoF keeps the connector's group.
+  const hopPenalty = Math.max(0, access.trustPath.length - 1);
+  const score = Math.max(0, LEVEL[bridge.trustGroup] - hopPenalty);
   return score >= requiredScore(privacy);
 }

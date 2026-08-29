@@ -14,6 +14,8 @@ import {
 import type { Person } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
 import { chatPeerSubtitle } from "@/lib/trust";
+import { ApiError } from "@/lib/api";
+import { personHref } from "@/lib/nav-back";
 
 const IntroRequestSheet = lazyUi(() => import("./IntroRequestSheet"));
 const AddToCircleSheet = lazyUi(() => import("./AddToCircleSheet"));
@@ -36,7 +38,7 @@ export default function LockedMessaging({
       <div className="px-4 pt-4 pb-8">
         {/* Peer identity */}
         <Link
-          href={`/person/${peer.id}`}
+          href={personHref(peer.id, "messages")}
           className="card flex items-center gap-3 p-3.5 active:bg-stone-50/80 dark:active:bg-zinc-800/60 transition-colors"
         >
           <Avatar name={peer.name} src={peer.avatar} size="lg" showLevel={false} />
@@ -147,7 +149,7 @@ export default function LockedMessaging({
           </button>
           <div className="flex items-center justify-center gap-4 pt-1">
             <Link
-              href={`/person/${peer.id}`}
+              href={personHref(peer.id, "messages")}
               className="text-[12px] font-semibold text-brand-600 dark:text-brand-400"
             >
               پروفایل {peer.name}
@@ -178,9 +180,18 @@ export default function LockedMessaging({
           person={peer}
           onClose={() => setShowAdd(false)}
           onAdd={(input) => {
-            addToCircle(peer.id, input);
-            setShowAdd(false);
-            show(`${peer.name} به حلقه‌ات اضافه شد ✓`);
+            void addToCircle(peer.id, input)
+              .then(() => {
+                setShowAdd(false);
+                show(`${peer.name} به حلقه‌ات اضافه شد ✓`);
+              })
+              .catch((err) =>
+                show(
+                  err instanceof ApiError
+                    ? err.message
+                    : "اضافه نشد. دوباره بزن.",
+                ),
+              );
           }}
         />
       )}

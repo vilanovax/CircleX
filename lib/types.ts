@@ -179,7 +179,7 @@ export interface Message {
   seenByPeer?: boolean;
   /** When set, this message is a referral carrying a listing preview. */
   listingId?: string;
-  /** Listing-scoped thread (private publish); not mixed with the peer inbox. */
+  /** Listing-scoped thread; not mixed with other deals with the same peer. */
   threadListingId?: string;
   /** Uploaded chat photo (`/api/uploads/….jpg`). */
   imageUrl?: string;

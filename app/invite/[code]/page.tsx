@@ -106,15 +106,10 @@ export default function InviteLandingPage() {
     });
 
   useEffect(() => {
-    if (
-      publicInvite &&
-      publicInvite.status === "pending" &&
-      !publicInvite.isOwn &&
-      !sessionPhone
-    ) {
-      stashPendingInviteCode(code, publicInvite.inviter.name);
-    }
-  }, [publicInvite, sessionPhone, code]);
+    if (!publicInvite || publicInvite.isOwn) return;
+    if (publicInvite.status !== "pending") return;
+    stashPendingInviteCode(code, publicInvite.inviter.name);
+  }, [publicInvite, code]);
 
   useEffect(() => {
     if (!hydrated || !loaded || !sessionPhone || !profileCompletedAt) return;
@@ -148,7 +143,10 @@ export default function InviteLandingPage() {
         else if (codeName === "expired") setAcceptKind("expired");
         else if (codeName === "revoked") setAcceptKind("revoked");
         else if (codeName === "accepted") setAcceptKind("accepted");
-        else if (codeName === "already") setAcceptKind("already");
+        else if (codeName === "already") {
+          setAcceptKind("already");
+          if (publicInvite.inviter) setPlaceTarget(publicInvite.inviter);
+        }
         else if (codeName === "full") setAcceptKind("full");
         else setAcceptKind("invalid");
       } finally {

@@ -17,8 +17,11 @@ export const WAVE_ROSTER_LIMIT = 20;
 export const WAVE_DEFAULT_TRUST = "B" as const;
 
 export function waveMaxUses(rosterCount = 0, floor = WAVE_MAX_USES): number {
-  const base = Math.min(WAVE_ROSTER_LIMIT, Math.max(2, floor));
-  return Math.min(WAVE_ROSTER_LIMIT, Math.max(base, rosterCount));
+  // Named roster is the cap. Open links (no names) use the growth floor.
+  if (rosterCount > 0) {
+    return Math.min(WAVE_ROSTER_LIMIT, Math.max(1, rosterCount));
+  }
+  return Math.min(WAVE_ROSTER_LIMIT, Math.max(2, floor));
 }
 
 export function inviteRosterTotal(invite: Invite): number {
@@ -44,6 +47,17 @@ export function inviteRosterPending(invite: Invite): number {
     : invite.status === "pending"
       ? 1
       : 0;
+}
+
+/** Wave with a named list: every expected phone has joined. */
+export function rosterWaveComplete(invite: {
+  kind: Invite["kind"];
+  expected?: { joined?: boolean }[];
+}): boolean {
+  if (invite.kind !== "wave") return false;
+  const roster = invite.expected;
+  if (!roster || roster.length === 0) return false;
+  return roster.every((row) => Boolean(row.joined));
 }
 
 const CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
@@ -202,6 +216,9 @@ export function resolvePublicInviteView(
   if (invite.alreadyMember) return "already";
   if (invite.alreadyRequested) return "requested";
   if (opts.loggedIn && invite.isOwn && !opts.resumeAccept) return "own";
+  if (invite.full || invite.status === "accepted") {
+    return invite.kind === "wave" ? "full" : "accepted";
+  }
   return "pending";
 }
 

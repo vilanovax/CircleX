@@ -28,6 +28,7 @@ import {
 import {
   effectiveInviteStatus,
   inviteRowCopy,
+  rosterWaveComplete,
 } from "@/lib/invite";
 import { formatPhoneDisplay } from "@/lib/phone";
 import type {
@@ -38,7 +39,9 @@ import type {
   TrustLevel,
 } from "@/lib/types";
 import { toPersianDigits } from "@/lib/persian";
+import { personHref } from "@/lib/nav-back";
 import { useToast } from "@/components/Toast";
+import AddedYouBanner from "@/components/AddedYouBanner";
 
 const SECTION_PREVIEW = 6;
 const INVITE_PREVIEW = 3;
@@ -133,14 +136,20 @@ function circleRelationLine(person: Person): string {
 function pendingInviteCount(invites: Invite[]): number {
   let n = 0;
   for (const inv of invites) {
-    if (effectiveInviteStatus(inv) === "pending") n += 1;
+    if (
+      effectiveInviteStatus(inv) === "pending" &&
+      !rosterWaveComplete(inv)
+    ) {
+      n += 1;
+    }
   }
   return n;
 }
 
 function livePendingInvites(invites: Invite[]): Invite[] {
   const live = invites.filter(
-    (inv) => effectiveInviteStatus(inv) === "pending",
+    (inv) =>
+      effectiveInviteStatus(inv) === "pending" && !rosterWaveComplete(inv),
   );
   return [...live].sort((a, b) => {
     if (a.kind === "wave" && b.kind !== "wave") return -1;
@@ -155,6 +164,7 @@ export default function CircleClassic() {
   const emptyCircle = useStore((s) => {
     if (activeCircleCount(s.people) > 0) return false;
     if (s.joinRequests.length > 0) return false;
+    if (s.addedYou.length > 0) return false;
     return pendingInviteCount(s.invites) === 0;
   });
 
@@ -208,6 +218,7 @@ export default function CircleClassic() {
       ) : (
         <div className="px-4 pt-3 space-y-3">
           <CircleJoinBanner onReview={onReview} />
+          <AddedYouBanner compact />
           <CircleUnplacedBanner onPlace={onPlace} />
           <CircleMembersPanel onEditGroup={onEditGroup} />
           <CircleGraphLink />
@@ -937,7 +948,7 @@ const CircleMemberRow = memo(function CircleMemberRow({
   return (
     <li className="flex items-center gap-2.5 px-3.5 py-2">
       <Link
-        href={`/person/${person.id}`}
+        href={personHref(person.id, "circle")}
         className="flex items-center gap-2.5 min-w-0 flex-1 active:opacity-90 transition-opacity"
       >
         <Avatar

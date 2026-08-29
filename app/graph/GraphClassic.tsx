@@ -18,6 +18,7 @@ import { GraphIcon } from "@/components/Icons";
 import { relationLabels } from "@/lib/labels";
 import { toPersianDigits } from "@/lib/persian";
 import { isActiveCircleMember } from "@/lib/circle-member";
+import { personHref } from "@/lib/nav-back";
 import { viewerRelationPhrase } from "@/lib/trust";
 import {
   graphInsightsFromWalk,
@@ -595,7 +596,7 @@ const PersonRow = memo(function PersonRow({
   return (
     <li className="cv-row">
       <Link
-        href={`/person/${id}`}
+        href={personHref(id, "graph")}
         className="flex items-center gap-3 px-3.5 py-2.5 active:bg-stone-50 dark:active:bg-zinc-800/50"
       >
         <Avatar

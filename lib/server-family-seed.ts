@@ -182,22 +182,25 @@ export async function seedFamilyCircle(inviterId: string, inviterPhone: string) 
     const useCount = await prisma.inviteAcceptance.count({
       where: { inviteId: invite.id },
     });
-    const maxUses = Math.max(invite.maxUses, useCount);
+    const expected = await prisma.inviteExpected.findMany({
+      where: { inviteId: invite.id },
+      select: { joinedUserId: true },
+    });
+    const rosterDone =
+      expected.length > 0 && expected.every((row) => Boolean(row.joinedUserId));
+    const maxUses = rosterDone
+      ? expected.length
+      : Math.max(invite.maxUses, useCount);
+    const capDone = invite.kind === "personal" || useCount >= maxUses || rosterDone;
     await prisma.invite.update({
       where: { id: invite.id },
       data: {
         useCount,
         maxUses,
-        status:
-          invite.kind === "personal" || useCount >= maxUses
-            ? "accepted"
-            : "pending",
+        status: capDone ? "accepted" : "pending",
         acceptedByUserId:
           invite.kind === "personal" ? user.id : invite.acceptedByUserId,
-        acceptedAt:
-          invite.kind === "personal" || useCount >= maxUses
-            ? new Date()
-            : invite.acceptedAt,
+        acceptedAt: capDone ? new Date() : invite.acceptedAt,
       },
     });
   }

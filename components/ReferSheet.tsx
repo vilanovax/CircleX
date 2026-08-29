@@ -112,7 +112,7 @@ export default function ReferSheet({
     if (!sent) return;
     onClose();
     router.push(
-      `/messages/${encodeURIComponent(sent.id)}?listing=${encodeURIComponent(listingId)}`,
+      `/messages/${encodeURIComponent(sent.id)}?listing=${encodeURIComponent(listingId)}&scoped=1`,
     );
   }
 

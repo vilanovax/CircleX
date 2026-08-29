@@ -126,6 +126,8 @@ export interface StoreValue {
   pinnedThreads: string[];
   invites: Invite[];
   joinRequests: CircleJoinRequest[];
+  /** People who already placed me, while I have not placed them. */
+  addedYou: Person[];
   /** Peer edges among circle + FoF for the trust map. */
   networkLinks: NetworkLink[];
   /** Null until mock phone/OTP login succeeds. */
@@ -155,6 +157,7 @@ export interface StoreValue {
   threadIndex: ThreadIndex;
   threadPeers: () => string[];
   unreadCount: (peerId: string, listingId?: string | null) => number;
+  refreshInbox: () => Promise<void>;
   totalUnread: () => number;
   addMessage: (
     peerId: string,
@@ -206,11 +209,11 @@ export interface StoreValue {
     input: { level: TrustLevel; relation: RelationType },
   ) => Promise<void>;
   completeProfile: (input: { name: string; avatar?: string }) => Promise<void>;
-  /** Mark an existing network person as part of my circle. */
+  /** Persist a FoF / thread peer into my directed circle. */
   addToCircle: (
     id: string,
     input: { level: TrustLevel; relation?: RelationType; note?: string },
-  ) => void;
+  ) => Promise<void>;
   removePerson: (id: string) => void;
   setLevel: (id: string, level: TrustLevel) => void;
   setRelation: (id: string, relation: RelationType) => void;
@@ -321,6 +324,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [deletedThreads, setDeletedThreads] = useState<string[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [joinRequests, setJoinRequests] = useState<CircleJoinRequest[]>([]);
+  const [addedYou, setAddedYou] = useState<Person[]>([]);
   const [networkLinks, setNetworkLinks] = useState<NetworkLink[]>([]);
   const [sessionPhone, setSessionPhone] = useState<string | null>(null);
   const [meServerId, setMeServerId] = useState<string | null>(null);
@@ -366,6 +370,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     hiddenListings?: string[];
     hiddenPeople?: string[];
     listingNotes?: Record<string, string>;
+    addedYou?: Person[];
     archivedThreads?: string[];
     pinnedThreads?: string[];
     deletedThreads?: string[];
@@ -400,10 +405,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         // Drop map edges so stale FoF ids never linger after a plain home load.
         setNetworkLinks([]);
       }
+      if (Array.isArray(data.addedYou)) {
+        setAddedYou(data.addedYou);
+      }
       const incoming = [
         ...data.members,
         ...(data.pendingPeople ?? []),
         ...(data.network ?? []),
+        ...(data.addedYou ?? []),
       ].filter((p) => !isCircloPeer(p.id));
       const mergedPeople = keepGraph
         ? overlayPeople(peopleRef.current, incoming)
@@ -562,6 +571,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setPeople(networkSeed());
       setInvites([]);
       setJoinRequests([]);
+      setAddedYou([]);
       setNetworkLinks([]);
       setListings([]);
       setRequests([]);
@@ -597,6 +607,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           if (cancelled) return;
           setInvites([]);
           setJoinRequests([]);
+          setAddedYou([]);
           setPeople(networkSeed());
           setListings([]);
           setRequests([]);
@@ -617,6 +628,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setMeProfile(blankMe());
         setInvites([]);
         setJoinRequests([]);
+        setAddedYou([]);
         setNetworkLinks([]);
         setPeople(networkSeed());
         setListings([]);
@@ -832,12 +844,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         sentAt: Date.now(),
         read: true,
         seenByPeer: false,
-        ...(listingId ? { listingId } : {}),
-        ...(listingScoped && listingId ? { threadListingId: listingId } : {}),
+        ...(listingId ? { listingId, threadListingId: listingId } : {}),
         ...(imageUrl ? { imageUrl } : {}),
       };
       setMessages((prev) => [...prev, optimistic]);
-      const key = threadKey(peerId || "pending", listingScoped ? listingId : undefined);
+      const key = threadKey(peerId || "pending", listingId);
       setArchivedThreads((prev) => prev.filter((id) => id !== key));
       setDeletedThreads((prev) => prev.filter((id) => id !== key));
       try {
@@ -848,8 +859,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             body: JSON.stringify({
               ...(peerId && !peerId.startsWith("hidden:") ? { peerId } : {}),
               text,
-              ...(listingId ? { listingId } : {}),
-              ...(listingScoped ? { listingScoped: true } : {}),
+              ...(listingId ? { listingId, listingScoped: true } : {}),
               ...(imageUrl ? { imageUrl } : {}),
             }),
           },
@@ -1201,26 +1211,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const addToCircle = useCallback(
-    (
+    async (
       id: string,
       input: { level: TrustLevel; relation?: RelationType; note?: string },
     ) => {
-      setPeople((prev) =>
-        prev.map((p) =>
-          p.id === id
-            ? {
-                ...p,
-                inMyCircle: true,
-                inviteStatus: "joined" as const,
-                level: input.level,
-                relation: input.relation ?? p.relation,
-                note: input.note ?? p.note,
-              }
-            : p,
-        ),
-      );
+      await api("/api/circle/edges", {
+        method: "POST",
+        body: JSON.stringify({
+          toUserId: id,
+          trustGroup: input.level,
+          relationType: input.relation ?? "friend",
+        }),
+      });
+      setAddedYou((prev) => prev.filter((p) => p.id !== id));
+      await refreshAfterMutation();
     },
-    [],
+    [refreshAfterMutation],
   );
 
   const removePerson = useCallback((id: string) => {
@@ -1614,6 +1620,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setMeProfile(blankMe());
     setInvites([]);
     setJoinRequests([]);
+    setAddedYou([]);
     setNetworkLinks([]);
     setPeople(networkSeed());
     setListings([]);
@@ -1650,6 +1657,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       pinnedThreads,
       invites,
       joinRequests,
+      addedYou,
       networkLinks,
       sessionPhone,
       hydrated,
@@ -1674,6 +1682,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       threadIndex,
       threadPeers,
       unreadCount,
+      refreshInbox: loadMessages,
       totalUnread,
       addMessage,
       referListing,
@@ -1739,6 +1748,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       pinnedThreads,
       invites,
       joinRequests,
+      addedYou,
       networkLinks,
       sessionPhone,
       hydrated,
@@ -1763,6 +1773,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       threadIndex,
       threadPeers,
       unreadCount,
+      loadMessages,
       totalUnread,
       addMessage,
       referListing,

@@ -155,10 +155,20 @@ export function effectiveDbInviteStatus(
   return row.status;
 }
 
+export function isRosterComplete(
+  expected?: Pick<InviteExpected, "joinedUserId">[] | null,
+): boolean {
+  if (!expected || expected.length === 0) return false;
+  return expected.every((row) => Boolean(row.joinedUserId));
+}
+
 export function inviteIsFull(
-  row: Pick<DbInvite, "kind" | "useCount" | "maxUses" | "status">,
+  row: Pick<DbInvite, "kind" | "useCount" | "maxUses" | "status"> & {
+    expected?: Pick<InviteExpected, "joinedUserId">[] | null;
+  },
 ): boolean {
   if (row.status === "accepted" && row.kind === "wave") return true;
+  if (row.kind === "wave" && isRosterComplete(row.expected)) return true;
   return row.useCount >= row.maxUses;
 }
 
@@ -236,9 +246,7 @@ export function toClientDirectMessage(
     read: fromMe ? true : Boolean(row.readAt),
     ...(fromMe ? { seenByPeer: Boolean(row.readAt) } : {}),
     ...(row.listingId ? { listingId: row.listingId } : {}),
-    ...(row.listingScoped && row.listingId
-      ? { threadListingId: row.listingId }
-      : {}),
+    ...(row.listingId ? { threadListingId: row.listingId } : {}),
     ...(row.kind === "system" ? { kind: "system" as const } : {}),
     ...(extra?.peerHidden ? { peerHidden: true } : {}),
   };

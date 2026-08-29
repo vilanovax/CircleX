@@ -15,7 +15,7 @@ export async function GET(
 
   const row = await prisma.invite.findFirst({
     where: { code: { equals: code, mode: "insensitive" } },
-    include: { inviter: true },
+    include: { inviter: true, expected: true },
   });
   if (!row) return jsonError("این دعوت معتبر نیست", 404, "invalid");
 
@@ -25,6 +25,15 @@ export async function GET(
       where: { id: row.id },
       data: { status: "expired" },
     });
+  } else if (
+    status === "pending" &&
+    inviteIsFull({ ...row, status })
+  ) {
+    await prisma.invite.update({
+      where: { id: row.id },
+      data: { status: "accepted", acceptedAt: new Date() },
+    });
+    status = "accepted";
   }
 
   const session = await getSessionUser();

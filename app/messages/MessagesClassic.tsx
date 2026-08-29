@@ -7,6 +7,7 @@ import {
   startTransition,
   useCallback,
   useDeferredValue,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -86,6 +87,7 @@ const MessagesBody = memo(function MessagesBody({
   onCompose: () => void;
 }) {
   const hydrated = useStore((s) => s.hydrated);
+  const refreshInbox = useStore((s) => s.refreshInbox);
   const threadIndex = useStore((s) => s.threadIndex);
   const getPerson = useStore((s) => s.getPerson);
   const getListing = useStore((s) => s.getListing);
@@ -96,6 +98,10 @@ const MessagesBody = memo(function MessagesBody({
   const togglePinThread = useStore((s) => s.togglePinThread);
   const deleteThread = useStore((s) => s.deleteThread);
   const { show } = useToast();
+
+  useEffect(() => {
+    void refreshInbox().catch(() => {});
+  }, [refreshInbox]);
 
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
@@ -569,11 +575,9 @@ const ThreadRow = memo(function ThreadRow({
 }) {
   const hasUnread = unread > 0;
   const href =
-    scoped && topicListingId
+    topicListingId
       ? `/messages/${peerId}?listing=${encodeURIComponent(topicListingId)}&scoped=1`
-      : topicListingId
-        ? `/messages/${peerId}?listing=${encodeURIComponent(topicListingId)}`
-        : `/messages/${peerId}`;
+      : `/messages/${peerId}`;
   const topicLine = topicListing
     ? `دربارهٔ ${listingSubject(topicListing)}`
     : null;
