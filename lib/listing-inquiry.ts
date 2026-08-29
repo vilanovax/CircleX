@@ -1,6 +1,6 @@
 import { isCircloPeer } from "@/lib/circlo";
 import { listingChatHref, parseThreadKey } from "@/lib/listing-privacy";
-import { DEAL_NOTE } from "@/lib/listing-prompts";
+import { DEAL_NOTE, isDealStatusNote } from "@/lib/listing-prompts";
 import type { ThreadIndex } from "@/lib/thread-index";
 import type { Listing, Message, Person } from "@/lib/types";
 
@@ -45,6 +45,7 @@ export function unreadOwnListingInquiry(
   for (let i = 0; i < listings.length; i++) {
     const row = listings[i];
     if (row.sellerId !== "me") continue;
+    if (row.dealStatus === "inactive") continue;
     mine.add(row.id);
     titleById.set(row.id, row);
   }
@@ -59,6 +60,7 @@ export function unreadOwnListingInquiry(
     if (unread <= 0) continue;
     const last = threadIndex.lastByPeer.get(key);
     if (!last || last.fromMe || last.kind) continue;
+    if (isDealStatusNote(last.text)) continue;
     const listingId =
       last.listingId ||
       last.threadListingId ||
@@ -116,12 +118,14 @@ export function unreadListingReply(
       threadIndex.listingIdByPeer.get(key);
     if (!listingId) continue;
     const listing = others.get(listingId);
+    if (!listing) continue;
     const { peerId } = parseThreadKey(key);
     if (!peerId || isCircloPeer(peerId) || peerId === "me") continue;
     const sent = last.sentAt ?? 0;
     if (sent < bestSent) continue;
     bestSent = sent;
-    const closed = last.text.trim() === DEAL_NOTE.done;
+    const closed =
+      last.text.trim() === DEAL_NOTE.done || listing?.dealStatus === "inactive";
     best = {
       peerId,
       peerName: nameById.get(peerId) || "آگهی‌دهنده",
