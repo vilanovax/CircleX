@@ -254,9 +254,9 @@ function headlineFor(
       return "حلقه دوطرفه است — جایش را مشخص کن";
     }
     if (input.hasPendingInvite) {
-      return "تا نپیوندد فید خالی می‌ماند — عادی است";
+      return "منتظر پیوستن اولین نفر باش";
     }
-    return "تا اولین نفر نپیوندد فید خالی است";
+    return "لینک را بفرست تا فید زنده شود";
   }
   if (currentId === "first_listing") {
     return "یک آگهی بگذار تا حلقه فقط اسم نباشد";

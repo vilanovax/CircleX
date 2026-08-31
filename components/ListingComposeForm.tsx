@@ -20,7 +20,7 @@ import {
   ListingEditSectionSheet,
 } from "@/components/ListingEditSection";
 import AreaPicker from "@/components/AreaPicker";
-import { activeCircle } from "@/lib/circle-member";
+import { activeCircle, activeCircleCount } from "@/lib/circle-member";
 import { listingPrivacySummary } from "@/lib/listing-privacy";
 import CatalogCategorySelect from "@/components/CatalogCategorySelect";
 import VoiceDictateButton from "@/components/VoiceDictateButton";
@@ -243,6 +243,7 @@ const ListingComposeForm = forwardRef<
   const seed = initial ? seedFromListing(initial) : null;
   const meCity = useStore((s) => s.me.city);
   const people = useStore((s) => s.people);
+  const circleScoped = activeCircleCount(people) > 0;
   const [editSection, setEditSection] = useState<
     null | "details" | "privacy" | "area" | "specs" | "questions" | "deal"
   >(null);
@@ -351,7 +352,22 @@ const ListingComposeForm = forwardRef<
         : "عنوان و توضیح کوتاه را چک کن";
 
   const livePriceHints = useMemo(() => {
-    if (priceHints.length > 0) return priceHints;
+    const scoped = (hints: typeof priceHints) =>
+      circleScoped
+        ? hints
+        : hints.map((h) =>
+            h.id === "mid"
+              ? {
+                  ...h,
+                  label: "میانگین نمونه",
+                  note: h.note.replace(/میانگین حلقه/g, "میانگین نمونه"),
+                }
+              : {
+                  ...h,
+                  note: h.note.replace(/میانگین حلقه/g, "میانگین نمونه"),
+                },
+          );
+    if (priceHints.length > 0) return scoped(priceHints);
     if (editMode || !needsPrice || deferredRaw.trim().length < 12) return [];
     return suggestListingPrices({
       category:
@@ -360,8 +376,18 @@ const ListingComposeForm = forwardRef<
       type,
       text: deferredRaw,
       condition: condition || undefined,
+      circleScoped,
     });
-  }, [priceHints, editMode, needsPrice, deferredRaw, category, type, condition]);
+  }, [
+    priceHints,
+    editMode,
+    needsPrice,
+    deferredRaw,
+    category,
+    type,
+    condition,
+    circleScoped,
+  ]);
 
   useEffect(() => {
     onCanSubmitChange?.(canSubmit);
@@ -532,6 +558,7 @@ const ListingComposeForm = forwardRef<
       type,
       text: rawTextRef.current,
       condition: next.condition,
+      circleScoped,
     });
     applyDraftToForm(next, hints, false);
   }
@@ -672,7 +699,9 @@ const ListingComposeForm = forwardRef<
     needsPrice && livePriceHints.length > 0 ? (
       <div className="mt-2">
         <p className="text-[11px] text-ink-faint mb-1.5">
-          قیمت آگهی‌های مشابه حلقه
+          {circleScoped
+            ? "قیمت آگهی‌های مشابه حلقه"
+            : "نمونه قیمت برای شروع"}
         </p>
         <div className="grid grid-cols-3 gap-1.5">
           {livePriceHints.map((h) => (

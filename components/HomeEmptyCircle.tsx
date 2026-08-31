@@ -119,7 +119,11 @@ export default function HomeEmptyCircle({
             hideTrust
             showOpenHint
             highlight
-            audienceHint="فعلاً فقط خودت می‌بینی"
+            audienceHint={
+              hasPending || hasJoinRequests
+                ? undefined
+                : "فعلاً فقط خودت می‌بینی"
+            }
           />
         </section>
       ) : null}
@@ -248,7 +252,11 @@ export default function HomeEmptyCircle({
           />
           <div className="space-y-2.5">
             {preview.map((listing) => (
-              <OwnListingPreview key={listing.id} listing={listing} />
+              <OwnListingPreview
+                key={listing.id}
+                listing={listing}
+                showAudienceHint={!hasPending && !hasJoinRequests}
+              />
             ))}
           </div>
           {rest > 0 && (
@@ -383,14 +391,22 @@ function SectionHeading({ label, count }: { label: string; count: number }) {
   );
 }
 
-function OwnListingPreview({ listing }: { listing: Listing }) {
+function OwnListingPreview({
+  listing,
+  showAudienceHint = true,
+}: {
+  listing: Listing;
+  showAudienceHint?: boolean;
+}) {
   return (
     <ListingCard
       listing={listing}
       compactTrust
       hideTrust
       showOpenHint
-      audienceHint="فعلاً فقط خودت می‌بینی"
+      audienceHint={
+        showAudienceHint ? "فعلاً فقط خودت می‌بینی" : undefined
+      }
     />
   );
 }

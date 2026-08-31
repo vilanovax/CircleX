@@ -625,7 +625,11 @@ const ThreadRow = memo(function ThreadRow({
                   : "text-ink-muted dark:text-zinc-500"
               }`}
             >
-              {last?.postedAt ?? "—"}
+              {last?.postedAt
+                ? last.postedAt
+                : official
+                  ? ""
+                  : "—"}
             </span>
           </div>
           {topicLine && !official ? (

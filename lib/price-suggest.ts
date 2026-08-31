@@ -40,17 +40,21 @@ function conditionFactor(condition?: string, text?: string): number {
 }
 
 /**
- * Suggest fair circle prices from similar mock listings + keyword priors.
+ * Suggest fair prices from similar mock listings + keyword priors.
  * Not a market oracle — a gentle range for non-pro sellers.
+ * When `circleScoped` is false (empty circle), avoid «حلقه» wording.
  */
 export function suggestListingPrices(input: {
   category: string;
   type: ListingType;
   text: string;
   condition?: string;
+  /** True when the poster already has live circle members. Default true. */
+  circleScoped?: boolean;
 }): PriceHint[] {
   if (input.type !== "sale" && input.type !== "service") return [];
 
+  const circleScoped = input.circleScoped !== false;
   const comps = LISTINGS.filter(
     (l) =>
       l.type === input.type &&
@@ -85,21 +89,25 @@ export function suggestListingPrices(input: {
   const high = roundNice(mid * 1.12);
 
   const unit = input.type === "service" ? "هر جلسه / خدمت" : "پیشنهاد فروش";
+  const midLabel = circleScoped ? "میانگین حلقه" : "میانگین نمونه";
+  const midNote = prices.length
+    ? `بر اساس ${toPersianDigits(prices.length)} آگهی مشابه در نمونه`
+    : "برآورد اولیه از دسته و متن";
 
   return [
     {
       id: "low",
       label: "سریع‌فروش",
       amount: low,
-      note: `${unit} · کمی پایین‌تر از میانگین حلقه`,
+      note: circleScoped
+        ? `${unit} · کمی پایین‌تر از میانگین حلقه`
+        : `${unit} · کمی پایین‌تر از میانگین نمونه`,
     },
     {
       id: "mid",
-      label: "میانگین حلقه",
+      label: midLabel,
       amount: mid,
-      note: prices.length
-        ? `بر اساس ${toPersianDigits(prices.length)} آگهی مشابه در نمونه`
-        : "برآورد اولیه از دسته و متن",
+      note: midNote,
     },
     {
       id: "high",
