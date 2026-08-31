@@ -22,6 +22,7 @@ import { MoreIcon, PencilIcon, PinIcon, SearchIcon } from "@/components/Icons";
 import { lazyUi } from "@/lib/lazy-ui";
 import { threadPreview } from "@/lib/message-preview";
 import { CIRCLO_PEER_ID, CIRCLO_PERSON, isCircloPeer } from "@/lib/circlo";
+import { activeCircleCount } from "@/lib/circle-member";
 import { toPersianDigits } from "@/lib/persian";
 import { listingSubject } from "@/lib/listing-prompts";
 import { messageSentAt } from "@/lib/mappers";
@@ -32,6 +33,7 @@ import {
 } from "@/lib/listing-privacy";
 import { chatPeerSubtitle, viaConnectorName } from "@/lib/trust";
 import type { Listing, Message, Person } from "@/lib/types";
+import MessagesInboxExplain from "@/components/MessagesInboxExplain";
 
 type Filter = "all" | "unread" | "archive";
 
@@ -91,6 +93,7 @@ const MessagesBody = memo(function MessagesBody({
   const threadIndex = useStore((s) => s.threadIndex);
   const getPerson = useStore((s) => s.getPerson);
   const getListing = useStore((s) => s.getListing);
+  const people = useStore((s) => s.people);
   const archivedThreads = useStore((s) => s.archivedThreads);
   const pinnedThreads = useStore((s) => s.pinnedThreads);
   const archiveThread = useStore((s) => s.archiveThread);
@@ -98,6 +101,7 @@ const MessagesBody = memo(function MessagesBody({
   const togglePinThread = useStore((s) => s.togglePinThread);
   const deleteThread = useStore((s) => s.deleteThread);
   const { show } = useToast();
+  const circleCount = activeCircleCount(people);
 
   useEffect(() => {
     void refreshInbox().catch(() => {});
@@ -435,6 +439,13 @@ const MessagesBody = memo(function MessagesBody({
             ))}
           </div>
         )}
+
+        {hydrated &&
+        filter === "all" &&
+        !deferredQuery.trim() &&
+        inboxPeers.length === 0 ? (
+          <MessagesInboxExplain emptyCircle={circleCount === 0} />
+        ) : null}
       </div>
 
       {menu ? (
