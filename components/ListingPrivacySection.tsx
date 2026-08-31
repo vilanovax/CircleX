@@ -290,6 +290,10 @@ export default function ListingPrivacySection({
           privacy={privacy}
           excludePersonIds={excludePersonIds}
           excludeRelationTypes={excludeRelationTypes}
+          canChangePrivacy
+          onChangePrivacy={() => {
+            setExtrasOpen(true);
+          }}
           onClose={() => setShowAudience(false)}
         />
       ) : null}
