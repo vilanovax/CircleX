@@ -73,7 +73,11 @@ function ListingCard({
 
       <Link href={`/listing/${listing.id}`} className="block group">
         <div
-          className={`flex items-start ${compactTrust ? "gap-2.5" : "gap-3 items-center"}`}
+          className={`flex ${
+            compactTrust
+              ? "items-stretch gap-2.5"
+              : "items-center gap-3"
+          }`}
         >
           <ListingImage
             image={listing.image}
@@ -83,27 +87,33 @@ function ListingCard({
             type={listing.type}
             priority={imagePriority}
           />
-          <div className="min-w-0 flex-1">
-            <h3
-              className={`font-bold text-ink dark:text-zinc-50 leading-snug line-clamp-2 group-active:opacity-80 ${
-                compactTrust ? "text-[14px]" : "text-[15px]"
-              }`}
-            >
-              {listingDisplayTitle(listing.title, listing.type)}
-            </h3>
-            <div className={compactTrust ? "mt-0.5" : "mt-1"}>
-              {listing.price != null ? (
-                <span className="text-ink dark:text-zinc-100 font-extrabold text-[14px] nums tracking-tight">
-                  {formatPrice(listing.price)}
-                </span>
-              ) : (
-                <span className="text-levelA font-bold text-[14px]">
-                  {isService ? "توافقی" : "رایگان"}
-                </span>
-              )}
+          <div
+            className={`min-w-0 flex-1 ${
+              compactTrust ? "flex flex-col justify-between py-0.5" : ""
+            }`}
+          >
+            <div>
+              <h3
+                className={`font-bold text-ink dark:text-zinc-50 leading-snug line-clamp-2 group-active:opacity-80 ${
+                  compactTrust ? "text-[14px]" : "text-[15px]"
+                }`}
+              >
+                {listingDisplayTitle(listing.title, listing.type)}
+              </h3>
+              <div className={compactTrust ? "mt-0.5" : "mt-1"}>
+                {listing.price != null ? (
+                  <span className="text-ink dark:text-zinc-100 font-extrabold text-[14px] nums tracking-tight">
+                    {formatPrice(listing.price)}
+                  </span>
+                ) : (
+                  <span className="text-levelA font-bold text-[14px]">
+                    {isService ? "توافقی" : "رایگان"}
+                  </span>
+                )}
+              </div>
             </div>
             {compactTrust && (
-              <p className="mt-1 text-[11px] font-medium text-ink-muted dark:text-zinc-400 truncate">
+              <p className="text-[11px] font-medium text-ink-muted dark:text-zinc-400 truncate">
                 <span>{place || listing.city}</span>
                 <span className="text-stone-400 dark:text-zinc-600" aria-hidden>
                   {" · "}
@@ -128,7 +138,7 @@ function ListingCard({
           </div>
           {showOpenHint && (
             <svg
-              className="w-4 h-4 shrink-0 text-ink-faint dark:text-zinc-500 mt-1"
+              className="w-4 h-4 shrink-0 self-center text-ink-faint dark:text-zinc-500"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
