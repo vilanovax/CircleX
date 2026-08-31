@@ -24,6 +24,7 @@ import { FeedSkeleton } from "@/components/Skeleton";
 import { CircleUsersIcon, LockIcon, SearchIcon, ShieldCheckIcon } from "@/components/Icons";
 import type { CircleEvent, Listing, Person, Request } from "@/lib/types";
 import { formatEventDateDisplay, normalizeFa, toPersianDigits } from "@/lib/persian";
+import ActivationPath from "@/components/ActivationPath";
 import CircleConceptTip from "@/components/CircleConceptTip";
 import AddedYouBanner from "@/components/AddedYouBanner";
 import { POSTED_QUERY } from "@/lib/home-posted";
@@ -407,6 +408,11 @@ const HomeFeedBody = memo(function HomeFeedBody({
 
   return (
     <>
+          <ActivationPath
+            className="mx-4 mt-3"
+            showActions={!needsFirstListing}
+            hideListingSkip={needsFirstListing}
+          />
           {addedYouCount > 0 ? (
             <div className="px-4 pt-3">
               <AddedYouBanner />

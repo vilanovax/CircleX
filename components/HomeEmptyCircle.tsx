@@ -3,6 +3,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { lazyUi } from "@/lib/lazy-ui";
+import ActivationPath from "@/components/ActivationPath";
+import AddedYouBanner from "@/components/AddedYouBanner";
 import ListingCard from "@/components/ListingCard";
 import { CircleUsersIcon, LockIcon, ShieldCheckIcon } from "@/components/Icons";
 import { withBasePath } from "@/lib/avatar";
@@ -24,7 +26,7 @@ const InviteSheet = lazyUi(() => import("@/components/InviteSheet"));
 
 /**
  * Home when the live circle is empty — not a stripped marketplace.
- * One job: invite the first person. Own listings sit apart from the feed.
+ * Activation path + invite (cold) or place-inviter (invitee).
  */
 export default function HomeEmptyCircle({
   justPostedId,
@@ -35,6 +37,7 @@ export default function HomeEmptyCircle({
   const listings = useStore((s) => s.listings);
   const invites = useStore((s) => s.invites);
   const joinRequests = useStore((s) => s.joinRequests);
+  const addedYou = useStore((s) => s.addedYou);
   const [showInvite, setShowInvite] = useState(false);
 
   const pending = invites.filter(
@@ -42,14 +45,15 @@ export default function HomeEmptyCircle({
       effectiveInviteStatus(inv) === "pending" && !rosterWaveComplete(inv),
   );
   const hasPending = pending.length > 0;
+  const isInvitee = addedYou.length > 0;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (hasPending) return;
+    if (hasPending || isInvitee) return;
     if (new URLSearchParams(window.location.search).get("invite") === "1") {
       setShowInvite(true);
     }
-  }, [hasPending]);
+  }, [hasPending, isInvitee]);
   const wave = pending.find((inv) => inv.kind === "wave");
   const waitingCount = pending.reduce(
     (sum, inv) => sum + inviteRosterPending(inv),
@@ -67,7 +71,12 @@ export default function HomeEmptyCircle({
   const adWord = pluralAds ? "آگهی‌هات" : "آگهی‌ات";
 
   const hasJoinRequests = joinRequests.length > 0;
-  const coldEmpty = !hasJoinRequests && !hasPending && !hasMine && !posted;
+  const coldEmpty =
+    !isInvitee &&
+    !hasJoinRequests &&
+    !hasPending &&
+    !hasMine &&
+    !posted;
 
   const title = hasJoinRequests
     ? "کسی با لینک آمده"
@@ -115,53 +124,64 @@ export default function HomeEmptyCircle({
         </section>
       ) : null}
 
-      <div
-        className={`card overflow-hidden ${
-          coldEmpty ? "listing-detail-rise" : ""
-        }`}
-      >
-        {coldEmpty ? <EmptyCircleStage avatarSrc={avatarSrc} /> : null}
-        <div className={`px-4 pb-4 text-center ${coldEmpty ? "pt-3" : "pt-5"}`}>
-          {!coldEmpty ? (
-            <div className="w-10 h-10 rounded-full bg-brand-50 dark:bg-brand-500/15 text-brand-600 flex items-center justify-center mx-auto mb-2.5">
-              <CircleUsersIcon className="w-5 h-5" />
-            </div>
-          ) : null}
-          <h2 className="font-extrabold text-[15px] text-ink dark:text-zinc-50 leading-snug tracking-tight">
-            {title}
-          </h2>
-          <p className="text-[13px] text-ink-muted dark:text-zinc-400 mt-1.5 leading-relaxed">
-            {body}
-          </p>
-          {hasJoinRequests ? (
-            <Link
-              href="/circle"
-              className="btn-primary w-full mt-3.5 min-h-11 shadow-md shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150 inline-flex items-center justify-center"
-            >
-              {cta}
-            </Link>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowInvite(true)}
-              className="btn-primary w-full mt-3.5 min-h-11 shadow-md shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150"
-            >
-              {cta}
-            </button>
-          )}
-          <p className="text-[11px] text-ink-muted dark:text-zinc-500 mt-2 leading-snug">
-            لینک · واتساپ · پیامک
-          </p>
-          {coldEmpty ? (
-            <Link
-              href="/new"
-              className="mt-2.5 inline-flex min-h-10 items-center justify-center text-[13px] font-semibold text-brand-700 dark:text-brand-300 active:opacity-70"
-            >
-              یا اول آگهی بگذار — فعلاً فقط خودت می‌بینی
-            </Link>
-          ) : null}
+      <ActivationPath
+        showActions={false}
+        onInvite={() => setShowInvite(true)}
+      />
+
+      {isInvitee ? (
+        <AddedYouBanner />
+      ) : (
+        <div
+          className={`card overflow-hidden ${
+            coldEmpty ? "listing-detail-rise" : ""
+          }`}
+        >
+          {coldEmpty ? <EmptyCircleStage avatarSrc={avatarSrc} /> : null}
+          <div
+            className={`px-4 pb-4 text-center ${coldEmpty ? "pt-3" : "pt-5"}`}
+          >
+            {!coldEmpty ? (
+              <div className="w-10 h-10 rounded-full bg-brand-50 dark:bg-brand-500/15 text-brand-600 flex items-center justify-center mx-auto mb-2.5">
+                <CircleUsersIcon className="w-5 h-5" />
+              </div>
+            ) : null}
+            <h2 className="font-extrabold text-[15px] text-ink dark:text-zinc-50 leading-snug tracking-tight">
+              {title}
+            </h2>
+            <p className="text-[13px] text-ink-muted dark:text-zinc-400 mt-1.5 leading-relaxed">
+              {body}
+            </p>
+            {hasJoinRequests ? (
+              <Link
+                href="/circle"
+                className="btn-primary w-full mt-3.5 min-h-11 shadow-md shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150 inline-flex items-center justify-center"
+              >
+                {cta}
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowInvite(true)}
+                className="btn-primary w-full mt-3.5 min-h-11 shadow-md shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150"
+              >
+                {cta}
+              </button>
+            )}
+            <p className="text-[11px] text-ink-muted dark:text-zinc-500 mt-2 leading-snug">
+              لینک · واتساپ · پیامک
+            </p>
+            {coldEmpty ? (
+              <Link
+                href="/new"
+                className="mt-2.5 inline-flex min-h-10 items-center justify-center text-[13px] font-semibold text-brand-700 dark:text-brand-300 active:opacity-70"
+              >
+                یا اول آگهی بگذار — فعلاً فقط خودت می‌بینی
+              </Link>
+            ) : null}
+          </div>
         </div>
-      </div>
+      )}
 
       {coldEmpty ? <AfterJoinPanel /> : null}
 
