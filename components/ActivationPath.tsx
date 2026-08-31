@@ -18,7 +18,7 @@ import {
 } from "@/lib/invite";
 import { toPersianDigits } from "@/lib/persian";
 import { useStore } from "@/lib/store";
-import { CheckIcon } from "@/components/Icons";
+import { CheckIcon, ChevronDownIcon } from "@/components/Icons";
 
 type Props = {
   /** Open invite sheet (empty-home cold path). */
@@ -27,6 +27,11 @@ type Props = {
   showActions?: boolean;
   /** Hide soft skip — e.g. when a stronger CTA already sits below. */
   hideListingSkip?: boolean;
+  /**
+   * Waiting state: start collapsed so the parent hero owns the story + CTA.
+   * Checklist expands on tap.
+   */
+  compact?: boolean;
   className?: string;
 };
 
@@ -37,6 +42,7 @@ export default function ActivationPath({
   onInvite,
   showActions = true,
   hideListingSkip = false,
+  compact = false,
   className = "",
 }: Props) {
   const profileCompletedAt = useStore((s) => s.profileCompletedAt);
@@ -49,6 +55,11 @@ export default function ActivationPath({
   const [dismissed, setDismissed] = useState(false);
   const [listingSkipped, setListingSkipped] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [expanded, setExpanded] = useState(!compact);
+
+  useEffect(() => {
+    if (compact) setExpanded(false);
+  }, [compact]);
 
   useEffect(() => {
     setMounted(true);
@@ -103,37 +114,88 @@ export default function ActivationPath({
 
   if (!mounted || !circleReady || !state.visible) return null;
 
+  const stepIndex = state.currentId
+    ? Math.max(
+        1,
+        state.steps.findIndex((s) => s.id === state.currentId) + 1,
+      )
+    : Math.min(state.doneCount + 1, state.total);
+  const showDetails = !compact || expanded;
+
+  if (compact && !expanded) {
+    return (
+      <section
+        className={`rounded-2xl border border-stone-200/80 bg-[color:var(--circle-surface)] dark:border-zinc-800 dark:bg-zinc-900/70 ${className}`}
+        aria-label="مسیر راه‌اندازی حلقه"
+      >
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="flex w-full items-center gap-2 px-3.5 py-2.5 text-start active:bg-stone-50/80 dark:active:bg-zinc-800/50"
+          aria-expanded={false}
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block text-[12px] font-bold text-ink dark:text-zinc-100">
+              قدم {toPersianDigits(stepIndex)} از{" "}
+              {toPersianDigits(state.total)}
+              <span className="mx-1.5 font-normal text-ink-faint">·</span>
+              <span className="font-semibold text-ink-muted dark:text-zinc-400">
+                منتظر پیوستن
+              </span>
+            </span>
+            <span className="mt-0.5 block text-[11px] text-ink-faint dark:text-zinc-500 nums">
+              {toPersianDigits(state.doneCount)} انجام‌شده · جزئیات مسیر
+            </span>
+          </span>
+          <ChevronDownIcon className="h-4 w-4 shrink-0 text-ink-muted dark:text-zinc-500" />
+        </button>
+      </section>
+    );
+  }
+
   return (
     <section
       className={`rounded-2xl border border-stone-200/80 bg-[color:var(--circle-surface)] px-3.5 py-3 dark:border-zinc-800 dark:bg-zinc-900/70 ${className}`}
       aria-label="مسیر راه‌اندازی حلقه"
     >
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-[12px] font-bold text-ink dark:text-zinc-100">
-          قدم{" "}
-          {toPersianDigits(
-            state.currentId
-              ? Math.max(
-                  1,
-                  state.steps.findIndex((s) => s.id === state.currentId) + 1,
-                )
-              : Math.min(state.doneCount + 1, state.total),
-          )}{" "}
-          از {toPersianDigits(state.total)}
-        </p>
+        {compact ? (
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            className="flex min-w-0 flex-1 items-center gap-1.5 text-start"
+            aria-expanded={true}
+          >
+            <p className="text-[12px] font-bold text-ink dark:text-zinc-100">
+              قدم {toPersianDigits(stepIndex)} از{" "}
+              {toPersianDigits(state.total)}
+            </p>
+            <ChevronDownIcon className="h-3.5 w-3.5 shrink-0 rotate-180 text-ink-muted" />
+          </button>
+        ) : (
+          <p className="text-[12px] font-bold text-ink dark:text-zinc-100">
+            قدم {toPersianDigits(stepIndex)} از{" "}
+            {toPersianDigits(state.total)}
+          </p>
+        )}
         <p className="text-[11px] text-ink-muted dark:text-zinc-500 nums">
           {toPersianDigits(state.doneCount)} انجام‌شده
         </p>
       </div>
-      <p className="mt-0.5 text-[12px] text-ink-muted dark:text-zinc-400 leading-snug">
-        {state.headline}
-      </p>
+      {/* Compact waiting: parent hero owns the narrative — skip duplicate headline. */}
+      {!compact ? (
+        <p className="mt-0.5 text-[12px] text-ink-muted dark:text-zinc-400 leading-snug">
+          {state.headline}
+        </p>
+      ) : null}
 
-      <ol className="mt-2.5 space-y-1.5">
-        {state.steps.map((step) => (
-          <StepRow key={step.id} step={step} />
-        ))}
-      </ol>
+      {showDetails ? (
+        <ol className="mt-2.5 space-y-1.5">
+          {state.steps.map((step) => (
+            <StepRow key={step.id} step={step} />
+          ))}
+        </ol>
+      ) : null}
 
       {showActions ? (
         <StepActions

@@ -102,12 +102,20 @@ export default function HomeEmptyCircle({
       ? "دعوت یک نفر دیگر"
       : "دعوت اولین نفر";
 
+  const pendingCount = waitingCount || pending.length;
+  const pendingLine =
+    pendingCount === 1
+      ? "۱ دعوت در انتظار"
+      : `${toPersianDigits(pendingCount)} دعوت در انتظار`;
+
   const avatarSrc = me.avatar?.trim()
     ? withBasePath(me.avatar)
     : withBasePath("/avatars/01.webp");
 
   return (
-    <div className="px-4 pt-4 pb-8 space-y-4">
+    <div
+      className={`px-4 pt-4 pb-8 ${hasPending ? "space-y-3" : "space-y-4"}`}
+    >
       {posted ? (
         <section id="home-just-posted">
           <p className="text-[12px] font-bold text-brand-700 dark:text-brand-300 px-0.5 mb-1.5">
@@ -130,6 +138,7 @@ export default function HomeEmptyCircle({
 
       <ActivationPath
         showActions={false}
+        compact={hasPending}
         onInvite={() => setShowInvite(true)}
       />
 
@@ -172,9 +181,23 @@ export default function HomeEmptyCircle({
                 {cta}
               </button>
             )}
-            <p className="text-[11px] text-ink-muted dark:text-zinc-500 mt-2 leading-snug">
-              لینک · واتساپ · پیامک
-            </p>
+            {hasPending ? (
+              <div className="mt-3">
+                <Link
+                  href="/circle"
+                  className="inline-flex min-h-9 items-center justify-center text-[12px] font-semibold text-brand-700 dark:text-brand-400 active:opacity-70"
+                >
+                  {pendingLine} · دیدن
+                </Link>
+                {wave ? (
+                  <p className="mt-1 text-[11px] text-ink-muted dark:text-zinc-500 nums leading-snug">
+                    لینک {relationLabels[wave.relationType]} ·{" "}
+                    {toPersianDigits(inviteRosterJoined(wave))} از{" "}
+                    {toPersianDigits(inviteRosterTotal(wave))} پیوسته‌اند
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             {coldEmpty ? (
               <Link
                 href="/new"
@@ -211,45 +234,17 @@ export default function HomeEmptyCircle({
         </Link>
       )}
 
-      {hasPending && (
-        <Link
-          href="/circle"
-          className="card block px-3.5 py-3 active:scale-[0.99] transition-transform duration-150"
-        >
-          <div className="flex items-center gap-2">
-            <p className="text-[13px] font-bold text-ink dark:text-zinc-100">
-              دعوت‌های در انتظار
-            </p>
-            <span className="inline-flex min-w-[1.25rem] h-5 px-1.5 items-center justify-center rounded-full bg-stone-100 dark:bg-zinc-800 text-[11px] font-bold text-ink-muted nums">
-              {toPersianDigits(waitingCount || pending.length)}
-            </span>
-          </div>
-          <p className="text-[12px] text-ink-muted mt-1 leading-relaxed">
-            {waitingCount === 1
-              ? "۱ نفر هنوز نپیوسته."
-              : waitingCount > 1
-                ? `${toPersianDigits(waitingCount)} نفر هنوز نپیوسته‌اند.`
-                : "هنوز کسی نپیوسته."}
-          </p>
-          {wave && (
-            <p className="text-[12px] text-ink-muted mt-1 nums">
-              لینک {relationLabels[wave.relationType]} ·{" "}
-              {toPersianDigits(inviteRosterJoined(wave))} از{" "}
-              {toPersianDigits(inviteRosterTotal(wave))} پیوسته‌اند
-            </p>
-          )}
-          <p className="mt-2 text-[13px] font-semibold text-brand-700 dark:text-brand-400">
-            دیدن دعوت‌ها
-          </p>
-        </Link>
-      )}
-
       {hasMine && (!posted || restMine.length > 0) && (
         <section>
           <SectionHeading
             label="آگهی‌های من"
             count={posted ? restMine.length : mine.length}
           />
+          {hasPending || hasJoinRequests ? (
+            <p className="mb-2 px-0.5 text-[12px] text-ink-muted dark:text-zinc-400 leading-snug">
+              آماده‌ست — بعد از پیوستن دیده می‌شود
+            </p>
+          ) : null}
           <div className="space-y-2.5">
             {preview.map((listing) => (
               <OwnListingPreview
