@@ -19,12 +19,21 @@ import {
 import { PHONE_PRIVACY_LINE } from "@/lib/invite";
 import { toEnglishDigits, toPersianDigits } from "@/lib/persian";
 
-/** Shown only in non-production builds when the server issues OTP_DEV_CODE. */
-export const SAMPLE_OTP = "12345";
-const SHOW_DEV_OTP = process.env.NODE_ENV !== "production";
-
 const RESEND_SECONDS = 45;
 const OTP_LEN = 5;
+
+/** Shown when the server is in OTP_ALLOW_DEV / non-production mode. */
+export const SAMPLE_OTP = (
+  process.env.NEXT_PUBLIC_OTP_DEV_CODE ||
+  process.env.OTP_DEV_CODE ||
+  "11111"
+)
+  .replace(/\D/g, "")
+  .slice(0, OTP_LEN)
+  .padStart(OTP_LEN, "0");
+const SHOW_DEV_OTP =
+  process.env.NODE_ENV !== "production" ||
+  process.env.NEXT_PUBLIC_OTP_ALLOW_DEV === "1";
 
 function Spinner({ className = "w-4 h-4" }: { className?: string }) {
   return (
