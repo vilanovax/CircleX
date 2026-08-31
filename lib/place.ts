@@ -118,6 +118,29 @@ export function foldAreaName(value: string): string {
     .trim();
 }
 
+/** Compact fold for matching «تهران‌پارس» ↔ «تهرانپارس» in free text. */
+function foldAreaCompact(value: string): string {
+  return foldAreaName(value).replace(/\s+/g, "");
+}
+
+/**
+ * If the note names a known hood/region, return the catalog label.
+ * Longer names win so «شمال تهران» beats bare «تهران» fragments.
+ */
+export function detectAreaInText(text: string): string | undefined {
+  const hay = foldAreaCompact(text);
+  if (!hay) return undefined;
+  const names = Array.from(ALLOWED).filter(
+    (n) => !(SPECIALS as readonly string[]).includes(n),
+  );
+  names.sort((a, b) => foldAreaCompact(b).length - foldAreaCompact(a).length);
+  for (const name of names) {
+    const needle = foldAreaCompact(name);
+    if (needle.length >= 3 && hay.includes(needle)) return name;
+  }
+  return undefined;
+}
+
 const ALLOWED_FOLD = new Map<string, string>();
 Array.from(ALLOWED).forEach((name) => {
   ALLOWED_FOLD.set(foldAreaName(name), name);

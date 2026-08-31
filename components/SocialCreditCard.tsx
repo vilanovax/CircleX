@@ -18,13 +18,32 @@ export default function SocialCreditCard({
   title = "سابقه در حلقه",
   forSelf = false,
 }: {
-  stats: SocialCreditStats;
+  stats: SocialCreditStats & { circleSize?: number };
   hideVerified?: boolean;
   title?: string;
   forSelf?: boolean;
 }) {
   const deals = stats.successfulDeals;
   const endorsements = stats.endorsementsReceived;
+  const circleSize = stats.circleSize ?? 0;
+  /** Empty-circle self: never show seeded deals / response % as if they were earned here. */
+  const emptySelfCircle = forSelf && circleSize === 0;
+
+  if (emptySelfCircle) {
+    return (
+      <section className="card px-3.5 py-3">
+        <p className="text-[11px] font-bold text-ink-muted dark:text-zinc-400">
+          {title}
+        </p>
+        <p className="mt-1 text-[14px] font-extrabold text-ink dark:text-zinc-50 leading-snug">
+          هنوز سابقه‌ای در حلقه نیست
+        </p>
+        <p className="mt-1 text-[11px] text-ink-faint dark:text-zinc-500 leading-snug">
+          بعد از معامله و تأیید آشنایان اینجا دیده می‌شود
+        </p>
+      </section>
+    );
+  }
 
   const facts: { key: string; node: ReactNode }[] = [];
   if (deals > 0) {
@@ -47,14 +66,34 @@ export default function SocialCreditCard({
       ),
     });
   }
-  facts.push({
-    key: "response",
-    node: (
-      <>
-        پاسخ‌گویی <Percent value={stats.responseRate} />
-      </>
-    ),
-  });
+  if (deals > 0 || endorsements > 0) {
+    facts.push({
+      key: "response",
+      node: (
+        <>
+          پاسخ‌گویی <Percent value={stats.responseRate} />
+        </>
+      ),
+    });
+  }
+
+  if (facts.length === 0) {
+    return (
+      <section className="card px-3.5 py-3">
+        <p className="text-[11px] font-bold text-ink-muted dark:text-zinc-400">
+          {title}
+        </p>
+        <p className="mt-1 text-[14px] font-extrabold text-ink dark:text-zinc-50 leading-snug">
+          تازه‌وارد حلقه
+        </p>
+        {forSelf ? (
+          <p className="mt-1 text-[11px] text-ink-faint dark:text-zinc-500 leading-snug">
+            حلقه این را می‌بیند — امتیاز رسمی نیست
+          </p>
+        ) : null}
+      </section>
+    );
+  }
 
   return (
     <section className="card px-3.5 py-3">

@@ -245,7 +245,9 @@ export function inviteRowCopy(invite: Invite): {
   return {
     title:
       name ||
-      (invite.invitedPhone ? formatPhoneDisplay(invite.invitedPhone) : "لینک"),
+      (invite.invitedPhone
+        ? formatPhoneDisplay(invite.invitedPhone)
+        : relationLabels[invite.relationType] || "دعوت"),
     sub:
       name && invite.invitedPhone
         ? formatPhoneDisplay(invite.invitedPhone)

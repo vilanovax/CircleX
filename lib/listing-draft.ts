@@ -1,6 +1,7 @@
 import type { ListingSpec, ListingType } from "./types";
 import { listingTypeLabels } from "./labels";
 import { normalizeFa, toEnglishDigits, toPersianDigits } from "./persian";
+import { detectAreaInText } from "./place";
 
 export type DraftConfidence = "confirmed" | "suggested";
 
@@ -20,6 +21,8 @@ export type ListingDraft = {
   description: string;
   category: string;
   condition?: string;
+  /** Neighborhood / place hint extracted from the note when present. */
+  area?: string;
   specs: DraftSpec[];
   questions: DraftQuestion[];
 };
@@ -48,13 +51,15 @@ function parseYears(text: string): number | null {
 }
 
 function detectCategory(text: string, type: ListingType): string {
-  if (/مبل|کاناپه|میز|صندلی|یخچال|فرش/.test(text)) return "لوازم خانه";
+  // Child gear before furniture — «تمیز» must not hit the «میز» furniture token.
+  if (/کودک|نوزاد|اسباب\s*بازی|کالسکه/.test(text)) return "کودک";
   if (/آیفون|گوشی|موبایل|سامسونگ|شیائومی/.test(text)) return "الکترونیک";
   if (/لباس|کفش|پوشاک/.test(text)) return "پوشاک";
-  if (/کودک|نوزاد|اسباب\s*بازی|کالسکه/.test(text)) return "کودک";
   if (/دوچرخه|تردمیل|ورزش/.test(text)) return "ورزش";
   if (/پیانو|آموزش|معلم|کلاس/.test(text)) return "آموزش";
   if (/پراید|ماشین|خودرو|اتومبیل/.test(text)) return "خودرو";
+  if (/مبل|کاناپه|صندلی|یخچال|فرش/.test(text)) return "لوازم خانه";
+  if (/(^|[^آ-یءٔ])میز([^آ-یءٔ]|$)/.test(text)) return "لوازم خانه";
   if (type === "service") return "خدمات";
   if (type === "donation") return "اهدا";
   return listingTypeLabels[type];
@@ -98,9 +103,22 @@ function stripSellIntent(s: string): string {
 function tidyPhrase(s: string): string {
   return s
     .replace(/\s*[،,]\s*/g, "، ")
-    .replace(/\s{2,}/g, " ")
+    .replace(/[^\S\u200c]{2,}/g, " ")
     .replace(/^[،.\s]+|[،.\s]+$/g, "")
     .replace(/\s*را$/g, "")
+    .trim();
+}
+
+/**
+ * Light cleanup for display strings — keeps ZWNJ and Latin casing.
+ * Use normalizeFa only for matching / category detection.
+ */
+function softNormalizeFa(input: string): string {
+  return toEnglishDigits(input)
+    .replace(/ي/g, "ی")
+    .replace(/ك/g, "ک")
+    .replace(/[ً-ْٰ]/g, "")
+    .replace(/[^\S\u200c]{2,}/g, " ")
     .trim();
 }
 
@@ -173,11 +191,13 @@ export function draftListingFromText(input: {
   type: ListingType;
   price?: number;
 }): ListingDraft {
+  const display = softNormalizeFa(input.text);
   const text = normalizeFa(input.text);
   const type = input.type;
   const years = parseYears(text);
   const category = detectCategory(text, type);
   const condition = detectCondition(text, years);
+  const area = detectAreaInText(input.text);
   const specs: DraftSpec[] = [];
   const questions: DraftQuestion[] = [];
 
@@ -193,7 +213,10 @@ export function draftListingFromText(input: {
       value: c ? `${a} × ${b} × ${c} سانتی‌متر` : `${a} × ${b} سانتی‌متر`,
       confidence: "confirmed",
     });
-  } else if (/مبل|میز|صندلی|یخچال/.test(text)) {
+  } else if (
+    /مبل|کاناپه|صندلی|یخچال/.test(text) ||
+    /(^|[^آ-یءٔ])میز([^آ-یءٔ]|$)/.test(text)
+  ) {
     questions.push({
       id: "dimensions",
       label: "ابعاد را می‌دانید؟",
@@ -299,14 +322,15 @@ export function draftListingFromText(input: {
     }
   }
 
-  const title = buildTitle(text, type, category);
-  const description = narrativeOnly(text, title);
+  const title = buildTitle(display, type, category);
+  const description = narrativeOnly(display, title);
 
   return {
     title,
     description,
     category,
     condition,
+    area,
     specs,
     questions: questions.slice(0, 4),
   };

@@ -11,7 +11,11 @@ export function createPolishedListingDraft(input: {
   price?: number;
 }): ListingDraft {
   const base = draftListingFromText(input);
-  let title = base.title.replace(/\s+/g, " ").replace(/[،,]+$/g, "").trim();
+  // Keep ZWNJ; only collapse ordinary whitespace.
+  let title = base.title
+    .replace(/[^\S\u200c]{2,}/g, " ")
+    .replace(/[،,]+$/g, "")
+    .trim();
   if (title.length > 56) title = `${title.slice(0, 54).trim()}…`;
 
   let description = base.description

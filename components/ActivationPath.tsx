@@ -110,8 +110,16 @@ export default function ActivationPath({
     >
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-[12px] font-bold text-ink dark:text-zinc-100">
-          قدم {toPersianDigits(Math.min(state.doneCount + 1, state.total))} از{" "}
-          {toPersianDigits(state.total)}
+          قدم{" "}
+          {toPersianDigits(
+            state.currentId
+              ? Math.max(
+                  1,
+                  state.steps.findIndex((s) => s.id === state.currentId) + 1,
+                )
+              : Math.min(state.doneCount + 1, state.total),
+          )}{" "}
+          از {toPersianDigits(state.total)}
         </p>
         <p className="text-[11px] text-ink-muted dark:text-zinc-500 nums">
           {toPersianDigits(state.doneCount)} انجام‌شده

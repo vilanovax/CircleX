@@ -459,6 +459,9 @@ const ListingComposeForm = forwardRef<
     setDescription(next.description);
     setCategory(next.category);
     setCondition(next.condition ?? "");
+    if (next.area?.trim()) {
+      setArea(next.area.trim());
+    }
     setAnswers({});
     setRemovedLabels(new Set());
     setEditableSpecs(

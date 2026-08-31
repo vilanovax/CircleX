@@ -221,9 +221,11 @@ export default function HomeEmptyCircle({
             </span>
           </div>
           <p className="text-[12px] text-ink-muted mt-1 leading-relaxed">
-            {waitingCount > 0
-              ? `${toPersianDigits(waitingCount)} نفر هنوز نپیوسته‌اند.`
-              : "هنوز کسی نپیوسته."}
+            {waitingCount === 1
+              ? "۱ نفر هنوز نپیوسته."
+              : waitingCount > 1
+                ? `${toPersianDigits(waitingCount)} نفر هنوز نپیوسته‌اند.`
+                : "هنوز کسی نپیوسته."}
           </p>
           {wave && (
             <p className="text-[12px] text-ink-muted mt-1 nums">

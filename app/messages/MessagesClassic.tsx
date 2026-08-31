@@ -132,13 +132,16 @@ const MessagesBody = memo(function MessagesBody({
     return n;
   }, [inboxPeers, threadIndex]);
 
+  /** Circlo is always listed under «همه» — keep chip + subtitle in sync. */
+  const allInboxCount = inboxPeers.length + 1;
+
   const subtitle = !hydrated
     ? undefined
     : filter === "archive"
       ? `${toPersianDigits(archivedPeers.length)} آرشیو`
       : inboxUnread > 0
         ? `${toPersianDigits(inboxUnread)} خوانده‌نشده`
-        : `${toPersianDigits(inboxPeers.length)} گفتگو`;
+        : `${toPersianDigits(allInboxCount)} گفتگو`;
 
   const rows = useMemo(() => {
     const q = deferredQuery.trim();
@@ -349,7 +352,7 @@ const MessagesBody = memo(function MessagesBody({
                 active={filter === "all"}
                 onClick={onFilterAll}
                 label="همه"
-                count={inboxPeers.length + 1}
+                count={allInboxCount}
               />
               <FilterChip
                 active={filter === "unread"}
