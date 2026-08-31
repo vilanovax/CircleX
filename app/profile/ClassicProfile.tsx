@@ -35,7 +35,7 @@ import {
 import { badgeLabels, eventKindEmoji, formatPrice } from "@/lib/labels";
 import { buildSocialCredit } from "@/lib/social-credit";
 import { formatEventDateDisplay, toPersianDigits } from "@/lib/persian";
-import { CONCEPT_TIP_KEY, FIRST_RUN_EXPLAIN_KEY, HOW_QUERY } from "@/lib/home-tip";
+import { CONCEPT_TIP_KEY, FIRST_RUN_EXPLAIN_KEY, HOW_QUERY, MESSAGES_INBOX_TIP_KEY } from "@/lib/home-tip";
 import {
   ACTIVATION_DISMISSED_KEY,
   ACTIVATION_LISTING_SKIP_KEY,
@@ -835,6 +835,7 @@ function AccountSheet({ onClose }: { onClose: () => void }) {
             try {
               localStorage.removeItem(CONCEPT_TIP_KEY);
               localStorage.removeItem(FIRST_RUN_EXPLAIN_KEY);
+              localStorage.removeItem(MESSAGES_INBOX_TIP_KEY);
               localStorage.removeItem(ACTIVATION_DISMISSED_KEY);
               localStorage.removeItem(ACTIVATION_LISTING_SKIP_KEY);
             } catch {

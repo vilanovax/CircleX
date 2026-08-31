@@ -145,7 +145,9 @@ const MessagesBody = memo(function MessagesBody({
       ? `${toPersianDigits(archivedPeers.length)} آرشیو`
       : inboxUnread > 0
         ? `${toPersianDigits(inboxUnread)} خوانده‌نشده`
-        : `${toPersianDigits(allInboxCount)} گفتگو`;
+        : inboxPeers.length === 0
+          ? "هنوز گفتگوی شخصی نیست"
+          : `${toPersianDigits(allInboxCount)} گفتگو`;
 
   const rows = useMemo(() => {
     const q = deferredQuery.trim();

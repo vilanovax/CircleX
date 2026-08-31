@@ -3,6 +3,9 @@ export const CONCEPT_TIP_KEY = "circle-home-concept-tip-v1";
 
 /** Empty-circle first-run: what Circle is, before the invite sheet. */
 export const FIRST_RUN_EXPLAIN_KEY = "circle-first-run-explain-v1";
+
+/** Messages inbox: quiet tip while only Circlo exists. */
+export const MESSAGES_INBOX_TIP_KEY = "circle-messages-inbox-tip-v1";
 export const HOW_QUERY = "how";
 
 export function isConceptTipPending(): boolean {
@@ -34,6 +37,23 @@ export function isFirstRunExplainPending(): boolean {
 export function markFirstRunExplainSeen(): void {
   try {
     localStorage.setItem(FIRST_RUN_EXPLAIN_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+export function isMessagesInboxTipPending(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(MESSAGES_INBOX_TIP_KEY) !== "1";
+  } catch {
+    return true;
+  }
+}
+
+export function markMessagesInboxTipSeen(): void {
+  try {
+    localStorage.setItem(MESSAGES_INBOX_TIP_KEY, "1");
   } catch {
     /* ignore */
   }
