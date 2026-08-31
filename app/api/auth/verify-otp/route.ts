@@ -6,7 +6,6 @@ import { isValidIranMobile, normalizePhone } from "@/lib/phone";
 import {
   createSession,
   hashOtp,
-  otpDevCode,
   toSessionUser,
 } from "@/lib/server-auth";
 import { seedCircleForUser } from "@/lib/server-circle-seed";
@@ -40,11 +39,7 @@ export async function POST(req: Request) {
       return jsonError("دفعات اشتباه زیاد شد. دوباره کد بگیر", 429, "locked");
     }
 
-    const expected = hashOtp(phone, otpDevCode());
-    const matches =
-      challenge.codeHash === hashOtp(phone, code) ||
-      code === otpDevCode() ||
-      hashOtp(phone, code) === expected;
+    const matches = challenge.codeHash === hashOtp(phone, code);
 
     if (!matches) {
       await prisma.otpChallenge.update({

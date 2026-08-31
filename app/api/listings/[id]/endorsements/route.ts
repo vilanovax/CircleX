@@ -7,6 +7,7 @@ import {
 } from "@/lib/mappers";
 import { parseEndorsementVisibility, parseEndorsementWrite } from "@/lib/listing-payload";
 import { getSessionUser } from "@/lib/server-auth";
+import { viewerMayReadListing } from "@/lib/server-listing-visibility";
 import { viewerHasListingMessages } from "@/lib/server-listing-thread";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +22,13 @@ export async function PUT(
 
     const listing = await prisma.marketListing.findUnique({
       where: { id: params.id },
-      select: { id: true, sellerId: true, dealStatus: true },
+      select: {
+        id: true,
+        sellerId: true,
+        dealStatus: true,
+        privacy: true,
+        excludeRelationTypes: true,
+      },
     });
     if (!listing) return jsonError("آگهی پیدا نشد", 404);
     if (listing.dealStatus === "inactive" && listing.sellerId !== session.id) {
@@ -35,6 +42,24 @@ export async function PUT(
     const access = await listingAccess(session.id, listing.sellerId);
     if (!access.ok) {
       return jsonError("این آگهی در حلقه تو نیست", 403);
+    }
+
+    if (listing.dealStatus !== "inactive") {
+      const allowed = await viewerMayReadListing({
+        viewerId: session.id,
+        sellerId: listing.sellerId,
+        privacy: listing.privacy,
+        dealStatus: listing.dealStatus,
+        listingId: listing.id,
+        excludeRelationTypes: listing.excludeRelationTypes,
+      });
+      if (!allowed) {
+        return jsonError(
+          "این آگهی برای شما قابل مشاهده نیست",
+          403,
+          "listing_privacy",
+        );
+      }
     }
 
     const parsed = parseEndorsementWrite(await readJson(req));

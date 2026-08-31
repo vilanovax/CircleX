@@ -12,6 +12,7 @@ import {
   listingViewerFlags,
   replaceListingExcludes,
 } from "@/lib/server-listing-privacy";
+import { viewerMayReadListing } from "@/lib/server-listing-visibility";
 import { fanoutListingWatches } from "@/lib/server-watches";
 import { viewerHasListingMessages } from "@/lib/server-listing-thread";
 
@@ -62,6 +63,18 @@ export async function GET(
       });
       if (!viaMessage) {
         return jsonError("این آگهی در حلقه تو نیست", 403);
+      }
+    } else if (row.sellerId !== session.id && row.dealStatus !== "inactive") {
+      const allowed = await viewerMayReadListing({
+        viewerId: session.id,
+        sellerId: row.sellerId,
+        privacy: row.privacy,
+        dealStatus: row.dealStatus,
+        listingId: row.id,
+        excludeRelationTypes: row.excludeRelationTypes,
+      });
+      if (!allowed) {
+        return jsonError("این آگهی برای شما قابل مشاهده نیست", 403, "listing_privacy");
       }
     }
 

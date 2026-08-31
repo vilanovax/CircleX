@@ -100,8 +100,15 @@ export async function POST(req: Request) {
     }
 
     let actionHref = asTrimmed(body?.actionHref, 120) || null;
-    if (actionHref && !actionHref.startsWith("/")) {
-      return jsonError("لینک باید با / شروع شود", 400);
+    // Same-origin path only — reject "//evil" protocol-relative and absolute URLs.
+    if (
+      actionHref &&
+      (!actionHref.startsWith("/") ||
+        actionHref.startsWith("//") ||
+        actionHref.includes("://") ||
+        actionHref.includes("\\"))
+    ) {
+      return jsonError("لینک باید مسیر داخلی با / باشد", 400);
     }
     const actionLabel = asTrimmed(body?.actionLabel, 24) || null;
     if (actionHref && !actionLabel) {

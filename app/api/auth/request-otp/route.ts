@@ -4,8 +4,8 @@ import { isValidIranMobile, normalizePhone } from "@/lib/phone";
 import { getAppSettings, otpTtlMs } from "@/lib/app-settings";
 import {
   OTP_RESEND_MS,
+  generateOtpCode,
   hashOtp,
-  otpDevCode,
 } from "@/lib/server-auth";
 import { sendOtp } from "@/lib/sms";
 
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     }
 
     const settings = await getAppSettings();
-    const code = otpDevCode();
+    const code = generateOtpCode();
     await prisma.otpChallenge.create({
       data: {
         phoneNormalized: phone,
@@ -36,7 +36,20 @@ export async function POST(req: Request) {
         expiresAt: new Date(Date.now() + otpTtlMs(settings.auth.otpTtlMinutes)),
       },
     });
-    await sendOtp(phone, code);
+    try {
+      await sendOtp(phone, code);
+    } catch (err) {
+      await prisma.otpChallenge.deleteMany({ where: { phoneNormalized: phone } });
+      const reason = err instanceof Error ? err.message : "";
+      if (reason === "SMS_NOT_CONFIGURED" || reason === "SMS_NOT_WIRED") {
+        return jsonError(
+          "ارسال پیامک آماده نیست. بعداً دوباره تلاش کن",
+          503,
+          "sms_unavailable",
+        );
+      }
+      return jsonError("ارسال کد ممکن نشد", 503, "sms_failed");
+    }
     return Response.json({ ok: true });
   });
 }

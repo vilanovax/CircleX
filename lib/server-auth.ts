@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "crypto";
+import { createHash, randomBytes, randomInt } from "crypto";
 import { cookies } from "next/headers";
 import { cache } from "react";
 import { isUserBanned } from "./ban";
@@ -13,9 +13,21 @@ export const OTP_RESEND_MS = 45 * 1000;
 export const OTP_MAX_ATTEMPTS = 5;
 export const OTP_LEN = 5;
 
+/** Fixed OTP only outside production, or when OTP_ALLOW_DEV=1 (staging). */
+export function allowDevOtp(): boolean {
+  if (process.env.OTP_ALLOW_DEV?.trim() === "1") return true;
+  return process.env.NODE_ENV !== "production";
+}
+
 export function otpDevCode(): string {
   const raw = process.env.OTP_DEV_CODE?.trim() || "12345";
   return raw.replace(/\D/g, "").slice(0, OTP_LEN).padStart(OTP_LEN, "0");
+}
+
+/** Random 5-digit OTP in production; fixed dev code only when allowDevOtp(). */
+export function generateOtpCode(): string {
+  if (allowDevOtp()) return otpDevCode();
+  return String(randomInt(0, 10 ** OTP_LEN)).padStart(OTP_LEN, "0");
 }
 
 export function sessionSecret(): string {

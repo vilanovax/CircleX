@@ -14,6 +14,7 @@ import {
   toHomeListing,
 } from "@/lib/mappers";
 import { listingViewerFlags } from "@/lib/server-listing-privacy";
+import { privacyVisibleToViewer } from "@/lib/server-listing-visibility";
 import { trustScore } from "@/lib/trust";
 import { threadKey } from "@/lib/listing-privacy";
 import type {
@@ -212,14 +213,29 @@ export async function loadCircleNetwork(viewerId: string): Promise<{
   const flags = await listingViewerFlags(viewerId, marketRows);
   const visibleRows = marketRows.filter((row) => !flags.blockedIds.has(row.id));
 
-  const listings = visibleRows.map((row) => {
+  const listings = visibleRows.flatMap((row) => {
     const trustPath = trustPathForListing(row, viewerId, ctx);
-    return toClientListing(row, viewerId, trustPath, {
-      revealed: flags.revealedIds.has(row.id),
-      excludePersonIds: flags.excludeIdsByListing.get(row.id),
-      identityRevealedPeerIds: flags.revealPeersByListing.get(row.id),
-      ...listingViewerReach(row.sellerId, viewerId, trustPath, ctx),
-    });
+    const reach = listingViewerReach(row.sellerId, viewerId, trustPath, ctx);
+    if (
+      !privacyVisibleToViewer({
+        viewerId,
+        ownerId: row.sellerId,
+        privacy: row.privacy,
+        trustPath,
+        viewerTrustScore: reach.viewerTrustScore,
+        dealStatus: row.dealStatus,
+      })
+    ) {
+      return [];
+    }
+    return [
+      toClientListing(row, viewerId, trustPath, {
+        revealed: flags.revealedIds.has(row.id),
+        excludePersonIds: flags.excludeIdsByListing.get(row.id),
+        identityRevealedPeerIds: flags.revealPeersByListing.get(row.id),
+        ...reach,
+      }),
+    ];
   });
 
   const social = await loadSocialFeed(viewerId, sellerIds, ctx);
@@ -488,38 +504,98 @@ export async function loadHomeFeed(viewerId: string): Promise<{
   const flags = await listingViewerFlags(viewerId, marketRows);
   const visibleRows = marketRows.filter((row) => !flags.blockedIds.has(row.id));
 
-  const listings = visibleRows.map((row) => {
+  const listings = visibleRows.flatMap((row) => {
     const trustPath = trustPathForListing(row, viewerId, pathCtx);
-    return toHomeListing(row, viewerId, trustPath, {
-      revealed: flags.revealedIds.has(row.id),
-      excludePersonIds: flags.excludeIdsByListing.get(row.id),
-      identityRevealedPeerIds: flags.revealPeersByListing.get(row.id),
-      ...listingViewerReach(row.sellerId, viewerId, trustPath, pathCtx),
-    });
+    const reach = listingViewerReach(row.sellerId, viewerId, trustPath, pathCtx);
+    if (
+      !privacyVisibleToViewer({
+        viewerId,
+        ownerId: row.sellerId,
+        privacy: row.privacy,
+        trustPath,
+        viewerTrustScore: reach.viewerTrustScore,
+        dealStatus: row.dealStatus,
+      })
+    ) {
+      return [];
+    }
+    return [
+      toHomeListing(row, viewerId, trustPath, {
+        revealed: flags.revealedIds.has(row.id),
+        excludePersonIds: flags.excludeIdsByListing.get(row.id),
+        identityRevealedPeerIds: flags.revealPeersByListing.get(row.id),
+        ...reach,
+      }),
+    ];
   });
 
-  const requests = requestRows.map((row) => {
-    const mapped = toClientRequest(
-      row,
+  const requests = requestRows.flatMap((row) => {
+    const trustPath = trustPathForListing(
+      { sellerId: row.requesterId },
       viewerId,
-      trustPathForListing({ sellerId: row.requesterId }, viewerId, pathCtx),
+      pathCtx,
     );
-    if (mapped.description.length <= 180) return mapped;
-    return {
-      ...mapped,
-      description: `${mapped.description.slice(0, 180).trim()}…`,
-    };
+    const reach = listingViewerReach(row.requesterId, viewerId, trustPath, pathCtx);
+    if (
+      !privacyVisibleToViewer({
+        viewerId,
+        ownerId: row.requesterId,
+        privacy: row.privacy,
+        trustPath,
+        viewerTrustScore: reach.viewerTrustScore,
+      })
+    ) {
+      return [];
+    }
+    const mapped = toClientRequest(row, viewerId, trustPath);
+    if (mapped.description.length <= 180) return [mapped];
+    return [
+      {
+        ...mapped,
+        description: `${mapped.description.slice(0, 180).trim()}…`,
+      },
+    ];
   });
-  const offers = requestRows.flatMap((row) =>
-    row.offers.map((offer) => toClientOffer(offer, viewerId)),
-  );
-  const events = eventRows.map((row) => {
-    const mapped = toClientEvent(
-      row,
+  const offers = requestRows.flatMap((row) => {
+    const trustPath = trustPathForListing(
+      { sellerId: row.requesterId },
       viewerId,
-      trustPathForListing({ sellerId: row.hostId }, viewerId, pathCtx),
+      pathCtx,
     );
-    return { ...mapped, description: "" };
+    const reach = listingViewerReach(row.requesterId, viewerId, trustPath, pathCtx);
+    if (
+      !privacyVisibleToViewer({
+        viewerId,
+        ownerId: row.requesterId,
+        privacy: row.privacy,
+        trustPath,
+        viewerTrustScore: reach.viewerTrustScore,
+      })
+    ) {
+      return [];
+    }
+    return row.offers.map((offer) => toClientOffer(offer, viewerId));
+  });
+  const events = eventRows.flatMap((row) => {
+    const trustPath = trustPathForListing(
+      { sellerId: row.hostId },
+      viewerId,
+      pathCtx,
+    );
+    const reach = listingViewerReach(row.hostId, viewerId, trustPath, pathCtx);
+    if (
+      !privacyVisibleToViewer({
+        viewerId,
+        ownerId: row.hostId,
+        privacy: row.privacy,
+        trustPath,
+        viewerTrustScore: reach.viewerTrustScore,
+      })
+    ) {
+      return [];
+    }
+    const mapped = toClientEvent(row, viewerId, trustPath);
+    return [{ ...mapped, description: "" }];
   });
 
   const fofSellerIds = Array.from(
@@ -747,29 +823,74 @@ export async function loadSocialFeed(
       include: { rsvps: { select: { personId: true } } },
     }),
   ]);
-  const requests = requestRows.map((row) => {
-    const mapped = toClientRequest(
-      row,
+  const requests = requestRows.flatMap((row) => {
+    const trustPath = trustPathForListing(
+      { sellerId: row.requesterId },
       viewerId,
-      trustPathForListing({ sellerId: row.requesterId }, viewerId, pathCtx),
+      pathCtx,
     );
-    if (!compact || mapped.description.length <= 180) return mapped;
-    return {
-      ...mapped,
-      description: `${mapped.description.slice(0, 180).trim()}…`,
-    };
+    const reach = listingViewerReach(row.requesterId, viewerId, trustPath, pathCtx);
+    if (
+      !privacyVisibleToViewer({
+        viewerId,
+        ownerId: row.requesterId,
+        privacy: row.privacy,
+        trustPath,
+        viewerTrustScore: reach.viewerTrustScore,
+      })
+    ) {
+      return [];
+    }
+    const mapped = toClientRequest(row, viewerId, trustPath);
+    if (!compact || mapped.description.length <= 180) return [mapped];
+    return [
+      {
+        ...mapped,
+        description: `${mapped.description.slice(0, 180).trim()}…`,
+      },
+    ];
   });
-  const offers = requestRows.flatMap((row) =>
-    row.offers.map((offer) => toClientOffer(offer, viewerId)),
-  );
-  const events = eventRows.map((row) => {
-    const mapped = toClientEvent(
-      row,
+  const offers = requestRows.flatMap((row) => {
+    const trustPath = trustPathForListing(
+      { sellerId: row.requesterId },
       viewerId,
-      trustPathForListing({ sellerId: row.hostId }, viewerId, pathCtx),
+      pathCtx,
     );
-    if (!compact) return mapped;
-    return { ...mapped, description: "" };
+    const reach = listingViewerReach(row.requesterId, viewerId, trustPath, pathCtx);
+    if (
+      !privacyVisibleToViewer({
+        viewerId,
+        ownerId: row.requesterId,
+        privacy: row.privacy,
+        trustPath,
+        viewerTrustScore: reach.viewerTrustScore,
+      })
+    ) {
+      return [];
+    }
+    return row.offers.map((offer) => toClientOffer(offer, viewerId));
+  });
+  const events = eventRows.flatMap((row) => {
+    const trustPath = trustPathForListing(
+      { sellerId: row.hostId },
+      viewerId,
+      pathCtx,
+    );
+    const reach = listingViewerReach(row.hostId, viewerId, trustPath, pathCtx);
+    if (
+      !privacyVisibleToViewer({
+        viewerId,
+        ownerId: row.hostId,
+        privacy: row.privacy,
+        trustPath,
+        viewerTrustScore: reach.viewerTrustScore,
+      })
+    ) {
+      return [];
+    }
+    const mapped = toClientEvent(row, viewerId, trustPath);
+    if (!compact) return [mapped];
+    return [{ ...mapped, description: "" }];
   });
   return { requests, offers, events };
 }

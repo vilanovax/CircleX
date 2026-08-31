@@ -4,7 +4,7 @@ import { LISTING_PRIVACY } from "@/lib/listing-payload";
 import { parseRelationTypes } from "@/lib/listing-privacy";
 import { listingBlockedForViewer } from "@/lib/server-listing-privacy";
 import { requiredScore } from "@/lib/trust";
-import type { Privacy } from "@/lib/types";
+import type { Privacy, TrustHop } from "@/lib/types";
 
 const LEVEL = { A: 3, B: 2, C: 1 } as const;
 
@@ -12,6 +12,40 @@ function asPrivacy(value: string): Privacy {
   return LISTING_PRIVACY.includes(value as Privacy)
     ? (value as Privacy)
     : "ABC";
+}
+
+/**
+ * Sync privacy gate matching client `canView` (owner always allowed).
+ * Use when trustPath + viewerTrustScore are already computed.
+ */
+export function privacyVisibleToViewer(opts: {
+  viewerId: string;
+  ownerId: string;
+  privacy: string;
+  trustPath: TrustHop[];
+  viewerTrustScore: number;
+  dealStatus?: string | null;
+}): boolean {
+  if (opts.viewerId === opts.ownerId) return true;
+  if (opts.dealStatus === "inactive") return false;
+  const privacy = asPrivacy(opts.privacy);
+  if (privacy === "approved" && opts.trustPath.length > 0) return false;
+  return opts.viewerTrustScore >= requiredScore(privacy);
+}
+
+/**
+ * Owner may always read; others need the same rules as feed `canView`.
+ */
+export async function viewerMayReadListing(opts: {
+  viewerId: string;
+  sellerId: string;
+  privacy: string;
+  dealStatus: string | null;
+  listingId?: string;
+  excludeRelationTypes?: string[] | unknown;
+}): Promise<boolean> {
+  if (opts.viewerId === opts.sellerId) return true;
+  return viewerCanSeeListing(opts);
 }
 
 /**

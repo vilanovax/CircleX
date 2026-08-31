@@ -3,6 +3,7 @@ import { relationLabels } from "./labels";
 import { toPersianDigits } from "./persian";
 import { formatPhoneDisplay, normalizePhone } from "./phone";
 import type { Invite, PublicInvite } from "./types";
+import { randomInt } from "crypto";
 
 export const PHONE_PRIVACY_LINE =
   "شماره‌ات به افراد دیگر نمایش داده نمی‌شود.";
@@ -72,7 +73,7 @@ export function newUuid(): string {
 export function newInviteCode(): string {
   let s = "";
   for (let i = 0; i < 8; i++) {
-    s += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+    s += CODE_ALPHABET[randomInt(0, CODE_ALPHABET.length)];
   }
   return s;
 }

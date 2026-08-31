@@ -17,20 +17,18 @@ export default function AppFrame({
   const pathname = usePathname();
   const isAdmin = pathname === "/admin" || pathname.startsWith("/admin/");
 
-  if (isAdmin) {
-    return (
-      <ToastProvider>
-        <div className="admin-root">{children}</div>
-      </ToastProvider>
-    );
-  }
-
+  // Keep StoreProvider mounted across admin ↔ member soft-nav so home does
+  // not remount empty and re-fetch. Admin chrome never uses the member store.
   return (
     <StoreProvider initialUser={boot.user} initialHome={boot.home}>
       <ToastProvider>
-        <div className="app-shell">
-          <RequireAuth>{children}</RequireAuth>
-        </div>
+        {isAdmin ? (
+          <div className="admin-root">{children}</div>
+        ) : (
+          <div className="app-shell">
+            <RequireAuth>{children}</RequireAuth>
+          </div>
+        )}
       </ToastProvider>
     </StoreProvider>
   );

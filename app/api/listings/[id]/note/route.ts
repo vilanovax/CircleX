@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { jsonError, readJson, withDb } from "@/lib/http";
 import { parsePersonalNote } from "@/lib/listing-payload";
 import { getSessionUser } from "@/lib/server-auth";
+import { viewerMayReadListing } from "@/lib/server-listing-visibility";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,13 @@ export async function PUT(
 
     const listing = await prisma.marketListing.findUnique({
       where: { id: params.id },
-      select: { id: true, sellerId: true, dealStatus: true },
+      select: {
+        id: true,
+        sellerId: true,
+        dealStatus: true,
+        privacy: true,
+        excludeRelationTypes: true,
+      },
     });
     if (!listing) return jsonError("آگهی پیدا نشد", 404);
     if (listing.dealStatus === "inactive" && listing.sellerId !== session.id) {
@@ -37,6 +44,18 @@ export async function PUT(
 
     const access = await listingAccess(session.id, listing.sellerId);
     if (!access.ok) return jsonError("این آگهی در حلقه تو نیست", 403);
+
+    const allowed = await viewerMayReadListing({
+      viewerId: session.id,
+      sellerId: listing.sellerId,
+      privacy: listing.privacy,
+      dealStatus: listing.dealStatus,
+      listingId: listing.id,
+      excludeRelationTypes: listing.excludeRelationTypes,
+    });
+    if (!allowed) {
+      return jsonError("این آگهی برای شما قابل مشاهده نیست", 403, "listing_privacy");
+    }
 
     const parsed = parsePersonalNote(await readJson(req));
     if (!parsed.ok) return jsonError(parsed.error, 400);

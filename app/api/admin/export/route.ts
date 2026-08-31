@@ -61,7 +61,7 @@ export async function GET(req: Request) {
     }
 
     if (kind === "invites") {
-      const auth = await requireAdmin(req);
+      const auth = await requireAdmin(req, { roles: [...ADMIN_ROLES.usersRead] });
       if (!auth.ok) return auth.response;
       const fullPhone = canSeeFullPhone(
         auth.actor.kind === "session" ? auth.actor.admin.role : "superadmin",

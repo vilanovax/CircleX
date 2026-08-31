@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ThreadListSkeleton } from "@/components/Skeleton";
 import {
   memo,
@@ -10,6 +11,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  type MouseEvent,
   type ReactNode,
 } from "react";
 import { useStore } from "@/lib/store";
@@ -519,7 +521,7 @@ const InboxThreadRow = memo(function InboxThreadRow({
   onPin: (peerId: string, name: string, pinned: boolean) => void;
 }) {
   return (
-    <div className="cv-card">
+    <div className={official ? undefined : "cv-card"}>
       <SwipeThreadRow
         archived={archived}
         pinned={pinned}
@@ -589,6 +591,7 @@ const ThreadRow = memo(function ThreadRow({
   eager?: boolean;
   moreSlot?: ReactNode;
 }) {
+  const router = useRouter();
   const hasUnread = unread > 0;
   const href =
     topicListingId
@@ -598,6 +601,16 @@ const ThreadRow = memo(function ThreadRow({
     ? `دربارهٔ ${listingSubject(topicListing)}`
     : null;
 
+  const openThread = useCallback(
+    (e: MouseEvent<HTMLAnchorElement>) => {
+      // Soft-nav can no-op under content-visibility / interrupted transitions;
+      // force push so Circlo and scoped rows always open.
+      e.preventDefault();
+      router.push(href);
+    },
+    [href, router],
+  );
+
   return (
     <div
       className={`flex items-stretch ${
@@ -606,6 +619,7 @@ const ThreadRow = memo(function ThreadRow({
     >
       <Link
         href={href}
+        onClick={openThread}
         className="flex min-w-0 flex-1 items-center gap-3 px-3.5 py-3 transition-colors active:bg-stone-50/90 dark:active:bg-zinc-800/60"
       >
         <Avatar

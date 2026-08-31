@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { jsonError, withDb } from "@/lib/http";
 import { toClientEvent } from "@/lib/mappers";
 import { getSessionUser } from "@/lib/server-auth";
+import { viewerMayReadListing } from "@/lib/server-listing-visibility";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,16 @@ export async function GET(
 
     const access = await listingAccess(session.id, row.hostId);
     if (!access.ok) return jsonError("این رویداد در حلقه تو نیست", 403);
+
+    const allowed = await viewerMayReadListing({
+      viewerId: session.id,
+      sellerId: row.hostId,
+      privacy: row.privacy,
+      dealStatus: null,
+    });
+    if (!allowed) {
+      return jsonError("این رویداد برای شما قابل مشاهده نیست", 403, "event_privacy");
+    }
 
     return Response.json({
       event: toClientEvent(row, session.id, access.trustPath),

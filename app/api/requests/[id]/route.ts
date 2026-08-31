@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { jsonError, withDb } from "@/lib/http";
 import { toClientOffer, toClientRequest } from "@/lib/mappers";
 import { getSessionUser } from "@/lib/server-auth";
+import { viewerMayReadListing } from "@/lib/server-listing-visibility";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,20 @@ export async function GET(
 
     const access = await listingAccess(session.id, row.requesterId);
     if (!access.ok) return jsonError("این درخواست در حلقه تو نیست", 403);
+
+    const allowed = await viewerMayReadListing({
+      viewerId: session.id,
+      sellerId: row.requesterId,
+      privacy: row.privacy,
+      dealStatus: null,
+    });
+    if (!allowed) {
+      return jsonError(
+        "این درخواست برای شما قابل مشاهده نیست",
+        403,
+        "request_privacy",
+      );
+    }
 
     return Response.json({
       request: toClientRequest(row, session.id, access.trustPath),

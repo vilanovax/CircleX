@@ -4,6 +4,7 @@ import { jsonError, withDb } from "@/lib/http";
 import { listingEndorsementsInclude, toClientListing } from "@/lib/mappers";
 import { getSessionUser } from "@/lib/server-auth";
 import { listingViewerFlags } from "@/lib/server-listing-privacy";
+import { viewerMayReadListing } from "@/lib/server-listing-visibility";
 
 export const dynamic = "force-dynamic";
 
@@ -51,8 +52,23 @@ export async function GET(
         });
     const groupScore = { A: 3, B: 2, C: 1 } as const;
 
+    const privacyOk = await Promise.all(
+      rows.map(async (row) => {
+        if (flags.blockedIds.has(row.id)) return false;
+        if (isMe) return true;
+        return viewerMayReadListing({
+          viewerId: session.id,
+          sellerId: row.sellerId,
+          privacy: row.privacy,
+          dealStatus: row.dealStatus,
+          listingId: row.id,
+          excludeRelationTypes: row.excludeRelationTypes,
+        });
+      }),
+    );
+
     const listings = rows
-      .filter((row) => !flags.blockedIds.has(row.id))
+      .filter((_, i) => privacyOk[i])
       .map((row) =>
         toClientListing(row, session.id, access.trustPath, {
           revealed: flags.revealedIds.has(row.id),

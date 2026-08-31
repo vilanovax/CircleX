@@ -14,6 +14,7 @@ import {
   notifyJoinRequest,
 } from "@/lib/server-notices";
 import { ensureFamilyReciprocal } from "@/lib/server-family-reciprocal";
+import { seedFamilyCircle } from "@/lib/server-family-seed";
 import { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -265,6 +266,18 @@ export async function POST(
       guestName: session.name,
       inviteId: row.id,
     }).catch(() => {});
+
+    if (row.relationType === "family") {
+      const host = await prisma.user.findUnique({
+        where: { id: row.inviterUserId },
+        select: { phoneNormalized: true },
+      });
+      if (host) {
+        await seedFamilyCircle(row.inviterUserId, host.phoneNormalized).catch(
+          () => {},
+        );
+      }
+    }
 
     return Response.json({
       invite: toClientInvite(invite),

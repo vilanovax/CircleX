@@ -4,6 +4,7 @@ import { createPolishedListingDraft } from "@/lib/listing-polish";
 import { suggestListingPrices } from "@/lib/price-suggest";
 import type { ListingType } from "@/lib/types";
 import { withDb } from "@/lib/http";
+import { getSessionUser } from "@/lib/server-auth";
 
 type Body = {
   text?: string;
@@ -14,8 +15,14 @@ type Body = {
 /**
  * Listing draft endpoint: always returns local polished draft + price hints.
  * If OPENAI_API_KEY is set, optionally rewrites title/description only (no new facts).
+ * Requires a member session to prevent anonymous OpenAI cost abuse.
  */
 export async function POST(req: Request) {
+  const session = await getSessionUser();
+  if (!session) {
+    return NextResponse.json({ error: "وارد نشده‌ای" }, { status: 401 });
+  }
+
   let body: Body;
   try {
     body = await req.json();
@@ -116,6 +123,10 @@ export async function POST(req: Request) {
 
 /** Capability probe for the compose UI. */
 export async function GET() {
+  const session = await getSessionUser();
+  if (!session) {
+    return NextResponse.json({ error: "وارد نشده‌ای" }, { status: 401 });
+  }
   const settings = await withDb(() => getAppSettings());
   const aiOn =
     Boolean(process.env.OPENAI_API_KEY) &&

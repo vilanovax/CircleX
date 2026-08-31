@@ -19,8 +19,9 @@ import {
 import { PHONE_PRIVACY_LINE } from "@/lib/invite";
 import { toEnglishDigits, toPersianDigits } from "@/lib/persian";
 
-/** Demo OTP — always accepted in this mock gate. */
+/** Shown only in non-production builds when the server issues OTP_DEV_CODE. */
 export const SAMPLE_OTP = "12345";
+const SHOW_DEV_OTP = process.env.NODE_ENV !== "production";
 
 const RESEND_SECONDS = 45;
 const OTP_LEN = 5;
@@ -35,7 +36,7 @@ function Spinner({ className = "w-4 h-4" }: { className?: string }) {
 }
 
 /**
- * Phone → OTP gate. Sample code is always ۱۲۳۴۵.
+ * Phone → OTP gate.
  * Courtyard plaster canvas; plum for the action; moss only for a valid number.
  */
 export default function LoginGate({
@@ -139,7 +140,9 @@ export default function LoginGate({
       } catch (err) {
         flashError(
           err instanceof ApiError && err.code === "invalid_code"
-            ? `کد نادرست است. برای نمونه ${toPersianDigits(SAMPLE_OTP)} را بزنید`
+            ? SHOW_DEV_OTP
+              ? `کد نادرست است. برای نمونه ${toPersianDigits(SAMPLE_OTP)} را بزنید`
+              : "کد نادرست است"
             : err instanceof ApiError
               ? err.message
               : "ورود ممکن نشد",
@@ -372,12 +375,14 @@ export default function LoginGate({
                   </p>
                 </div>
 
-                <p className="login-gate-demo">
-                  نمونه — کد ثابت:{" "}
-                  <span className="nums tracking-[0.22em] font-extrabold" dir="ltr">
-                    {toPersianDigits(SAMPLE_OTP)}
-                  </span>
-                </p>
+                {SHOW_DEV_OTP ? (
+                  <p className="login-gate-demo">
+                    نمونه — کد ثابت:{" "}
+                    <span className="nums tracking-[0.22em] font-extrabold" dir="ltr">
+                      {toPersianDigits(SAMPLE_OTP)}
+                    </span>
+                  </p>
+                ) : null}
 
                 <div>
                   <label id={otpGroupId} className="login-gate-label text-center">

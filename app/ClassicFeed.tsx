@@ -17,7 +17,6 @@ import { activeCircleCount, firstLiveMemberName, unplacedMembers } from "@/lib/c
 import { useStore } from "@/lib/store";
 import ListingCard from "@/components/ListingCard";
 import BottomNav from "@/components/BottomNav";
-import { lazyUi } from "@/lib/lazy-ui";
 import FeedFilterBar, { type FeedFilter } from "@/components/FeedFilterBar";
 import RequestCard from "@/components/RequestCard";
 import { FeedSkeleton } from "@/components/Skeleton";
@@ -27,6 +26,7 @@ import { formatEventDateDisplay, normalizeFa, toPersianDigits } from "@/lib/pers
 import ActivationPath from "@/components/ActivationPath";
 import CircleConceptTip from "@/components/CircleConceptTip";
 import AddedYouBanner from "@/components/AddedYouBanner";
+import HomeEmptyCircle from "@/components/HomeEmptyCircle";
 import { POSTED_QUERY } from "@/lib/home-posted";
 import {
   unreadListingReply,
@@ -34,14 +34,6 @@ import {
 } from "@/lib/listing-inquiry";
 import { canView, filterByAccess, trustScore } from "@/lib/trust";
 import { useCatalog } from "@/lib/use-catalog";
-
-const HomeEmptyCircle = lazyUi(() => import("@/components/HomeEmptyCircle"), {
-  loading: () => (
-    <div className="px-4 pt-4">
-      <div className="card h-28 animate-pulse bg-stone-100 dark:bg-zinc-800" />
-    </div>
-  ),
-});
 
 const PREVIEW_LIMIT = 8;
 const FEED_PAGE = 12;

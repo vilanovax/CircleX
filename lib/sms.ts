@@ -1,12 +1,24 @@
+import { allowDevOtp } from "@/lib/server-auth";
+
 /**
- * SMS port. Mock logs the code until a panel key is set.
- * Swap the body later — LoginGate and OTP routes stay the same.
+ * SMS port. In production a real panel must deliver the code — never log OTP.
+ * Dev / OTP_ALLOW_DEV logs the code so local login still works.
  */
 export async function sendOtp(phone: string, code: string): Promise<void> {
-  const key = process.env.KAVENEGAR_API_KEY?.trim();
-  if (key) {
-    // Panel wiring comes in a later cut.
-    console.info(`[sms] KAVENEGAR_API_KEY present but sender not wired yet (${phone})`);
+  if (allowDevOtp()) {
+    console.info(`[sms:mock] OTP for ${phone}: ${code}`);
+    return;
   }
-  console.info(`[sms:mock] OTP for ${phone}: ${code}`);
+
+  const key = process.env.KAVENEGAR_API_KEY?.trim();
+  if (!key) {
+    throw new Error("SMS_NOT_CONFIGURED");
+  }
+
+  // Panel wiring: replace with Kavenegar verify/lookup call.
+  // Until wired, refuse rather than pretend delivery succeeded.
+  console.error(
+    `[sms] KAVENEGAR_API_KEY is set but sender is not wired yet (${phone})`,
+  );
+  throw new Error("SMS_NOT_WIRED");
 }
