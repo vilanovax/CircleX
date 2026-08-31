@@ -153,12 +153,13 @@ export function InviteMoreSheet({
       ? pendingPhones
       : undefined
     : invite.invitedPhone;
+  const heading = isWave ? title : `دعوت ${title}`;
 
   async function onCopy() {
-    const ok = await copyText(url);
+    const ok = await copyText(text);
     if (ok) {
       setCopied(true);
-      show("لینک کپی شد");
+      show("متن دعوت کپی شد");
     } else {
       show("کپی ممکن نشد");
     }
@@ -169,43 +170,75 @@ export function InviteMoreSheet({
       onClose={onClose}
       labelledBy="invite-more-title"
       zClass="z-50"
+      hugContent
       footer={
-        <button
-          type="button"
-          onClick={onClose}
-          className="btn-primary w-full min-h-12 shadow-md shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150"
-        >
-          باشه
-        </button>
+        <div className="flex flex-col gap-1.5">
+          <a
+            href={whatsappShareHref(text, waPhone)}
+            target="_blank"
+            rel="noreferrer"
+            className="btn-primary w-full min-h-12 text-center shadow-md shadow-brand-600/20 active:scale-[0.98] transition-transform duration-150 inline-flex items-center justify-center"
+          >
+            ارسال با واتساپ
+          </a>
+          <div className="grid grid-cols-2 gap-2">
+            <a
+              href={smsShareHref(text, smsPhones)}
+              className="btn-ghost min-h-12 text-center inline-flex items-center justify-center active:scale-[0.98] transition-transform duration-150"
+            >
+              پیامک
+            </a>
+            <button
+              type="button"
+              onClick={() => void onCopy()}
+              className="btn-ghost min-h-12 active:scale-[0.98] transition-transform duration-150"
+            >
+              {copied ? "کپی شد" : "کپی متن"}
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full min-h-10 text-[13px] font-semibold text-ink-muted dark:text-zinc-400 active:opacity-70"
+          >
+            بستن
+          </button>
+        </div>
       }
     >
       <div className="flex items-start justify-between gap-3">
-        <h2
-          id="invite-more-title"
-          className="font-extrabold text-[20px] text-ink dark:text-zinc-50 truncate min-w-0 leading-snug"
-        >
-          {title}
-        </h2>
+        <div className="min-w-0">
+          <h2
+            id="invite-more-title"
+            className="font-extrabold text-[20px] text-ink dark:text-zinc-50 truncate leading-snug"
+          >
+            {heading}
+          </h2>
+          <p className="mt-1 text-[13px] text-ink-muted dark:text-zinc-400 leading-relaxed">
+            {isWave
+              ? roster.length > 0
+                ? "لینک را دوباره بفرست. وقتی با همان شماره وارد شوند، اینجا تیک می‌خورند."
+                : "لینک گروهی آماده است — دوباره بفرست تا کسی وارد شود."
+              : "لینک آماده است. دوباره بفرست تا بپیوندد — تا آن وقت عضو حلقه نیست."}
+          </p>
+        </div>
         <span className="shrink-0 inline-flex items-center rounded-full bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-200 px-2.5 py-1 text-[11px] font-bold">
           در انتظار
         </span>
       </div>
 
-      <p className="text-[13px] text-ink-muted mt-2.5 leading-relaxed">
-        {isWave
-          ? roster.length > 0
-            ? "یک لینک برای همه. وقتی با همان شماره وارد شوند، اینجا تیک می‌خورند."
-            : "لینک گروهی آماده است. صبر کن تا کسی از آن وارد شود."
-          : "دعوت آماده است. صبر کن تا بپیوندد."}
-      </p>
-      {sub ? (
+      {sub && sub !== "هنوز نپیوسته" ? (
         <p
           dir={isWave ? undefined : "ltr"}
-          className="mt-1 text-[12px] text-ink-faint nums tracking-wide"
+          className="mt-2 text-[12px] text-ink-faint nums tracking-wide"
         >
           {sub}
         </p>
-      ) : null}
+      ) : (
+        <p className="mt-2 text-[12px] font-medium text-amber-800/90 dark:text-amber-200/90">
+          هنوز نپیوسته
+        </p>
+      )}
 
       {roster.length > 0 ? (
         <ul className="mt-3 space-y-1.5">
@@ -225,45 +258,22 @@ export function InviteMoreSheet({
         </ul>
       ) : null}
 
-      <div className="mt-4 rounded-2xl border border-stone-200/80 dark:border-zinc-700 bg-stone-50/70 dark:bg-zinc-800/40 px-3.5 py-3">
-        <p className="text-[11px] font-bold text-ink-muted mb-1.5">
-          {isWave ? "لینک گروهی" : "لینک"}
+      <div className="mt-3.5 rounded-2xl border border-stone-200/80 dark:border-zinc-700 bg-stone-50/70 dark:bg-zinc-800/40 px-3.5 py-3">
+        <p className="text-[11px] font-bold text-ink-muted mb-1">
+          {isWave ? "لینک گروهی" : "لینک دعوت"}
         </p>
         <p
           dir="ltr"
-          className="text-[12px] font-medium text-ink dark:text-zinc-200 break-all text-left leading-snug"
+          className="text-[12px] font-medium text-ink dark:text-zinc-200 break-all text-left leading-snug select-all"
         >
           {url}
         </p>
-        <div className="flex items-center gap-3 mt-3">
-          <button
-            type="button"
-            onClick={() => void onCopy()}
-            className="text-[13px] font-semibold text-brand-700 dark:text-brand-400"
-          >
-            {copied ? "کپی شد" : "کپی"}
-          </button>
-          <a
-            href={whatsappShareHref(text, waPhone)}
-            target="_blank"
-            rel="noreferrer"
-            className="text-[13px] font-semibold text-brand-700 dark:text-brand-400"
-          >
-            واتساپ
-          </a>
-          <a
-            href={smsShareHref(text, smsPhones)}
-            className="text-[13px] font-semibold text-brand-700 dark:text-brand-400"
-          >
-            پیامک
-          </a>
-        </div>
       </div>
 
       <button
         type="button"
         onClick={onRevoke}
-        className="w-full mt-4 min-h-10 text-[12px] font-semibold text-ink-faint"
+        className="w-full mt-3 min-h-10 text-[12px] font-semibold text-red-600/80 dark:text-red-400/90 active:opacity-70"
       >
         لغو دعوت
       </button>
