@@ -135,6 +135,7 @@ export async function assertCanSendDm(
       privacy: listing.privacy,
       dealStatus: listing.dealStatus,
       listingId: listing.id,
+      hideIdentity: listing.hideIdentity,
       excludeRelationTypes: listing.excludeRelationTypes,
     });
     if (listing.sellerId !== viewerId && !visible) {
@@ -146,10 +147,6 @@ export async function assertCanSendDm(
         error: "گفتگوی این آگهی جدا از چت قبلی است",
         status: 403,
       };
-    }
-    const access = await listingAccess(viewerId, listing.sellerId);
-    if (!access.ok && listing.sellerId !== viewerId) {
-      return { ok: false, error: "این آگهی در حلقه تو نیست", status: 403 };
     }
     const peerIsSeller = listing.sellerId === peerId;
     const viewerIsSeller = listing.sellerId === viewerId;

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BellIcon,
   ChartBarsIcon,
+  ChatIcon,
   CircleUsersIcon,
   ClockIcon,
   DoorLeaveIcon,
@@ -36,6 +37,7 @@ const NAV = [
   { href: "/admin", label: "داشبورد", icon: HomeIcon, exact: true, users: false, ops: false, super: false, mods: false },
   { href: "/admin/growth", label: "رشد", icon: ChartBarsIcon, users: false, ops: false, super: false, mods: false },
   { href: "/admin/reports", label: "گزارش", icon: FlagIcon, users: false, ops: false, super: false, mods: false },
+  { href: "/admin/feedback", label: "صندوق پیام", icon: ChatIcon, users: false, ops: false, super: false, mods: false },
   { href: "/admin/watches", label: "گوش‌به‌زنگ", icon: BellIcon, users: false, ops: false, super: false, mods: false },
   { href: "/admin/users", label: "کاربران", icon: UserIcon, users: true, ops: false, super: false, mods: false },
   { href: "/admin/invites", label: "دعوت", icon: SendIcon, users: false, ops: false, super: false, mods: false },

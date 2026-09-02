@@ -3,6 +3,7 @@ import { jsonError, readJson, withDb } from "@/lib/http";
 import { toClientDirectMessage } from "@/lib/mappers";
 import { isCircloPeer } from "@/lib/circlo";
 import { circleMemberPerson } from "@/lib/listing-privacy";
+import { recordListingForwardGrant } from "@/lib/listing-share-access";
 import {
   assertCanSendDm,
   DM_TEXT_MAX,
@@ -53,7 +54,11 @@ export async function POST(req: Request) {
     if (listingId) {
       const listing = await prisma.marketListing.findUnique({
         where: { id: listingId },
-        select: { sellerId: true, hideIdentity: true },
+        select: {
+          sellerId: true,
+          hideIdentity: true,
+          privacy: true,
+        },
       });
       if (!listing) return jsonError("آگهی پیدا نشد", 404);
       if (listing.hideIdentity) listingScoped = true;
@@ -92,6 +97,27 @@ export async function POST(req: Request) {
         imageUrl: imageUrl ?? null,
       },
     });
+
+    if (listingId) {
+      const forwarded = await prisma.marketListing.findUnique({
+        where: { id: listingId },
+        select: {
+          sellerId: true,
+          privacy: true,
+          hideIdentity: true,
+        },
+      });
+      if (forwarded) {
+        await recordListingForwardGrant({
+          listingId,
+          sellerId: forwarded.sellerId,
+          granteeId: peerId,
+          sourceId: session.id,
+          privacy: forwarded.privacy,
+          hideIdentity: forwarded.hideIdentity,
+        });
+      }
+    }
 
     await prisma.threadPreference
       .updateMany({

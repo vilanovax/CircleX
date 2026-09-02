@@ -2,6 +2,7 @@ import { listingAccess } from "@/lib/circle-network";
 import { prisma } from "@/lib/db";
 import { LISTING_PRIVACY } from "@/lib/listing-payload";
 import { parseRelationTypes } from "@/lib/listing-privacy";
+import { listingVisibleViaShare } from "@/lib/listing-share-access";
 import { listingBlockedForViewer } from "@/lib/server-listing-privacy";
 import { requiredScore } from "@/lib/trust";
 import type { Privacy, TrustHop } from "@/lib/types";
@@ -42,6 +43,7 @@ export async function viewerMayReadListing(opts: {
   privacy: string;
   dealStatus: string | null;
   listingId?: string;
+  hideIdentity?: boolean;
   excludeRelationTypes?: string[] | unknown;
 }): Promise<boolean> {
   if (opts.viewerId === opts.sellerId) return true;
@@ -58,6 +60,7 @@ export async function viewerCanSeeListing(opts: {
   privacy: string;
   dealStatus: string | null;
   listingId?: string;
+  hideIdentity?: boolean;
   excludeRelationTypes?: string[] | unknown;
 }): Promise<boolean> {
   if (opts.dealStatus === "inactive") return false;
@@ -71,6 +74,23 @@ export async function viewerCanSeeListing(opts: {
       excludeRelationTypes: parseRelationTypes(opts.excludeRelationTypes),
     });
     if (blocked) return false;
+
+    let hideIdentity = opts.hideIdentity;
+    if (hideIdentity === undefined) {
+      const row = await prisma.marketListing.findUnique({
+        where: { id: opts.listingId },
+        select: { hideIdentity: true },
+      });
+      hideIdentity = row?.hideIdentity ?? false;
+    }
+    const share = await listingVisibleViaShare({
+      viewerId: opts.viewerId,
+      listingId: opts.listingId,
+      sellerId: opts.sellerId,
+      privacy: opts.privacy,
+      hideIdentity,
+    });
+    if (share.ok) return true;
   }
 
   const privacy = asPrivacy(opts.privacy);

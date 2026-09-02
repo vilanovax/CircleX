@@ -5,6 +5,11 @@ import { listingEndorsementsInclude, toClientListing } from "@/lib/mappers";
 import { getSessionUser } from "@/lib/server-auth";
 import { listingViewerFlags } from "@/lib/server-listing-privacy";
 import { viewerMayReadListing } from "@/lib/server-listing-visibility";
+import {
+  listingShareHitsForViewer,
+  sellerReachableViaForward,
+  trustPathViaBridge,
+} from "@/lib/listing-share-access";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +33,11 @@ export async function GET(
 
     const isMe = sellerId === session.id;
     const access = await listingAccess(session.id, sellerId);
-    if (!access.ok) {
+    const viaForward =
+      !access.ok && !isMe
+        ? await sellerReachableViaForward(session.id, sellerId)
+        : false;
+    if (!access.ok && !viaForward) {
       return jsonError("این فرد از مسیر حلقه‌ات به تو نمی‌رسد", 403);
     }
 
@@ -62,26 +71,45 @@ export async function GET(
           privacy: row.privacy,
           dealStatus: row.dealStatus,
           listingId: row.id,
+          hideIdentity: row.hideIdentity,
           excludeRelationTypes: row.excludeRelationTypes,
         });
       }),
     );
 
-    const listings = rows
-      .filter((_, i) => privacyOk[i])
-      .map((row) =>
-        toClientListing(row, session.id, access.trustPath, {
-          revealed: flags.revealedIds.has(row.id),
-          excludePersonIds: flags.excludeIdsByListing.get(row.id),
-          identityRevealedPeerIds: flags.revealPeersByListing.get(row.id),
-          viewerDirect: isMe || Boolean(viewerEdge),
-          viewerTrustScore: isMe
-            ? undefined
-            : viewerEdge
-              ? groupScore[viewerEdge.trustGroup]
-              : 1,
-        }),
+    const visibleRows = rows.filter((_, i) => privacyOk[i]);
+    const shareHits = isMe
+      ? new Map()
+      : await listingShareHitsForViewer(session.id, visibleRows);
+    const hopByBridge = new Map<string, Awaited<ReturnType<typeof trustPathViaBridge>>>();
+    for (const hit of Array.from(shareHits.values())) {
+      if (hopByBridge.has(hit.bridgeUserId)) continue;
+      hopByBridge.set(
+        hit.bridgeUserId,
+        await trustPathViaBridge(session.id, hit.bridgeUserId),
       );
+    }
+
+    const listings = visibleRows.map((row) => {
+      const hit = shareHits.get(row.id);
+      const trustPath =
+        access.trustPath.length > 0
+          ? access.trustPath
+          : hit
+            ? (hopByBridge.get(hit.bridgeUserId) ?? [])
+            : [];
+      return toClientListing(row, session.id, trustPath, {
+        revealed: flags.revealedIds.has(row.id),
+        excludePersonIds: flags.excludeIdsByListing.get(row.id),
+        identityRevealedPeerIds: flags.revealPeersByListing.get(row.id),
+        viewerDirect: isMe || Boolean(viewerEdge),
+        viewerTrustScore: isMe
+          ? undefined
+          : viewerEdge
+            ? groupScore[viewerEdge.trustGroup]
+            : 1,
+      });
+    });
 
     return Response.json({ listings });
   });

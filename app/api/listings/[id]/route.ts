@@ -8,6 +8,10 @@ import { parseDealStatus, parseListingWrite } from "@/lib/listing-payload";
 import { recordListingView } from "@/lib/listing-stats";
 import { getSessionUser } from "@/lib/server-auth";
 import {
+  listingVisibleViaShare,
+  trustPathViaBridge,
+} from "@/lib/listing-share-access";
+import {
   assertExcludePeopleInCircle,
   listingViewerFlags,
   replaceListingExcludes,
@@ -31,12 +35,14 @@ export async function GET(
       include: listingEndorsementsInclude,
     });
     if (!row) return jsonError("آگهی پیدا نشد", 404);
+    let participated = false;
     if (row.dealStatus === "inactive" && row.sellerId !== session.id) {
-      const [participated, accessEarly] = await Promise.all([
+      const [didJoin, accessEarly] = await Promise.all([
         viewerHasListingMessages(session.id, row.id),
         listingAccess(session.id, row.sellerId),
       ]);
-      if (!participated && !accessEarly.ok) {
+      participated = didJoin;
+      if (!didJoin && !accessEarly.ok) {
         return jsonError("آگهی پیدا نشد", 404);
       }
     }
@@ -51,19 +57,18 @@ export async function GET(
     }
 
     const access = await listingAccess(session.id, row.sellerId);
-    if (!access.ok) {
-      const viaMessage = await prisma.directMessage.findFirst({
-        where: {
-          listingId: row.id,
-          hiddenAt: null,
-          OR: [{ toUserId: session.id }, { fromUserId: session.id }],
-          ...(row.hideIdentity ? { listingScoped: true } : {}),
-        },
-        select: { id: true },
-      });
-      if (!viaMessage) {
-        return jsonError("این آگهی در حلقه تو نیست", 403);
-      }
+    const share =
+      !access.ok && row.sellerId !== session.id
+        ? await listingVisibleViaShare({
+            viewerId: session.id,
+            listingId: row.id,
+            sellerId: row.sellerId,
+            privacy: row.privacy,
+            hideIdentity: row.hideIdentity,
+          })
+        : { ok: false as const };
+    if (!access.ok && !share.ok && !participated) {
+      return jsonError("این آگهی در حلقه تو نیست", 403);
     } else if (row.sellerId !== session.id && row.dealStatus !== "inactive") {
       const allowed = await viewerMayReadListing({
         viewerId: session.id,
@@ -71,6 +76,7 @@ export async function GET(
         privacy: row.privacy,
         dealStatus: row.dealStatus,
         listingId: row.id,
+        hideIdentity: row.hideIdentity,
         excludeRelationTypes: row.excludeRelationTypes,
       });
       if (!allowed) {
@@ -112,9 +118,13 @@ export async function GET(
             select: { trustGroup: true },
           });
     const groupScore = { A: 3, B: 2, C: 1 } as const;
+    const sharePath =
+      share.ok && share.bridgeUserId && !access.ok
+        ? await trustPathViaBridge(session.id, share.bridgeUserId)
+        : access.trustPath;
 
     return Response.json({
-      listing: toClientListing(row, session.id, access.trustPath, {
+      listing: toClientListing(row, session.id, sharePath, {
         revealed: flags.revealedIds.has(row.id),
         excludePersonIds: flags.excludeIdsByListing.get(row.id),
         identityRevealedPeerIds: flags.revealPeersByListing.get(row.id),
@@ -124,7 +134,7 @@ export async function GET(
             ? undefined
             : viewerEdge
               ? groupScore[viewerEdge.trustGroup]
-              : access.ok
+              : access.ok || share.ok
                 ? 1
                 : 0,
       }),

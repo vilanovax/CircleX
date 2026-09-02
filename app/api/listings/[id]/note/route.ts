@@ -1,4 +1,3 @@
-import { listingAccess } from "@/lib/circle-network";
 import { prisma } from "@/lib/db";
 import { jsonError, readJson, withDb } from "@/lib/http";
 import { parsePersonalNote } from "@/lib/listing-payload";
@@ -31,6 +30,7 @@ export async function PUT(
         sellerId: true,
         dealStatus: true,
         privacy: true,
+        hideIdentity: true,
         excludeRelationTypes: true,
       },
     });
@@ -42,15 +42,13 @@ export async function PUT(
       return jsonError("روی آگهی خودت یادداشت خصوصی نمی‌گذاری", 403);
     }
 
-    const access = await listingAccess(session.id, listing.sellerId);
-    if (!access.ok) return jsonError("این آگهی در حلقه تو نیست", 403);
-
     const allowed = await viewerMayReadListing({
       viewerId: session.id,
       sellerId: listing.sellerId,
       privacy: listing.privacy,
       dealStatus: listing.dealStatus,
       listingId: listing.id,
+      hideIdentity: listing.hideIdentity,
       excludeRelationTypes: listing.excludeRelationTypes,
     });
     if (!allowed) {

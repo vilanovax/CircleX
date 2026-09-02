@@ -36,12 +36,14 @@ export default function EndorseSheet({
   listingTitle,
   sellerName,
   myEndorsements,
+  broadcastsToCircle = false,
   onClose,
 }: {
   listingId: string;
   listingTitle: string;
   sellerName: string;
   myEndorsements: Endorsement[];
+  broadcastsToCircle?: boolean;
   onClose: () => void;
 }) {
   const me = useStore((s) => s.me);
@@ -133,7 +135,9 @@ export default function EndorseSheet({
         بگو چی می‌دانی
       </h2>
       <p className="text-[12px] text-ink-muted mt-1 leading-snug">
-        اسمت زیر آگهی می‌آید. فقط آشنایان {sellerName} می‌بینند.
+        {broadcastsToCircle
+          ? "اسمت زیر آگهی می‌آید. حلقه‌ات هم این آگهی را می‌بیند."
+          : `اسمت زیر آگهی می‌آید. فقط آشنایان ${sellerName} می‌بینند.`}
       </p>
 
       <p className="mt-3.5 mb-1 text-[11px] font-extrabold text-ink-muted dark:text-zinc-400">
@@ -264,7 +268,7 @@ function EndorseOption({
             {badgeLabels[type]}
           </span>
           {strong ? (
-            <span className="shrink-0 rounded-full bg-levelA/12 text-levelA px-1.5 py-[1px] text-[9px] font-extrabold leading-4">
+            <span className="shrink-0 rounded-full bg-levelA/12 text-levelA px-1.5 py-[1px] text-[11px] font-extrabold leading-4">
               قوی‌تر
             </span>
           ) : null}

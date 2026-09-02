@@ -15,6 +15,11 @@ import {
 } from "@/lib/mappers";
 import { listingViewerFlags } from "@/lib/server-listing-privacy";
 import { privacyVisibleToViewer } from "@/lib/server-listing-visibility";
+import {
+  listingShareHitsForViewer,
+  sqlListingShareOr,
+  trustPathViaBridge,
+} from "@/lib/listing-share-access";
 import { trustScore } from "@/lib/trust";
 import { threadKey } from "@/lib/listing-privacy";
 import type {
@@ -210,33 +215,74 @@ export async function loadCircleNetwork(viewerId: string): Promise<{
           include: listingEndorsementsInclude,
         });
 
-  const flags = await listingViewerFlags(viewerId, marketRows);
-  const visibleRows = marketRows.filter((row) => !flags.blockedIds.has(row.id));
+  const shareIdRows = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT m.id FROM "MarketListing" AS m
+    WHERE ${sqlListingShareOr(viewerId)}
+      AND (
+        m."sellerId" = ${viewerId}
+        OR m."dealStatus" IS NULL
+        OR m."dealStatus" <> 'inactive'
+      )
+    ORDER BY m."createdAt" DESC
+    LIMIT 80
+  `;
+  const haveListing = new Set(marketRows.map((row) => row.id));
+  const missingShareIds = shareIdRows
+    .map((row) => row.id)
+    .filter((id) => !haveListing.has(id));
+  const extraShareRows =
+    missingShareIds.length === 0
+      ? []
+      : await prisma.marketListing.findMany({
+          where: { id: { in: missingShareIds } },
+          include: listingEndorsementsInclude,
+        });
+  const allMarketRows = [...marketRows, ...extraShareRows];
+
+  const flags = await listingViewerFlags(viewerId, allMarketRows);
+  const visibleRows = allMarketRows.filter((row) => !flags.blockedIds.has(row.id));
+  const share = await shareAccessForListings(viewerId, visibleRows);
 
   const listings = visibleRows.flatMap((row) => {
-    const trustPath = trustPathForListing(row, viewerId, ctx);
-    const reach = listingViewerReach(row.sellerId, viewerId, trustPath, ctx);
-    if (
-      !privacyVisibleToViewer({
-        viewerId,
-        ownerId: row.sellerId,
-        privacy: row.privacy,
-        trustPath,
-        viewerTrustScore: reach.viewerTrustScore,
-        dealStatus: row.dealStatus,
-      })
-    ) {
-      return [];
-    }
+    const mapped = mapVisibleListing(
+      row,
+      viewerId,
+      ctx,
+      share.pathByListing.get(row.id),
+    );
+    if (!mapped) return [];
     return [
-      toClientListing(row, viewerId, trustPath, {
+      toClientListing(row, viewerId, mapped.trustPath, {
         revealed: flags.revealedIds.has(row.id),
         excludePersonIds: flags.excludeIdsByListing.get(row.id),
         identityRevealedPeerIds: flags.revealPeersByListing.get(row.id),
-        ...reach,
+        ...mapped.reach,
       }),
     ];
   });
+
+  const extraPersonIds = new Set<string>();
+  for (const row of extraShareRows) extraPersonIds.add(row.sellerId);
+  for (const id of share.bridgeUserIds) extraPersonIds.add(id);
+  extraPersonIds.delete(viewerId);
+  for (const id of ctx.directIds) extraPersonIds.delete(id);
+  Array.from(ctx.networkPeople.keys()).forEach((id) => extraPersonIds.delete(id));
+  if (extraPersonIds.size > 0) {
+    const extraUsers = await prisma.user.findMany({
+      where: { id: { in: Array.from(extraPersonIds) } },
+    });
+    for (const user of extraUsers) {
+      ctx.networkPeople.set(
+        user.id,
+        personFromNetworkUser(user, {
+          relation: "acquaintance",
+          level: "C",
+          note: "از معرفی",
+          inMyCircle: false,
+        }),
+      );
+    }
+  }
 
   const social = await loadSocialFeed(viewerId, sellerIds, ctx);
 
@@ -335,7 +381,10 @@ function orderByIds<T extends { id: string }>(rows: T[], ids: string[]): T[] {
 async function homeFeedListingIds(viewerId: string): Promise<string[]> {
   const rows = await prisma.$queryRaw<{ id: string }[]>`
     SELECT m.id FROM "MarketListing" AS m
-    WHERE ${sqlInViewerNetwork(viewerId, Prisma.raw('m."sellerId"'))}
+    WHERE (
+        ${sqlInViewerNetwork(viewerId, Prisma.raw('m."sellerId"'))}
+        OR ${sqlListingShareOr(viewerId)}
+      )
       AND (
         m."sellerId" = ${viewerId}
         OR m."dealStatus" IS NULL
@@ -503,28 +552,22 @@ export async function loadHomeFeed(viewerId: string): Promise<{
 
   const flags = await listingViewerFlags(viewerId, marketRows);
   const visibleRows = marketRows.filter((row) => !flags.blockedIds.has(row.id));
+  const share = await shareAccessForListings(viewerId, visibleRows);
 
   const listings = visibleRows.flatMap((row) => {
-    const trustPath = trustPathForListing(row, viewerId, pathCtx);
-    const reach = listingViewerReach(row.sellerId, viewerId, trustPath, pathCtx);
-    if (
-      !privacyVisibleToViewer({
-        viewerId,
-        ownerId: row.sellerId,
-        privacy: row.privacy,
-        trustPath,
-        viewerTrustScore: reach.viewerTrustScore,
-        dealStatus: row.dealStatus,
-      })
-    ) {
-      return [];
-    }
+    const mapped = mapVisibleListing(
+      row,
+      viewerId,
+      pathCtx,
+      share.pathByListing.get(row.id),
+    );
+    if (!mapped) return [];
     return [
-      toHomeListing(row, viewerId, trustPath, {
+      toHomeListing(row, viewerId, mapped.trustPath, {
         revealed: flags.revealedIds.has(row.id),
         excludePersonIds: flags.excludeIdsByListing.get(row.id),
         identityRevealedPeerIds: flags.revealPeersByListing.get(row.id),
-        ...reach,
+        ...mapped.reach,
       }),
     ];
   });
@@ -600,10 +643,12 @@ export async function loadHomeFeed(viewerId: string): Promise<{
 
   const fofSellerIds = Array.from(
     new Set(
-      visibleRows
-        .filter((row) => !row.hideIdentity || flags.revealedIds.has(row.id))
-        .map((row) => row.sellerId)
-        .filter((id) => id !== viewerId && !direct.directSet.has(id)),
+      [
+        ...visibleRows
+          .filter((row) => !row.hideIdentity || flags.revealedIds.has(row.id))
+          .map((row) => row.sellerId),
+        ...share.bridgeUserIds,
+      ].filter((id) => id !== viewerId && !direct.directSet.has(id)),
     ),
   );
 
@@ -772,6 +817,79 @@ function trustPathForListing(
         : {}),
     },
   ];
+}
+
+function mapVisibleListing(
+  row: {
+    id: string;
+    sellerId: string;
+    privacy: string;
+    dealStatus: string | null;
+  },
+  viewerId: string,
+  pathCtx: {
+    directSet: Set<string>;
+    memberById: Map<string, Person>;
+    connectorBySeller: Map<string, Person>;
+    viaRelationBySeller?: Map<string, RelationType>;
+  },
+  sharePath?: TrustHop[],
+): {
+  trustPath: TrustHop[];
+  reach: { viewerTrustScore: number; viewerDirect: boolean };
+} | null {
+  const trustPath = trustPathForListing(row, viewerId, pathCtx);
+  const reach = listingViewerReach(row.sellerId, viewerId, trustPath, pathCtx);
+  if (
+    privacyVisibleToViewer({
+      viewerId,
+      ownerId: row.sellerId,
+      privacy: row.privacy,
+      trustPath,
+      viewerTrustScore: reach.viewerTrustScore,
+      dealStatus: row.dealStatus,
+    })
+  ) {
+    return { trustPath, reach };
+  }
+  if (!sharePath?.length) return null;
+  if (row.dealStatus === "inactive") return null;
+  return {
+    trustPath: sharePath,
+    reach: { viewerDirect: false, viewerTrustScore: 1 },
+  };
+}
+
+async function shareAccessForListings(
+  viewerId: string,
+  rows: Array<{
+    id: string;
+    sellerId: string;
+    privacy: string;
+    hideIdentity: boolean;
+  }>,
+): Promise<{
+  pathByListing: Map<string, TrustHop[]>;
+  bridgeUserIds: string[];
+}> {
+  const hits = await listingShareHitsForViewer(viewerId, rows);
+  const pathByListing = new Map<string, TrustHop[]>();
+  const bridgeUserIds: string[] = [];
+  const seenBridge = new Set<string>();
+  const hopByBridge = new Map<string, TrustHop[]>();
+  for (const hit of Array.from(hits.values())) {
+    if (!seenBridge.has(hit.bridgeUserId)) {
+      seenBridge.add(hit.bridgeUserId);
+      bridgeUserIds.push(hit.bridgeUserId);
+      hopByBridge.set(
+        hit.bridgeUserId,
+        await trustPathViaBridge(viewerId, hit.bridgeUserId),
+      );
+    }
+    const hop = hopByBridge.get(hit.bridgeUserId);
+    if (hop) pathByListing.set(hit.listingId, hop);
+  }
+  return { pathByListing, bridgeUserIds };
 }
 
 type PathCtx = {

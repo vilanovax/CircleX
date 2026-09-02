@@ -42,6 +42,7 @@ export type AdminDashboard = {
     joinPending: number;
     listingsHidden: number;
     messageReportsOpen: number;
+    feedbackOpen: number;
     watchesEnabled: number;
   };
   series: AdminDayPoint[];
@@ -100,6 +101,7 @@ type CountRow = {
   joinPending: unknown;
   listingsHidden: unknown;
   messageReportsOpen: unknown;
+  feedbackOpen: unknown;
   watchesEnabled: unknown;
 };
 
@@ -236,6 +238,7 @@ async function queryDashboardCore(): Promise<DashCore> {
         (SELECT COUNT(*)::int FROM "CircleJoinRequest" WHERE status = 'pending') AS "joinPending",
         (SELECT COUNT(*)::int FROM "MarketListing" WHERE "dealStatus" = 'inactive') AS "listingsHidden",
         (SELECT COUNT(*)::int FROM "MessageReport" WHERE status = 'open') AS "messageReportsOpen",
+        (SELECT COUNT(*)::int FROM "AppFeedback" WHERE status = 'open') AS "feedbackOpen",
         (SELECT COUNT(*)::int FROM "ListingWatch" WHERE enabled = true) AS "watchesEnabled"
     `,
     queryDaySeries(weekStart),
@@ -264,6 +267,7 @@ async function queryDashboardCore(): Promise<DashCore> {
       joinPending: num(row?.joinPending),
       listingsHidden: num(row?.listingsHidden),
       messageReportsOpen: num(row?.messageReportsOpen),
+      feedbackOpen: num(row?.feedbackOpen),
       watchesEnabled: num(row?.watchesEnabled),
     },
     series: fillSeries(keys, seriesRows),

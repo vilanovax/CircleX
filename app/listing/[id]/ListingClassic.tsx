@@ -46,6 +46,7 @@ import {
 } from "@/lib/listing-privacy";
 import { useToast } from "@/components/Toast";
 import { ApiError } from "@/lib/api";
+import { listingBroadcastOpen } from "@/lib/listing-share";
 import ListingAskPrompts from "@/components/ListingAskPrompts";
 import {
   listingBuyerPrompts,
@@ -543,7 +544,12 @@ export default function ListingClassic(_props: { params: { id: string } }) {
                 کسی را می‌شناسی که این را بخواهد؟
               </span>
               <span className="block text-[11px] text-ink-muted mt-0.5">
-                فقط برای همان یک نفر فرستاده می‌شود
+                {listingBroadcastOpen(
+                  listing.privacy,
+                  Boolean(listing.privatePublish),
+                )
+                  ? "برای همان یک نفر؛ آگهی‌های باز فروشنده هم برایش دیده می‌شود"
+                  : "فقط برای همان یک نفر فرستاده می‌شود"}
               </span>
             </span>
             <span className="shrink-0 text-[12px] font-bold text-brand-600 dark:text-brand-400 text-center leading-tight max-w-[6.25rem]">
@@ -623,6 +629,10 @@ export default function ListingClassic(_props: { params: { id: string } }) {
           listingTitle={listing.title}
           sellerName={seller?.name ?? "فروشنده"}
           myEndorsements={myEndorsements}
+          broadcastsToCircle={listingBroadcastOpen(
+            listing.privacy,
+            Boolean(listing.privatePublish),
+          )}
           onClose={() => setShowEndorse(false)}
         />
       ) : null}

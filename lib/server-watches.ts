@@ -100,6 +100,7 @@ export async function fanoutListingWatches(listing: WatchListing): Promise<void>
       privacy: listing.privacy,
       dealStatus: listing.dealStatus,
       listingId: listing.id,
+      hideIdentity: listing.hideIdentity,
       excludeRelationTypes: listing.excludeRelationTypes,
     });
     if (!visible) continue;

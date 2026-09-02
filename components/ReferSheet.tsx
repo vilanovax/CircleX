@@ -7,6 +7,10 @@ import { activeCircle } from "@/lib/circle-member";
 import { useStore } from "@/lib/store";
 import { DEFAULT_REFER_NOTE } from "@/lib/refer";
 import {
+  listingBroadcastOpen,
+  listingForwardUnlocksThis,
+} from "@/lib/listing-share";
+import {
   loadReferRecents,
   rememberReferRecipient,
 } from "@/lib/refer-recents";
@@ -161,7 +165,18 @@ export default function ReferSheet({
           </div>
         </div>
         <p className="text-[11px] text-ink-muted mb-3 leading-snug">
-          فقط در گفتگوی همان یک نفر.
+          {listing &&
+          listingForwardUnlocksThis(
+            listing.privacy,
+            Boolean(listing.privatePublish),
+          )
+            ? listingBroadcastOpen(
+                listing.privacy,
+                Boolean(listing.privatePublish),
+              )
+              ? "برای همان یک نفر فرستاده می‌شود. اگر آگهی باز باشد، پروفایل و آگهی‌های باز فروشنده هم برایش دیده می‌شود."
+              : "برای همان یک نفر فرستاده می‌شود و همین آگهی برایش باز می‌شود."
+            : "این آگهی محدود است. فقط پیام می‌رود و برای گیرنده باز نمی‌شود."}
         </p>
 
         <label className="block mb-3">

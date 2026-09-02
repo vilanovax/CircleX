@@ -27,6 +27,7 @@ export async function PUT(
         sellerId: true,
         dealStatus: true,
         privacy: true,
+        hideIdentity: true,
         excludeRelationTypes: true,
       },
     });
@@ -40,10 +41,6 @@ export async function PUT(
     }
 
     const access = await listingAccess(session.id, listing.sellerId);
-    if (!access.ok) {
-      return jsonError("این آگهی در حلقه تو نیست", 403);
-    }
-
     if (listing.dealStatus !== "inactive") {
       const allowed = await viewerMayReadListing({
         viewerId: session.id,
@@ -51,6 +48,7 @@ export async function PUT(
         privacy: listing.privacy,
         dealStatus: listing.dealStatus,
         listingId: listing.id,
+        hideIdentity: listing.hideIdentity,
         excludeRelationTypes: listing.excludeRelationTypes,
       });
       if (!allowed) {
@@ -60,6 +58,8 @@ export async function PUT(
           "listing_privacy",
         );
       }
+    } else if (!access.ok) {
+      return jsonError("این آگهی در حلقه تو نیست", 403);
     }
 
     const parsed = parseEndorsementWrite(await readJson(req));

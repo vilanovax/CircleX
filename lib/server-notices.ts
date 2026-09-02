@@ -253,6 +253,7 @@ export async function notifyDirectCircleListing(opts: {
       privacy: opts.privacy,
       dealStatus: opts.dealStatus,
       listingId: opts.listingId,
+      hideIdentity: opts.hideIdentity,
       excludeRelationTypes: opts.excludeRelationTypes,
     });
     if (!visible) continue;

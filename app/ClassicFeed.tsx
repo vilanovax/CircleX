@@ -34,6 +34,9 @@ import {
 } from "@/lib/listing-inquiry";
 import { canView, filterByAccess, trustScore } from "@/lib/trust";
 import { useCatalog } from "@/lib/use-catalog";
+import { lazyUi } from "@/lib/lazy-ui";
+
+const FeedbackSheet = lazyUi(() => import("@/components/FeedbackSheet"));
 
 const PREVIEW_LIMIT = 8;
 const FEED_PAGE = 12;
@@ -134,6 +137,7 @@ export default function ClassicFeed() {
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const [justPostedId, setJustPostedId] = useState<string | null>(null);
+  const [showFeedback, setShowFeedback] = useState(false);
 
   const onPosted = useCallback((id: string) => {
     setJustPostedId(id);
@@ -162,14 +166,23 @@ export default function ClassicFeed() {
       <header className="sticky top-0 z-20 border-b border-stone-200/70 bg-[color:var(--circle-surface)] before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-[50vh] before:bg-[color:var(--circle-surface)] dark:border-zinc-800 dark:bg-zinc-950 dark:before:bg-zinc-950">
         <div className="px-4 pt-[max(0.85rem,env(safe-area-inset-top))] pb-1.5">
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 shrink-0">
-              <div className="w-8 h-8 rounded-xl bg-brand-600 text-white flex items-center justify-center shadow-sm shadow-brand-600/20">
-                <ShieldCheckIcon className="w-4 h-4" />
-              </div>
-              <h1 className="text-[15px] font-extrabold text-ink dark:text-zinc-50 tracking-tight">
+            <button
+              type="button"
+              onClick={() => setShowFeedback(true)}
+              onPointerEnter={() => {
+                void import("@/components/FeedbackSheet");
+              }}
+              aria-label="پیام به سیرکل — مشکل، پیشنهاد یا تماس"
+              title="پیام به سیرکل"
+              className="flex shrink-0 items-center gap-1.5 rounded-xl py-0.5 pe-1 transition-opacity duration-150 active:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-600 text-white shadow-sm shadow-brand-600/20">
+                <ShieldCheckIcon className="h-4 w-4" />
+              </span>
+              <h1 className="text-[15px] font-extrabold tracking-tight text-ink dark:text-zinc-50">
                 سیرکل
               </h1>
-            </div>
+            </button>
             {!quietChrome && (
               <div className="relative flex-1 min-w-0">
                 <SearchIcon className="w-[16px] h-[16px] text-ink-faint absolute top-1/2 -translate-y-1/2 right-2.5" />
@@ -211,6 +224,9 @@ export default function ClassicFeed() {
       )}
 
       <BottomNav />
+      {showFeedback ? (
+        <FeedbackSheet onClose={() => setShowFeedback(false)} />
+      ) : null}
     </main>
   );
 }

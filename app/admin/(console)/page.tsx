@@ -166,6 +166,13 @@ function DashboardView({ data }: { data: AdminDashboard }) {
       value: s.messageReportsOpen,
     },
     {
+      href: "/admin/feedback",
+      label: "پیام اعضا",
+      hint: "مشکل، پیشنهاد، تماس — صندوق دریافت",
+      value: s.feedbackOpen,
+      pin: true,
+    },
+    {
       href: "/admin/invites",
       label: "درخواست پیوستن باز",
       hint: "صف میزبان‌ها",
@@ -173,9 +180,9 @@ function DashboardView({ data }: { data: AdminDashboard }) {
     },
   ].filter((row): row is NonNullable<typeof row> => row !== null);
 
-  const hot = queue.filter((row) => row.value > 0);
-  const quiet = queue.filter((row) => row.value === 0);
-  const workCount = hot.reduce((sum, row) => sum + row.value, 0);
+  const hot = queue.filter((row) => row.value > 0 || Boolean(row.pin));
+  const quiet = queue.filter((row) => row.value === 0 && !row.pin);
+  const workCount = queue.reduce((sum, row) => sum + row.value, 0);
 
   return (
     <div>
@@ -204,7 +211,7 @@ function DashboardView({ data }: { data: AdminDashboard }) {
         </h2>
         {hot.length > 0 ? (
           <div className="admin-queue-hot">
-            {hot.map((row) => (
+            {hot.map(({ pin: _pin, ...row }) => (
               <QueueHot key={row.href} {...row} />
             ))}
           </div>
@@ -281,6 +288,13 @@ function DashboardView({ data }: { data: AdminDashboard }) {
               label="نرخ پذیرش دعوت"
               value={`${pct(s.inviteAcceptRate)}٪`}
               hint={`${toPersianDigits(s.invitesAccepted)} از ${toPersianDigits(s.invitesTotal)}`}
+            />
+            <PulseCell
+              label="پیام اعضا باز"
+              value={toPersianDigits(s.feedbackOpen)}
+              hint="صندوق مشکل و پیشنهاد"
+              href="/admin/feedback"
+              warn={s.feedbackOpen > 0}
             />
             <PulseCell
               label="آگهی / درخواست / رویداد"

@@ -29,6 +29,7 @@ import {
   EyeIcon,
   EyeOffIcon,
   MapPinIcon,
+  MegaphoneIcon,
   PencilIcon,
   PlusIcon,
   ShieldCheckIcon,
@@ -52,6 +53,7 @@ import type { CircleEvent, Listing } from "@/lib/types";
 
 const EditProfileSheet = lazyUi(() => import("@/components/EditProfileSheet"));
 const WatchSheet = lazyUi(() => import("@/app/messages/WatchSheet"));
+const FeedbackSheet = lazyUi(() => import("@/components/FeedbackSheet"));
 const SavedListingCard = lazyUi(() => import("@/components/ListingCard"), {
   loading: () => (
     <div className="card h-[4.75rem] animate-pulse bg-stone-100 dark:bg-zinc-800" />
@@ -65,6 +67,7 @@ export default function ClassicProfile() {
   const watchesOn = useCatalog().flags.watches;
   const [showAccount, setShowAccount] = useState(false);
   const [showWatches, setShowWatches] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
 
   if (!hydrated) {
     return (
@@ -82,6 +85,18 @@ export default function ClassicProfile() {
         title="پروفایل"
         action={
           <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              onClick={() => setShowFeedback(true)}
+              onPointerEnter={() => {
+                void import("@/components/FeedbackSheet");
+              }}
+              aria-label="پیام به سیرکل — پیشنهاد و انتقاد"
+              title="پیشنهاد و انتقاد"
+              className="inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none text-ink-muted dark:text-zinc-300 transition-colors duration-150 active:scale-[0.97] active:bg-stone-100 dark:active:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900"
+            >
+              <MegaphoneIcon className="w-5 h-5" />
+            </button>
             {watchesOn ? (
               <button
                 type="button"
@@ -113,7 +128,16 @@ export default function ClassicProfile() {
         <WatchSheet onClose={() => setShowWatches(false)} />
       ) : null}
       {showAccount ? (
-        <AccountSheet onClose={() => setShowAccount(false)} />
+        <AccountSheet
+          onClose={() => setShowAccount(false)}
+          onOpenFeedback={() => {
+            setShowAccount(false);
+            setShowFeedback(true);
+          }}
+        />
+      ) : null}
+      {showFeedback ? (
+        <FeedbackSheet onClose={() => setShowFeedback(false)} />
       ) : null}
       <BottomNav />
     </main>
@@ -794,7 +818,13 @@ function ProfileEndorsementsTab() {
   );
 }
 
-function AccountSheet({ onClose }: { onClose: () => void }) {
+function AccountSheet({
+  onClose,
+  onOpenFeedback,
+}: {
+  onClose: () => void;
+  onOpenFeedback: () => void;
+}) {
   const sessionPhone = useStore((s) => s.sessionPhone);
   const signOut = useStore((s) => s.signOut);
   const router = useRouter();
@@ -889,6 +919,26 @@ function AccountSheet({ onClose }: { onClose: () => void }) {
         >
           <span className="text-[13px] font-bold text-ink dark:text-zinc-100">
             سیرکل چطور کار می‌کند؟
+          </span>
+          <span className="text-ink-faint" aria-hidden>
+            ‹
+          </span>
+        </button>
+        <button
+          type="button"
+          onPointerEnter={() => {
+            void import("@/components/FeedbackSheet");
+          }}
+          onClick={onOpenFeedback}
+          className="w-full flex items-center justify-between gap-3 px-3 py-3 text-right active:bg-stone-50 dark:active:bg-zinc-800/80"
+        >
+          <span className="min-w-0 text-start">
+            <span className="block text-[13px] font-bold text-ink dark:text-zinc-100">
+              پیام به سیرکل
+            </span>
+            <span className="mt-0.5 block text-[11px] text-ink-muted">
+              مشکل، پیشنهاد، یا تماس با تیم
+            </span>
           </span>
           <span className="text-ink-faint" aria-hidden>
             ‹
