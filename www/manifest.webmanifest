@@ -1,0 +1,22 @@
+{
+  "name": "سیرکل | Circle",
+  "short_name": "سیرکل",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ebe8e3",
+  "theme_color": "#4a3a8f",
+  "lang": "fa",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

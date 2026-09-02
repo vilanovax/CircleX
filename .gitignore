@@ -11,3 +11,13 @@ npm-debug.log*
 .env*.local
 /uploads/*
 !/uploads/.gitkeep
+/android/.gradle
+/android/app/build
+/android/build
+/android/captures
+/android/local.properties
+*.apk
+!releases/*.apk
+*.aab
+*.keystore
+!android/app/debug.keystore
