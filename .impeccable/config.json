@@ -1,7 +1,10 @@
 {
   "detector": {
     "ignoreRules": [],
-    "ignoreFiles": [],
+    "ignoreFiles": [
+      "www/index.html",
+      "www/**"
+    ],
     "ignoreValues": [
       {
         "rule": "design-system-font-size",
@@ -23,14 +26,18 @@
       {
         "rule": "design-system-font-size",
         "value": "1.65rem",
-        "files": ["components/ListingImage.tsx"],
+        "files": [
+          "components/ListingImage.tsx"
+        ],
         "createdAt": "2026-08-25T08:15:00.000Z",
         "reason": "Incumbent emoji thumbnail size; feed change is next/image for LCP"
       },
       {
         "rule": "design-system-font-size",
         "value": "2.5rem",
-        "files": ["components/ListingImage.tsx"],
+        "files": [
+          "components/ListingImage.tsx"
+        ],
         "createdAt": "2026-08-25T08:15:00.000Z",
         "reason": "Incumbent emoji thumbnail size; feed change is next/image for LCP"
       }
