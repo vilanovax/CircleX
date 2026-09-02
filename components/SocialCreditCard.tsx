@@ -31,14 +31,14 @@ export default function SocialCreditCard({
 
   if (emptySelfCircle) {
     return (
-      <section className="card px-3.5 py-3">
-        <p className="text-[11px] font-bold text-ink-muted dark:text-zinc-400">
+      <section className="card px-4 py-3.5">
+        <p className="text-[11px] font-semibold text-ink-muted dark:text-zinc-400">
           {title}
         </p>
-        <p className="mt-1 text-[14px] font-extrabold text-ink dark:text-zinc-50 leading-snug">
+        <p className="mt-1 text-[14px] font-semibold leading-snug text-ink dark:text-zinc-50">
           هنوز سابقه‌ای در حلقه نیست
         </p>
-        <p className="mt-1 text-[11px] text-ink-faint dark:text-zinc-500 leading-snug">
+        <p className="mt-1 text-[11px] leading-snug text-ink-faint dark:text-zinc-500">
           بعد از معامله و تأیید آشنایان اینجا دیده می‌شود
         </p>
       </section>
@@ -79,15 +79,15 @@ export default function SocialCreditCard({
 
   if (facts.length === 0) {
     return (
-      <section className="card px-3.5 py-3">
-        <p className="text-[11px] font-bold text-ink-muted dark:text-zinc-400">
+      <section className="card px-4 py-3.5">
+        <p className="text-[11px] font-semibold text-ink-muted dark:text-zinc-400">
           {title}
         </p>
-        <p className="mt-1 text-[14px] font-extrabold text-ink dark:text-zinc-50 leading-snug">
+        <p className="mt-1 text-[14px] font-semibold leading-snug text-ink dark:text-zinc-50">
           تازه‌وارد حلقه
         </p>
         {forSelf ? (
-          <p className="mt-1 text-[11px] text-ink-faint dark:text-zinc-500 leading-snug">
+          <p className="mt-1 text-[11px] leading-snug text-ink-faint dark:text-zinc-500">
             حلقه این را می‌بیند — امتیاز رسمی نیست
           </p>
         ) : null}
@@ -96,15 +96,15 @@ export default function SocialCreditCard({
   }
 
   return (
-    <section className="card px-3.5 py-3">
-      <p className="text-[11px] font-bold text-ink-muted dark:text-zinc-400">
+    <section className="card px-4 py-3.5">
+      <p className="text-[11px] font-semibold text-ink-muted dark:text-zinc-400">
         {title}
       </p>
-      <p className="mt-1 text-[14px] font-extrabold text-ink dark:text-zinc-50 leading-snug">
+      <p className="mt-1 text-[14px] font-semibold leading-snug text-ink dark:text-zinc-50">
         {facts.map((fact, i) => (
           <span key={fact.key}>
             {i > 0 ? (
-              <span className="text-ink-faint font-semibold"> · </span>
+              <span className="font-medium text-ink-faint"> · </span>
             ) : null}
             {fact.node}
           </span>
@@ -116,7 +116,7 @@ export default function SocialCreditCard({
         </p>
       ) : null}
       {forSelf ? (
-        <p className="mt-1 text-[11px] text-ink-faint dark:text-zinc-500 leading-snug">
+        <p className="mt-1.5 text-[11px] leading-snug text-ink-faint dark:text-zinc-500">
           حلقه این را می‌بیند — امتیاز رسمی نیست
         </p>
       ) : null}

@@ -181,7 +181,7 @@ export interface Message {
   listingId?: string;
   /** Listing-scoped thread; not mixed with other deals with the same peer. */
   threadListingId?: string;
-  /** Uploaded chat photo (`/api/uploads/….jpg`). */
+  /** Uploaded chat photo (object-storage HTTPS or legacy `/api/uploads/….jpg`). */
   imageUrl?: string;
   /** Hide the peer’s real name in this thread (buyer viewing seller). */
   peerHidden?: boolean;

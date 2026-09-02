@@ -11,20 +11,32 @@ import ListingComposeForm, {
 } from "@/components/ListingComposeForm";
 import ListingComposeProgress from "@/components/ListingComposeProgress";
 import CircleFirstListingHint from "@/components/CircleFirstListingHint";
+import WarehouseCleanupSheet, {
+  applyWarehouseListingCleanup,
+  consumeListingCleanupIfAny,
+  skipListingCleanup,
+} from "@/components/WarehouseCleanupSheet";
 import { useToast } from "@/components/Toast";
 import { useCatalog } from "@/lib/use-catalog";
 import { postedHomeHref } from "@/lib/home-posted";
+import { toPersianDigits } from "@/lib/persian";
+import type { WarehouseListingHandoff } from "@/lib/warehouse-handoff";
 
 /** Full-page route for deep links; primary flow is + → CreateSheet. */
 export default function NewClassic() {
   const router = useRouter();
   const addListing = useStore((s) => s.addListing);
+  const meId = useStore((s) => s.me.id);
   const { show } = useToast();
   const [publishing, setPublishing] = useState(false);
   const catalog = useCatalog();
   const formRef = useRef<ListingComposeHandle>(null);
   const [step, setStep] = useState<"compose" | "review">("compose");
   const reviewing = step === "review";
+  const [cleanup, setCleanup] = useState<{
+    listingId: string;
+    handoff: WarehouseListingHandoff;
+  } | null>(null);
 
   const onFooterMetaChange = useCallback(
     (meta: {
@@ -37,6 +49,21 @@ export default function NewClassic() {
     },
     [],
   );
+
+  function finishCleanup(keep: boolean) {
+    if (!cleanup) return;
+    const { listingId, handoff } = cleanup;
+    if (!keep) {
+      const removed = applyWarehouseListingCleanup(meId, handoff);
+      if (removed > 0) {
+        show(`${toPersianDigits(removed)} عکس از انبار حذف شد`);
+      }
+    } else {
+      skipListingCleanup();
+    }
+    setCleanup(null);
+    router.push(postedHomeHref(listingId));
+  }
 
   return (
     <main className="pb-28 min-h-[100dvh]">
@@ -78,6 +105,12 @@ export default function NewClassic() {
             try {
               const id = await addListing(input);
               show("آگهی شما در حلقه منتشر شد ✓");
+              const handoff = consumeListingCleanupIfAny();
+              if (handoff) {
+                setCleanup({ listingId: id, handoff });
+                setPublishing(false);
+                return;
+              }
               router.push(postedHomeHref(id));
             } catch (err) {
               show(err instanceof ApiError ? err.message : "آگهی ذخیره نشد");
@@ -86,6 +119,14 @@ export default function NewClassic() {
           }}
         />
       </div>
+
+      {cleanup ? (
+        <WarehouseCleanupSheet
+          count={Math.max(cleanup.handoff.urls.length, cleanup.handoff.photoIds.length)}
+          onKeep={() => finishCleanup(true)}
+          onRemove={() => finishCleanup(false)}
+        />
+      ) : null}
     </main>
   );
 }

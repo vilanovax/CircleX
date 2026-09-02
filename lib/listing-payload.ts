@@ -8,7 +8,7 @@ import {
   canonicalListingImage,
   isAllowedListingImage,
 } from "./listing-photo";
-import { LISTING_PHOTO_MAX_COUNT } from "./media";
+import { LISTING_PHOTO_MAX_COUNT, PHOTO_URL_MAX_LEN } from "./media";
 import { parseArea } from "./place";
 import {
   parsePersonIds,
@@ -75,7 +75,7 @@ function parseListingImageValue(value: unknown): string {
   if (typeof value !== "string") return "";
   const raw = value.trim();
   if (raw.startsWith("data:image/")) return raw.slice(0, 2_000_000);
-  return asTrimmed(canonicalListingImage(raw), 240);
+  return asTrimmed(canonicalListingImage(raw), PHOTO_URL_MAX_LEN);
 }
 
 export function parseSpecs(value: unknown): ListingSpec[] | undefined {

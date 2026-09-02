@@ -1,5 +1,10 @@
 import { withoutBasePath } from "./avatar";
-import { PHOTO_MAX_BYTES, UPLOAD_PATH_RE } from "./media";
+import {
+  PHOTO_MAX_BYTES,
+  PHOTO_URL_MAX_LEN,
+  UPLOAD_PATH_RE,
+  isMediaObjectUrl,
+} from "./media";
 
 /** Unsplash photo id in a leftover URL → local Commons-hosted stock file. */
 const UNSPLASH_PHOTO =
@@ -69,14 +74,27 @@ const FROM_UNSPLASH: Record<string, string> = {
 
 const STOCK = /^\/listings\/[a-zA-Z0-9._-]+\.jpe?g$/i;
 
-/** Max JPEG bytes after compress, written to app disk. */
+/** Max JPEG bytes after compress (client + server encode). */
 export const LISTING_PHOTO_MAX_BYTES = PHOTO_MAX_BYTES;
 
-/** Strip origin and `/circle` so stored srcs are `/api/uploads/…`. */
+/**
+ * Normalize a photo value for persistence.
+ * Object-storage HTTPS URLs stay absolute; legacy `/api/uploads/…` stay path-only.
+ */
 export function canonicalListingImage(value: string): string {
   let v = value.trim();
   if (!v) return "";
   if (v.startsWith("data:image/")) return v;
+  if (isMediaObjectUrl(v)) {
+    try {
+      const url = new URL(v);
+      url.hash = "";
+      url.search = "";
+      return url.toString().slice(0, PHOTO_URL_MAX_LEN);
+    } catch {
+      return v.slice(0, PHOTO_URL_MAX_LEN);
+    }
+  }
   if (/^https?:\/\//i.test(v)) {
     try {
       v = new URL(v).pathname;
@@ -88,7 +106,9 @@ export function canonicalListingImage(value: string): string {
 }
 
 export function isStoredUploadSrc(value: string): boolean {
-  return UPLOAD_PATH_RE.test(canonicalListingImage(value));
+  const v = value.trim();
+  if (isMediaObjectUrl(v)) return true;
+  return UPLOAD_PATH_RE.test(canonicalListingImage(v));
 }
 
 export function listingStockPath(photoId: string): string {
@@ -109,11 +129,17 @@ export function localListingSrcs(srcs: string[]): string[] {
   return srcs.map(localListingSrc);
 }
 
-/** Paths we persist: app storage, demo stock, emoji, or legacy data-URL. Never remote CDNs. */
+/**
+ * Paths we persist: object storage HTTPS, legacy `/api/uploads`, demo stock,
+ * emoji, or legacy data-URL. Other remote CDNs stay blocked.
+ */
 export function isAllowedListingImage(value: string): boolean {
-  const v = canonicalListingImage(value);
+  const raw = value.trim();
+  if (!raw) return false;
+  if (isMediaObjectUrl(raw)) return true;
+  const v = canonicalListingImage(raw);
   if (!v) return false;
-  if (/^https?:\/\//i.test(v)) return false;
+  if (/^https?:\/\//i.test(v)) return isMediaObjectUrl(v);
   if (STOCK.test(v) || UPLOAD_PATH_RE.test(v)) return true;
   if (v.startsWith("data:image/jpeg") || v.startsWith("data:image/webp")) {
     return v.length < 2_000_000;

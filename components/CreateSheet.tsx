@@ -6,10 +6,17 @@ import { ApiError } from "@/lib/api";
 import { useStore } from "@/lib/store";
 import { useSheetA11y } from "@/lib/use-sheet-a11y";
 import { lazyUi } from "@/lib/lazy-ui";
-import { CalendarIcon, QuestionIcon, TagIcon } from "./Icons";
+import { ArchiveIcon, CalendarIcon, QuestionIcon, TagIcon } from "./Icons";
 import { useToast } from "./Toast";
 import { useCatalog } from "@/lib/use-catalog";
 import { postedHomeHref } from "@/lib/home-posted";
+import { toPersianDigits } from "@/lib/persian";
+import WarehouseCleanupSheet, {
+  applyWarehouseListingCleanup,
+  consumeListingCleanupIfAny,
+  skipListingCleanup,
+} from "@/components/WarehouseCleanupSheet";
+import type { WarehouseListingHandoff } from "@/lib/warehouse-handoff";
 
 const AddListingSheet = lazyUi(() => import("./AddListingSheet"));
 const AddRequestSheet = lazyUi(() => import("./AddRequestSheet"));
@@ -25,6 +32,15 @@ const MENU_OPTIONS = [
     subtitle: "چیزی برای فروش یا واگذاری دارم",
     tint: "bg-brand-600 text-white",
     ring: "ring-brand-600/15",
+  },
+  {
+    id: "warehouse" as const,
+    Icon: ArchiveIcon,
+    title: "انبار عکس",
+    subtitle: "الان عکس بگیر، بعداً آگهی کن",
+    tint: "bg-stone-800 text-white dark:bg-zinc-200 dark:text-zinc-900",
+    ring: "ring-stone-800/10 dark:ring-zinc-200/10",
+    href: "/warehouse" as const,
   },
   {
     id: "request" as const,
@@ -51,17 +67,42 @@ export default function CreateSheet({ onClose }: { onClose: () => void }) {
   const addListing = useStore((s) => s.addListing);
   const addRequest = useStore((s) => s.addRequest);
   const addEvent = useStore((s) => s.addEvent);
+  const meId = useStore((s) => s.me.id);
   const { show } = useToast();
   const flags = useCatalog().flags;
   const panelRef = useRef<HTMLDivElement>(null);
+  const [cleanup, setCleanup] = useState<{
+    listingId: string;
+    handoff: WarehouseListingHandoff;
+  } | null>(null);
   const handleEscape = useCallback(() => {
+    if (cleanup) return true;
     if (step !== "menu") {
       setStep("menu");
       return true;
     }
     return false;
-  }, [step]);
+  }, [cleanup, step]);
   useSheetA11y(panelRef, onClose, { onEscape: handleEscape });
+
+  const finishCleanup = useCallback(
+    (keep: boolean) => {
+      if (!cleanup) return;
+      const { listingId, handoff } = cleanup;
+      if (!keep) {
+        const removed = applyWarehouseListingCleanup(meId, handoff);
+        if (removed > 0) {
+          show(`${toPersianDigits(removed)} عکس از انبار حذف شد`);
+        }
+      } else {
+        skipListingCleanup();
+      }
+      setCleanup(null);
+      onClose();
+      router.push(postedHomeHref(listingId));
+    },
+    [cleanup, meId, onClose, router, show],
+  );
 
   const onAddListing = useCallback(
     async (input: Parameters<typeof addListing>[0]) => {
@@ -69,8 +110,14 @@ export default function CreateSheet({ onClose }: { onClose: () => void }) {
       publishingRef.current = true;
       try {
         const id = await addListing(input);
-        onClose();
         show("آگهی شما در حلقه منتشر شد ✓");
+        const handoff = consumeListingCleanupIfAny();
+        if (handoff) {
+          setCleanup({ listingId: id, handoff });
+          publishingRef.current = false;
+          return;
+        }
+        onClose();
         router.push(postedHomeHref(id));
       } catch (err) {
         show(err instanceof ApiError ? err.message : "آگهی ذخیره نشد");
@@ -109,6 +156,19 @@ export default function CreateSheet({ onClose }: { onClose: () => void }) {
   );
 
   const goMenu = useCallback(() => setStep("menu"), []);
+
+  if (cleanup) {
+    return (
+      <WarehouseCleanupSheet
+        count={Math.max(
+          cleanup.handoff.urls.length,
+          cleanup.handoff.photoIds.length,
+        )}
+        onKeep={() => finishCleanup(true)}
+        onRemove={() => finishCleanup(false)}
+      />
+    );
+  }
 
   if (step === "listing") {
     return (
@@ -179,11 +239,20 @@ export default function CreateSheet({ onClose }: { onClose: () => void }) {
               <button
                 key={o.id}
                 type="button"
-                onClick={() => setStep(o.id)}
+                onClick={() => {
+                  if ("href" in o && o.href) {
+                    onClose();
+                    router.push(o.href);
+                    return;
+                  }
+                  if (o.id === "listing" || o.id === "request" || o.id === "event") {
+                    setStep(o.id);
+                  }
+                }}
                 onPointerEnter={() => {
                   if (o.id === "listing") void import("./AddListingSheet");
                   else if (o.id === "request") void import("./AddRequestSheet");
-                  else void import("./AddEventSheet");
+                  else if (o.id === "event") void import("./AddEventSheet");
                 }}
                 className="w-full flex items-center gap-3 px-3.5 py-3.5 text-right active:bg-stone-50/90 dark:active:bg-zinc-800/70 transition-colors"
               >

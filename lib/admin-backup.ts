@@ -1,7 +1,4 @@
-import { readdir, readFile, stat } from "node:fs/promises";
-import path from "node:path";
 import { prisma } from "./db";
-import { uploadDir } from "./listing-upload";
 
 export const BACKUP_FORMAT = 1 as const;
 
@@ -159,29 +156,8 @@ async function listUploads(): Promise<{
   files: Record<string, string>;
   bytes: number;
 }> {
-  const dir = uploadDir();
-  const files: Record<string, string> = {};
-  let bytes = 0;
-  let names: string[] = [];
-  try {
-    names = await readdir(dir);
-  } catch {
-    return { files, bytes };
-  }
-  for (const name of names) {
-    if (name.startsWith(".")) continue;
-    const full = path.join(dir, name);
-    try {
-      const info = await stat(full);
-      if (!info.isFile()) continue;
-      const buf = await readFile(full);
-      files[name] = buf.toString("base64");
-      bytes += buf.length;
-    } catch {
-      /* skip unreadable */
-    }
-  }
-  return { files, bytes };
+  /* User photos live on object storage — not bundled into app backups. */
+  return { files: {}, bytes: 0 };
 }
 
 export async function backupSummary(): Promise<BackupSummary> {
@@ -234,31 +210,12 @@ export async function backupSummary(): Promise<BackupSummary> {
     prisma.broadcast.count().then((n) => ["broadcasts", n] as const),
   ]);
   const counts = Object.fromEntries(pairs) as BackupCounts;
-  const dir = uploadDir();
-  let uploadFiles = 0;
-  let uploadBytes = 0;
-  try {
-    const names = await readdir(dir);
-    for (const name of names) {
-      if (name.startsWith(".")) continue;
-      try {
-        const info = await stat(path.join(dir, name));
-        if (!info.isFile()) continue;
-        uploadFiles += 1;
-        uploadBytes += info.size;
-      } catch {
-        /* skip */
-      }
-    }
-  } catch {
-    /* no upload dir */
-  }
   return {
     format: BACKUP_FORMAT,
     generatedAt: new Date().toISOString(),
     counts,
-    uploadFiles,
-    uploadBytes,
+    uploadFiles: 0,
+    uploadBytes: 0,
   };
 }
 

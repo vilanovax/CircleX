@@ -1,5 +1,3 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 import {
@@ -7,22 +5,12 @@ import {
   PHOTO_MAX_EDGE,
   PHOTO_UPLOAD_MAX_BYTES,
 } from "@/lib/media";
+import {
+  isObjectStorageConfigured,
+  putPublicJpeg,
+} from "@/lib/object-storage";
 
 const FILE_RE = /^[a-zA-Z0-9._-]+\.jpe?g$/i;
-
-export function uploadDir(): string {
-  return process.env.UPLOAD_DIR?.trim() || path.join(process.cwd(), "uploads");
-}
-
-/** Canonical path (no Next basePath). Display via `withBasePath`. */
-export function uploadPublicPath(filename: string): string {
-  return `/api/uploads/${filename}`;
-}
-
-export function safeUploadName(name: string): string | null {
-  const base = path.basename(name);
-  return FILE_RE.test(base) ? base : null;
-}
 
 /** Decode any supported raster, then write a sized JPEG under PHOTO_MAX_BYTES. */
 export async function encodeUserJpeg(body: Buffer): Promise<Buffer> {
@@ -60,27 +48,29 @@ export async function encodeUserJpeg(body: Buffer): Promise<Buffer> {
   throw new Error("عکس بعد از فشرده‌سازی هنوز بزرگ است");
 }
 
+function objectKeyForUser(userId: string): string {
+  const prefix = userId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8) || "user";
+  return `uploads/${prefix}-${randomUUID()}.jpg`;
+}
+
+/**
+ * Resize/encode then store on object storage only.
+ * Returns a public HTTPS URL — nothing is written under the app disk.
+ */
 export async function saveListingJpeg(
   body: Buffer,
   userId: string,
 ): Promise<{ filename: string; url: string }> {
+  if (!isObjectStorageConfigured()) {
+    throw new Error("فضای ابری پیکربندی نشده است");
+  }
   const jpeg = await encodeUserJpeg(body);
-  const prefix = userId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8) || "user";
-  const filename = `${prefix}-${randomUUID()}.jpg`;
-  const dir = uploadDir();
-  await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, filename), jpeg);
-  return { filename, url: uploadPublicPath(filename) };
+  const key = objectKeyForUser(userId);
+  const url = await putPublicJpeg(key, jpeg);
+  return { filename: key.split("/").pop() || key, url };
 }
 
-export async function readListingJpeg(
-  filename: string,
-): Promise<Buffer | null> {
-  const safe = safeUploadName(filename);
-  if (!safe) return null;
-  try {
-    return await readFile(path.join(uploadDir(), safe));
-  } catch {
-    return null;
-  }
+export function safeUploadName(name: string): string | null {
+  const base = name.split("/").pop() || name;
+  return FILE_RE.test(base) ? base : null;
 }

@@ -3,11 +3,21 @@
 // Served under a sub-path (e.g. https://<app>.liara.run/circle), not the root.
 const basePath = "/circle";
 
+function mediaHostname() {
+  const raw = process.env.NEXT_PUBLIC_MEDIA_BASE_URL?.trim();
+  if (!raw) return "c237334.parspack.net";
+  try {
+    return new URL(raw.includes("://") ? raw : `https://${raw}`).hostname;
+  } catch {
+    return "c237334.parspack.net";
+  }
+}
+
 const nextConfig = {
   reactStrictMode: true,
   basePath,
   experimental: {
-    serverComponentsExternalPackages: ["sharp"],
+    serverComponentsExternalPackages: ["sharp", "@aws-sdk/client-s3"],
   },
   env: {
     NEXT_PUBLIC_BASE_PATH: basePath,
@@ -17,6 +27,13 @@ const nextConfig = {
     // Match PHOTO_SLOT (+ 2×) in lib/media.ts — thumbs, avatars, hero.
     imageSizes: [32, 44, 48, 56, 64, 96, 128, 192, 320, 384],
     deviceSizes: [480, 640, 750, 960],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: mediaHostname(),
+        pathname: "/**",
+      },
+    ],
   },
   async headers() {
     return [

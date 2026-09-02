@@ -6,6 +6,7 @@ import {
   PHOTO_MAX_BYTES,
   PHOTO_MAX_EDGE,
   PHOTO_UPLOAD_MAX_BYTES,
+  isMediaObjectUrl,
 } from "./media";
 
 function canvasToJpegBlob(
@@ -132,7 +133,7 @@ export async function processUserPhoto(file: File): Promise<Blob> {
   return blob;
 }
 
-/** Compress then store — returns `/api/uploads/….jpg`. */
+/** Compress then store on object storage — returns public HTTPS media URL. */
 export async function uploadUserPhoto(file: File): Promise<string> {
   let payload: Blob = file;
   try {
@@ -153,7 +154,7 @@ export async function uploadUserPhoto(file: File): Promise<string> {
     method: "POST",
     body: form,
   });
-  if (!url?.includes("/api/uploads/")) {
+  if (!url || (!isMediaObjectUrl(url) && !url.includes("/api/uploads/"))) {
     throw new Error("ذخیرهٔ عکس نشد.");
   }
   return withoutBasePath(url);

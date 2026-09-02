@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs";
 import { Prisma, type AdminRole } from "@prisma/client";
 import { cache } from "react";
 import {
@@ -9,7 +8,7 @@ import {
 } from "@/lib/admin-day";
 import { DEFAULT_AUTH } from "@/lib/app-settings-types";
 import { prisma } from "@/lib/db";
-import { uploadDir } from "@/lib/listing-upload";
+import { isObjectStorageConfigured } from "@/lib/object-storage";
 
 const DASH_TTL_MS = 15_000;
 const ANALYTICS_TTL_MS = 20_000;
@@ -144,16 +143,10 @@ function num(value: unknown): number {
 }
 
 function readHealth(): AdminDashboard["health"] {
-  let uploadDirReady = false;
-  try {
-    uploadDirReady = existsSync(uploadDir());
-  } catch {
-    uploadDirReady = false;
-  }
   return {
     smsConfigured: Boolean(process.env.KAVENEGAR_API_KEY?.trim()),
     openaiConfigured: Boolean(process.env.OPENAI_API_KEY?.trim()),
-    uploadDirReady,
+    uploadDirReady: isObjectStorageConfigured(),
     webhookConfigured: Boolean(process.env.ADMIN_WEBHOOK_URL?.trim()),
   };
 }

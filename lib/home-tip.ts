@@ -6,6 +6,9 @@ export const FIRST_RUN_EXPLAIN_KEY = "circle-first-run-explain-v1";
 
 /** Messages inbox: quiet tip while only Circlo exists. */
 export const MESSAGES_INBOX_TIP_KEY = "circle-messages-inbox-tip-v1";
+
+/** Warehouse: one-shot after first photo — انبار ≠ آگهی. */
+export const WAREHOUSE_TIP_KEY = "circle-warehouse-tip-v1";
 export const HOW_QUERY = "how";
 
 export function isConceptTipPending(): boolean {
@@ -54,6 +57,23 @@ export function isMessagesInboxTipPending(): boolean {
 export function markMessagesInboxTipSeen(): void {
   try {
     localStorage.setItem(MESSAGES_INBOX_TIP_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+export function isWarehouseTipPending(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(WAREHOUSE_TIP_KEY) !== "1";
+  } catch {
+    return true;
+  }
+}
+
+export function markWarehouseTipSeen(): void {
+  try {
+    localStorage.setItem(WAREHOUSE_TIP_KEY, "1");
   } catch {
     /* ignore */
   }

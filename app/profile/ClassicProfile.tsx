@@ -21,6 +21,7 @@ import OwnerListingManager from "@/components/OwnerListingManager";
 import SocialCreditCard from "@/components/SocialCreditCard";
 import SheetShell from "@/components/SheetShell";
 import {
+  ArchiveIcon,
   CalendarIcon,
   ClockIcon,
   GearIcon,
@@ -35,7 +36,7 @@ import {
 import { badgeLabels, eventKindEmoji, formatPrice } from "@/lib/labels";
 import { buildSocialCredit } from "@/lib/social-credit";
 import { formatEventDateDisplay, toPersianDigits } from "@/lib/persian";
-import { CONCEPT_TIP_KEY, FIRST_RUN_EXPLAIN_KEY, HOW_QUERY, MESSAGES_INBOX_TIP_KEY } from "@/lib/home-tip";
+import { CONCEPT_TIP_KEY, FIRST_RUN_EXPLAIN_KEY, HOW_QUERY, MESSAGES_INBOX_TIP_KEY, WAREHOUSE_TIP_KEY } from "@/lib/home-tip";
 import {
   ACTIVATION_DISMISSED_KEY,
   ACTIVATION_LISTING_SKIP_KEY,
@@ -46,6 +47,7 @@ import { useToast } from "@/components/Toast";
 import { ProfileSkeleton } from "@/components/Skeleton";
 import { lazyUi } from "@/lib/lazy-ui";
 import { hiddenProfileCopy } from "@/lib/hide-from-feed";
+import { useWarehouse } from "@/lib/use-warehouse";
 import type { CircleEvent, Listing } from "@/lib/types";
 
 const EditProfileSheet = lazyUi(() => import("@/components/EditProfileSheet"));
@@ -86,7 +88,7 @@ export default function ClassicProfile() {
                 onClick={() => setShowWatches(true)}
                 aria-label="گوش‌به‌زنگ‌ها"
                 title="گوش‌به‌زنگ‌ها"
-                className="inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none text-ink-muted dark:text-zinc-300 active:bg-stone-100 dark:active:bg-zinc-800"
+                className="inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none text-ink-muted dark:text-zinc-300 transition-colors duration-150 active:scale-[0.97] active:bg-stone-100 dark:active:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900"
               >
                 <EyeIcon className="w-5 h-5" />
               </button>
@@ -96,14 +98,14 @@ export default function ClassicProfile() {
               onClick={() => setShowAccount(true)}
               aria-label="حساب"
               title="حساب"
-              className="inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none text-ink-muted dark:text-zinc-300 active:bg-stone-100 dark:active:bg-zinc-800"
+              className="inline-grid size-9 shrink-0 place-items-center appearance-none rounded-xl p-0 leading-none text-ink-muted dark:text-zinc-300 transition-colors duration-150 active:scale-[0.97] active:bg-stone-100 dark:active:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900"
             >
               <GearIcon className="w-5 h-5" />
             </button>
           </div>
         }
       />
-      <div className="px-4 pt-3 space-y-3.5">
+      <div className="px-4 pt-3 space-y-4">
         <ProfileHero />
         <ProfileActivity />
       </div>
@@ -139,9 +141,9 @@ function ProfileHero() {
     .join(" · ");
 
   return (
-    <div className="space-y-3.5">
-      <section className="card p-3.5">
-        <div className="flex items-start gap-3">
+    <div className="space-y-3">
+      <section className="card p-4">
+        <div className="flex items-center gap-3">
           <Avatar
             name={me.name}
             src={me.avatar}
@@ -150,8 +152,8 @@ function ProfileHero() {
             eager
           />
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <h2 className="text-[20px] font-extrabold text-ink dark:text-zinc-50 tracking-tight truncate leading-tight">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-[20px] font-semibold text-ink dark:text-zinc-50 tracking-tight truncate leading-tight text-pretty">
                 {me.name}
               </h2>
               <button
@@ -161,22 +163,25 @@ function ProfileHero() {
                   void import("@/components/EditProfileSheet");
                 }}
                 aria-label="ویرایش پروفایل"
-                className="shrink-0 flex items-center gap-1.5 text-[12px] font-bold text-brand-700 dark:text-brand-300 bg-[color:var(--circle-surface)] dark:bg-zinc-900/80 ring-1 ring-brand-200/80 dark:ring-brand-500/30 rounded-xl px-3 py-2 shadow-sm active:scale-95 transition-transform"
+                className="shrink-0 flex items-center gap-1 text-[12px] font-medium text-ink-muted dark:text-zinc-400 rounded-xl px-2.5 py-1.5 ring-1 ring-stone-200/90 dark:ring-zinc-700 transition-[transform,background-color,color] duration-150 ease-out active:scale-[0.97] active:bg-stone-100 dark:active:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900"
               >
                 <PencilIcon className="w-3.5 h-3.5" />
                 ویرایش
               </button>
             </div>
             {metaLine ? (
-              <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1 leading-snug">
+              <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-0.5 leading-snug">
                 {metaLine}
               </p>
             ) : null}
             <Link
               href="/circle"
-              className="inline-block text-[12px] font-bold text-brand-700 dark:text-brand-300 mt-1.5"
+              className="mt-1.5 inline-flex min-h-8 items-center gap-0.5 rounded-lg text-[12px] font-semibold text-brand-700 dark:text-brand-300 transition-colors duration-150 active:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2"
             >
-              {toPersianDigits(myCircleCount)} نفر در حلقه ‹
+              {toPersianDigits(myCircleCount)} نفر در حلقه
+              <span aria-hidden className="text-brand-500/80">
+                ‹
+              </span>
             </Link>
           </div>
         </div>
@@ -188,6 +193,19 @@ function ProfileHero() {
         hideVerified
         forSelf
       />
+
+      <Link
+        href="/warehouse"
+        className="card flex items-center gap-3 px-3.5 py-3 transition-transform duration-150 ease-out active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
+          <ArchiveIcon className="w-5 h-5" />
+        </span>
+        <WarehouseProfileRow />
+        <span className="text-ink-faint shrink-0 text-[15px] leading-none" aria-hidden>
+          ‹
+        </span>
+      </Link>
 
       {showEdit ? (
         <EditProfileSheet
@@ -203,6 +221,28 @@ function ProfileHero() {
         />
       ) : null}
     </div>
+  );
+}
+
+function WarehouseProfileRow() {
+  const meId = useStore((s) => s.me.id);
+  const { ready, stats } = useWarehouse(meId);
+  const subtitle =
+    ready && stats.dueReminders > 0
+      ? `${toPersianDigits(stats.dueReminders)} یادآور رسیده`
+      : ready && stats.waitingStacks > 0
+        ? `${toPersianDigits(stats.waitingStacks)} دسته منتظر آگهی`
+        : "الان بگیر، بعداً دسته‌بندی کن و آگهی بساز";
+
+  return (
+    <span className="min-w-0 flex-1 text-start">
+      <span className="block text-[13px] font-semibold text-ink dark:text-zinc-100">
+        انبار عکس
+      </span>
+      <span className="mt-0.5 block text-[11px] leading-snug text-ink-muted dark:text-zinc-400">
+        {subtitle}
+      </span>
+    </span>
   );
 }
 
@@ -337,7 +377,7 @@ function ProfileActivity() {
     <section id="activity" className="scroll-mt-24">
       {showTabBar ? (
         <div
-          className="flex gap-1 p-1 rounded-2xl bg-stone-100/90 dark:bg-zinc-800/80 overflow-x-auto no-scrollbar mb-2.5"
+          className="mb-3 flex gap-1 overflow-x-auto no-scrollbar rounded-xl bg-stone-100/80 p-1 dark:bg-zinc-800"
           role="tablist"
           aria-label="نوع فعالیت"
         >
@@ -352,19 +392,19 @@ function ProfileActivity() {
                 aria-selected={active}
                 aria-label={`${t.label}، ${toPersianDigits(count)}`}
                 onClick={() => startTransition(() => setTab(t.id))}
-                className={`shrink-0 flex-1 min-w-0 flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-[12px] font-bold transition-all duration-200 ${
+                className={`flex min-w-0 flex-1 shrink-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[12.5px] font-semibold transition-[background-color,color,transform] duration-150 ease-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 ${
                   active
-                    ? "bg-brand-600 text-white shadow-md shadow-brand-600/25"
-                    : "text-ink-muted dark:text-zinc-400 active:bg-white/60 dark:active:bg-zinc-700/50"
+                    ? "bg-brand-50 text-brand-800 dark:bg-brand-500/20 dark:text-brand-200"
+                    : "text-ink-muted dark:text-zinc-400 active:bg-white/70 dark:active:bg-zinc-700/50"
                 }`}
               >
                 <span className="truncate">{t.label}</span>
                 <span
                   dir="ltr"
-                  className={`nums shrink-0 inline-flex min-w-[1.2rem] h-[1.2rem] px-1 items-center justify-center rounded-full text-[11px] font-extrabold leading-none ${
+                  className={`nums inline-flex h-[1.15rem] min-w-[1.2rem] shrink-0 items-center justify-center rounded-full px-1 text-[11px] font-bold leading-none ${
                     active
-                      ? "bg-white/22 text-white"
-                      : "bg-stone-200/90 text-ink-muted dark:bg-zinc-700 dark:text-zinc-300"
+                      ? "bg-brand-100/90 text-brand-800 dark:bg-brand-500/30 dark:text-brand-100"
+                      : "bg-stone-200/80 text-ink-muted dark:bg-zinc-700 dark:text-zinc-300"
                   }`}
                 >
                   {toPersianDigits(count)}
@@ -376,20 +416,20 @@ function ProfileActivity() {
       ) : visibleTabs.length === 1 &&
         activeTab === "listings" &&
         listingsSplit ? (
-        <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-200 mb-2.5 px-0.5">
+        <h2 className="mb-2.5 px-0.5 text-[13px] font-semibold text-ink dark:text-zinc-200">
           آگهی‌ها
         </h2>
       ) : visibleTabs.length === 1 ? (
-        <div className="flex items-center gap-2 mb-2.5 px-0.5">
-          <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-200">
+        <div className="mb-2.5 flex items-center gap-2 px-0.5">
+          <h2 className="text-[13px] font-semibold text-ink dark:text-zinc-200">
             {visibleTabs[0].label}
           </h2>
-          <span className="inline-flex min-w-[1.25rem] h-5 px-1.5 items-center justify-center rounded-full bg-stone-100 dark:bg-zinc-800 text-[11px] font-bold text-ink-muted nums">
+          <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-stone-100 px-1.5 text-[11px] font-semibold text-ink-muted nums dark:bg-zinc-800">
             {toPersianDigits(visibleTabs[0].count)}
           </span>
         </div>
       ) : visibleTabs.length === 0 ? (
-        <h2 className="text-[13px] font-extrabold text-ink dark:text-zinc-200 mb-2.5 px-0.5">
+        <h2 className="mb-2.5 px-0.5 text-[13px] font-semibold text-ink dark:text-zinc-200">
           فعالیت من
         </h2>
       ) : null}
@@ -513,7 +553,7 @@ function ProfileEventsTab() {
   }
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-3">
       {hostedEvents.length > 0 ? (
         <EventGroup label="میزبانی من" events={hostedEvents} />
       ) : null}
@@ -836,6 +876,7 @@ function AccountSheet({ onClose }: { onClose: () => void }) {
               localStorage.removeItem(CONCEPT_TIP_KEY);
               localStorage.removeItem(FIRST_RUN_EXPLAIN_KEY);
               localStorage.removeItem(MESSAGES_INBOX_TIP_KEY);
+              localStorage.removeItem(WAREHOUSE_TIP_KEY);
               localStorage.removeItem(ACTIVATION_DISMISSED_KEY);
               localStorage.removeItem(ACTIVATION_LISTING_SKIP_KEY);
             } catch {
@@ -936,13 +977,13 @@ function EventGroup({
 }) {
   return (
     <div>
-      <p className="text-[11px] font-semibold text-ink-muted mb-1.5 px-0.5">
+      <p className="mb-2 px-0.5 text-[12px] font-semibold text-ink-muted">
         {label}
         <span className="ms-1 nums text-ink-faint">
           {toPersianDigits(events.length)}
         </span>
       </p>
-      <div className="card divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden">
+      <div className="card overflow-hidden divide-y divide-stone-100 dark:divide-zinc-800">
         {events.map((e) => (
           <EventRow key={e.id} event={e} />
         ))}
@@ -967,23 +1008,23 @@ function ListingGroup({
   return (
     <div>
       {label ? (
-        <div className="mb-1.5 px-0.5">
-          <p className="text-[11px] font-semibold text-ink-muted dark:text-zinc-400">
+        <div className="mb-2 px-0.5">
+          <p className="text-[12px] font-semibold text-ink-muted dark:text-zinc-400">
             {label}
             <span className="ms-1 nums text-ink-faint">
               {toPersianDigits(listings.length)}
             </span>
           </p>
           {hint ? (
-            <p className="text-[11px] text-ink-faint mt-0.5 leading-snug">
+            <p className="mt-0.5 text-[11px] leading-snug text-ink-faint">
               {hint}
             </p>
           ) : null}
         </div>
       ) : null}
       <div
-        className={`card divide-y divide-stone-100 dark:divide-zinc-800 overflow-hidden ${
-          inactive ? "bg-stone-50/90 dark:bg-zinc-900/55" : ""
+        className={`card overflow-hidden divide-y divide-stone-100 dark:divide-zinc-800 ${
+          inactive ? "bg-stone-50/70 dark:bg-zinc-900/40" : ""
         }`}
       >
         {listings.map((l) => (
@@ -1020,7 +1061,7 @@ const ProfileListingRow = memo(function ProfileListingRow({
       <Link
         href={`/listing/${listing.id}`}
         aria-label={inactive ? `${listing.title}، غیرفعال` : listing.title}
-        className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 active:bg-stone-50/80 dark:active:bg-zinc-800/60"
+        className="flex min-w-0 flex-1 items-center gap-3 px-3 py-3 transition-colors duration-150 active:bg-stone-50/80 dark:active:bg-zinc-800/60"
       >
         <ListingImage
           image={listing.image}
@@ -1028,12 +1069,12 @@ const ProfileListingRow = memo(function ProfileListingRow({
           size="sm"
           category={listing.category}
           type={listing.type}
-          className={inactive ? "grayscale" : ""}
+          className={inactive ? "opacity-80 grayscale" : ""}
         />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 min-w-0">
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-1.5">
             <p
-              className={`font-semibold text-[13px] truncate ${
+              className={`truncate text-[13px] font-semibold ${
                 inactive
                   ? "text-ink-muted dark:text-zinc-400"
                   : "text-ink dark:text-zinc-100"
@@ -1042,17 +1083,20 @@ const ProfileListingRow = memo(function ProfileListingRow({
               {listing.title}
             </p>
             {inactive ? (
-              <span className="shrink-0 chip !text-[11px] !py-0.5 !px-1.5 bg-stone-200/80 text-ink-muted dark:bg-zinc-800 dark:text-zinc-400">
+              <span className="shrink-0 text-[10px] font-medium tracking-wide text-ink-faint dark:text-zinc-500">
                 غیرفعال
               </span>
             ) : null}
           </div>
-          <p className="text-[11px] text-ink-muted mt-0.5">
-            {price} · {listing.postedAt}
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-ink-muted">
+            <span>
+              {price}
+              <span className="text-ink-faint"> · </span>
+              {listing.postedAt}
+            </span>
             {conversationCount > 0 ? (
-              <span className="nums">
-                {" "}
-                · {toPersianDigits(conversationCount)} گفتگو
+              <span className="inline-flex items-center rounded-md bg-stone-100/90 px-1.5 py-0.5 text-[10px] font-medium text-ink-muted nums dark:bg-zinc-800 dark:text-zinc-400">
+                {toPersianDigits(conversationCount)} گفتگو
               </span>
             ) : null}
           </p>
@@ -1069,28 +1113,28 @@ const EventRow = memo(function EventRow({ event }: { event: CircleEvent }) {
   return (
     <Link
       href={`/event/${event.id}`}
-      className="cv-row flex items-center gap-3 px-3 py-2.5 active:bg-stone-50/80 dark:active:bg-zinc-800/60"
+      className="cv-row flex items-center gap-3 px-3 py-3 transition-colors duration-150 active:bg-stone-50/80 dark:active:bg-zinc-800/60"
     >
-      <div className="w-11 h-11 rounded-xl bg-stone-50 dark:bg-zinc-800 flex items-center justify-center text-xl shrink-0 ring-1 ring-stone-200/50 dark:ring-zinc-700">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-stone-50 text-xl ring-1 ring-stone-200/50 dark:bg-zinc-800 dark:ring-zinc-700">
         {event.image}
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="font-semibold text-[13px] text-ink dark:text-zinc-100 truncate">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] font-semibold text-ink dark:text-zinc-100">
           {eventKindEmoji[event.kind]} {event.title}
         </p>
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-[11px] text-ink-muted">
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-ink-muted">
           <span className="inline-flex items-center gap-1">
-            <CalendarIcon className="w-3 h-3 text-ink-faint" />
+            <CalendarIcon className="h-3 w-3 text-ink-faint" />
             {formatEventDateDisplay(event.date)}
           </span>
           {event.time && (
             <span className="inline-flex items-center gap-1 nums">
-              <ClockIcon className="w-3 h-3 text-ink-faint" />
+              <ClockIcon className="h-3 w-3 text-ink-faint" />
               {toPersianDigits(event.time)}
             </span>
           )}
           <span className="inline-flex items-center gap-1 truncate">
-            <MapPinIcon className="w-3 h-3 text-ink-faint shrink-0" />
+            <MapPinIcon className="h-3 w-3 shrink-0 text-ink-faint" />
             <span className="truncate">{event.location}</span>
           </span>
         </div>
@@ -1113,27 +1157,19 @@ function EmptyCard({
   icon?: "heart" | "plus" | "calendar" | "shield" | "eye";
 }) {
   return (
-    <div className="card px-5 py-7 text-center relative overflow-hidden">
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-20 opacity-60"
-        style={{
-          background:
-            "radial-gradient(ellipse 80% 100% at 50% 0%, rgba(74,58,143,0.08), transparent)",
-        }}
-        aria-hidden
-      />
+    <div className="card relative overflow-hidden px-5 py-7 text-center">
       <div className="relative">
         <div
-          className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3 ring-1 ${
+          className={`mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl ring-1 ${
             icon === "heart"
-              ? "bg-pink-50 dark:bg-pink-500/15 text-pink-600 ring-pink-100 dark:ring-pink-500/20"
+              ? "bg-pink-50 text-pink-600 ring-pink-100 dark:bg-pink-500/15 dark:ring-pink-500/20"
               : icon === "calendar"
                 ? "bg-levelB/10 text-levelB ring-levelB/20"
                 : icon === "shield"
                   ? "bg-levelA/10 text-levelA ring-levelA/20"
                   : icon === "eye"
-                    ? "bg-stone-100 dark:bg-zinc-800 text-ink-muted ring-stone-200/80 dark:ring-zinc-700"
-                    : "bg-brand-50 dark:bg-brand-500/15 text-brand-600 dark:text-brand-300 ring-brand-100 dark:ring-brand-500/25"
+                    ? "bg-stone-100 text-ink-muted ring-stone-200/80 dark:bg-zinc-800 dark:ring-zinc-700"
+                    : "bg-brand-50 text-brand-600 ring-brand-100 dark:bg-brand-500/15 dark:text-brand-300 dark:ring-brand-500/25"
           }`}
         >
           {icon === "heart" ? (
@@ -1148,15 +1184,15 @@ function EmptyCard({
             <PlusIcon className="w-5 h-5" />
           )}
         </div>
-        <p className="text-[14px] font-extrabold text-ink dark:text-zinc-100">
+        <p className="text-[14px] font-semibold text-ink dark:text-zinc-100">
           {title}
         </p>
-        <p className="text-[12px] text-ink-muted dark:text-zinc-400 mt-1.5 leading-relaxed max-w-[16rem] mx-auto">
+        <p className="mx-auto mt-1.5 max-w-[16rem] text-[12px] leading-relaxed text-ink-muted dark:text-zinc-400">
           {text}
         </p>
         <Link
           href={href}
-          className="inline-flex items-center justify-center gap-1.5 mt-4 btn-primary !py-2.5 !px-5 !text-[13px] shadow-md shadow-brand-600/20"
+          className="btn-primary mt-4 inline-flex items-center justify-center gap-1.5 !px-5 !py-2.5 !text-[13px] transition-transform duration-150 ease-out active:scale-[0.97]"
         >
           {cta}
           <span aria-hidden>‹</span>

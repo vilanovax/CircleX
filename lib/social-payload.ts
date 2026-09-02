@@ -3,6 +3,7 @@ import {
   canonicalListingImage,
   isAllowedListingImage,
 } from "./listing-photo";
+import { PHOTO_URL_MAX_LEN } from "./media";
 import { parseArea } from "./place";
 import type {
   BudgetUnit,
@@ -31,7 +32,7 @@ function parseSocialImage(value: unknown, fallback: string): string | null {
   const raw = value.trim();
   const image = raw.startsWith("data:image/")
     ? raw.slice(0, 2_000_000)
-    : canonicalListingImage(raw).slice(0, 240);
+    : canonicalListingImage(raw).slice(0, PHOTO_URL_MAX_LEN);
   if (!isAllowedListingImage(image)) return null;
   return image;
 }

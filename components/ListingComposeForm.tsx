@@ -37,6 +37,7 @@ import {
   type ListingDraft,
 } from "@/lib/listing-draft";
 import { createPolishedListingDraft } from "@/lib/listing-polish";
+import { takeWarehousePhotosForListing } from "@/lib/warehouse-handoff";
 import {
   ClockIcon,
   GiftIcon,
@@ -405,6 +406,21 @@ const ListingComposeForm = forwardRef<
     if (type !== "service") setPriceAgreed(false);
     if (type !== "sale" && type !== "service") setNegotiable(false);
   }, [type]);
+
+  const warehouseHandoffDone = useRef(false);
+  useEffect(() => {
+    if (editMode || warehouseHandoffDone.current) return;
+    warehouseHandoffDone.current = true;
+    const urls = takeWarehousePhotosForListing();
+    if (urls.length > 0) {
+      setPhotos(urls);
+      show(
+        urls.length === 1
+          ? "عکس انبار به آگهی اضافه شد"
+          : `${toPersianDigits(urls.length)} عکس از انبار به آگهی اضافه شد`,
+      );
+    }
+  }, [editMode, show]);
 
   function mergeSpecs(
     computed: DraftSpec[],

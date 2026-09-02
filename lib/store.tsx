@@ -703,9 +703,9 @@ export function StoreProvider({
       const now = Date.now();
       if (now - last < ROSTER_FRESH_MS) return;
       last = now;
-      // Always soft-refresh the slim home feed. After the map has loaded,
-      // keep graph links + FoF people so /api/circle does not undo the cap.
-      void loadHome({ keepGraph: circleFull });
+      // Soft-refresh slim home. Browser may abort fetch after sleep/suspend
+      // (ERR_NETWORK_IO_SUSPENDED) — ignore; next focus/action will retry.
+      void loadHome({ keepGraph: circleFull }).catch(() => {});
     };
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
