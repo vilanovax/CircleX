@@ -1,0 +1,42 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DOCKER_MIRROR: ${DOCKER_MIRROR:-docker-mirror.liara.ir}
+        NPM_LOGLEVEL: ${NPM_LOGLEVEL:-verbose}
+        NEXT_PUBLIC_BASE_PATH: ${NEXT_PUBLIC_BASE_PATH:-}
+        NEXT_PUBLIC_MEDIA_BASE_URL: ${NEXT_PUBLIC_MEDIA_BASE_URL:-}
+        DATABASE_URL: ${DATABASE_URL:-postgresql://build:build@127.0.0.1:5432/build?schema=public}
+    image: circle-app:latest
+    container_name: circle-app
+    restart: unless-stopped
+    ports:
+      - "3005:3000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgresql}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      DATABASE_URL: ${DATABASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
+      COOKIE_SECURE: ${COOKIE_SECURE:-1}
+      OTP_DEV_CODE: ${OTP_DEV_CODE:-}
+      OTP_ALLOW_DEV: ${OTP_ALLOW_DEV:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_NAME: ${ADMIN_NAME:-}
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+      RUN_SEED_ADMIN: ${RUN_SEED_ADMIN:-true}
+    networks:
+      - default
+      - feedbancur_default
+
+networks:
+  feedbancur_default:
+    external: true

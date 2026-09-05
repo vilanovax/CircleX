@@ -18,20 +18,23 @@ npm run dev
 
 ## دیپلوی روی لیارا (Liara)
 
-اپ با `basePath: "/circle"` پیکربندی شده تا روی دامنه زیر مسیر `/circle` باز شود
-(مثلاً `https://circle.liara.run/circle`).
+اپ روی روت دامنه سرو می‌شود (`https://app.mycircle.ir`). برای ساب‌مسیر قدیمی Liara مقدار
+`NEXT_PUBLIC_BASE_PATH=/circle` را قبل از بیلد ست کن.
 
 ```bash
-npm install -g @liara/cli      # نصب CLI
-liara login                    # ورود به حساب لیارا
-# یک اپ از نوع Next.js در پنل لیارا بساز (مثلاً با نام circle)
-liara deploy                   # دیپلوی (تنظیمات از liara.json خوانده می‌شود)
+npm install -g @liara/cli
+liara login
+# در پنل لیارا یک اپ Next.js با شناسه circle بساز
+liara env set --app circle \
+  DATABASE_URL="postgresql://USER:PASSWORD@HOST:5174/circle?schema=public" \
+  SESSION_SECRET="..." \
+  NEXT_PUBLIC_APP_URL="https://app.mycircle.ir" \
+  COOKIE_SECURE=1
+liara deploy
 ```
 
-- نام اپ در [liara.json](liara.json) روی `circle` است؛ اگر اپت نام دیگری دارد،
-  آن را عوض کن یا `liara deploy --app <name>` بزن.
-- لیارا خودش `npm run build` را اجرا می‌کند؛ خروجی به‌صورت خودکار زیر `/circle` سرو می‌شود.
-- آدرس نهایی: `https://<app>.liara.run/circle`
+- تنظیمات استقرار در [liara.json](liara.json) است (Node 20، بیلد ایران، migrate هنگام استارت).
+- دامنه سفارشی: در پنل لیارا `app.mycircle.ir` را اضافه کن و DNS را به CNAME لیارا بزن.
 
 برای بازنشانی داده‌ها، `localStorage` مرورگر را پاک کنید (کلید `circle-store-v1`).
 

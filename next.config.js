@@ -1,7 +1,9 @@
 /** @type {import('next').NextConfig} */
 
-// Served under a sub-path (e.g. https://<app>.liara.run/circle), not the root.
-const basePath = "/circle";
+// Liara used /circle. Production on app.mycircle.ir is the site root.
+// Set NEXT_PUBLIC_BASE_PATH=/circle at build time to restore the sub-path.
+const rawBase = process.env.NEXT_PUBLIC_BASE_PATH?.trim() ?? "";
+const basePath = rawBase === "/" ? "" : rawBase.replace(/\/$/, "");
 
 function mediaHostname() {
   const raw = process.env.NEXT_PUBLIC_MEDIA_BASE_URL?.trim();
@@ -15,7 +17,7 @@ function mediaHostname() {
 
 const nextConfig = {
   reactStrictMode: true,
-  basePath,
+  ...(basePath ? { basePath } : {}),
   experimental: {
     serverComponentsExternalPackages: ["sharp", "@aws-sdk/client-s3"],
   },
@@ -58,6 +60,7 @@ const nextConfig = {
     ];
   },
   async redirects() {
+    if (!basePath) return [];
     return [
       {
         source: "/",

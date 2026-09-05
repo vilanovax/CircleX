@@ -1,9 +1,17 @@
 {
-  "platform": "next",
   "app": "circle",
+  "platform": "next",
   "port": 3000,
+  "nodeVersion": "20",
   "node": {
     "version": "20",
-    "mirror": false
+    "mirror": true
+  },
+  "build": {
+    "location": "iran",
+    "command": "npx prisma generate && next build"
+  },
+  "start": {
+    "command": "npx prisma migrate deploy && npx next start -p 3000"
   }
 }
