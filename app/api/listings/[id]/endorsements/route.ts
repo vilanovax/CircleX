@@ -9,6 +9,7 @@ import { parseEndorsementVisibility, parseEndorsementWrite } from "@/lib/listing
 import { getSessionUser } from "@/lib/server-auth";
 import { viewerMayReadListing } from "@/lib/server-listing-visibility";
 import { viewerHasListingMessages } from "@/lib/server-listing-thread";
+import { notifyEndorsementOpenedListing } from "@/lib/server-notices";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ export async function PUT(
       select: {
         id: true,
         sellerId: true,
+        title: true,
         dealStatus: true,
         privacy: true,
         hideIdentity: true,
@@ -88,6 +90,17 @@ export async function PUT(
           note: parsed.note ?? null,
         },
       });
+      void notifyEndorsementOpenedListing({
+        listingId: listing.id,
+        title: listing.title,
+        sellerId: listing.sellerId,
+        endorserId: session.id,
+        endorserName: session.name,
+        privacy: listing.privacy,
+        dealStatus: listing.dealStatus,
+        hideIdentity: listing.hideIdentity,
+        excludeRelationTypes: listing.excludeRelationTypes,
+      }).catch(() => {});
     }
 
     const row = await prisma.marketListing.findUnique({

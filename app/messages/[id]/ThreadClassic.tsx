@@ -1277,7 +1277,14 @@ function ReferralCard({
   fromMe?: boolean;
 }) {
   const getListing = useStore((s) => s.getListing);
+  const ensureListing = useStore((s) => s.ensureListing);
   const listing = getListing(listingId);
+
+  useEffect(() => {
+    if (listing && !listing.feedPreview) return;
+    void ensureListing(listingId);
+  }, [ensureListing, listing, listingId]);
+
   if (!listing) return null;
   return (
     <Link

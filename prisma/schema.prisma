@@ -289,6 +289,8 @@ model ListingVisibilityGrant {
   grantee   User     @relation("GrantGrantee", fields: [granteeId], references: [id], onDelete: Cascade)
   sourceId  String
   source    User     @relation("GrantSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  /** True only when the forwarded listing was fully open (ABC, not private). */
+  opensCatalog Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

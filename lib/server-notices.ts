@@ -1,3 +1,4 @@
+import { listingBroadcastOpen } from "@/lib/listing-share";
 import { prisma } from "@/lib/db";
 import { CIRCLO_PEER_ID } from "@/lib/circlo";
 import { relativePostedAt } from "@/lib/mappers";
@@ -16,6 +17,7 @@ export const NOTICE_KIND = {
   contentHidden: "content_hidden",
   broadcast: "broadcast",
   addedToCircle: "added_to_circle",
+  listingShare: "listing_share",
 } as const;
 
 function guestLabel(name: string): string {
@@ -279,6 +281,73 @@ export async function notifyDirectCircleListing(opts: {
         actionHref: `/listing/${opts.listingId}`,
         actionLabel: "آگهی",
         actorUserId: opts.sellerId,
+        listingId: opts.listingId,
+      },
+    });
+  }
+}
+
+/** C in B's circle: B vouched an open listing, so it can show in C's feed. */
+export async function notifyEndorsementOpenedListing(opts: {
+  listingId: string;
+  title: string;
+  sellerId: string;
+  endorserId: string;
+  endorserName: string;
+  privacy: string;
+  dealStatus: string | null;
+  hideIdentity: boolean;
+  excludeRelationTypes?: unknown;
+}): Promise<void> {
+  if (!listingBroadcastOpen(opts.privacy, opts.hideIdentity)) return;
+
+  const members = await prisma.circleEdge.findMany({
+    where: { fromUserId: opts.endorserId },
+    select: { toUserId: true },
+    take: CIRCLE_LISTING_FANOUT_CAP,
+  });
+  const viewerIds = members
+    .map((row) => row.toUserId)
+    .filter(
+      (id) => id !== opts.endorserId && id !== opts.sellerId,
+    )
+    .slice(0, CIRCLE_LISTING_FANOUT_CAP);
+  if (viewerIds.length === 0) return;
+
+  const who = guestLabel(opts.endorserName);
+  const body = shortListingTitle(opts.title);
+
+  for (const viewerId of viewerIds) {
+    const visible = await viewerCanSeeListing({
+      viewerId,
+      sellerId: opts.sellerId,
+      privacy: opts.privacy,
+      dealStatus: opts.dealStatus,
+      listingId: opts.listingId,
+      hideIdentity: opts.hideIdentity,
+      excludeRelationTypes: opts.excludeRelationTypes,
+    });
+    if (!visible) continue;
+
+    const already = await prisma.systemNotice.findFirst({
+      where: {
+        userId: viewerId,
+        listingId: opts.listingId,
+        kind: NOTICE_KIND.listingShare,
+      },
+      select: { id: true },
+    });
+    if (already) continue;
+
+    await prisma.systemNotice.create({
+      data: {
+        userId: viewerId,
+        kind: NOTICE_KIND.listingShare,
+        title: `${who} این آگهی را تأیید کرد`,
+        body,
+        actionHref: `/listing/${opts.listingId}`,
+        actionLabel: "آگهی",
+        actorUserId: opts.endorserId,
         listingId: opts.listingId,
       },
     });

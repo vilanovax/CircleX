@@ -25,6 +25,8 @@ export async function recordListingForwardGrant(opts: {
   if (opts.sourceId === opts.sellerId) return;
   if (!listingForwardUnlocksThis(opts.privacy, opts.hideIdentity)) return;
 
+  const opensCatalog = listingBroadcastOpen(opts.privacy, opts.hideIdentity);
+
   await prisma.listingVisibilityGrant.upsert({
     where: {
       listingId_granteeId_sourceId: {
@@ -39,8 +41,9 @@ export async function recordListingForwardGrant(opts: {
       sellerId: opts.sellerId,
       granteeId: opts.granteeId,
       sourceId: opts.sourceId,
+      opensCatalog,
     },
-    update: {},
+    update: { opensCatalog },
   });
 }
 
@@ -50,7 +53,7 @@ export async function sellerReachableViaForward(
 ): Promise<boolean> {
   if (viewerId === sellerId) return true;
   const row = await prisma.listingVisibilityGrant.findFirst({
-    where: { granteeId: viewerId, sellerId },
+    where: { granteeId: viewerId, sellerId, opensCatalog: true },
     select: { id: true },
   });
   return Boolean(row);
@@ -92,7 +95,7 @@ export async function listingVisibleViaShare(opts: {
       granteeId: opts.viewerId,
       OR: [
         ...(forwardThis ? [{ listingId: opts.listingId }] : []),
-        ...(broadcast ? [{ sellerId: opts.sellerId }] : []),
+        ...(broadcast ? [{ sellerId: opts.sellerId, opensCatalog: true }] : []),
       ],
     },
     select: { sourceId: true, listingId: true },
@@ -134,7 +137,7 @@ export async function listingShareHitsForViewer(
           { sellerId: { in: sellerIds } },
         ],
       },
-      select: { listingId: true, sellerId: true, sourceId: true },
+      select: { listingId: true, sellerId: true, sourceId: true, opensCatalog: true },
     }),
   ]);
 
@@ -158,6 +161,7 @@ export async function listingShareHitsForViewer(
         grant.listingId === listing.id &&
         listingForwardUnlocksThis(listing.privacy, listing.hideIdentity);
       const catalog =
+        grant.opensCatalog &&
         grant.sellerId === listing.sellerId &&
         listingBroadcastOpen(listing.privacy, listing.hideIdentity);
       if (!thisListing && !catalog) continue;
@@ -230,6 +234,7 @@ export function sqlListingShareOr(viewerId: string): Prisma.Sql {
           )
           OR (
             g."sellerId" = m."sellerId"
+            AND g."opensCatalog" = true
             AND m."hideIdentity" = false
             AND m.privacy = 'ABC'
           )
