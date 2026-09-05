@@ -286,6 +286,29 @@ function blankMe(): Person {
   return { ...ME, name: "", profileCompletedAt: null };
 }
 
+/** Keep DM peers that a roster replace would otherwise drop. */
+function retainInboxPeople(
+  roster: Person[],
+  previous: Person[],
+  messages: Message[],
+): Person[] {
+  if (messages.length === 0) return roster;
+  const have = new Set(roster.map((p) => p.id));
+  const need = new Set<string>();
+  for (let i = 0; i < messages.length; i++) {
+    const id = messages[i]?.peerId;
+    if (id && !isCircloPeer(id)) need.add(id);
+  }
+  const extra: Person[] = [];
+  for (let i = 0; i < previous.length; i++) {
+    const person = previous[i]!;
+    if (have.has(person.id) || !need.has(person.id)) continue;
+    extra.push(person);
+    have.add(person.id);
+  }
+  return extra.length === 0 ? roster : [...roster, ...extra];
+}
+
 function overlayPeople(prev: Person[], incoming: Person[]): Person[] {
   if (incoming.length === 0) return prev;
   const map = new Map(prev.map((p) => [p.id, p]));
@@ -483,7 +506,7 @@ export function StoreProvider({
         ...(data.network ?? []),
         ...(data.addedYou ?? []),
       ].filter((p) => !isCircloPeer(p.id));
-      const mergedPeople = keepGraph
+      const rosterPeople = keepGraph
         ? overlayPeople(peopleRef.current, incoming)
         : (() => {
             const merged: Person[] = [];
@@ -495,6 +518,11 @@ export function StoreProvider({
             }
             return reusePeopleList(peopleRef.current, merged);
           })();
+      const mergedPeople = retainInboxPeople(
+        rosterPeople,
+        peopleRef.current,
+        messagesRef.current,
+      );
       setPeople(mergedPeople);
       if (data.listings) setListings(data.listings);
       if (data.requests) setRequests(data.requests);

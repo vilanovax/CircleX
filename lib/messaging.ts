@@ -43,14 +43,19 @@ export function canMessageAboutListing(
   if (listing.privatePublish && listing.sellerId !== "me") {
     return canView(listing, getPerson);
   }
+  if (!canView(listing, getPerson) && listing.sellerId !== "me") return false;
+
   // Buyer → seller about this listing
-  if (listing.sellerId === peer.id) {
-    return canView(listing, getPerson);
-  }
+  if (listing.sellerId === peer.id) return true;
 
   // Seller → someone who opened a thread about the seller's own listing
   if (listing.sellerId === "me") {
     return Boolean(getPerson(peer.id));
+  }
+
+  // Viewer ↔ the person who opened this listing to them (forward / vouch).
+  for (let i = 0; i < listing.trustPath.length; i++) {
+    if (listing.trustPath[i]?.personId === peer.id) return true;
   }
 
   return false;

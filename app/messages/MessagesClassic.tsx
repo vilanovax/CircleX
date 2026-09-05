@@ -31,6 +31,7 @@ import { messageSentAt } from "@/lib/mappers";
 import { recalledThreadListing } from "@/lib/thread-listing";
 import {
   circleMemberPerson,
+  inboxUnknownPeer,
   parseThreadKey,
 } from "@/lib/listing-privacy";
 import { chatPeerSubtitle, viaConnectorName } from "@/lib/trust";
@@ -175,8 +176,7 @@ const MessagesBody = memo(function MessagesBody({
         : undefined;
       const peer = last?.peerHidden
         ? circleMemberPerson(peerId, topicListingId)
-        : getPerson(peerId);
-      if (!peer) continue;
+        : getPerson(peerId) ?? inboxUnknownPeer(peerId);
       if (
         q &&
         !peer.name.includes(q) &&

@@ -12,11 +12,12 @@ import {
   useState,
 } from "react";
 import { useStore } from "@/lib/store";
-import { EMPTY_THREAD } from "@/lib/thread-index";
+import { EMPTY_THREAD, resolvePeerThreadKey } from "@/lib/thread-index";
 import {
   circleMemberPerson,
   CIRCLE_MEMBER_NAME,
-  threadKey,
+  inboxUnknownPeer,
+  parseThreadKey,
 } from "@/lib/listing-privacy";
 import Avatar from "@/components/Avatar";
 import ListingImage from "@/components/ListingImage";
@@ -75,11 +76,12 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   const peerId = String(params.id);
   const queryListingId = searchParams.get("listing");
   const scoped = searchParams.get("scoped") === "1";
-  const listingThread = Boolean(queryListingId?.trim()) || scoped;
-  const inboxKey = threadKey(
-    peerId,
-    listingThread ? queryListingId : undefined,
+  const inboxKey = useStore((s) =>
+    resolvePeerThreadKey(s.threadIndex, peerId, queryListingId),
   );
+  const keyListingId = parseThreadKey(inboxKey).listingId;
+  const listingThread =
+    Boolean(queryListingId?.trim()) || scoped || Boolean(keyListingId);
   const thread = useStore(
     (s) => s.threadIndex.threadByPeer.get(inboxKey) ?? EMPTY_THREAD,
   );
@@ -169,7 +171,7 @@ export default function ThreadClassic(_props: { params: { id: string } }) {
   );
   const peer = hidePeer
     ? circleMemberPerson(peerId, activeListingId)
-    : storedPeer;
+    : storedPeer ?? (thread.length > 0 ? inboxUnknownPeer(peerId) : undefined);
   const dealStatus = contextListing?.dealStatus ?? "available";
   const identityShownToPeer = Boolean(
     isSellerOfContext &&

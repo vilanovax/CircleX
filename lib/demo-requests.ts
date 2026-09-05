@@ -5,6 +5,7 @@ import {
   type DemoPersonKey,
 } from "@/lib/demo-circle-catalog";
 import { CIRCLO_PEER_ID } from "@/lib/circlo";
+import { threadKey } from "@/lib/listing-privacy";
 import { relationLabels, relationTowardName } from "@/lib/labels";
 import { messageSentAt, sentAtFromRelative } from "@/lib/mappers";
 import type {
@@ -513,16 +514,21 @@ export function mergeInboxMessages(
   prev: Message[],
   deletedPeerIds: string[],
 ): { messages: Message[]; revivedPeerIds: string[] } {
-  const unreadPeers = new Set(
-    server
-      .filter((m) => !m.fromMe && !m.read)
-      .map((m) => m.peerId),
-  );
-  const revivedPeerIds = deletedPeerIds.filter((id) => unreadPeers.has(id));
+  const unreadKeys = new Set<string>();
+  for (let i = 0; i < server.length; i++) {
+    const m = server[i]!;
+    if (m.fromMe || m.read) continue;
+    unreadKeys.add(m.peerId);
+    unreadKeys.add(threadKey(m.peerId, m.threadListingId));
+  }
+  const revivedPeerIds = deletedPeerIds.filter((id) => unreadKeys.has(id));
   const hide = new Set(
-    deletedPeerIds.filter((id) => !unreadPeers.has(id) && id !== CIRCLO_PEER_ID),
+    deletedPeerIds.filter((id) => !unreadKeys.has(id) && id !== CIRCLO_PEER_ID),
   );
-  const visible = server.filter((m) => !hide.has(m.peerId));
+  const visible = server.filter((m) => {
+    const key = threadKey(m.peerId, m.threadListingId);
+    return !hide.has(m.peerId) && !hide.has(key);
+  });
   const pending = prev.filter((m) => isLocalPendingMessageId(m.id));
   const demo = prev.filter((m) => isDemoMessageId(m.id));
   const messages = [...visible, ...pending, ...demo].sort(

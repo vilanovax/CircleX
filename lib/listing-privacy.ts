@@ -45,6 +45,20 @@ const RELATION_TYPES: RelationType[] = [
   "acquaintance",
 ];
 
+/** Inbox row when the peer is not on the circle roster yet. */
+export function inboxUnknownPeer(id: string): Person {
+  return {
+    id,
+    name: "گفتگو",
+    avatar: "/avatars/01.webp",
+    relation: "acquaintance",
+    level: "C",
+    deals: 0,
+    inMyCircle: false,
+    note: "از پیام",
+  };
+}
+
 export function circleMemberPerson(id: string, listingId?: string): Person {
   const lid = listingId ?? listingIdFromHiddenSeller(id);
   return {

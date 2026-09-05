@@ -72,9 +72,18 @@ function indexKey(msg: Message, topic: string | undefined): string {
   return topic ? threadKey(msg.peerId, topic) : msg.peerId;
 }
 
-/** Open the newest conversation with this peer (listing-scoped when the DMs are). */
-export function peerThreadHref(threadIndex: ThreadIndex, peerId: string): string {
-  let bestKey: string | undefined;
+/**
+ * Inbox key for a peer: honor `?listing=`, else the newest thread with them
+ * (listing-scoped forwards live under `peerId::listingId`, not the bare id).
+ */
+export function resolvePeerThreadKey(
+  threadIndex: ThreadIndex,
+  peerId: string,
+  queryListingId?: string | null,
+): string {
+  const listing = queryListingId?.trim();
+  if (listing) return threadKey(peerId, listing);
+  let bestKey = peerId;
   let bestAt = -1;
   const prefix = `${peerId}::`;
   for (let i = 0; i < threadIndex.peerIds.length; i++) {
@@ -86,7 +95,12 @@ export function peerThreadHref(threadIndex: ThreadIndex, peerId: string): string
     bestAt = at;
     bestKey = key;
   }
-  if (!bestKey) return `/messages/${encodeURIComponent(peerId)}`;
+  return bestKey;
+}
+
+/** Open the newest conversation with this peer (listing-scoped when the DMs are). */
+export function peerThreadHref(threadIndex: ThreadIndex, peerId: string): string {
+  const bestKey = resolvePeerThreadKey(threadIndex, peerId);
   const parsed = parseThreadKey(bestKey);
   if (!parsed.listingId) {
     return `/messages/${encodeURIComponent(parsed.peerId)}`;

@@ -151,6 +151,17 @@ export async function assertCanSendDm(
     const peerIsSeller = listing.sellerId === peerId;
     const viewerIsSeller = listing.sellerId === viewerId;
     if (peerIsSeller || viewerIsSeller || related) return { ok: true };
+    const grant = await prisma.listingVisibilityGrant.findFirst({
+      where: {
+        listingId,
+        OR: [
+          { granteeId: viewerId, sourceId: peerId },
+          { granteeId: peerId, sourceId: viewerId },
+        ],
+      },
+      select: { id: true },
+    });
+    if (grant) return { ok: true };
     return {
       ok: false,
       error: "نمی‌توانی این آگهی را برای این نفر بفرستی",
