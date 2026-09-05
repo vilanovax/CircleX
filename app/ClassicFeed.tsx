@@ -85,9 +85,10 @@ function listingMatchesScope(
   const direct = hidden
     ? Boolean(listing.viewerDirect ?? listing.trustPath.length === 0)
     : listing.trustPath.length === 0;
-  const score = hidden
+  const computed = hidden
     ? (listing.viewerTrustScore ?? 1)
     : trustScore(listing.sellerId, listing.trustPath, getPerson);
+  const score = computed > 0 ? computed : (listing.viewerTrustScore ?? computed);
 
   if (scope === "network") return score > 0;
   if (!direct) return false;

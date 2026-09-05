@@ -82,7 +82,10 @@ export function canView(
   }
   // "approved" also requires a direct connection, not just a high score via path.
   if (poster.privacy === "approved" && poster.trustPath.length > 0) return false;
-  return trustScore(posterId, poster.trustPath, getPerson) >= requiredScore(poster.privacy);
+  const computed = trustScore(posterId, poster.trustPath, getPerson);
+  const score =
+    computed > 0 ? computed : (poster.viewerTrustScore ?? computed);
+  return score >= requiredScore(poster.privacy);
 }
 
 export type TrustContentKind = "listing" | "request" | "event";
