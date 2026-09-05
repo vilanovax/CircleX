@@ -1,4 +1,4 @@
-import { listingAccess } from "@/lib/circle-network";
+import { listingAccess, personFromNetworkUser } from "@/lib/circle-network";
 import { prisma } from "@/lib/db";
 import { jsonError, withDb } from "@/lib/http";
 import { listingEndorsementsInclude, toClientListing } from "@/lib/mappers";
@@ -27,7 +27,6 @@ export async function GET(
 
     const seller = await prisma.user.findUnique({
       where: { id: sellerId },
-      select: { id: true },
     });
     if (!seller) return jsonError("این فرد پیدا نشد", 404);
 
@@ -37,9 +36,6 @@ export async function GET(
       !access.ok && !isMe
         ? await sellerReachableViaForward(session.id, sellerId)
         : false;
-    if (!access.ok && !viaForward) {
-      return jsonError("این فرد از مسیر حلقه‌ات به تو نمی‌رسد", 403);
-    }
 
     const rows = await prisma.marketListing.findMany({
       where: { sellerId },
@@ -78,6 +74,9 @@ export async function GET(
     );
 
     const visibleRows = rows.filter((_, i) => privacyOk[i]);
+    if (!isMe && !access.ok && !viaForward && visibleRows.length === 0) {
+      return jsonError("این فرد از مسیر حلقه‌ات به تو نمی‌رسد", 403);
+    }
     const shareHits = isMe
       ? new Map()
       : await listingShareHitsForViewer(session.id, visibleRows);
@@ -111,6 +110,14 @@ export async function GET(
       });
     });
 
-    return Response.json({ listings });
+    return Response.json({
+      person: personFromNetworkUser(seller, {
+        relation: "acquaintance",
+        level: "C",
+        note: isMe || access.ok ? undefined : "از معرفی",
+        inMyCircle: false,
+      }),
+      listings,
+    });
   });
 }

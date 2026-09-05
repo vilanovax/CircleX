@@ -96,24 +96,37 @@ export default function PersonClassic(_props: { params: { id: string } }) {
   const [contentTab, setContentTab] = useState<ContentTab>("listings");
   const hiddenListings = useStore((s) => s.hiddenListings);
   const personHidden = useStore((s) => s.hiddenPeople.includes(id));
+  const rememberPeople = useStore((s) => s.rememberPeople);
   const [sellerArchive, setSellerArchive] = useState<Listing[]>([]);
+  const [catalogStatus, setCatalogStatus] = useState<"loading" | "ok" | "miss">(
+    "loading",
+  );
 
   useEffect(() => {
     let cancelled = false;
     setSellerArchive([]);
-    void api<{ listings: Listing[] }>(
+    setCatalogStatus("loading");
+    void api<{ listings: Listing[]; person?: Person }>(
       `/api/people/${encodeURIComponent(id)}/listings`,
     )
       .then((data) => {
-        if (!cancelled) setSellerArchive(data.listings);
+        if (cancelled) return;
+        setSellerArchive(data.listings);
+        if (data.person && data.person.id !== "me") {
+          rememberPeople([data.person]);
+        }
+        setCatalogStatus("ok");
       })
       .catch(() => {
-        if (!cancelled) setSellerArchive([]);
+        if (!cancelled) {
+          setSellerArchive([]);
+          setCatalogStatus("miss");
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, rememberPeople]);
 
   const theirListings = useMemo(
     () =>
@@ -209,7 +222,7 @@ export default function PersonClassic(_props: { params: { id: string } }) {
     return out;
   }, [showTrustDetails, wordListings]);
 
-  if (!hydrated) {
+  if (!hydrated || (!person && catalogStatus === "loading")) {
     return (
       <main className="pb-24 min-h-[100dvh]">
         <Header

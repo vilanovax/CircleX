@@ -138,6 +138,10 @@ async function main() {
     hideIdentity: open.hideIdentity,
   });
   if (!(await canSee(C1.id, open))) fail("1: C should see open listing after B vouches");
+  const otherBeforeFwd = await listing(A.id, "ABC", `${PREFIX}other-before-fwd`);
+  if (await canSee(C1.id, otherBeforeFwd)) {
+    fail("1: vouch must not open A's other ads");
+  }
   const feed1 = await loadHomeFeed(C1.id);
   if (!feed1.listings.some((row) => row.id === open.id)) {
     fail("1: open listing should appear in C's feed");

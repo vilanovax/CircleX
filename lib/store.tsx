@@ -143,6 +143,7 @@ export interface StoreValue {
   setShowOwnListingsInFeed: (value: boolean) => Promise<void>;
   profileCompletedAt: string | null;
   getPerson: (id: string) => Person | undefined;
+  rememberPeople: (incoming: Person[]) => void;
   getListing: (id: string) => Listing | undefined;
   ensureListing: (id: string) => Promise<Listing | undefined>;
   getRequest: (id: string) => Request | undefined;
@@ -755,6 +756,10 @@ export function StoreProvider({
     [meProfile, meServerId, personById],
   );
 
+  const rememberPeople = useCallback((incoming: Person[]) => {
+    setPeople((prev) => overlayPeople(prev, incoming));
+  }, []);
+
   const updateProfile = useCallback(
     async (input: Partial<Pick<Person, "name" | "avatar" | "city">>) => {
       const name = (input.name ?? meProfile.name).trim();
@@ -786,9 +791,10 @@ export function StoreProvider({
     const existing = listingsRef.current.find((l) => l.id === id);
     if (existing && !existing.feedPreview) return existing;
     try {
-      const { listing, personalNote } = await api<{
+      const { listing, personalNote, seller } = await api<{
         listing: Listing;
         personalNote?: string | null;
+        seller?: Person | null;
       }>(`/api/listings/${encodeURIComponent(id)}`);
       const current = listingsRef.current.find((row) => row.id === listing.id);
       const next = {
@@ -803,6 +809,9 @@ export function StoreProvider({
           ? prev.map((row) => (row.id === next.id ? next : row))
           : [next, ...prev],
       );
+      if (seller && seller.id !== "me") {
+        setPeople((prev) => overlayPeople(prev, [seller]));
+      }
       if (typeof personalNote === "string" && personalNote.trim()) {
         setListingNotes((prev) =>
           prev[listing.id] === personalNote
@@ -1745,6 +1754,7 @@ export function StoreProvider({
       setShowOwnListingsInFeed,
       profileCompletedAt,
       getPerson,
+      rememberPeople,
       getListing,
       ensureListing,
       getRequest,
@@ -1836,6 +1846,7 @@ export function StoreProvider({
       setShowOwnListingsInFeed,
       profileCompletedAt,
       getPerson,
+      rememberPeople,
       getListing,
       ensureListing,
       getRequest,

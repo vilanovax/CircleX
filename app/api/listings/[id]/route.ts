@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { listingAccess } from "@/lib/circle-network";
+import { listingAccess, personFromNetworkUser } from "@/lib/circle-network";
 import { prisma } from "@/lib/db";
 import { jsonError, readJson, withDb } from "@/lib/http";
 import { listingEndorsementsInclude, toClientListing } from "@/lib/mappers";
@@ -123,6 +123,20 @@ export async function GET(
         ? await trustPathViaBridge(session.id, share.bridgeUserId)
         : access.trustPath;
 
+    const sellerRow =
+      row.sellerId === session.id ||
+      (row.hideIdentity && !flags.revealedIds.has(row.id))
+        ? null
+        : await prisma.user.findUnique({ where: { id: row.sellerId } });
+    const sellerPerson = sellerRow
+      ? personFromNetworkUser(sellerRow, {
+          relation: "acquaintance",
+          level: "C",
+          note: access.ok ? undefined : "از معرفی",
+          inMyCircle: Boolean(viewerEdge),
+        })
+      : null;
+
     return Response.json({
       listing: toClientListing(row, session.id, sharePath, {
         revealed: flags.revealedIds.has(row.id),
@@ -139,6 +153,7 @@ export async function GET(
                 : 0,
       }),
       personalNote: noteRow?.body?.trim() ? noteRow.body : null,
+      seller: sellerPerson,
     });
   });
 }
