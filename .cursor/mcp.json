@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "digikala": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "digikala-mcp"
+      ]
+    }
+  }
+}
